@@ -13,17 +13,17 @@
             font-style: normal;
         }
 
-       body {
-         font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-image: url('Assets/Encendido_BG.png'); /* Background image */
-        background-size: cover;
-        display: flex;
-        flex-direction: column;   
-        align-items: center;     
-        justify-content: flex-start;
-        min-height: 100vh;
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-image: url('Assets/Encendido_BG.png');
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
         }
 
         .container {
@@ -31,23 +31,21 @@
             max-width: 400px;
             padding: 20px 15px;
             margin-top: 20px;
-            background: transparent;      /* inside stays transparent */
-            position: relative;           /* required for the outline */
+            background: transparent;
+            position: relative;       /* Required for gold frame */
             border-radius: 25px;
-
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
         }
 
-/* GOLD OUTLINE AS A FRAME, NO FILL */
+        /* GOLD OUTLINE AS FRAME, NO FILL */
         .container::before {
             content: "";
             position: absolute;
-            inset: 0;                     /* align to container edges */
+            inset: 0;
             border-radius: 25px;
-
-            padding: 4px;                 /* thickness of border */
+            padding: 4px; /* Border thickness */
             background: linear-gradient(
                 135deg,
                 #b8860b,
@@ -56,35 +54,34 @@
                 #ffd700,
                 #b8860b
             );
-
             -webkit-mask:
                 linear-gradient(#000 0 0) content-box,
                 linear-gradient(#000 0 0);
             -webkit-mask-composite: xor;
             mask-composite: exclude;
-
-            pointer-events: none;         /* border does NOT block clicks */
+            pointer-events: none;
         }
 
-/* Media query for very small screens (like older iPhones or smaller Androids) */
-@media (max-width: 375px) {
-    .container {
-        width: 90vw; /* Slightly wider for very small screens */
-        max-width: none; /* Removes the max-width constraint on small devices */
-        padding: 15px 5px; /* Adjust padding for smaller devices */
-    }
-}
+        /* Small screens tweak */
+        @media (max-width: 375px) {
+            .container {
+                width: 90vw;
+                max-width: none;
+                padding: 15px 5px;
+            }
+        }
 
-     #video, #canvas {
-           width: 100%;
-           max-width: 290px; /* Reduced from 300px */
-           aspect-ratio: 3 / 4; /* Optional: Keeps a standard aspect ratio, adjust as needed */
-           display: block; /* Ensure block display for horizontal centering */
-           margin: 0 auto; /* Center horizontally */
-           margin-top: 30px;
-           margin-bottom: 15px;
-           background-color: #000;
-}
+        #video,
+        #canvas {
+            width: 100%;
+            max-width: 290px;
+            aspect-ratio: 4 / 3;
+            display: block;
+            margin: 0 auto;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            background-color: #000;
+        }
 
         button {
             padding: 10px 20px;
@@ -111,7 +108,9 @@
             margin-right: 10px;
         }
 
-        #captureButton, #uploadButton, #retakeButton {
+        #captureButton,
+        #uploadButton,
+        #retakeButton {
             background-color: #3ca360;
             color: white;
             width: 150px;
@@ -130,18 +129,21 @@
             margin-top: 10px;
         }
 
-        /* Footer text */
+        /* Footer text inside frame */
         .footer-text {
             font-size: 12px;
             color: black;
             text-align: center;
             margin-top: 5px;
-            font-weight: bold; /* Makes the text bold */
+            font-weight: bold;
         }
+
+        /* App footer outside frame */
         .app-footer {
             font-size: 10px;
             color: white;
             margin-bottom: 10px;
+            text-align: center;
         }
 
         /* Disclaimer */
@@ -150,7 +152,7 @@
             color: white;
             text-align: center;
             margin-top: 20px;
-            margin-bottom: 0px;
+            margin-bottom: 0;
             line-height: 1.4;
             width: 100%;
         }
@@ -165,20 +167,29 @@
             justify-content: space-between;
             width: 100%;
         }
+
         .logo-wrapper {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        margin-top: 8px;
-    }
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
+        }
 
         #topLogo {
-        width: 75%;          /* scales with container width */
-        max-width: 250px;    /* cap on big screens */
-        height: auto;
-        display: block;
-    }
-        /* Responsive design */
+            width: 45%;
+            max-width: 150px;
+            height: auto;
+            display: block;
+        }
+
+        @media (max-height: 750px) {
+            #topLogo {
+                width: 38%;
+                max-width: 130px;
+            }
+        }
+
+        /* Responsive button tweaks */
         @media (max-width: 600px) {
             button {
                 font-size: 12px;
@@ -189,88 +200,95 @@
                 width: 16px;
             }
         }
+
         /* Intro overlay */
-#introModal {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    display: flex;
-}
+        #introModal {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            display: flex;
+        }
 
-.intro-backdrop {
-    background: rgba(0, 0, 0, 0.75);
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+        .intro-backdrop {
+            background: rgba(0, 0, 0, 0.75);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-.intro-box {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 20px 18px;
-    max-width: 320px;
-    width: 85vw;
-    text-align: center;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-}
+        .intro-box {
+            position: relative;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px 18px;
+            max-width: 320px;
+            width: 85vw;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
 
-.intro-box h2 {
-    margin: 0 0 8px;
-    font-size: 18px;
-}
+        .intro-box h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
 
-.intro-box p {
-    margin: 0 0 16px;
-    font-size: 13px;
-    color: #444;
-}
+        .intro-box p {
+            margin: 0 0 16px;
+            font-size: 13px;
+            color: #444;
+        }
 
-#countryInput,
-#lastNameInput {
-    width: 100%;
-    padding: 8px 10px;
-    margin-bottom: 14px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 14px;
-    box-sizing: border-box;
-}
+        /* Small subtle X to close modal */
+        .intro-close {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 16px;
+            color: #aaaaaa;
+            cursor: pointer;
+            font-weight: bold;
+        }
 
-.intro-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-}
+        .intro-close:hover {
+            color: #888888;
+        }
 
-#skipIntroButton,
-#submitIntroButton {
-    flex: 1;
-    padding: 8px 10px;
-    font-size: 13px;
-    cursor: pointer;
-    border-radius: 6px;
-    border: none;
-    text-transform: uppercase;
-    font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
-}
+        #countryInput,
+        #lastNameInput {
+            width: 100%;
+            padding: 8px 10px;
+            margin-bottom: 14px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
 
-#skipIntroButton {
-    background: #cccccc;
-    color: #222;
-}
-        
-#submitIntroButton:disabled {
-    background: #9e9e9e !important;
-    cursor: not-allowed;
-    opacity: 0.7;
-}
-        
-#submitIntroButton {
-    background: #3ca360;
-    color: #fff;
-}
+        .intro-buttons {
+            display: flex;
+            justify-content: center;
+        }
+
+        #submitIntroButton {
+            padding: 8px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            border: none;
+            text-transform: uppercase;
+            font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+            background: #3ca360;
+            color: #fff;
+            width: 100%;
+        }
+
+        #submitIntroButton:disabled {
+            background: #9e9e9e !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -278,6 +296,9 @@
     <div id="introModal">
         <div class="intro-backdrop">
             <div class="intro-box">
+                <!-- Small X to close (optional form) -->
+                <div class="intro-close" id="introClose">×</div>
+
                 <h2>¿De qué pueblo nos visitas? 😊</h2>
                 <p>Escribe tu municipio o país y tus apellidos, luego continúa a tu selfie.</p>
 
@@ -285,34 +306,37 @@
                 <input type="text" id="lastNameInput" placeholder="Ej. Pérez González">
 
                 <div class="intro-buttons">
-                    <button id="skipIntroButton">SALTAR</button>
                     <button id="submitIntroButton" disabled>CONTINUAR</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Main container -->
     <div class="container">
-    <!-- Top logo inside the frame -->
+        <!-- Top logo inside the frame -->
         <div class="logo-wrapper">
             <img id="topLogo" src="Assets/Logo Mayaguez.png" alt="Logo Mayagüez">
         </div>
-        
+
         <video id="video" autoplay playsinline></video>
         <canvas id="canvas" style="display:none;"></canvas>
+
         <div class="button-group">
             <button id="switchCameraButton">
                 <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
             </button>
             <button id="captureButton">¡TOMAR SELFIE!</button>
         </div>
+
         <div id="additionalButtons" style="display:none; text-align:center;">
             <button id="retakeButton">RETOMAR</button>
             <button id="uploadButton">SUBIR FOTO</button>
         </div>
+
         <div id="errorLog"></div>
 
-        <!-- Footer text -->
+        <!-- Footer text inside frame -->
         <div class="footer-text">Municipio de Mayagüez.</div>
 
         <!-- Disclaimer -->
@@ -322,8 +346,10 @@
             Las imágenes subidas podrán ser utilizadas en las redes sociales del Municipio de Mayagüez.
         </div>
     </div>
+
+    <!-- Brand footer outside frame -->
     <div class="footer-text app-footer">
-      Luminar Apps<br> © 2025 LMNR Group LLC. All rights reserved.
+        Luminar Apps<br>© 2025 LMNR Group LLC. All rights reserved.
     </div>
 
     <script>
@@ -335,19 +361,21 @@
         const switchCameraButton = document.getElementById('switchCameraButton');
         const errorLog = document.getElementById('errorLog');
         const additionalButtons = document.getElementById('additionalButtons');
+
         const introModal = document.getElementById('introModal');
+        const introClose = document.getElementById('introClose');
         const countryInput = document.getElementById('countryInput');
         const lastNameInput = document.getElementById('lastNameInput');
-        const skipIntroButton = document.getElementById('skipIntroButton');
         const submitIntroButton = document.getElementById('submitIntroButton');
 
         let currentFacingMode = 'user'; // Start with front camera
-
         const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
 
         async function setupCamera(facingMode = 'user') {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode }
+                });
                 video.srcObject = stream;
                 await video.play();
             } catch (error) {
@@ -360,42 +388,39 @@
             setupCamera(currentFacingMode);
         }
 
-captureButton.addEventListener('click', () => {
-    // Match canvas to video resolution
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+        captureButton.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
 
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // If using the front camera ("user"), fix the mirror effect
-    if (currentFacingMode === 'user') {
-        ctx.save();
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1); // flip horizontally
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ctx.restore();
-    } else {
-        // Back camera behaves normal
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    }
+            // Fix mirror for front camera
+            if (currentFacingMode === 'user') {
+                ctx.save();
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            } else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
 
-    // Watermark logo
-    const img = new Image();
-    img.src = 'Assets/Logo Mayaguez.png'; // Watermark logo
-    img.onload = () => {
-        const logoWidth = 150;
-        const logoHeight = (logoWidth / img.width) * img.height;
-        const margin = 20;
-        ctx.drawImage(img, (canvas.width - logoWidth) / 2, margin, logoWidth, logoHeight);
-    };
+            // Watermark logo
+            const img = new Image();
+            img.src = 'Assets/Logo Mayaguez.png';
+            img.onload = () => {
+                const logoWidth = 150;
+                const logoHeight = (logoWidth / img.width) * img.height;
+                const margin = 20;
+                ctx.drawImage(img, (canvas.width - logoWidth) / 2, margin, logoWidth, logoHeight);
+            };
 
-    // Switch UI to captured mode
-    video.style.display = 'none';
-    canvas.style.display = 'block';
-    captureButton.style.display = 'none';
-    additionalButtons.style.display = 'block';
-});
+            video.style.display = 'none';
+            canvas.style.display = 'block';
+            captureButton.style.display = 'none';
+            additionalButtons.style.display = 'block';
+        });
 
         retakeButton.addEventListener('click', () => {
             video.style.display = 'block';
@@ -431,57 +456,54 @@ captureButton.addEventListener('click', () => {
         });
 
         switchCameraButton.addEventListener('click', switchCamera);
+
         function startCameraAfterIntro() {
-    introModal.style.display = 'none';
-    setupCamera(currentFacingMode);
-}
-
-// Skip → no email, just camera
-skipIntroButton.addEventListener('click', () => {
-    startCameraAfterIntro();
-});
-        
-function validateIntroForm() {
-    const country = countryInput.value.trim();
-    const lastName = lastNameInput.value.trim();
-
-    // Enable ONLY if both fields have a value
-    submitIntroButton.disabled = !(country && lastName);
-}
-
-countryInput.addEventListener('input', validateIntroForm);
-lastNameInput.addEventListener('input', validateIntroForm);
-        
-submitIntroButton.addEventListener('click', async () => {
-    const country = countryInput.value.trim();
-    const lastName = lastNameInput.value.trim();
-
-    try {
-        // Send only if at least one field has something
-        if (country || lastName) {
-            await fetch(`${BACKEND_URL}/visit`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    country,
-                    lastName,
-                    timestamp: new Date().toISOString()
-                })
-            });
+            introModal.style.display = 'none';
+            setupCamera(currentFacingMode);
         }
-    } catch (err) {
-        console.error('Error sending visit info:', err);
-        // Camera is not blocked if mail fails
-    }
 
-    startCameraAfterIntro();
-});
+        // Small X closes modal (user skips form)
+        introClose.addEventListener('click', () => {
+            startCameraAfterIntro();
+        });
 
-window.addEventListener('load', () => {
-    // Show intro modal first; camera starts after user continues
-    introModal.style.display = 'flex';
-});    </script>
+        function validateIntroForm() {
+            const country = countryInput.value.trim();
+            const lastName = lastNameInput.value.trim();
+            submitIntroButton.disabled = !(country && lastName);
+        }
+
+        countryInput.addEventListener('input', validateIntroForm);
+        lastNameInput.addEventListener('input', validateIntroForm);
+
+        submitIntroButton.addEventListener('click', async () => {
+            const country = countryInput.value.trim();
+            const lastName = lastNameInput.value.trim();
+
+            try {
+                if (country || lastName) {
+                    await fetch(`${BACKEND_URL}/visit`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            country,
+                            lastName,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+                }
+            } catch (err) {
+                console.error('Error sending visit info:', err);
+            }
+
+            startCameraAfterIntro();
+        });
+
+        window.addEventListener('load', () => {
+            introModal.style.display = 'flex';
+        });
+    </script>
 </body>
 </html>
