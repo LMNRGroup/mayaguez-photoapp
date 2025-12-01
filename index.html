@@ -260,7 +260,13 @@
     background: #cccccc;
     color: #222;
 }
-
+        
+#submitIntroButton:disabled {
+    background: #9e9e9e !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+        
 #submitIntroButton {
     background: #3ca360;
     color: #fff;
@@ -280,7 +286,7 @@
 
                 <div class="intro-buttons">
                     <button id="skipIntroButton">SALTAR</button>
-                    <button id="submitIntroButton">CONTINUAR</button>
+                    <button id="submitIntroButton" disabled>CONTINUAR</button>
                 </div>
             </div>
         </div>
@@ -434,7 +440,18 @@ captureButton.addEventListener('click', () => {
 skipIntroButton.addEventListener('click', () => {
     startCameraAfterIntro();
 });
+        
+function validateIntroForm() {
+    const country = countryInput.value.trim();
+    const lastName = lastNameInput.value.trim();
 
+    // Enable ONLY if both fields have a value
+    submitIntroButton.disabled = !(country && lastName);
+}
+
+countryInput.addEventListener('input', validateIntroForm);
+lastNameInput.addEventListener('input', validateIntroForm);
+        
 submitIntroButton.addEventListener('click', async () => {
     const country = countryInput.value.trim();
     const lastName = lastNameInput.value.trim();
