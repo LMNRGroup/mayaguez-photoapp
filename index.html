@@ -202,6 +202,18 @@
         }
 
         /* Intro overlay */
+            @keyframes intro-shake {
+        0%   { transform: translateX(0); }
+        20%  { transform: translateX(-6px); }
+        40%  { transform: translateX(6px); }
+        60%  { transform: translateX(-4px); }
+        80%  { transform: translateX(4px); }
+        100% { transform: translateX(0); }
+    }
+
+    .intro-box.shake {
+        animation: intro-shake 0.35s ease;
+    }
         #introModal {
             position: fixed;
             inset: 0;
@@ -372,6 +384,7 @@
         const lastNameInput = document.getElementById('lastNameInput');
         const submitIntroButton = document.getElementById('submitIntroButton');
         const introError = document.getElementById('introError');
+        const introBox = document.querySelector('.intro-box');
 
         let currentFacingMode = 'user'; // Start with front camera
         const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
@@ -471,16 +484,22 @@
         introClose.addEventListener('click', () => {
             startCameraAfterIntro();
         });
-submitIntroButton.addEventListener('click', async () => {
-    const country = countryInput.value.trim();
-    const lastName = lastNameInput.value.trim();
+        submitIntroButton.addEventListener('click', async () => {
+            const country = countryInput.value.trim();
+            const lastName = lastNameInput.value.trim();
 
-    // If incomplete, show message and do NOT close modal
-    if (!country || !lastName) {
-        introError.textContent = 'Por favor escribe tu municipio o país y tus apellidos para continuar.';
-        return;
-    }
+            // If incomplete, show message and do NOT close modal
+            if (!country || !lastName) {
+            introError.textContent = 'Por favor escribe tu municipio o país y tus apellidos para continuar.';
 
+           
+            introBox.classList.remove('shake');       
+            void introBox.offsetWidth;                
+            introBox.classList.add('shake');
+
+            return;
+            }
+    
     // Clear any previous error
     introError.textContent = '';
 
