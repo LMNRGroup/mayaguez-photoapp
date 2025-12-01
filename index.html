@@ -304,6 +304,14 @@
             font-size: 12px;
             color: #d32f2f; /* red-ish */
         }
+
+        .upload-status {
+            font-size: 11px;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 4px;
+            min-height: 14px; /* keeps layout stable when text appears/disappears */
+        }
     </style>
 </head>
 <body>
@@ -350,6 +358,9 @@
             <button id="uploadButton">SUBIR FOTO</button>
         </div>
 
+        <div id="uploadStatus" class="upload-status"></div>
+        <div id="errorLog"></div>
+
         <div id="errorLog"></div>
 
         <!-- Footer text inside frame -->
@@ -377,7 +388,6 @@
         const switchCameraButton = document.getElementById('switchCameraButton');
         const errorLog = document.getElementById('errorLog');
         const additionalButtons = document.getElementById('additionalButtons');
-
         const introModal = document.getElementById('introModal');
         const introClose = document.getElementById('introClose');
         const countryInput = document.getElementById('countryInput');
@@ -385,6 +395,7 @@
         const submitIntroButton = document.getElementById('submitIntroButton');
         const introError = document.getElementById('introError');
         const introBox = document.querySelector('.intro-box');
+        const uploadStatus = document.getElementById('uploadStatus');
 
         let currentFacingMode = 'user'; // Start with front camera
         const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
@@ -445,9 +456,22 @@
             canvas.style.display = 'none';
             captureButton.style.display = 'inline-block';
             additionalButtons.style.display = 'none';
+
+            // Reset upload UI
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'SUBIR FOTO';
+            uploadStatus.textContent = '';
+            errorLog.textContent = '';
         });
 
         uploadButton.addEventListener('click', async () => {
+            // Prevent double-clicks
+            if (uploadButton.disabled) return;
+
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'SUBIENDO...';
+            uploadStatus.textContent = 'Subiendo foto, por favor espera...';
+
             canvas.toBlob(async (blob) => {
                 try {
                     const response = await fetch(`${BACKEND_URL}/upload`, {
@@ -465,10 +489,18 @@
 
                     const result = await response.json();
                     console.log('Upload successful:', result);
-                    alert(result.message);
+
+                    // UX: confirm success, keep button locked to avoid duplicates
+                    uploadStatus.textContent = 'Foto subida correctamente 🎉';
+                    uploadButton.textContent = 'SUBIDA';
                 } catch (error) {
                     console.error('Upload error:', error);
-                    errorLog.textContent = `Upload error: ${error.message}`;
+                    errorLog.textContent = `Error al subir la foto: ${error.message}`;
+
+                    // Let user try again
+                    uploadButton.disabled = false;
+                    uploadButton.textContent = 'SUBIR FOTO';
+                    uploadStatus.textContent = 'Hubo un error. Intenta nuevamente.';
                 }
             }, 'image/jpeg');
         });
