@@ -164,7 +164,19 @@
             justify-content: space-between;
             width: 100%;
         }
+        .logo-wrapper {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        margin-top: 8px;
+    }
 
+        #topLogo {
+        width: 65%;          /* scales with container width */
+        max-width: 220px;    /* cap on big screens */
+        height: auto;
+        display: block;
+    }
         /* Responsive design */
         @media (max-width: 600px) {
             button {
