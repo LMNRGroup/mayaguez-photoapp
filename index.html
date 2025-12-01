@@ -1,1 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Encendido de Navidad!</title>
+    <style>
+        /* Custom font-face */
+        @font-face {
+            font-family: 'HelveticaNowTextExtraBold';
+            src: url('Assets/HelveticaNowText-ExtraBold.ttf.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
 
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-image: url('Assets/Encendido_BG.png'); /* Background image */
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+        }
+
+          .container {
+            position: center; /* Changed from 'center' to 'relative' */
+            background-image: url('Assets/Container BG Tall.png'); /* Container background */
+            background-size: contain; /* Ensures the whole image is displayed */
+            background-repeat: no-repeat;
+            width: 85vw; /* Width adjusts based on viewport width for better responsiveness */
+            max-width: 400px; /* Maximum width for larger screens */
+            height: auto; /* Let height scale with the width to maintain aspect ratio */
+            aspect-ratio: 3 / 4.5; /* Aspect ratio based on your image's 750x1125 size */
+            box-sizing: border-box;
+            padding: 5px 5px; /* Adjusted padding */
+            margin-top: 20px; /* Adds space from the top of the page */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+}
+
+/* Media query for very small screens (like older iPhones or smaller Androids) */
+@media (max-width: 375px) {
+    .container {
+        width: 90vw; /* Slightly wider for very small screens */
+        max-width: none; /* Removes the max-width constraint on small devices */
+        padding: 15px 5px; /* Adjust padding for smaller devices */
+    }
+}
+
+     #video, #canvas {
+           width: 100%;
+           max-width: 290px; /* Reduced from 300px
+           aspect-ratio: 4 / 3; /* Optional: Keeps a standard aspect ratio, adjust as needed */
+           display: block; /* Ensure block display for horizontal centering */
+           margin: 0 auto; /* Center horizontally */
+           margin-top: 90px; 
+}
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 2px solid white;
+            border-radius: 4px;
+            font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+            text-transform: uppercase;
+        }
+
+        #switchCameraButton {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #292725;
+            color: white;
+            width: 150px;
+        }
+
+        #switchCameraButton img {
+            width: 20px;
+            margin-right: 10px;
+        }
+
+        #captureButton, #uploadButton, #retakeButton {
+            background-color: #3ca360;
+            color: white;
+            width: 150px;
+        }
+
+        #retakeButton {
+            background-color: #e74c3c;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+        }
+
+        #errorLog {
+            color: white;
+            margin-top: 10px;
+        }
+
+        /* Footer text */
+        .footer-text {
+            font-size: 12px;
+            color: black;
+            text-align: center;
+            margin-top: 5px;
+            font-weight: bold; /* Makes the text bold */
+        }
+
+        /* Disclaimer */
+        .disclaimer {
+            font-size: 10px;
+            color: white;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 50px;
+            line-height: 1.4;
+            width: 100%;
+        }
+
+        .disclaimer strong {
+            text-decoration: underline;
+        }
+
+        /* Button group layout */
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        /* Responsive design */
+        @media (max-width: 600px) {
+            button {
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+
+            #switchCameraButton img {
+                width: 16px;
+            }
+        }
+        /* Intro overlay */
+#introModal {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+}
+
+.intro-backdrop {
+    background: rgba(0, 0, 0, 0.75);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.intro-box {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px 18px;
+    max-width: 320px;
+    width: 85vw;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.intro-box h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+
+.intro-box p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #444;
+}
+
+#countryInput,
+#lastNameInput {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.intro-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#skipIntroButton,
+#submitIntroButton {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 6px;
+    border: none;
+    text-transform: uppercase;
+    font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+}
+
+#skipIntroButton {
+    background: #cccccc;
+    color: #222;
+}
+
+#submitIntroButton {
+    background: #3ca360;
+    color: #fff;
+}
+    </style>
+</head>
+<body>
+    <!-- Intro overlay -->
+    <div id="introModal">
+        <div class="intro-backdrop">
+            <div class="intro-box">
+                <h2>¿De qué pueblo nos visitas? 😊</h2>
+                <p>Escribe tu municipio o país y tus apellidos, luego continúa a tu selfie.</p>
+
+                <input type="text" id="countryInput" placeholder="Ej. Mayagüez, Puerto Rico">
+                <input type="text" id="lastNameInput" placeholder="Ej. Pérez González">
+
+                <div class="intro-buttons">
+                    <button id="skipIntroButton">SALTAR</button>
+                    <button id="submitIntroButton">CONTINUAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div class="button-group">
+            <button id="switchCameraButton">
+                <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">SWITCH
+            </button>
+            <button id="captureButton">¡TOMAR SELFIE!</button>
+        </div>
+        <div id="additionalButtons" style="display:none; text-align:center;">
+            <button id="retakeButton">RETOMAR</button>
+            <button id="uploadButton">SUBIR SELFIE</button>
+        </div>
+        <div id="errorLog"></div>
+
+        <!-- Footer text -->
+        <div class="footer-text">Municipio de Mayagüez.</div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            Al tomar una foto, aceptas que será mostrada públicamente en la pantalla durante el evento.
+            <strong>Sube solo contenido apropiado para un ambiente familiar.</strong>
+            Las imágenes subidas podrán ser utilizadas en las redes sociales del Municipio de Mayagüez.
+        </div>
+    </div>
+    <div class="footer-text">
+      Luminar Apps<br> © 2025 LMNR Group LLC. All rights reserved.
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('captureButton');
+        const uploadButton = document.getElementById('uploadButton');
+        const retakeButton = document.getElementById('retakeButton');
+        const switchCameraButton = document.getElementById('switchCameraButton');
+        const errorLog = document.getElementById('errorLog');
+        const additionalButtons = document.getElementById('additionalButtons');
+        const introModal = document.getElementById('introModal');
+        const countryInput = document.getElementById('countryInput');
+        const lastNameInput = document.getElementById('lastNameInput');
+        const skipIntroButton = document.getElementById('skipIntroButton');
+        const submitIntroButton = document.getElementById('submitIntroButton');
+
+        let currentFacingMode = 'user'; // Start with front camera
+
+        const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
+
+        async function setupCamera(facingMode = 'user') {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
+                video.srcObject = stream;
+                await video.play();
+            } catch (error) {
+                errorLog.textContent = `Camera error: ${error.message}`;
+            }
+        }
+
+        function switchCamera() {
+            currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+            setupCamera(currentFacingMode);
+        }
+
+captureButton.addEventListener('click', () => {
+    // Match canvas to video resolution
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // If using the front camera ("user"), fix the mirror effect
+    if (currentFacingMode === 'user') {
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1); // flip horizontally
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    } else {
+        // Back camera behaves normal
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+
+    // Watermark logo
+    const img = new Image();
+    img.src = 'Assets/Logo Mayaguez.png'; // Watermark logo
+    img.onload = () => {
+        const logoWidth = 150;
+        const logoHeight = (logoWidth / img.width) * img.height;
+        const margin = 20;
+        ctx.drawImage(img, (canvas.width - logoWidth) / 2, margin, logoWidth, logoHeight);
+    };
+
+    // Switch UI to captured mode
+    video.style.display = 'none';
+    canvas.style.display = 'block';
+    captureButton.style.display = 'none';
+    additionalButtons.style.display = 'block';
+});
+
+        retakeButton.addEventListener('click', () => {
+            video.style.display = 'block';
+            canvas.style.display = 'none';
+            captureButton.style.display = 'inline-block';
+            additionalButtons.style.display = 'none';
+        });
+
+        uploadButton.addEventListener('click', async () => {
+            canvas.toBlob(async (blob) => {
+                try {
+                    const response = await fetch(`${BACKEND_URL}/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': blob.type,
+                            'X-File-Name': `selfie_${new Date().toISOString().replace(/[:.]/g, '-')}.jpeg`
+                        },
+                        body: blob
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    console.log('Upload successful:', result);
+                    alert(result.message);
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    errorLog.textContent = `Upload error: ${error.message}`;
+                }
+            }, 'image/jpeg');
+        });
+
+        switchCameraButton.addEventListener('click', switchCamera);
+        function startCameraAfterIntro() {
+    introModal.style.display = 'none';
+    setupCamera(currentFacingMode);
+}
+
+// Skip → no email, just camera
+skipIntroButton.addEventListener('click', () => {
+    startCameraAfterIntro();
+});
+
+submitIntroButton.addEventListener('click', async () => {
+    const country = countryInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+
+    try {
+        // Send only if at least one field has something
+        if (country || lastName) {
+            await fetch(`${BACKEND_URL}/visit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    country,
+                    lastName,
+                    timestamp: new Date().toISOString()
+                })
+            });
+        }
+    } catch (err) {
+        console.error('Error sending visit info:', err);
+        // Camera is not blocked if mail fails
+    }
+
+    startCameraAfterIntro();
+});
+
+window.addEventListener('load', () => {
+    // Show intro modal first; camera starts after user continues
+    introModal.style.display = 'flex';
+});    </script>
+</body>
+</html>
