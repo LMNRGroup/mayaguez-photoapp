@@ -45,6 +45,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
   bufferStream.end(fileBuffer);
 
   const response = await drive.files.create({
+    supportsAllDrives: true,
     requestBody: {
       name: originalname,
       mimeType: mimetype,
