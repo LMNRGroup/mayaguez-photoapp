@@ -34,7 +34,7 @@ const jwtClient = new google.auth.JWT(
   credentials.client_email,
   null,
   credentials.private_key,
-  ['https://www.googleapis.com/auth/drive.file']
+  ['https://www.googleapis.com/auth/drive']
 );
 
 // Create a new Drive client
