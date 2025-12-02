@@ -13,6 +13,10 @@
             font-style: normal;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -26,17 +30,36 @@
             min-height: 100vh;
         }
 
+        /* When camera is active → go "full app" */
+        body.camera-full {
+            background-color: #000;
+            background-image: none;
+            justify-content: center;
+            overflow: hidden;
+        }
+
         .container {
             width: 85vw;
             max-width: 400px;
             padding: 20px 15px;
             margin-top: 20px;
             background: transparent;
-            position: relative;       
+            position: relative;
             border-radius: 25px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
+            box-sizing: border-box;
+        }
+
+        /* Full-screen-ish camera layout */
+        body.camera-full .container {
+            width: 100vw;
+            max-width: none;
+            height: 100vh;
+            margin-top: 0;
+            padding: 16px 16px 10px;
+            border-radius: 0;
         }
 
         /* GOLD OUTLINE AS FRAME, NO FILL */
@@ -62,6 +85,10 @@
             pointer-events: none;
         }
 
+        body.camera-full .container::before {
+            border-radius: 0;
+        }
+
         /* Small screens tweak */
         @media (max-width: 375px) {
             .container {
@@ -69,6 +96,36 @@
                 max-width: none;
                 padding: 15px 5px;
             }
+
+            body.camera-full .container {
+                padding: 12px 10px 8px;
+            }
+        }
+
+        .logo-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
+            z-index: 1;
+        }
+
+        #topLogo {
+            width: 75%;
+            max-width: 250px;
+            height: auto;
+            display: block;
+        }
+
+        @media (max-height: 750px) {
+            #topLogo {
+                width: 65%;
+                max-width: 220px;
+            }
+        }
+
+        body.camera-full .logo-wrapper {
+            margin-top: 0;
         }
 
         /* Camera frame: fixed portrait box */
@@ -80,6 +137,15 @@
             background-color: #000;
             position: relative;
             overflow: hidden;
+            border-radius: 12px;
+        }
+
+        body.camera-full .camera-area {
+            max-width: none;
+            width: 100%;
+            flex: 1;
+            margin: 12px auto 10px;
+            border-radius: 0;
         }
 
         /* Video & canvas fill the frame and are cropped */
@@ -91,7 +157,7 @@
             height: 100%;
             margin: 0;
             display: block;
-            object-fit: cover; /* <<< no more black bars */
+            object-fit: cover; /* no more black bars */
             background-color: #000;
         }
 
@@ -101,7 +167,7 @@
             font-size: 14px;
             cursor: pointer;
             border: 2px solid white;
-            border-radius: 4px;
+            border-radius: 999px;
             font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
             text-transform: uppercase;
         }
@@ -173,39 +239,28 @@
             text-decoration: underline;
         }
 
+        body.camera-full .disclaimer {
+            font-size: 9px;
+            margin-top: 8px;
+        }
+
         /* Button group layout */
         .button-group {
             display: flex;
             justify-content: space-between;
             width: 100%;
+            margin-top: 5px;
         }
 
-        .logo-wrapper {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            margin-top: 8px;
+        body.camera-full .button-group {
+            justify-content: space-around;
+            margin-top: 4px;
         }
 
-        #topLogo {
-            width: 75%;
-            max-width: 250px;
-            height: auto;
-            display: block;
-        }
-
-        @media (max-height: 750px) {
-            #topLogo {
-                width: 75%;
-                max-width: 250px;
-            }
-        }
-
-        /* Responsive button tweaks */
         @media (max-width: 600px) {
             button {
                 font-size: 12px;
-                padding: 8px 16px;
+                padding: 8px 14px;
             }
 
             #switchCameraButton img {
@@ -213,19 +268,20 @@
             }
         }
 
-        /* Intro overlay */
-            @keyframes intro-shake {
-        0%   { transform: translateX(0); }
-        20%  { transform: translateX(-6px); }
-        40%  { transform: translateX(6px); }
-        60%  { transform: translateX(-4px); }
-        80%  { transform: translateX(4px); }
-        100% { transform: translateX(0); }
-    }
+        /* -------- Intro overlay + shake -------- */
+        @keyframes intro-shake {
+            0%   { transform: translateX(0); }
+            20%  { transform: translateX(-6px); }
+            40%  { transform: translateX(6px); }
+            60%  { transform: translateX(-4px); }
+            80%  { transform: translateX(4px); }
+            100% { transform: translateX(0); }
+        }
 
-    .intro-box.shake {
-        animation: intro-shake 0.35s ease;
-    }
+        .intro-box.shake {
+            animation: intro-shake 0.35s ease;
+        }
+
         #introModal {
             position: fixed;
             inset: 0;
@@ -245,11 +301,11 @@
         .intro-box {
             background: #ffffff;
             border-radius: 12px;
-            padding: 28px 22px;     
+            padding: 28px 22px;
             max-width: 340px;
-            width: 85vw;    
+            width: 85vw;
             text-align: center;
-            display: flex;  
+            display: flex;
             position: relative;
             flex-direction: column;
             justify-content: flex-start;
@@ -314,7 +370,7 @@
         .intro-error {
             margin-top: 8px;
             font-size: 12px;
-            color: #d32f2f; /* red-ish */
+            color: #d32f2f;
         }
 
         .upload-status {
@@ -322,7 +378,7 @@
             color: #ffffff;
             text-align: center;
             margin-top: 4px;
-            min-height: 14px; /* keeps layout stable when text appears/disappears */
+            min-height: 14px;
         }
     </style>
 </head>
@@ -373,8 +429,6 @@
         </div>
 
         <div id="uploadStatus" class="upload-status"></div>
-        <div id="errorLog"></div>
-
         <div id="errorLog"></div>
 
         <!-- Footer text inside frame -->
@@ -437,14 +491,14 @@
 
           return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
         }
-        
+
         async function setupCamera(facingMode = 'user') {
             try {
                 const constraints = {
                     video: {
                         facingMode,
-                        width:  { ideal: 1080 },   
-                        height: { ideal: 1440 }  
+                        width:  { ideal: 1080 },
+                        height: { ideal: 1440 }
                     }
                 };
 
@@ -462,8 +516,8 @@
             setupCamera(currentFacingMode);
         }
 
-                captureButton.addEventListener('click', () => {
-    // Target portrait resolution for the final photo
+        captureButton.addEventListener('click', () => {
+            // Target portrait resolution for the final photo
             const targetWidth = 1080;
             const targetHeight = 1440; // 3:4 portrait
 
@@ -522,7 +576,7 @@
 
             ctx.restore();
 
-            // ---- Watermark logo on top (same as before) ----
+            // Watermark logo on top
             const img = new Image();
             img.src = 'Assets/Logo Mayaguez.png';
             img.onload = () => {
@@ -603,6 +657,8 @@
 
         function startCameraAfterIntro() {
             introModal.style.display = 'none';
+            // Activate full-screen-ish camera UI
+            document.body.classList.add('camera-full');
             setupCamera(currentFacingMode);
         }
 
@@ -610,44 +666,44 @@
         introClose.addEventListener('click', () => {
             startCameraAfterIntro();
         });
+
         submitIntroButton.addEventListener('click', async () => {
             const country = countryInput.value.trim();
             const lastName = lastNameInput.value.trim();
 
             // If incomplete, show message and do NOT close modal
             if (!country || !lastName) {
-            introError.textContent = 'Por favor escribe tu municipio o país y tus apellidos para continuar.';
+                introError.textContent = 'Por favor escribe tu municipio o país y tus apellidos para continuar.';
 
-           
-            introBox.classList.remove('shake');       
-            void introBox.offsetWidth;                
-            introBox.classList.add('shake');
+                introBox.classList.remove('shake');
+                void introBox.offsetWidth;
+                introBox.classList.add('shake');
 
-            return;
+                return;
             }
-    
-    // Clear any previous error
-    introError.textContent = '';
 
-    try {
-        await fetch(`${BACKEND_URL}/visit`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                country,
-                lastName,
-                timestamp: new Date().toISOString()
-            })
+            // Clear any previous error
+            introError.textContent = '';
+
+            try {
+                await fetch(`${BACKEND_URL}/visit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        country,
+                        lastName,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+            } catch (err) {
+                console.error('Error sending visit info:', err);
+                // Even if email fails, we still let user continue
+            }
+
+            startCameraAfterIntro();
         });
-    } catch (err) {
-        console.error('Error sending visit info:', err);
-        // Even if email fails, we still let user continue
-    }
-
-    startCameraAfterIntro();
-});
 
         window.addEventListener('load', () => {
             introModal.style.display = 'flex';
