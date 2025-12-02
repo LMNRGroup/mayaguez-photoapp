@@ -54,6 +54,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
       mimeType: mimetype,
       body: bufferStream
     },
+    supportsAllDrives: true
   });
 
   return response.data.id;
