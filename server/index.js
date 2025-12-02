@@ -48,7 +48,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     requestBody: {
       name: originalname,
       mimeType: mimetype,
-      parents: ['1ogiP8Y3vVmKvKOcjfq4NvMVCSbQocM68'] // GD ID
+      parents: ['1n7AKxJ7Hc4QMVynY9C3d1fko6H'] // GD ID
     },
     media: {
       mimeType: mimetype,
