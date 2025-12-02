@@ -592,6 +592,600 @@
             errorLog.textContent = '';
         });
 
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Encendido de Navidad!</title>
+    <style>
+        /* Custom font-face */
+        @font-face {
+            font-family: 'HelveticaNowTextExtraBold';
+            src: url('Assets/HelveticaNowText-ExtraBold.ttf.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-image: url('Assets/Encendido_BG.png');
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 85vw;
+            max-width: 400px;
+            padding: 20px 15px;
+            margin-top: 20px;
+            background: transparent;
+            position: relative;       
+            border-radius: 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        /* GOLD OUTLINE AS FRAME, NO FILL */
+        .container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 25px;
+            padding: 4px; /* Border thickness */
+            background: linear-gradient(
+                135deg,
+                #b8860b,
+                #ffd700,
+                #fff3b0,
+                #ffd700,
+                #b8860b
+            );
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* Small screens tweak */
+        @media (max-width: 375px) {
+            .container {
+                width: 90vw;
+                max-width: none;
+                padding: 15px 5px;
+            }
+        }
+
+        /* Camera frame: fixed portrait box */
+        .camera-area {
+            width: 100%;
+            max-width: 300px;
+            aspect-ratio: 3 / 4;
+            margin: 30px auto 15px;
+            background-color: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Video & canvas fill the frame and are cropped */
+        #video,
+        #canvas {
+            position: absolute;
+            inset: 0;          /* top/right/bottom/left = 0 */
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            display: block;
+            object-fit: cover; /* <<< no more black bars */
+            background-color: #000;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 2px solid white;
+            border-radius: 4px;
+            font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+            text-transform: uppercase;
+        }
+
+        #switchCameraButton {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #292725;
+            color: white;
+            width: 150px;
+        }
+
+        #switchCameraButton img {
+            width: 20px;
+            margin-right: 10px;
+        }
+        .button-loading {
+              position: relative;
+              opacity: 0.8;
+            }
+
+        .button-loading::after {
+              content: "";
+              position: absolute;
+              right: 10px;
+              top: 50%;
+              width: 14px;
+              height: 14px;
+              margin-top: -7px;
+              border-radius: 50%;
+              border: 2px solid #fff;
+              border-top-color: transparent;
+              animation: spin 0.7s linear infinite;
+        }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+        #captureButton,
+        #uploadButton,
+        #retakeButton {
+            background-color: #3ca360;
+            color: white;
+            width: 150px;
+        }
+
+        #retakeButton {
+            background-color: #e74c3c;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+        }
+
+        #errorLog {
+            color: white;
+            margin-top: 10px;
+        }
+
+        /* Footer text inside frame */
+        .footer-text {
+            font-size: 12px;
+            color: black;
+            text-align: center;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        /* App footer outside frame */
+        .app-footer {
+            font-size: 10px;
+            color: white;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Disclaimer */
+        .disclaimer {
+            font-size: 10px;
+            color: white;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 0;
+            line-height: 1.4;
+            width: 100%;
+        }
+
+        .disclaimer strong {
+            text-decoration: underline;
+        }
+
+        /* Button group layout */
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .logo-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        #topLogo {
+            width: 75%;
+            max-width: 250px;
+            height: auto;
+            display: block;
+        }
+
+        @media (max-height: 750px) {
+            #topLogo {
+                width: 75%;
+                max-width: 250px;
+            }
+        }
+
+        /* Responsive button tweaks */
+        @media (max-width: 600px) {
+            button {
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+
+            #switchCameraButton img {
+                width: 16px;
+            }
+        }
+
+        /* Intro overlay */
+            @keyframes intro-shake {
+        0%   { transform: translateX(0); }
+        20%  { transform: translateX(-6px); }
+        40%  { transform: translateX(6px); }
+        60%  { transform: translateX(-4px); }
+        80%  { transform: translateX(4px); }
+        100% { transform: translateX(0); }
+    }
+
+    .intro-box.shake {
+        animation: intro-shake 0.35s ease;
+    }
+        #introModal {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            display: flex;
+        }
+
+        .intro-backdrop {
+            background: rgba(0, 0, 0, 0.75);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .intro-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 28px 22px;     
+            max-width: 340px;
+            width: 85vw;    
+            text-align: center;
+            display: flex;  
+            position: relative;
+            flex-direction: column;
+            justify-content: flex-start;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .intro-box h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+
+        .intro-box p {
+            margin: 0 0 16px;
+            font-size: 13px;
+            color: #444;
+        }
+
+        /* Small subtle X to close modal */
+        .intro-close {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 20px;
+            color: #888;
+            cursor: pointer;
+            font-weight: thin;
+        }
+
+        .intro-close:hover {
+            color: #888888;
+        }
+
+        #countryInput,
+        #lastNameInput {
+            width: 100%;
+            padding: 8px 10px;
+            margin-bottom: 14px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .intro-buttons {
+            display: flex;
+            justify-content: center;
+        }
+
+        #submitIntroButton {
+            padding: 8px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            border: none;
+            text-transform: uppercase;
+            font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+            background: #3ca360;
+            color: #fff;
+            width: 100%;
+        }
+
+        .intro-error {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #d32f2f; /* red-ish */
+        }
+
+        .upload-status {
+            font-size: 11px;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 4px;
+            min-height: 14px; /* keeps layout stable when text appears/disappears */
+        }
+    </style>
+</head>
+<body>
+    <!-- Intro overlay -->
+    <div id="introModal">
+        <div class="intro-backdrop">
+            <div class="intro-box">
+                <!-- Small X to close (optional form) -->
+                <div class="intro-close" id="introClose">×</div>
+
+                <h2>¿De qué pueblo nos visitas? 😊</h2>
+                <p>Escribe tu municipio o país y tus apellidos, luego continúa a tu selfie.</p>
+
+                <input type="text" id="countryInput" placeholder="Ej. Mayagüez, Puerto Rico">
+                <input type="text" id="lastNameInput" placeholder="Ej. Pérez González">
+                <!-- NEW EMAIL FIELD -->
+                <input type="email" id="emailInput" placeholder="Correo electrónico" style="margin-bottom:14px;">
+
+                <!-- NEWSLETTER CHECKBOX -->
+                <label style="font-size:12px; color:#444; display:flex; align-items:center; margin-bottom:8px;">
+                    <input type="checkbox" id="newsletterOptIn" style="margin-right:6px;">
+                    Deseo recibir noticias y ofertas de <strong style="margin-left:3px;">Municipio de Mayagüez.</strong>.
+                </label>
+
+                <!-- DISCLAIMER TEXT -->
+                <p style="font-size:10px; color:#666; margin:0 0 14px;">
+                    Tu email será utilizado únicamente si autorizas recibir nuestro boletín.
+                </p>
+
+                <div class="intro-buttons">
+                    <button id="submitIntroButton">CONTINUAR</button>
+                </div>
+                <div id="introError" class="intro-error"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main container -->
+    <div class="container">
+        <!-- Top logo inside the frame -->
+        <div class="logo-wrapper">
+            <img id="topLogo" src="Assets/Logo Mayaguez.png" alt="Logo Mayagüez">
+        </div>
+
+        <div class="camera-area">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+        </div>
+
+        <div class="button-group">
+            <button id="switchCameraButton">
+                <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
+            </button>
+            <button id="captureButton">¡TOMAR SELFIE!</button>
+        </div>
+
+        <div id="additionalButtons" style="display:none; text-align:center;">
+            <button id="retakeButton">RETOMAR</button>
+            <button id="uploadButton">SUBIR FOTO</button>
+        </div>
+
+        <div id="uploadStatus" class="upload-status"></div>
+        <div id="errorLog"></div>
+
+        <div id="errorLog"></div>
+
+        <!-- Footer text inside frame -->
+        <div class="footer-text">Municipio de Mayagüez.</div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            Al tomar una foto, aceptas que será mostrada públicamente en la pantalla durante el evento.
+            <strong>Sube solo contenido apropiado para un ambiente familiar.</strong>
+            Las imágenes subidas podrán ser utilizadas en las redes sociales del Municipio de Mayagüez.
+        </div>
+    </div>
+
+    <!-- Brand footer outside frame -->
+    <div class="footer-text app-footer">
+        Luminar Apps<br>© 2025 LMNR Group LLC. All rights reserved.
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('captureButton');
+        const uploadButton = document.getElementById('uploadButton');
+        const retakeButton = document.getElementById('retakeButton');
+        const switchCameraButton = document.getElementById('switchCameraButton');
+        const errorLog = document.getElementById('errorLog');
+        const additionalButtons = document.getElementById('additionalButtons');
+        const introModal = document.getElementById('introModal');
+        const introClose = document.getElementById('introClose');
+        const countryInput = document.getElementById('countryInput');
+        const lastNameInput = document.getElementById('lastNameInput');
+        const submitIntroButton = document.getElementById('submitIntroButton');
+        const introError = document.getElementById('introError');
+        const introBox = document.querySelector('.intro-box');
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        let currentFacingMode = 'user'; // Start with front camera
+        const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
+
+        let photoCounter = 1;
+        function getPRDate() {
+          // Force GMT-4 regardless of device timezone
+          const now = new Date();
+          const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+          return new Date(utc - 4 * 60 * 60000);
+        }
+
+        function buildPhotoFileName() {
+          const prNow = getPRDate();
+
+          const dd = String(prNow.getDate()).padStart(2, '0');
+          const mm = String(prNow.getMonth() + 1).padStart(2, '0');
+          const yy = String(prNow.getFullYear()).slice(-2);
+          const HH = String(prNow.getHours()).padStart(2, '0');
+          const MM = String(prNow.getMinutes()).padStart(2, '0');
+          const SS = String(prNow.getSeconds()).padStart(2, '0');
+
+          const num = String(photoCounter).padStart(2, '0');
+          photoCounter++;
+
+          return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
+        }
+        
+        async function setupCamera(facingMode = 'user') {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode,
+                        width:  { ideal: 1080 },   
+                        height: { ideal: 1440 }  
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                await video.play();
+                console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
+            } catch (error) {
+                errorLog.textContent = `Camera error: ${error.message}`;
+            }
+        }
+
+        function switchCamera() {
+            currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+            setupCamera(currentFacingMode);
+        }
+
+                captureButton.addEventListener('click', () => {
+    // Target portrait resolution for the final photo
+            const targetWidth = 1080;
+            const targetHeight = 1440; // 3:4 portrait
+
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+
+            if (!vw || !vh) {
+                errorLog.textContent = 'Error: Camera not ready';
+                return;
+            }
+
+            const videoAspect = vw / vh;
+            const canvasAspect = targetWidth / targetHeight;
+
+            let sx, sy, sWidth, sHeight;
+
+            // “cover” crop: fill canvas, cropping extra sides
+            if (videoAspect > canvasAspect) {
+                // video is wider → crop left/right
+                sHeight = vh;
+                sWidth = sHeight * canvasAspect;
+                sx = (vw - sWidth) / 2;
+                sy = 0;
+            } else {
+                // video is taller → crop top/bottom
+                sWidth = vw;
+                sHeight = sWidth / canvasAspect;
+                sx = 0;
+                sy = (vh - sHeight) / 2;
+            }
+
+            ctx.save();
+
+            if (currentFacingMode === 'user') {
+                // mirror front camera
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(
+                    video,
+                    sx, sy, sWidth, sHeight,
+                    0, 0, canvas.width, canvas.height
+                );
+            } else {
+                ctx.drawImage(
+                    video,
+                    sx, sy, sWidth, sHeight,
+                    0, 0, canvas.width, canvas.height
+                );
+            }
+
+            ctx.restore();
+
+            // ---- Watermark logo on top (same as before) ----
+            const img = new Image();
+            img.src = 'Assets/Logo Mayaguez.png';
+            img.onload = () => {
+                const logoWidth = 500;
+                const logoHeight = (logoWidth / img.width) * img.height;
+                const margin = 20;
+                ctx.drawImage(
+                    img,
+                    (canvas.width - logoWidth) / 2,
+                    margin,
+                    logoWidth,
+                    logoHeight
+                );
+            };
+
+            // Switch UI to captured mode
+            video.style.display = 'none';
+            canvas.style.display = 'block';
+            captureButton.style.display = 'none';
+            additionalButtons.style.display = 'block';
+        });
+
+        retakeButton.addEventListener('click', () => {
+            video.style.display = 'block';
+            canvas.style.display = 'none';
+            captureButton.style.display = 'inline-block';
+            additionalButtons.style.display = 'none';
+
+            // Reset upload UI
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'SUBIR FOTO';
+            uploadStatus.textContent = '';
+            errorLog.textContent = '';
+        });
+
         uploadButton.addEventListener('click', async () => {
             // Prevent double-clicks
             if (uploadButton.disabled) return;
@@ -636,6 +1230,61 @@
                 }
             }, 'image/jpeg');
         });
+
+        switchCameraButton.addEventListener('click', switchCamera);
+
+        function startCameraAfterIntro() {
+            introModal.style.display = 'none';
+            setupCamera(currentFacingMode);
+        }
+
+        // Small X closes modal (user skips form)
+        introClose.addEventListener('click', () => {
+            startCameraAfterIntro();
+        });
+        submitIntroButton.addEventListener('click', async () => {
+    const country = countryInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+    const email = document.getElementById('emailInput').value.trim();
+    const newsletter = document.getElementById('newsletterOptIn').checked;
+
+    // Validate required fields
+    if (!country || !lastName || !email) {
+        introError.textContent = 'Por favor completa todos los campos para continuar.';
+        introBox.classList.remove('shake');       
+        void introBox.offsetWidth;                
+        introBox.classList.add('shake');
+        return;
+    }
+
+    introError.textContent = '';
+
+    try {
+        await fetch(`${BACKEND_URL}/visit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                country,
+                lastName,
+                email,
+                newsletter,
+                timestamp: new Date().toISOString()
+            })
+        });
+    } catch (err) {
+        console.error('Error sending visit info:', err);
+    }
+
+    startCameraAfterIntro();
+});
+        window.addEventListener('load', () => {
+            introModal.style.display = 'flex';
+        });
+    </script>
+</body>
+</html>
 
         switchCameraButton.addEventListener('click', switchCamera);
 
