@@ -426,11 +426,18 @@
         
         async function setupCamera(facingMode = 'user') {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: facingMode }
-                });
+                const constraints = {
+                    video: {
+                        facingMode,
+                        width:  { ideal: 1080 },   
+                        height: { ideal: 1440 }  
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 await video.play();
+                console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
             } catch (error) {
                 errorLog.textContent = `Camera error: ${error.message}`;
             }
