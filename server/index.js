@@ -48,7 +48,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     requestBody: {
       name: originalname,
       mimeType: mimetype,
-      parents: ['1d6XifZ835YJ9bA9HegsDx6XtuDJovIMR'] // Your folder 
+      parents: ['0AGWrIF2PPvUAUk9PVA'] // Your folder 
     },
     media: {
       mimeType: mimetype,
