@@ -355,7 +355,7 @@
 
         <div id="additionalButtons" style="display:none; text-align:center;">
             <button id="retakeButton">RETOMAR</button>
-            <button id="uploadButton">SUBIR FOTO</button> <div id="cooldownNotice" style="color: white; margin-top: 6px; font-size: 14px;"></div>
+            <button id="uploadButton">SUBIR FOTO</button>
         </div>
 
         <div id="uploadStatus" class="upload-status"></div>
@@ -380,8 +380,6 @@
     </div>
 
     <script>
-        let uploadCooldown = false;
-        let cooldownSeconds = 60; // Add 1 minute cooldown
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const captureButton = document.getElementById('captureButton');
@@ -492,7 +490,6 @@
 
         uploadButton.addEventListener('click', async () => {
             // Prevent double-clicks
-            if (uploadCooldown) return; // ignore if cooldown active
             if (uploadButton.disabled) return;
 
             uploadButton.disabled = true;
@@ -517,8 +514,6 @@
                     const result = await response.json();
                     console.log('Upload successful:', result);
 
-                    startUploadCooldown();
-
                     // UX: confirm success, keep button locked to avoid duplicates
                     uploadStatus.textContent = '¡Foto subida correctamente!';
                     uploadButton.textContent = 'SUBIDA';
@@ -533,31 +528,7 @@
                 }
             }, 'image/jpeg');
         });
-        
-        function startUploadCooldown() {
-            uploadCooldown = true;
-            uploadButton.disabled = true;
-            retakeButton.disabled = true;
 
-        let remaining = cooldownSeconds;
-        const notice = document.getElementById('cooldownNotice');
-
-            notice.textContent = `Please wait ${remaining} seconds before taking another photo...`;
-
-        const interval = setInterval(() => {
-            remaining--;
-            if (remaining <= 0) {
-              clearInterval(interval);
-              notice.textContent = '';
-              uploadCooldown = false;
-              uploadButton.disabled = false;
-              retakeButton.disabled = false;
-            } else {
-              notice.textContent = `Please wait ${remaining} seconds...`;
-            }
-          }, 1000);
-        }
-        
         switchCameraButton.addEventListener('click', switchCamera);
 
         function startCameraAfterIntro() {
