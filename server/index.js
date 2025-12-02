@@ -144,20 +144,23 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
 // ---------- Visit logging ----------
 app.post('/visit', async (req, res) => {
   try {
-    const { country, lastName, timestamp } = req.body || {};
+    const { country, lastName, email, newsletter, timestamp } = req.body || {};
 
-    console.log('Visit payload:', { country, lastName, timestamp });
+    console.log('Visit payload:', { country, lastName, email, newsletter, timestamp });
 
     if (!mailTransporter) {
       console.log('Mail transporter is not configured, skipping email.');
       return res.status(500).json({ ok: false, error: 'mail_disabled' });
     }
 
-    const subject = 'Nuevo visitante (Selfie App)';
+    const subject = 'Nueva familia registrada (Selfie App)';
     const text =
-      `País / Ciudad: ${country || 'No provisto'}\n` +
-      `Apellidos: ${lastName || 'No provisto'}\n` +
-      `Hora (UTC): ${timestamp || new Date().toISOString()}`;
+      'Una nueva familia ha sido registrada en el sistema.\n\n' +
+      `La familia nos visita desde: ${country || 'No provisto'}\n` +
+      `Apellidos de la familia: ${lastName || 'No provisto'}\n` +
+      `Correo electrónico de la familia: ${email || 'No provisto'}\n` +
+      `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
+      `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
 
     await mailTransporter.sendMail({
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
