@@ -39,16 +39,79 @@ const jwtClient = new google.auth.JWT(
 
 // Create a new Drive client
 const drive = google.drive({ version: 'v3', auth: jwtClient });
+const DRIVE_FOLDER_ID = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs';
 
+// --- Helper: get Puerto Rico time (GMT-4) ---
+function getPRDate() {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utc - 4 * 60 * 60000);
+}
+
+// --- Helper: build filename 01_DD_MM_YY-HH_MM_SS.jpeg ---
+function buildServerFileName(counter) {
+  const prNow = getPRDate();
+
+  const dd = String(prNow.getDate()).padStart(2, '0');
+  const mm = String(prNow.getMonth() + 1).padStart(2, '0');
+  const yy = String(prNow.getFullYear()).slice(-2);
+  const HH = String(prNow.getHours()).padStart(2, '0');
+  const MM = String(prNow.getMinutes()).padStart(2, '0');
+  const SS = String(prNow.getSeconds()).padStart(2, '0');
+
+  const num = String(counter).padStart(2, '0'); // 01, 02, 03, ...
+
+  return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
+}
+
+// --- Helper: read existing files and find next index ---
+async function getNextPhotoIndex() {
+  let pageToken = null;
+  let maxIndex = 0;
+
+  do {
+    const res = await drive.files.list({
+      q: `'${DRIVE_FOLDER_ID}' in parents and trashed = false`,
+      fields: 'files(name), nextPageToken',
+      pageSize: 100,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageToken
+    });
+
+    const files = res.data.files || [];
+    for (const file of files) {
+      const match = /^(\d{2,})_/.exec(file.name);
+      if (match) {
+        const idx = parseInt(match[1], 10);
+        if (!Number.isNaN(idx) && idx > maxIndex) {
+          maxIndex = idx;
+        }
+      }
+    }
+
+    pageToken = res.data.nextPageToken;
+  } while (pageToken);
+
+  return maxIndex + 1;
+}
+
+// --- Main uploader: uses global index ---
 async function uploadFile(fileBuffer, originalname, mimetype) {
   const bufferStream = new stream.PassThrough();
   bufferStream.end(fileBuffer);
 
+  // 1) Look at existing files in the folder and get next number
+  const nextIndex = await getNextPhotoIndex();
+
+  // 2) Build filename like 03_02_12_25-20_15_09.jpeg
+  const finalName = buildServerFileName(nextIndex);
+
   const response = await drive.files.create({
     requestBody: {
-      name: originalname,
+      name: finalName,
       mimeType: mimetype,
-      parents: ['1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs'] // GD ID
+      parents: [DRIVE_FOLDER_ID]
     },
     media: {
       mimeType: mimetype,
@@ -66,7 +129,11 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 
   try {
-    const fileId = await uploadFile(req.body, req.headers['x-file-name'], req.headers['content-type']);
+    const fileId = await uploadFile(
+    req.body,
+    'ignored.jpeg',
+    req.headers['content-type']
+  );
     res.json({ message: 'File uploaded successfully', fileId: fileId });
   } catch (error) {
     console.error('Error uploading file:', error);
