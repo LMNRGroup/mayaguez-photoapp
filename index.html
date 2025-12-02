@@ -119,7 +119,28 @@
             width: 20px;
             margin-right: 10px;
         }
+        .button-loading {
+              position: relative;
+              opacity: 0.8;
+            }
 
+        .button-loading::after {
+              content: "";
+              position: absolute;
+              right: 10px;
+              top: 50%;
+              width: 14px;
+              height: 14px;
+              margin-top: -7px;
+              border-radius: 50%;
+              border: 2px solid #fff;
+              border-top-color: transparent;
+              animation: spin 0.7s linear infinite;
+        }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
         #captureButton,
         #uploadButton,
         #retakeButton {
@@ -575,9 +596,13 @@
             // Prevent double-clicks
             if (uploadButton.disabled) return;
 
-            uploadButton.disabled = true;
-            uploadButton.textContent = 'SUBIENDO...';
-            uploadStatus.textContent = 'Subiendo foto, por favor espera...';
+            uploadStatus.textContent = '¡Foto subida correctamente!';
+            uploadButton.textContent = 'SUBIDA';
+            uploadButton.classList.remove('button-loading');
+
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'SUBIR SELFIE';
+            uploadButton.classList.remove('button-loading');
 
             canvas.toBlob(async (blob) => {
                 try {
