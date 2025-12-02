@@ -400,6 +400,30 @@
         let currentFacingMode = 'user'; // Start with front camera
         const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
 
+        let photoCounter = 1;
+        function getPRDate() {
+          // Force GMT-4 regardless of device timezone
+          const now = new Date();
+          const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+          return new Date(utc - 4 * 60 * 60000);
+        }
+
+        function buildPhotoFileName() {
+          const prNow = getPRDate();
+
+          const dd = String(prNow.getDate()).padStart(2, '0');
+          const mm = String(prNow.getMonth() + 1).padStart(2, '0');
+          const yy = String(prNow.getFullYear()).slice(-2);
+          const HH = String(prNow.getHours()).padStart(2, '0');
+          const MM = String(prNow.getMinutes()).padStart(2, '0');
+          const SS = String(prNow.getSeconds()).padStart(2, '0');
+
+          const num = String(photoCounter).padStart(2, '0');
+          photoCounter++;
+
+          return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
+        }
+        
         async function setupCamera(facingMode = 'user') {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -478,7 +502,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': blob.type,
-                            'X-File-Name': `selfie_${new Date().toISOString().replace(/[:.]/g, '-')}.jpeg`
+                            'X-File-Name': buildPhotoFileName()
                         },
                         body: blob
                     });
@@ -491,7 +515,7 @@
                     console.log('Upload successful:', result);
 
                     // UX: confirm success, keep button locked to avoid duplicates
-                    uploadStatus.textContent = 'Foto subida correctamente 🎉';
+                    uploadStatus.textContent = '¡Foto subida correctamente!';
                     uploadButton.textContent = 'SUBIDA';
                 } catch (error) {
                     console.error('Upload error:', error);
@@ -499,7 +523,7 @@
 
                     // Let user try again
                     uploadButton.disabled = false;
-                    uploadButton.textContent = 'SUBIR FOTO';
+                    uploadButton.textContent = 'SUBIR SELFIE';
                     uploadStatus.textContent = 'Hubo un error. Intenta nuevamente.';
                 }
             }, 'image/jpeg');
