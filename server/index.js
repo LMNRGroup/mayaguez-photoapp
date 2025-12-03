@@ -238,7 +238,8 @@ app.post('/visit', async (req, res) => {
                   style="display:block;height:32px;margin:0 0 6px 0;"
                 />
                 <div style="font-size:10px;color:#aaaaaa;line-height:1.4;">
-                  Este correo fue generado automáticamente por tu aplicación de selfies.
+                  Este correo fue generado automáticamente por Luminar Apps.
+                  Favor no responder a este correo electrónico.
                 </div>
               </td>
             </tr>
