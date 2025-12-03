@@ -182,7 +182,7 @@ app.post('/visit', async (req, res) => {
         <img
           src="${logoUrl}"
           alt="Luminar Apps"
-          style="width:160px; max-width:160px; height:auto; opacity:.9; display:block; margin:20px 0 0 0;"
+          style="width:300px; max-width:300px; height:auto; opacity:.9; display:block; margin:10px 0 0 0;"
         />
       </div>
     `;
