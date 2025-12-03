@@ -77,11 +77,11 @@
             align-items: center;
         }
 
-        /* Camera frame: fixed portrait box */
+        /* Camera frame: fixed 2:3 portrait box */
         .camera-area {
             width: 100%;
             max-width: 300px;
-            aspect-ratio: 3 / 4;
+            aspect-ratio: 2 / 3;         
             margin: 30px auto 15px;
             background-color: #000;
             position: relative;
@@ -423,12 +423,11 @@
         width: 100%;
     }
 
-    /* make camera horizontal and take most of the width */
     .camera-area {
         flex: 0 0 60%;
         max-width: 60%;
-        aspect-ratio: 4 / 3;         /* ⬅ horizontal frame */
-        margin: 20px 10px 20px 20px;  /* a bit to the left */
+        aspect-ratio: 3 / 2;         
+        margin: 20px 10px 20px 20px;
     }
 
     .controls-column {
@@ -630,10 +629,11 @@
 
   // Capture selfie
   captureButton.addEventListener('click', () => {
-    const isLand = isLandscape();
+        const isLand = isLandscape();
 
-    const targetWidth  = isLand ? 1440 : 1080;  // landscape wider
-    const targetHeight = isLand ? 1080 : 1440;  // portrait taller
+        // 3:2 in landscape, 2:3 in portrait
+        const targetWidth  = isLand ? 1500 : 1000;
+        const targetHeight = isLand ? 1000 : 1500;
 
     canvas.width  = targetWidth;
     canvas.height = targetHeight;
