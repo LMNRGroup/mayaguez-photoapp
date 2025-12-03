@@ -157,179 +157,104 @@ app.post('/visit', async (req, res) => {
 
     const subject = 'Nueva familia registrada (Selfie App)';
 
-    // Plain-text fallback (for old email clients)
+    // Plain-text fallback (kept simple)
     const text =
       'Una nueva familia ha sido registrada en el sistema.\n\n' +
       `La familia nos visita desde: ${country || 'No provisto'}\n` +
       `Apellidos de la familia: ${lastName || 'No provisto'}\n` +
       `Correo electrónico de la familia: ${email || 'No provisto'}\n` +
-      `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${
-        newsletter ? 'Sí' : 'No'
-      }\n\n` +
+      `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
       `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
 
-    // Branded HTML version
-    const html = `
-<!DOCTYPE html>
+    // HTML version – left-aligned outer block, inner content centered nicely
+    const html = `<!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Nueva familia registrada</title>
-  <style>
-    /* Intento de usar tu font; algunos clientes (Gmail) pueden ignorarlo,
-       pero no rompe nada y otros (Apple Mail, etc.) sí lo usarán. */
-    @font-face {
-      font-family: 'HelveticaNowTextExtraBold';
-      src: url('https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/HelveticaNowText-ExtraBold.ttf.woff') format('woff');
-      font-weight: 700;
-      font-style: normal;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <title>${subject}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f4f4;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <!-- LEFT aligned main block -->
+        <td align="left" style="padding:24px;">
+          <!-- Card -->
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
+                 style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+            <!-- Header band -->
+            <tr>
+              <td style="padding:20px 24px 16px 24px;background:#c0392b;
+                         border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
+                <div style="font-size:15px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">
+                  NUEVA FAMILIA REGISTRADA
+                </div>
+                <div style="margin-top:4px;font-size:11px;opacity:0.9;">
+                  Selfie App · Municipio de Mayagüez
+                </div>
+              </td>
+            </tr>
 
-    body {
-      margin: 0;
-      padding: 0;
-      background: #f4f4f6;
-      -webkit-font-smoothing: antialiased;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    }
+            <!-- Body -->
+            <tr>
+              <td style="padding:18px 24px 8px 24px;font-size:13px;color:#333333;text-align:left;">
+                <p style="margin:0 0 12px 0;">
+                  Se ha registrado una nueva familia en el sistema:
+                </p>
 
-    .wrapper {
-      width: 100%;
-      padding: 24px 12px;
-      box-sizing: border-box;
-    }
+                <p style="margin:0 0 6px 0;">
+                  <strong>Nos visitan desde:</strong> ${country || 'No provisto'}
+                </p>
 
-    .card {
-      max-width: 620px;
-      margin: 0 auto;
-      background: #ffffff;
-      border-radius: 14px;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-      overflow: hidden;
-    }
+                <p style="margin:0 0 6px 0;">
+                  <strong>Apellidos de la familia:</strong> ${lastName || 'No provisto'}
+                </p>
 
-    .header {
-      padding: 18px 24px 10px;
-      background: linear-gradient(90deg, #b01b2e, #d7443f);
-      color: #ffffff;
-    }
+                <p style="margin:0 0 6px 0;">
+                  <strong>Correo electrónico:</strong>
+                  ${
+                    email
+                      ? `<a href="mailto:${email}" style="color:#0073e6;text-decoration:none;">${email}</a>`
+                      : 'No provisto'
+                  }
+                </p>
 
-    .header-title {
-      font-family: 'HelveticaNowTextExtraBold', 'Segoe UI', sans-serif;
-      font-size: 18px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
+                <p style="margin:0 0 6px 0;">
+                  <strong>Acepta recibir noticias y ofertas:</strong> ${newsletter ? 'Sí' : 'No'}
+                </p>
 
-    .header-chip {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 4px 11px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.16);
-      font-size: 11px;
-    }
+                <p style="margin:10px 0 0 0;font-size:11px;color:#666666;">
+                  <strong>Fecha y hora (UTC):</strong> ${timestamp || new Date().toISOString()}
+                </p>
+              </td>
+            </tr>
 
-    .content {
-      padding: 20px 24px 8px;
-      color: #333333;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    .content p {
-      margin: 0 0 14px;
-    }
-
-    .field-row {
-      margin-bottom: 6px;
-    }
-
-    .field-label {
-      font-weight: 600;
-      color: #444444;
-    }
-
-    .footer {
-      padding: 14px 24px 16px;
-      border-top: 1px solid #eeeeee;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 11px;
-      color: #888888;
-    }
-
-    .footer-logo {
-      display: block;
-      max-height: 26px;
-      width: auto;
-    }
-
-    @media (max-width: 480px) {
-      .card {
-        border-radius: 0;
-      }
-      .header, .content, .footer {
-        padding-left: 16px;
-        padding-right: 16px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="wrapper">
-    <div class="card">
-      <div class="header">
-        <div class="header-title">Nueva familia registrada</div>
-        <div class="header-chip">Selfie App • Municipio de Mayagüez</div>
-      </div>
-
-      <div class="content">
-        <p>Se ha registrado una nueva familia en el sistema:</p>
-
-        <div class="field-row">
-          <span class="field-label">Nos visitan desde:</span>
-          <span> ${country || 'No provisto'}</span>
-        </div>
-
-        <div class="field-row">
-          <span class="field-label">Apellidos de la familia:</span>
-          <span> ${lastName || 'No provisto'}</span>
-        </div>
-
-        <div class="field-row">
-          <span class="field-label">Correo electrónico:</span>
-          <span> ${email || 'No provisto'}</span>
-        </div>
-
-        <div class="field-row">
-          <span class="field-label">Acepta recibir noticias y ofertas:</span>
-          <span> ${newsletter ? 'Sí' : 'No'}</span>
-        </div>
-
-        <div class="field-row" style="margin-top: 10px;">
-          <span class="field-label">Fecha y hora (UTC):</span>
-          <span> ${timestamp || new Date().toISOString()}</span>
-        </div>
-      </div>
-
-      <div class="footer">
-        <img src="${LUMI_LOGO_URL}" alt="Luminar Apps" class="footer-logo" />
-        <span>Este correo fue generado automáticamente por tu aplicación de selfies.</span>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-`;
+            <!-- Footer with logo LEFT and text below -->
+            <tr>
+              <td style="padding:18px 24px 20px 24px;text-align:left;border-top:1px solid #f0f0f0;">
+                <img
+                  src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
+                  alt="Luminar Apps"
+                  style="display:block;height:32px;margin:0 0 6px 0;"
+                />
+                <div style="font-size:10px;color:#aaaaaa;line-height:1.4;">
+                  Este correo fue generado automáticamente por tu aplicación de selfies.
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 
     await mailTransporter.sendMail({
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: process.env.MAIL_TO || process.env.MAIL_USER,
       subject,
-      text,   // Plain TxtEML Fallback
-      html    // Branded Version
+      text,  // plain text fallback
+      html   // branded version
     });
 
     console.log('Email sent OK');
