@@ -184,7 +184,7 @@ app.post('/visit', async (req, res) => {
                         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
             <!-- Header band -->
             <tr>
-              <td style="padding:20px 24px 16px 24px;background:#c0392b;
+              <td style="padding:20px 24px 16px 24px;background:#0a192f; 
                          border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
                 <div style="font-size:15px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">
                   NUEVA FAMILIA REGISTRADA
