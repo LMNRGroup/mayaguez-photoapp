@@ -91,10 +91,9 @@
             height: 100%;
             margin: 0;
             display: block;
-            object-fit: scaleX(1) !important; /* no black bars */
+            object-fit: cover;   /* keep the framing */
             background-color: #000;
         }
-
         button {
             padding: 10px 20px;
             margin: 5px;
@@ -418,7 +417,8 @@
                     placeholder="Correo electrónico"
                     required
                     pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$>
-
+                />
+                    
                 <!-- NEWSLETTER CHECKBOX -->
                 <label class="newsletter-label">
                     <input type="checkbox" id="newsletterOptIn">
@@ -605,23 +605,12 @@
       sx = 0;
       sy = (vh - sHeight) / 2;
     }
-
-    ctx.save();
-      
-    ctx.drawImage(
-    video,
-    sx, sy, sWidth, sHeight,
-    0, 0, canvas.width, canvas.height
+        ctx.save();
+        ctx.drawImage(
+          video,
+          sx, sy, sWidth, sHeight,
+          0, 0, canvas.width, canvas.height
     );
-      
-    else {
-      ctx.drawImage(
-        video,
-        sx, sy, sWidth, sHeight,
-        0, 0, canvas.width, canvas.height
-      );
-    }
-
     ctx.restore();
 
     const img = new Image();
