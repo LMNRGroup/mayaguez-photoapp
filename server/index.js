@@ -4,7 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const stream = require('stream');
 const nodemailer = require('nodemailer');
-
+const path = require('path');
 dotenv.config();
 
 // ---------- Mail setup ----------
@@ -162,15 +162,16 @@ app.post('/visit', async (req, res) => {
       `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
       `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
 
-    // Same content as "text", but in HTML + logo at the bottom
+    // HTML version with logo LEFT-aligned
     const html = `
       <div style="font-family: Arial, sans-serif; font-size:14px; line-height:1.5; white-space:pre-line;">
 ${text}
       </div>
-      <div style="margin-top:18px; text-align:center;">
+
+      <div style="margin-top:10px; text-align:left;">
         <img src="cid:luminarappslogo"
              alt="Luminar Apps"
-             style="max-width:190px; height:auto; display:inline-block;" />
+             style="max-width:140px; height:auto; display:block;" />
       </div>
     `;
 
@@ -178,13 +179,13 @@ ${text}
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: process.env.MAIL_TO || process.env.MAIL_USER,
       subject,
-      text,   // plain-text (unchanged)
-      html,   // HTML version + logo
+      text,   // plain text version
+      html,   // HTML version with inline logo
       attachments: [
         {
-          filename: 'Luminar Apps Horizontal Logo.png',
-          path: 'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png',
-          cid: 'luminarappslogo'
+          filename: 'luminar-logo.png',
+          path: path.join(__dirname, 'assets', 'luminar-logo.png'), // local file
+          cid: 'luminarappslogo' // matches src="cid:luminarappslogo"
         }
       ]
     });
