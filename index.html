@@ -409,41 +409,43 @@
         }
 
         @media (orientation: landscape) {
-            .container {
-                max-width: 950px;
-                margin-top: 10px;
-            }
+    .container {
+        max-width: 1000px;
+        margin-top: 40px; /* push everything down from the logo */
+    }
 
-            .camera-controls-wrapper {
-                flex-direction: row;
-                align-items: center;
-                justify-content: center; /* center the two columns */
-            gap: 25px;               /* clean spacing between camera & buttons */
-            }
+    .camera-controls-wrapper {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 35px; /* spacing between video + buttons */
+        margin-top: 20px; /* extra breathing room from logo */
+    }
 
-            .camera-area {
-                flex: 0 0 auto;
-                width: 65%;              /* more natural width */
-                max-width: 650px;        /* prevent it from becoming too huge */
-                aspect-ratio: 3 / 2;     /* horizontal */
-                margin: 0 auto;          /* <<< THIS CENTERS THE VIDEO CANVAS */
-            }
+    .camera-area {
+        flex: 0 0 auto;
+        width: 75%;              /* BIGGER video area */
+        max-width: 780px;        /* bigger max size */
+        aspect-ratio: 3 / 2;     /* horizontal */
+        margin: 0 auto;          /* stays centered */
+    }
 
-            .controls-column {
-                flex: 0 0 auto;
-                width: 30%;
-                max-width: 280px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
+    .controls-column {
+        flex: 0 0 auto;
+        width: 25%;
+        max-width: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 40px; /* aligns buttons visually with video */
+    }
 
-            .button-group {
-                flex-direction: column;
-                gap: 10px;
-                align-items: center;
-            }
-        }
+    .button-group {
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+    }
+}
     </style>
 </head>
 <body>
