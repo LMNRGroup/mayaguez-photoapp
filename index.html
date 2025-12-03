@@ -594,72 +594,37 @@
     }, 2500);
   }
 
-async function setupCamera(facingMode = 'user') {
-  try {
-    // 🔴 1) Stop any existing stream before opening a new one
-    if (video.srcObject) {
-      video.srcObject.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-    }
+  async function setupCamera(facingMode = 'user') {
+    try {
+      const constraints = {
+        video: {
+          facingMode,
+          width: { ideal: 1080 },
+          height: { ideal: 1440 }
+        }
+      };
 
-    const constraints = {
-      video: {
-        // use ideal facingMode for better compatibility
-        facingMode: { ideal: facingMode },
-        width: { ideal: 1080 },
-        height: { ideal: 1440 }
-      }
-    };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream;
+      await video.play();
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    video.srcObject = stream;
-    await video.play();
-e
-    currentFacingMode = facingMode;
-
-    // Toggle “un-mirror” only for front camera
-    if (currentFacingMode === 'user') {
-      video.classList.add('front-unmirror');
-    } else {
-      video.classList.remove('front-unmirror');
-    }
-
-    console.log(
-      'Camera OK:',
-      currentFacingMode,
-      'resolution:',
-      video.videoWidth,
-      video.videoHeight
-    );
-    errorLog.textContent = '';
-  } catch (error) {
-    console.error('Camera error with mode', facingMode, error);
-    errorLog.textContent =
-      `No se pudo acceder a la cámara ` +
-      (facingMode === 'user' ? 'frontal.' : 'trasera.');
-
-    // 🔁 If back camera fails, fall back to front so app keeps working
-    if (facingMode === 'environment') {
-      try {
-        const fallbackStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'user' },
-            width: { ideal: 1080 },
-            height: { ideal: 1440 }
-          }
-        });
-
-        video.srcObject = fallbackStream;
-        await video.play();
-        currentFacingMode = 'user';
+      // Toggle “un-mirror” only for front camera
+      if (facingMode === 'user') {
         video.classList.add('front-unmirror');
-        errorLog.textContent += ' Usando la cámara frontal.';
-      } catch (err2) {
-        console.error('Fallback front camera also failed', err2);
+      } else {
+        video.classList.remove('front-unmirror');
       }
+
+      console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
+    } catch (error) {
+      errorLog.textContent = `Camera error: ${error.message}`;
     }
   }
-}
+
+  function switchCamera() {
+    currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+    setupCamera(currentFacingMode);
+  }
 // Capture selfie
 captureButton.addEventListener('click', () => {
   const isLand = isLandscape();
@@ -805,10 +770,8 @@ captureButton.addEventListener('click', () => {
     }, 'image/jpeg');
   });
 
-function switchCamera() {
-  const nextMode = currentFacingMode === 'user' ? 'environment' : 'user';
-  setupCamera(nextMode);
-}
+  switchCameraButton.addEventListener('click', switchCamera);
+
   // Intro / registration
   function startCameraAfterIntro() {
     introModal.style.display = 'none';
