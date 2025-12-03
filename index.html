@@ -625,77 +625,88 @@
     currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
     setupCamera(currentFacingMode);
   }
+// Capture selfie
+captureButton.addEventListener('click', () => {
+  const isLand = isLandscape();
 
-  // Capture selfie
-  captureButton.addEventListener('click', () => {
-        const isLand = isLandscape();
+  // 3:2 in landscape, 2:3 in portrait
+  const targetWidth  = isLand ? 1500 : 1000;
+  const targetHeight = isLand ? 1000 : 1500;
 
-        // 3:2 in landscape, 2:3 in portrait
-        const targetWidth  = isLand ? 1500 : 1000;
-        const targetHeight = isLand ? 1000 : 1500;
+  canvas.width  = targetWidth;
+  canvas.height = targetHeight;
 
-    canvas.width  = targetWidth;
-    canvas.height = targetHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
 
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+  if (!vw || !vh) {
+    errorLog.textContent = 'Error: Camera not ready';
+    return;
+  }
 
-    if (!vw || !vh) {
-      errorLog.textContent = 'Error: Camera not ready';
-      return;
-    }
+  const videoAspect  = vw / vh;
+  const canvasAspect = targetWidth / targetHeight;
 
-    const videoAspect  = vw / vh;
-    const canvasAspect = targetWidth / targetHeight;
+  let sx, sy, sWidth, sHeight;
 
-    let sx, sy, sWidth, sHeight;
+  if (videoAspect > canvasAspect) {
+    sHeight = vh;
+    sWidth  = sHeight * canvasAspect;
+    sx      = (vw - sWidth) / 2;
+    sy      = 0;
+  } else {
+    sWidth  = vw;
+    sHeight = sWidth / canvasAspect;
+    sx      = 0;
+    sy      = (vh - sHeight) / 2;
+  }
 
-    if (videoAspect > canvasAspect) {
-      sHeight = vh;
-      sWidth  = sHeight * canvasAspect;
-      sx      = (vw - sWidth) / 2;
-      sy      = 0;
-    } else {
-      sWidth  = vw;
-      sHeight = sWidth / canvasAspect;
-      sx      = 0;
-      sy      = (vh - sHeight) / 2;
-    }
+  ctx.save();
 
-    ctx.save();
-    // Preview is visually adjusted with CSS; draw as-is
-    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
-    ctx.restore();
+  // ✅ Mirror the *captured* image only for the front camera,
+  // so it matches what the user saw in the preview.
+  if (currentFacingMode === 'user') {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
 
-    // Draw logo on top
-    const img = new Image();
-    img.src = 'Assets/Logo Mayaguez.png';
-    img.onload = () => {
-      const logoWidth = 500;
-      const logoHeight = (logoWidth / img.width) * img.height;
-      const margin = 20;
-      ctx.drawImage(
-        img,
-        (canvas.width - logoWidth) / 2,
-        margin,
-        logoWidth,
-        logoHeight
-      );
-    };
+  ctx.drawImage(
+    video,
+    sx, sy, sWidth, sHeight,
+    0, 0, canvas.width, canvas.height
+  );
 
-    // Swap UI: VOLTEAR/TOMAR → RETOMAR/SUBIR
-    video.style.display = 'none';
-    canvas.style.display = 'block';
+  ctx.restore();
 
-    switchCameraButton.style.display = 'none';
-    retakeButton.style.display = 'inline-block';
+  // Draw logo on top (not mirrored)
+  const img = new Image();
+  img.src = 'Assets/Logo Mayaguez.png';
+  img.onload = () => {
+    const logoWidth = 500;
+    const logoHeight = (logoWidth / img.width) * img.height;
+    const margin = 20;
+    ctx.drawImage(
+      img,
+      (canvas.width - logoWidth) / 2,
+      margin,
+      logoWidth,
+      logoHeight
+    );
+  };
 
-    captureButton.style.display = 'none';
-    uploadButton.style.display = 'inline-block';
-  });
+  // Swap UI: VOLTEAR/TOMAR → RETOMAR/SUBIR
+  video.style.display = 'none';
+  canvas.style.display = 'block';
+
+  switchCameraButton.style.display = 'none';
+  retakeButton.style.display = 'inline-block';
+
+  captureButton.style.display = 'none';
+  uploadButton.style.display = 'inline-block';
+});
 
   // Retake
   retakeButton.addEventListener('click', () => {
