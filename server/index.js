@@ -186,11 +186,11 @@ app.post('/visit', async (req, res) => {
             <tr>
               <td style="padding:20px 24px 16px 24px;background:#0a192f; 
                          border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
-                <div style="font-size:15px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">
+                <div style="font-size:18px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">
                   NUEVA FAMILIA REGISTRADA
                 </div>
-                <div style="margin-top:4px;font-size:11px;opacity:0.9;">
-                  Selfie App · Municipio de Mayagüez
+                <div style="margin-top:4px;font-size:10px;opacity:0.9;">
+                  Pantalla Plaza Colón · Selfie App · Municipio de Mayagüez
                 </div>
               </td>
             </tr>
@@ -237,10 +237,10 @@ app.post('/visit', async (req, res) => {
                   alt="Luminar Apps"
                   style="display:block;height:40px;margin:0 auto 6px auto;"
                 />
-                <p style="font-size:10px;color:#aaaaaa;line-height:1.4;margin:0 0 2px 0;">
+                <p style="font-size:9px;color:#aaaaaa;line-height:1.4;margin:0 0 2px 0;">
                   Este correo fue generado automáticamente por Luminar Apps.
                 </p>
-                <p style="font-size:10px;color:#aaaaaa;line-height:1.4;margin:0;">
+                <p style="font-size:9px;color:#aaaaaa;line-height:1.4;margin:0;">
                   Favor no responder a este correo electrónico.
                 </p>
               </td>
