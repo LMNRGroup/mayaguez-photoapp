@@ -442,15 +442,18 @@
             <canvas id="canvas" style="display:none;"></canvas>
         </div>
 
-        <div class="button-group">
+              <div class="button-group">
             <button id="switchCameraButton">
                 <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
             </button>
+
+            <!-- Retake lives in same row/slot, hidden at start -->
+            <button id="retakeButton" style="display:none;">RETOMAR</button>
+        
             <button id="captureButton">¡TOMAR SELFIE!</button>
         </div>
 
         <div id="additionalButtons" style="display:none; text-align:center;">
-            <button id="retakeButton">RETOMAR</button>
             <button id="uploadButton">SUBIR FOTO</button>
         </div>
 
@@ -629,13 +632,21 @@
             canvas.style.display = 'block';
             captureButton.style.display = 'none';
             additionalButtons.style.display = 'block';
-        });
+
+        // NEW: hide VOLTEAR, show RETOMAR in same spot
+            switchCameraButton.style.display = 'none';
+            retakeButton.style.display = 'inline-block';
+            });
 
         retakeButton.addEventListener('click', () => {
             video.style.display = 'block';
             canvas.style.display = 'none';
             captureButton.style.display = 'inline-block';
             additionalButtons.style.display = 'none';
+
+            // NEW: show VOLTEAR again, hide RETOMAR
+            switchCameraButton.style.display = 'flex'; // original layout was flex
+            retakeButton.style.display = 'none';
 
             uploadButton.disabled = false;
             uploadButton.textContent = 'SUBIR FOTO';
