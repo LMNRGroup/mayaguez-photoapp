@@ -408,34 +408,16 @@
             align-items: center;
         }
 
-        /* Landscape: camera & controls side-by-side */
-        @media (orientation: landscape) {
-            .container {
-                max-width: 700px;
-            }
+/* Landscape: camera wide on the left, buttons on the right */
+@media (orientation: landscape) {
+    .container {
+        max-width: 900px;
+        margin-top: 10px;
+    }
 
-            .camera-controls-wrapper {
-                flex-direction: row;
-                align-items: center;
-            }
-
-            .camera-area {
-                max-width: 50%;
-                margin: 10px;
-            }
-
-            .controls-column {
-                max-width: 50%;
-                margin: 10px;
-                align-items: center;
-            }
-
-            .button-group {
-                flex-direction: column;
-                gap: 8px;
-                align-items: center;
-            }
-        }
+    .camera-controls-wrapper {
+        flex-direction: row;
+        align-items:
     </style>
 </head>
 <body>
