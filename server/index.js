@@ -252,13 +252,13 @@ app.post('/visit', async (req, res) => {
   </body>
 </html>`;
 
-    await mailTransporter.sendMail({
-      from: process.env.MAIL_FROM || process.env.MAIL_USER,
-      to: process.env.MAIL_TO || process.env.MAIL_USER,
-      subject,
-      text,
-      html
-    });
+  await mailTransporter.sendMail({
+    from: `"Luminar Apps" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+    to: process.env.MAIL_TO || process.env.MAIL_USER,
+    subject,
+    text,
+    html
+  });
 
     console.log('Email sent OK');
     res.json({ ok: true });
