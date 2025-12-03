@@ -408,45 +408,42 @@
             align-items: center;
         }
 
-/* Landscape: camera wide on the left, buttons on the right */
-@media (orientation: landscape) {
-    .container {
-        max-width: 900px;
-        margin-top: 10px;
-    }
+        @media (orientation: landscape) {
+            .container {
+                max-width: 950px;
+                margin-top: 10px;
+            }
 
-    /* camera + buttons side-by-side */
-    .camera-controls-wrapper {
-        flex-direction: row;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-    }
+            .camera-controls-wrapper {
+                flex-direction: row;
+                align-items: center;
+                justify-content: center; /* center the two columns */
+            gap: 25px;               /* clean spacing between camera & buttons */
+            }
 
-    .camera-area {
-        flex: 0 0 60%;
-        max-width: 60%;
-        aspect-ratio: 3 / 2;         
-        margin: 20px 10px 20px 20px;
-    }
+            .camera-area {
+                flex: 0 0 auto;
+                width: 65%;              /* more natural width */
+                max-width: 650px;        /* prevent it from becoming too huge */
+                aspect-ratio: 3 / 2;     /* horizontal */
+                margin: 0 auto;          /* <<< THIS CENTERS THE VIDEO CANVAS */
+            }
 
-    .controls-column {
-        flex: 0 0 40%;
-        max-width: 40%;
-        margin: 20px 20px 20px 10px;
-        align-items: center;
-    }
+            .controls-column {
+                flex: 0 0 auto;
+                width: 30%;
+                max-width: 280px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
 
-    .button-group {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-    }
-
-    .btn-slot button {
-        width: 100%;
-    }
-}
+            .button-group {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
+            }
+        }
     </style>
 </head>
 <body>
