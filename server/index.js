@@ -154,6 +154,7 @@ app.post('/visit', async (req, res) => {
     }
 
     const subject = 'Nueva familia registrada (Selfie App)';
+
     const text =
       'Una nueva familia ha sido registrada en el sistema.\n\n' +
       `La familia nos visita desde: ${country || 'No provisto'}\n` +
@@ -162,16 +163,27 @@ app.post('/visit', async (req, res) => {
       `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
       `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
 
-    // HTML version with logo LEFT-aligned
-    const html = `
-      <div style="font-family: Arial, sans-serif; font-size:14px; line-height:1.5; white-space:pre-line;">
-${text}
-      </div>
+    // 🔗 Hosted Logo
+    const logoUrl = 'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png';
 
-      <div style="margin-top:10px; text-align:left;">
-        <img src="cid:luminarappslogo"
-             alt="Luminar Apps"
-             style="max-width:140px; height:auto; display:block;" />
+    const html = `
+      <div style="font-family:Arial, sans-serif; font-size:14px; color:#333;">
+        <p>Una nueva familia ha sido registrada en el sistema.</p>
+
+        <p><strong>La familia nos visita desde:</strong> ${country || 'No provisto'}</p>
+        <p><strong>Apellidos de la familia:</strong> ${lastName || 'No provisto'}</p>
+        <p><strong>Correo electrónico de la familia:</strong> ${email || 'No provisto'}</p>
+        <p><strong>Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.:</strong> ${newsletter ? 'Sí' : 'No'}</p>
+
+        <p><strong>Fecha y hora (UTC):</strong> ${timestamp || new Date().toISOString()}</p>
+
+        <br><br>
+
+        <img
+          src="${logoUrl}"
+          alt="Luminar Apps"
+          style="width:160px; max-width:160px; height:auto; opacity:.9; display:block; margin:20px 0 0 0;"
+        />
       </div>
     `;
 
@@ -179,15 +191,9 @@ ${text}
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: process.env.MAIL_TO || process.env.MAIL_USER,
       subject,
-      text,   // plain text version
-      html,   // HTML version with inline logo
-      attachments: [
-        {
-          filename: 'luminar-logo.png',
-          path: path.join(__dirname, 'assets', 'luminar-logo.png'), // local file
-          cid: 'luminarappslogo' // matches src="cid:luminarappslogo"
-        }
-      ]
+      text,
+      html
+    
     });
 
     console.log('Email sent OK');
