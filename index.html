@@ -725,43 +725,60 @@
     showThankYou('Puedes tomar tu selfie cuando estés listo.');
   });
 
-  submitIntroButton.addEventListener('click', async () => {
+submitIntroButton.addEventListener('click', async () => {
+    // prevent double-clicks
+    if (submitIntroButton.disabled) return;
+
     const country = countryInput.value.trim();
     const lastName = lastNameInput.value.trim();
     const email = document.getElementById('emailInput').value.trim();
     const newsletter = document.getElementById('newsletterOptIn').checked;
 
+    // Validate required fields
     if (!country || !lastName || !email) {
-      introError.textContent = 'Por favor completa todos los campos para continuar.';
-      introBox.classList.remove('shake');
-      void introBox.offsetWidth;
-      introBox.classList.add('shake');
-      return;
+        introError.textContent = 'Por favor completa todos los campos para continuar.';
+        introBox.classList.remove('shake');
+        void introBox.offsetWidth;
+        introBox.classList.add('shake');
+        return;
     }
 
     introError.textContent = '';
 
-    try {
-      await fetch(`${BACKEND_URL}/visit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          country,
-          lastName,
-          email,
-          newsletter,
-          timestamp: new Date().toISOString()
-        })
-      });
-    } catch (err) {
-      console.error('Error sending visit info:', err);
-    }
+    // 🔒 Lock button + spinner
+    const originalText = submitIntroButton.textContent;
+    submitIntroButton.disabled = true;
+    submitIntroButton.textContent = 'ENVIANDO...';
+    submitIntroButton.classList.add('button-loading');
 
-    startCameraAfterIntro();
-    showThankYou('¡Gracias por registrarte! Ahora toma tu selfie.');
-  });
+    try {
+        await fetch(`${BACKEND_URL}/visit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                country,
+                lastName,
+                email,
+                newsletter,
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        // success → close modal + toast
+        startCameraAfterIntro();
+        showThankYou('¡Gracias por registrarte! Ahora toma tu selfie.');
+    } catch (err) {
+        console.error('Error sending visit info:', err);
+        introError.textContent = 'Hubo un error al enviar tus datos. Intenta de nuevo.';
+
+        // unlock button so they can retry
+        submitIntroButton.disabled = false;
+        submitIntroButton.textContent = originalText;
+        submitIntroButton.classList.remove('button-loading');
+    }
+});
 
   window.addEventListener('load', () => {
     introModal.style.display = 'flex';
