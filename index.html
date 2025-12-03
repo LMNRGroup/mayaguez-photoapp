@@ -555,6 +555,7 @@
   const thankYouToast = document.getElementById('thankYouToast');
 
   let currentFacingMode = 'user'; // Start with front camera
+    let currentStream = null; // Hols the active MediaStream
   const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
 
   let photoCounter = 1;
@@ -596,15 +597,23 @@
 
   async function setupCamera(facingMode = 'user') {
     try {
+      // ANDROID FIX: stop any previous camera stream before opening a new one
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+
       const constraints = {
         video: {
-          facingMode,
+          facingMode,               // 'user' or 'environment'
           width: { ideal: 1080 },
           height: { ideal: 1440 }
         }
       };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      currentStream = stream;       // keep reference so we can stop it later
+
       video.srcObject = stream;
       await video.play();
 
@@ -617,13 +626,9 @@
 
       console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
     } catch (error) {
+      console.error('Camera error:', error);
       errorLog.textContent = `Camera error: ${error.message}`;
     }
-  }
-
-  function switchCamera() {
-    currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-    setupCamera(currentFacingMode);
   }
 // Capture selfie
 captureButton.addEventListener('click', () => {
