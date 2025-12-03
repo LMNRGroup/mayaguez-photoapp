@@ -166,7 +166,7 @@ app.post('/visit', async (req, res) => {
       `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
       `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
 
-    // HTML version – left-aligned outer block, inner content centered nicely
+    // HTML version
     const html = `<!DOCTYPE html>
 <html>
   <head>
@@ -229,18 +229,20 @@ app.post('/visit', async (req, res) => {
               </td>
             </tr>
 
-            <!-- Footer with logo LEFT and text below -->
+            <!-- Footer with centered logo + text -->
             <tr>
-              <td style="padding:18px 24px 20px 24px;text-align:left;border-top:1px solid #f0f0f0;">
+              <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
                 <img
                   src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
                   alt="Luminar Apps"
-                  style="display:block;height:32px;margin:0 0 6px 0;"
+                  style="display:block;height:40px;margin:0 auto 6px auto;"
                 />
-                <div style="font-size:10px;color:#aaaaaa;line-height:1.4;">
+                <p style="font-size:10px;color:#aaaaaa;line-height:1.4;margin:0 0 2px 0;">
                   Este correo fue generado automáticamente por Luminar Apps.
+                </p>
+                <p style="font-size:10px;color:#aaaaaa;line-height:1.4;margin:0;">
                   Favor no responder a este correo electrónico.
-                </div>
+                </p>
               </td>
             </tr>
           </table>
@@ -254,8 +256,8 @@ app.post('/visit', async (req, res) => {
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: process.env.MAIL_TO || process.env.MAIL_USER,
       subject,
-      text,  // plain text fallback
-      html   // branded version
+      text,
+      html
     });
 
     console.log('Email sent OK');
