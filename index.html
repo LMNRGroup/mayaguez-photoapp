@@ -397,6 +397,37 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+        .controls-column {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+            }
+
+        /* When phone is horizontal */
+        @media (orientation: landscape) {
+          .container {
+            flex-direction: row;
+            align-items: center;
+            max-width: 700px;
+          }
+
+          .camera-area {
+            max-width: 50%;
+            margin: 10px;
+          }
+
+          .controls-column {
+            max-width: 50%;
+            margin: 10px;
+            align-items: center;
+          }
+
+          .button-group {
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -440,7 +471,26 @@
             </div>
         </div>
     </div>
+    
+        <div class="controls-column">
+          <div class="button-group">
+            <div class="btn-slot">
+              <button id="switchCameraButton">
+                <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
+              </button>
+              <button id="retakeButton" style="display:none;">RETOMAR</button>
+            </div>
 
+            <div class="btn-slot">
+              <button id="captureButton">¡TOMAR SELFIE!</button>
+              <button id="uploadButton" style="display:none;">SUBIR FOTO</button>
+            </div>
+          </div>
+
+          <div id="uploadStatus" class="upload-status"></div>
+          <div id="errorLog"></div>
+        </div>
+    
     <!-- Main container -->
     <div class="container">
         <div class="logo-wrapper">
@@ -531,7 +581,11 @@
 
     return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
   }
-
+    
+        function isLandscape() {
+          return window.innerWidth > window.innerHeight;
+        }
+    
   function showThankYou(message) {
     if (!thankYouToast) return;
     thankYouToast.textContent = message;
@@ -565,50 +619,51 @@
     setupCamera(currentFacingMode);
   }
 
-  // --- Capture selfie ---
-  captureButton.addEventListener('click', () => {
-    const targetWidth = 1080;
-    const targetHeight = 1440; // 3:4 portrait
+        captureButton.addEventListener('click', () => {
+          // Decide orientation of the final image
+          const isLand = isLandscape();
 
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
+          const targetWidth  = isLand ? 1440 : 1080;  // landscape wider
+          const targetHeight = isLand ? 1080 : 1440;  // portrait taller
 
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+          canvas.width  = targetWidth;
+          canvas.height = targetHeight;
+        
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
 
-    if (!vw || !vh) {
-      errorLog.textContent = 'Error: Camera not ready';
-      return;
-    }
+          if (!vw || !vh) {
+            errorLog.textContent = 'Error: Camera not ready';
+            return;
+          }
 
-    const videoAspect = vw / vh;
-    const canvasAspect = targetWidth / targetHeight;
+          const videoAspect   = vw / vh;
+          const canvasAspect  = targetWidth / targetHeight;
 
-    let sx, sy, sWidth, sHeight;
+          let sx, sy, sWidth, sHeight;
 
-    if (videoAspect > canvasAspect) {
-      sHeight = vh;
-      sWidth = sHeight * canvasAspect;
-      sx = (vw - sWidth) / 2;
-      sy = 0;
-    } else {
-      sWidth = vw;
-      sHeight = sWidth / canvasAspect;
-      sx = 0;
-      sy = (vh - sHeight) / 2;
-    }
+          if (videoAspect > canvasAspect) {
+            sHeight = vh;
+            sWidth  = sHeight * canvasAspect;
+            sx      = (vw - sWidth) / 2;
+            sy      = 0;
+          } else {
+            sWidth  = vw;
+            sHeight = sWidth / canvasAspect;
+            sx      = 0;
+            sy      = (vh - sHeight) / 2;
+          }
 
-    ctx.save();
-    // draw as-is: preview is already un-mirrored via CSS, canvas is original
-    ctx.drawImage(
-      video,
-      sx, sy, sWidth, sHeight,
-      0, 0, canvas.width, canvas.height
-    );
-    ctx.restore();
+          ctx.save();
+          // preview is already un-mirrored with CSS, so draw as-is
+          ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+
+  // ...  logo draw code stays the same ...
+});
 
     const img = new Image();
     img.src = 'Assets/Logo Mayaguez.png';
