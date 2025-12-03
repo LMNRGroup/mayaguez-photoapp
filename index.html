@@ -413,7 +413,7 @@
 
                 <input type="text" id="countryInput" placeholder="Ej. Mayagüez, Puerto Rico">
                 <input type="text" id="lastNameInput" placeholder="Ej. Pérez González">
-                <input type="email" id="emailInput" placeholder="Correo electrónico">
+                <input type="email" id="emailInput" placeholder="Correo electrónico"requiredpattern="^[^@\s]+@[^@\s]+\.[^@\s]+$>
 
                 <!-- NEWSLETTER CHECKBOX -->
                 <label class="newsletter-label">
@@ -733,6 +733,15 @@ submitIntroButton.addEventListener('click', async () => {
     const lastName = lastNameInput.value.trim();
     const email = document.getElementById('emailInput').value.trim();
     const newsletter = document.getElementById('newsletterOptIn').checked;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+        introError.textContent = 'Por favor escribe un correo electrónico válido.';
+        introBox.classList.remove('shake');
+        void introBox.offsetWidth;
+        introBox.classList.add('shake');
+        return;
+    }
 
     // Validate required fields
     if (!country || !lastName || !email) {
