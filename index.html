@@ -1,3 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Encendido de Navidad!</title>
+    <style>
+        /* Custom font-face */
+        @font-face {
+            font-family: 'HelveticaNowTextExtraBold';
+            src: url('Assets/HelveticaNowText-ExtraBold.ttf.woff') format('woff');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-image: url('Assets/Encendido_BG.png');
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 85vw;
+            max-width: 400px;
+            padding: 20px 15px;
+            margin-top: 20px;
+            background: transparent;
+            position: relative;
+            border-radius: 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        /* GOLD OUTLINE AS FRAME, NO FILL */
+        .container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 25px;
+            padding: 4px; /* Border thickness */
+            background: linear-gradient(
+                135deg,
+                #b8860b,
+                #ffd700,
+                #fff3b0,
+                #ffd700,
+                #b8860b
+            );
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* Small screens tweak */
+        @media (max-width: 375px) {
+            .container {
+                width: 90vw;
+                max-width: none;
+                padding: 15px 5px;
+            }
+        }
+
+        /* Camera frame: fixed portrait box */
+        .camera-area {
+            width: 100%;
+            max-width: 300px;
+            aspect-ratio: 3 / 4;
+            margin: 30px auto 15px;
+            background-color: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Video & canvas fill the frame and are cropped */
+        #video,
+        #canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            display: block;
+            object-fit: cover; /* no black bars */
+            background-color: #000;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 2px solid white;
+            border-radius: 4px;
+            font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+            text-transform: uppercase;
+        }
+
+        #switchCameraButton {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #292725;
+            color: white;
+            width: 150px;
+        }
+
+        #switchCameraButton img {
+            width: 20px;
+            margin-right: 10px;
+        }
+
+        #captureButton,
+        #uploadButton,
+        #retakeButton {
+            background-color: #3ca360;
+            color: white;
+            width: 150px;
+        }
+
+        #retakeButton {
+            background-color: #e74c3c;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+        }
+
+        /* Upload loading spinner on button */
+        .button-loading {
+            position: relative;
+            opacity: 0.8;
+        }
+
+        .button-loading::after {
+            content: "";
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            width: 14px;
+            height: 14px;
+            margin-top: -7px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #errorLog {
+            color: white;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+
+        /* Footer text inside frame */
+        .footer-text {
+            font-size: 12px;
+            color: black;
+            text-align: center;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        /* App footer outside frame */
+        .app-footer {
+            font-size: 10px;
+            color: white;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Disclaimer */
+        .disclaimer {
+            font-size: 10px;
+            color: white;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 0;
+            line-height: 1.4;
+            width: 100%;
+        }
+
+        .disclaimer strong {
+            text-decoration: underline;
+        }
+
+        /* Button group layout */
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .btn-slot {
+            position: relative;
+        }
+            .btn-slot button {
+            width: 150px; /* same width you’re already using */
+        }
+
+        .logo-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        #topLogo {
+            width: 75%;
+            max-width: 250px;
+            height: auto;
+            display: block;
+        }
+
+        @media (max-height: 750px) {
+            #topLogo {
+                width: 75%;
+                max-width: 250px;
+            }
+        }
+
+        /* Responsive button tweaks */
+        @media (max-width: 600px) {
+            button {
+                font-size: 12px;
+                padding: 8px 16px;
+            }
+
+            #switchCameraButton img {
+                width: 16px;
+            }
+        }
+
+        /* Intro overlay */
+        @keyframes intro-shake {
+            0%   { transform: translateX(0); }
+            20%  { transform: translateX(-6px); }
+            40%  { transform: translateX(6px); }
+            60%  { transform: translateX(-4px); }
+            80%  { transform: translateX(4px); }
+            100% { transform: translateX(0); }
+        }
+
+        .intro-box.shake {
+            animation: intro-shake 0.35s ease;
+        }
+
+        #introModal {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            display: flex;
+        }
+
+        .intro-backdrop {
+            background: rgba(0, 0, 0, 0.75);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .intro-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 28px 22px;
+            max-width: 340px;
+            width: 85vw;
+            text-align: center;
+            display: flex;
+            position: relative;
+            flex-direction: column;
+            justify-content: flex-start;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .intro-box h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+
+        .intro-box p {
+            margin: 0 0 16px;
+            font-size: 13px;
+            color: #444;
+        }
+
+        /* Small subtle X to close modal */
+        .intro-close {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 20px;
+            color: #888;
+            cursor: pointer;
+            font-weight: thin;
+        }
+
+        .intro-close:hover {
+            color: #888888;
+        }
+
+        /* All three inputs same style */
+        #countryInput,
+        #lastNameInput,
+        #emailInput {
+            width: 100%;
+            padding: 8px 10px;
+            margin-bottom: 14px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .intro-buttons {
+            display: flex;
+            justify-content: center;
+        }
+
+        #submitIntroButton {
+            padding: 8px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            border: none;
+            text-transform: uppercase;
+            font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+            background: #3ca360;
+            color: #fff;
+            width: 100%;
+        }
+
+        .intro-error {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #d32f2f; /* red-ish */
+        }
+
+        .upload-status {
+            font-size: 11px;
+            color: #ffffff;
+            text-align: center;
+            margin-top: 4px;
+            min-height: 14px; /* keeps layout stable when text appears/disappears */
+        }
+
+        /* Newsletter label clean layout */
+        .newsletter-label {
+            font-size: 12px;
+            color: #444;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        .newsletter-label input {
+            margin-top: 2px;
+        }
+
+        /* THANK YOU TOAST */
+        .thank-you-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 20px;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-size: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            z-index: 1000;
+            text-align: center;
+            max-width: 90vw;
+        }
+
+        .thank-you-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Intro overlay -->
+    <div id="introModal">
+        <div class="intro-backdrop">
+            <div class="intro-box">
+                <!-- Small X to close (optional form) -->
+                <div class="intro-close" id="introClose">×</div>
+
+                <h2>¿De qué pueblo nos visitas? 😊</h2>
+                <p>Escribe tu municipio o país y tus apellidos, luego continúa a tu selfie.</p>
+
+                <input type="text" id="countryInput" placeholder="Ej. Mayagüez, Puerto Rico">
+                <input type="text" id="lastNameInput" placeholder="Ej. Pérez González">
+                <input type="email" id="emailInput" placeholder="Correo electrónico">
+
+                <!-- NEWSLETTER CHECKBOX -->
+                <label class="newsletter-label">
+                    <input type="checkbox" id="newsletterOptIn">
+                    <span>
+                        Deseo recibir noticias y ofertas de
+                        <strong>Municipio de Mayagüez.</strong>
+                    </span>
+                </label>
+
+                <!-- DISCLAIMER TEXT -->
+                <p style="font-size:10px; color:#666; margin:0 0 14px;">
+                    Tu email será utilizado únicamente si autorizas recibir nuestro boletín.
+                </p>
+
+                <div class="intro-buttons">
+                    <button id="submitIntroButton">CONTINUAR</button>
+                </div>
+                <div id="introError" class="intro-error"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main container -->
+    <div class="container">
+        <!-- Top logo inside the frame -->
+        <div class="logo-wrapper">
+            <img id="topLogo" src="Assets/Logo Mayaguez.png" alt="Logo Mayagüez">
+        </div>
+
+        <div class="camera-area">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+        </div>
+
+             <div class="button-group">
+    <!-- LEFT SLOT: VOLTEAR / RETOMAR -->
+    <div class="btn-slot">
+        <button id="switchCameraButton">
+            <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
+        </button>
+        <button id="retakeButton" style="display:none;">RETOMAR</button>
+    </div>
+
+    <!-- RIGHT SLOT: TOMAR SELFIE / SUBIR FOTO -->
+    <div class="btn-slot">
+        <button id="captureButton">¡TOMAR SELFIE!</button>
+        <button id="uploadButton" style="display:none;">SUBIR FOTO</button>
+    </div>
+</div>
+
+        <div id="uploadStatus" class="upload-status"></div>
+        <div id="errorLog"></div>
+
+        <!-- Footer text inside frame -->
+        <div class="footer-text">Municipio de Mayagüez.</div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            Al tomar una foto, aceptas que será mostrada públicamente en la pantalla durante el evento.
+            <strong>Sube solo contenido apropiado para un ambiente familiar.</strong>
+            Las imágenes subidas podrán ser utilizadas en las redes sociales del Municipio de Mayagüez.
+        </div>
+    </div>
+
+    <!-- Brand footer outside frame -->
+    <div class="footer-text app-footer">
+        Luminar Apps<br>© 2025 LMNR Group LLC. All rights reserved.
+    </div>
+
+    <!-- THANK YOU TOAST -->
+    <div id="thankYouToast" class="thank-you-toast"></div>
+
+
 <script>
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
@@ -277,3 +767,5 @@
     introModal.style.display = 'flex';
   });
 </script>
+</body>
+</html>
