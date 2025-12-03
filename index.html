@@ -415,9 +415,39 @@
         margin-top: 10px;
     }
 
+    /* camera + buttons side-by-side */
     .camera-controls-wrapper {
         flex-direction: row;
-        align-items:
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+    }
+
+    /* make camera horizontal and take most of the width */
+    .camera-area {
+        flex: 0 0 60%;
+        max-width: 60%;
+        aspect-ratio: 4 / 3;         /* ⬅ horizontal frame */
+        margin: 20px 10px 20px 20px;  /* a bit to the left */
+    }
+
+    .controls-column {
+        flex: 0 0 40%;
+        max-width: 40%;
+        margin: 20px 20px 20px 10px;
+        align-items: center;
+    }
+
+    .button-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .btn-slot button {
+        width: 100%;
+    }
+}
     </style>
 </head>
 <body>
