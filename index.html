@@ -205,6 +205,13 @@
             width: 100%;
         }
 
+        .btn-slot {
+            position: relative;
+        }
+            .btn-slot button {
+            width: 150px; /* same width you’re already using */
+        }
+
         .logo-wrapper {
             width: 100%;
             display: flex;
@@ -442,20 +449,21 @@
             <canvas id="canvas" style="display:none;"></canvas>
         </div>
 
-              <div class="button-group">
-            <button id="switchCameraButton">
-                <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
-            </button>
+             <div class="button-group">
+    <!-- LEFT SLOT: VOLTEAR / RETOMAR -->
+    <div class="btn-slot">
+        <button id="switchCameraButton">
+            <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
+        </button>
+        <button id="retakeButton" style="display:none;">RETOMAR</button>
+    </div>
 
-            <!-- Retake lives in same row/slot, hidden at start -->
-            <button id="retakeButton" style="display:none;">RETOMAR</button>
-        
-            <button id="captureButton">¡TOMAR SELFIE!</button>
-        </div>
-
-        <div id="additionalButtons" style="display:none; text-align:center;">
-            <button id="uploadButton">SUBIR FOTO</button>
-        </div>
+    <!-- RIGHT SLOT: TOMAR SELFIE / SUBIR FOTO -->
+    <div class="btn-slot">
+        <button id="captureButton">¡TOMAR SELFIE!</button>
+        <button id="uploadButton" style="display:none;">SUBIR FOTO</button>
+    </div>
+</div>
 
         <div id="uploadStatus" class="upload-status"></div>
         <div id="errorLog"></div>
@@ -634,26 +642,32 @@
             additionalButtons.style.display = 'block';
 
         // NEW: hide VOLTEAR, show RETOMAR in same spot
+            video.style.display = 'none';
+            canvas.style.display = 'block';
+            captureButton.style.display = 'none';
+            additionalButtons.style.display = 'block';
             switchCameraButton.style.display = 'none';
             retakeButton.style.display = 'inline-block';
-            });
+            captureButton.style.display = 'none';
+            uploadButton.style.display = 'inline-block';
 
-        retakeButton.addEventListener('click', () => {
+            retakeButton.addEventListener('click', () => {
             video.style.display = 'block';
             canvas.style.display = 'none';
             captureButton.style.display = 'inline-block';
-            additionalButtons.style.display = 'none';
 
-            // NEW: show VOLTEAR again, hide RETOMAR
-            switchCameraButton.style.display = 'flex'; // original layout was flex
+            // show VOLTEAR again, hide RETOMAR
+            switchCameraButton.style.display = 'inline-flex'; // or just ''
             retakeButton.style.display = 'none';
+
+            // hide upload, go back to TOMAR SELFIE
+            uploadButton.style.display = 'none';
 
             uploadButton.disabled = false;
             uploadButton.textContent = 'SUBIR FOTO';
             uploadButton.classList.remove('button-loading');
             uploadStatus.textContent = '';
             errorLog.textContent = '';
-        });
 
         uploadButton.addEventListener('click', async () => {
             if (uploadButton.disabled) return;
