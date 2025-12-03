@@ -45,7 +45,7 @@
             position: absolute;
             inset: 0;
             border-radius: 25px;
-            padding: 4px; /* Border thickness */
+            padding: 4px;
             background: linear-gradient(
                 135deg,
                 #b8860b,
@@ -68,6 +68,13 @@
                 max-width: none;
                 padding: 15px 5px;
             }
+        }
+
+        /* Wrapper that holds camera + controls for responsive layout */
+        .camera-controls-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         /* Camera frame: fixed portrait box */
@@ -94,8 +101,8 @@
             background-color: #000;
         }
 
-        /* 🔄 un-mirror the front-camera preview */
-        #video {
+        /* Front camera “un-mirror” – added/removed from JS */
+        #video.front-unmirror {
             transform: scaleX(-1);
         }
 
@@ -314,7 +321,6 @@
             color: #888888;
         }
 
-        /* All three inputs same style */
         #countryInput,
         #lastNameInput,
         #emailInput {
@@ -359,7 +365,6 @@
             min-height: 14px;
         }
 
-        /* Newsletter label clean layout */
         .newsletter-label {
             font-size: 12px;
             color: #444;
@@ -374,7 +379,6 @@
             margin-top: 2px;
         }
 
-        /* THANK YOU TOAST */
         .thank-you-toast {
             position: fixed;
             left: 50%;
@@ -397,35 +401,39 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
         .controls-column {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Landscape: camera & controls side-by-side */
+        @media (orientation: landscape) {
+            .container {
+                max-width: 700px;
             }
 
-        /* When phone is horizontal */
-        @media (orientation: landscape) {
-          .container {
-            flex-direction: row;
-            align-items: center;
-            max-width: 700px;
-          }
+            .camera-controls-wrapper {
+                flex-direction: row;
+                align-items: center;
+            }
 
-          .camera-area {
-            max-width: 50%;
-            margin: 10px;
-          }
+            .camera-area {
+                max-width: 50%;
+                margin: 10px;
+            }
 
-          .controls-column {
-            max-width: 50%;
-            margin: 10px;
-            align-items: center;
-          }
+            .controls-column {
+                max-width: 50%;
+                margin: 10px;
+                align-items: center;
+            }
 
-          .button-group {
-            flex-direction: column;
-            gap: 8px;
-            align-items: center;
+            .button-group {
+                flex-direction: column;
+                gap: 8px;
+                align-items: center;
             }
         }
     </style>
@@ -450,7 +458,6 @@
                     pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
                 />
 
-                <!-- NEWSLETTER CHECKBOX -->
                 <label class="newsletter-label">
                     <input type="checkbox" id="newsletterOptIn">
                     <span>
@@ -459,7 +466,6 @@
                     </span>
                 </label>
 
-                <!-- DISCLAIMER TEXT -->
                 <p style="font-size:9px; color:#666; margin:2px 0 12px;">
                     Tu email será utilizado únicamente si autorizas recibir nuestro boletín.
                 </p>
@@ -471,55 +477,39 @@
             </div>
         </div>
     </div>
-    
-        <div class="controls-column">
-          <div class="button-group">
-            <div class="btn-slot">
-              <button id="switchCameraButton">
-                <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
-              </button>
-              <button id="retakeButton" style="display:none;">RETOMAR</button>
-            </div>
 
-            <div class="btn-slot">
-              <button id="captureButton">¡TOMAR SELFIE!</button>
-              <button id="uploadButton" style="display:none;">SUBIR FOTO</button>
-            </div>
-          </div>
-
-          <div id="uploadStatus" class="upload-status"></div>
-          <div id="errorLog"></div>
-        </div>
-    
     <!-- Main container -->
     <div class="container">
         <div class="logo-wrapper">
             <img id="topLogo" src="Assets/Logo Mayaguez.png" alt="Logo Mayagüez">
         </div>
 
-        <div class="camera-area">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="canvas" style="display:none;"></canvas>
-        </div>
-
-        <div class="button-group">
-            <!-- LEFT SLOT: VOLTEAR / RETOMAR -->
-            <div class="btn-slot">
-                <button id="switchCameraButton">
-                    <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
-                </button>
-                <button id="retakeButton" style="display:none;">RETOMAR</button>
+        <!-- Camera + controls wrapper for responsive layout -->
+        <div class="camera-controls-wrapper">
+            <div class="camera-area">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas" style="display:none;"></canvas>
             </div>
 
-            <!-- RIGHT SLOT: TOMAR SELFIE / SUBIR FOTO -->
-            <div class="btn-slot">
-                <button id="captureButton">¡TOMAR SELFIE!</button>
-                <button id="uploadButton" style="display:none;">SUBIR FOTO</button>
+            <div class="controls-column">
+                <div class="button-group">
+                    <div class="btn-slot">
+                        <button id="switchCameraButton">
+                            <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
+                        </button>
+                        <button id="retakeButton" style="display:none;">RETOMAR</button>
+                    </div>
+
+                    <div class="btn-slot">
+                        <button id="captureButton">¡TOMAR SELFIE!</button>
+                        <button id="uploadButton" style="display:none;">SUBIR FOTO</button>
+                    </div>
+                </div>
+
+                <div id="uploadStatus" class="upload-status"></div>
+                <div id="errorLog"></div>
             </div>
         </div>
-
-        <div id="uploadStatus" class="upload-status"></div>
-        <div id="errorLog"></div>
 
         <div class="footer-text">Municipio de Mayagüez.</div>
 
@@ -534,7 +524,6 @@
         Luminar Apps<br>© 2025 LMNR Group LLC. All rights reserved.
     </div>
 
-    <!-- THANK YOU TOAST -->
     <div id="thankYouToast" class="thank-you-toast"></div>
 
 <script>
@@ -581,11 +570,11 @@
 
     return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
   }
-    
-        function isLandscape() {
-          return window.innerWidth > window.innerHeight;
-        }
-    
+
+  function isLandscape() {
+    return window.innerWidth > window.innerHeight;
+  }
+
   function showThankYou(message) {
     if (!thankYouToast) return;
     thankYouToast.textContent = message;
@@ -608,6 +597,14 @@
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
       await video.play();
+
+      // Toggle “un-mirror” only for front camera
+      if (facingMode === 'user') {
+        video.classList.add('front-unmirror');
+      } else {
+        video.classList.remove('front-unmirror');
+      }
+
       console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
     } catch (error) {
       errorLog.textContent = `Camera error: ${error.message}`;
@@ -619,52 +616,50 @@
     setupCamera(currentFacingMode);
   }
 
-        captureButton.addEventListener('click', () => {
-          // Decide orientation of the final image
-          const isLand = isLandscape();
+  // Capture selfie
+  captureButton.addEventListener('click', () => {
+    const isLand = isLandscape();
 
-          const targetWidth  = isLand ? 1440 : 1080;  // landscape wider
-          const targetHeight = isLand ? 1080 : 1440;  // portrait taller
+    const targetWidth  = isLand ? 1440 : 1080;  // landscape wider
+    const targetHeight = isLand ? 1080 : 1440;  // portrait taller
 
-          canvas.width  = targetWidth;
-          canvas.height = targetHeight;
-        
-          const ctx = canvas.getContext('2d');
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width  = targetWidth;
+    canvas.height = targetHeight;
 
-          const vw = video.videoWidth;
-          const vh = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          if (!vw || !vh) {
-            errorLog.textContent = 'Error: Camera not ready';
-            return;
-          }
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
 
-          const videoAspect   = vw / vh;
-          const canvasAspect  = targetWidth / targetHeight;
+    if (!vw || !vh) {
+      errorLog.textContent = 'Error: Camera not ready';
+      return;
+    }
 
-          let sx, sy, sWidth, sHeight;
+    const videoAspect  = vw / vh;
+    const canvasAspect = targetWidth / targetHeight;
 
-          if (videoAspect > canvasAspect) {
-            sHeight = vh;
-            sWidth  = sHeight * canvasAspect;
-            sx      = (vw - sWidth) / 2;
-            sy      = 0;
-          } else {
-            sWidth  = vw;
-            sHeight = sWidth / canvasAspect;
-            sx      = 0;
-            sy      = (vh - sHeight) / 2;
-          }
+    let sx, sy, sWidth, sHeight;
 
-          ctx.save();
-          // preview is already un-mirrored with CSS, so draw as-is
-          ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
-          ctx.restore();
+    if (videoAspect > canvasAspect) {
+      sHeight = vh;
+      sWidth  = sHeight * canvasAspect;
+      sx      = (vw - sWidth) / 2;
+      sy      = 0;
+    } else {
+      sWidth  = vw;
+      sHeight = sWidth / canvasAspect;
+      sx      = 0;
+      sy      = (vh - sHeight) / 2;
+    }
 
-  // ...  logo draw code stays the same ...
-});
+    ctx.save();
+    // Preview is visually adjusted with CSS; draw as-is
+    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
 
+    // Draw logo on top
     const img = new Image();
     img.src = 'Assets/Logo Mayaguez.png';
     img.onload = () => {
@@ -691,7 +686,7 @@
     uploadButton.style.display = 'inline-block';
   });
 
-  // --- Retake selfie ---
+  // Retake
   retakeButton.addEventListener('click', () => {
     video.style.display = 'block';
     canvas.style.display = 'none';
@@ -709,7 +704,7 @@
     errorLog.textContent = '';
   });
 
-  // --- Upload selfie ---
+  // Upload
   uploadButton.addEventListener('click', async () => {
     if (uploadButton.disabled) return;
 
@@ -755,7 +750,7 @@
 
   switchCameraButton.addEventListener('click', switchCamera);
 
-  // --- Intro modal / registration ---
+  // Intro / registration
   function startCameraAfterIntro() {
     introModal.style.display = 'none';
     setupCamera(currentFacingMode);
@@ -776,19 +771,19 @@
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email)) {
-        introError.textContent = 'Por favor escribe un correo electrónico válido.';
-        introBox.classList.remove('shake');
-        void introBox.offsetWidth;
-        introBox.classList.add('shake');
-        return;
+      introError.textContent = 'Por favor escribe un correo electrónico válido.';
+      introBox.classList.remove('shake');
+      void introBox.offsetWidth;
+      introBox.classList.add('shake');
+      return;
     }
 
     if (!country || !lastName || !email) {
-        introError.textContent = 'Por favor completa todos los campos para continuar.';
-        introBox.classList.remove('shake');
-        void introBox.offsetWidth;
-        introBox.classList.add('shake');
-        return;
+      introError.textContent = 'Por favor completa todos los campos para continuar.';
+      introBox.classList.remove('shake');
+      void introBox.offsetWidth;
+      introBox.classList.add('shake');
+      return;
     }
 
     introError.textContent = '';
@@ -799,29 +794,29 @@
     submitIntroButton.classList.add('button-loading');
 
     try {
-        await fetch(`${BACKEND_URL}/visit`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                country,
-                lastName,
-                email,
-                newsletter,
-                timestamp: new Date().toISOString()
-            })
-        });
+      await fetch(`${BACKEND_URL}/visit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          country,
+          lastName,
+          email,
+          newsletter,
+          timestamp: new Date().toISOString()
+        })
+      });
 
-        startCameraAfterIntro();
-        showThankYou('¡Gracias por registrarte! Ahora toma tu selfie.');
+      startCameraAfterIntro();
+      showThankYou('¡Gracias por registrarte! Ahora toma tu selfie.');
     } catch (err) {
-        console.error('Error sending visit info:', err);
-        introError.textContent = 'Hubo un error al enviar tus datos. Intenta de nuevo.';
+      console.error('Error sending visit info:', err);
+      introError.textContent = 'Hubo un error al enviar tus datos. Intenta de nuevo.';
 
-        submitIntroButton.disabled = false;
-        submitIntroButton.textContent = originalText;
-        submitIntroButton.classList.remove('button-loading');
+      submitIntroButton.disabled = false;
+      submitIntroButton.textContent = originalText;
+      submitIntroButton.classList.remove('button-loading');
     }
   });
 
