@@ -91,7 +91,7 @@
             height: 100%;
             margin: 0;
             display: block;
-            object-fit: cover; /* no black bars */
+            object-fit: scaleX(1) !important; /* no black bars */
             background-color: #000;
         }
 
@@ -607,16 +607,14 @@
     }
 
     ctx.save();
-
-    if (currentFacingMode === 'user') {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(
-        video,
-        sx, sy, sWidth, sHeight,
-        0, 0, canvas.width, canvas.height
-      );
-    } else {
+      
+    ctx.drawImage(
+    video,
+    sx, sy, sWidth, sHeight,
+    0, 0, canvas.width, canvas.height
+    );
+      
+    else {
       ctx.drawImage(
         video,
         sx, sy, sWidth, sHeight,
