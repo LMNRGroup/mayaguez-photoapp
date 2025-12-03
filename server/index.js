@@ -162,11 +162,31 @@ app.post('/visit', async (req, res) => {
       `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
       `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
 
+    // Same content as "text", but in HTML + logo at the bottom
+    const html = `
+      <div style="font-family: Arial, sans-serif; font-size:14px; line-height:1.5; white-space:pre-line;">
+${text}
+      </div>
+      <div style="margin-top:18px; text-align:center;">
+        <img src="cid:luminarappslogo"
+             alt="Luminar Apps"
+             style="max-width:190px; height:auto; display:inline-block;" />
+      </div>
+    `;
+
     await mailTransporter.sendMail({
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: process.env.MAIL_TO || process.env.MAIL_USER,
       subject,
-      text
+      text,   // plain-text (unchanged)
+      html,   // HTML version + logo
+      attachments: [
+        {
+          filename: 'Luminar Apps Horizontal Logo.png',
+          path: 'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png',
+          cid: 'luminarappslogo'
+        }
+      ]
     });
 
     console.log('Email sent OK');
