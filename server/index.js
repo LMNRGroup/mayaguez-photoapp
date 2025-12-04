@@ -18,7 +18,7 @@ if (process.env.MAIL_USER && process.env.MAIL_PASS) {
   mailTransporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.MAIL_USER,   // luminar apps email
+      user: process.env.MAIL_USER,   // Luminar Apps email
       pass: process.env.MAIL_PASS    // app password
     }
   });
@@ -32,7 +32,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Simple visit endpoint so FE can log app opens
+// *** Simple visit endpoint so FE can log app opens ***
 app.post('/ping', (req, res) => {
   registerEvent('visit');
   res.json({ ok: true });
@@ -51,13 +51,12 @@ const jwtClient = new google.auth.JWT(
 const drive = google.drive({ version: 'v3', auth: jwtClient });
 const DRIVE_FOLDER_ID = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs';
 
-// ---- In-memory session stats (reset on server restart) ----
+// ---- In-memory session stats (reset when we call resetSessionStats) ----
 const sessionStats = {
   visits: 0,
   forms: 0,
   uploads: 0,
-  events: [],          // { type: 'visit' | 'form' | 'upload', ts: ISO string }
-  testReportSent: false
+  events: [] // { type: 'visit' | 'form' | 'upload', ts: ISO string }
 };
 
 function registerEvent(type, timestampISO) {
@@ -75,36 +74,19 @@ function resetSessionStats() {
   sessionStats.forms = 0;
   sessionStats.uploads = 0;
   sessionStats.events = [];
-  sessionStats.testReportSent = false;
 }
 
-// --- Helper: get Puerto Rico time (GMT-4) ---
-function getPRDate(baseDate) {
-  // baseDate optional: if provided, convert THAT moment to PR time instead of "now"
-  const ref = baseDate ? new Date(baseDate) : new Date();
-  const utc = ref.getTime() + ref.getTimezoneOffset() * 60000;
+// --- Helper: get Puerto Rico time (GMT-4) for "now" ---
+function getPRDate() {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
   return new Date(utc - 4 * 60 * 60000);
 }
 
-// --- Helper: Spanish date string for reports ---
-function formatSpanishDatePR() {
-  const d = getPRDate(); // current date/time in PR
-
-  const days = [
-    'domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'
-  ];
-  const months = [
-    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
-  ];
-
-  const dayName = days[d.getDay()];
-  const dayNumber = d.getDate();
-  const monthName = months[d.getMonth()];
-  const year = d.getFullYear();
-
-  const dayCap = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-  return `${dayCap} ${dayNumber} de ${monthName} de ${year}`;
+// --- Helper: convert any Date to PR timezone (used for each event) ---
+function toPR(date) {
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  return new Date(utc - 4 * 60 * 60000);
 }
 
 // --- Helper: build filename 01_DD_MM_YY-HH_MM_SS.jpeg ---
@@ -123,19 +105,17 @@ function buildServerFileName(counter) {
   return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
 }
 
-// --- Prime time in PUERTO RICO local time ---
+// --- Prime hour of activity in PR time ---
 function computePrimeHour(events) {
   if (!events.length) return null;
 
-  const bucket = {}; // hour (0-23 in PR) -> count
-
+  const bucket = {}; // hour -> count
   for (const ev of events) {
     const dUTC = new Date(ev.ts);
     if (Number.isNaN(dUTC.getTime())) continue;
 
-    // Convert this exact timestamp to PR time
-    const dPR = getPRDate(dUTC);
-    const h = dPR.getHours(); // 0–23 in PR
+    const dPR = toPR(dUTC);
+    const h = dPR.getHours(); // 0–23 in Puerto Rico time
 
     bucket[h] = (bucket[h] || 0) + 1;
   }
@@ -157,6 +137,27 @@ function computePrimeHour(events) {
 function formatHourRange(hour) {
   const h = String(hour).padStart(2, '0');
   return `${h}:00–${h}:59`;
+}
+
+// Long Spanish date: "Miércoles 3 de diciembre de 2025"
+function formatPRDateLong() {
+  const d = getPRDate();
+
+  const days = [
+    'Domingo', 'Lunes', 'Martes', 'Miércoles',
+    'Jueves', 'Viernes', 'Sábado'
+  ];
+  const months = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+  ];
+
+  const dayName = days[d.getDay()];
+  const dayNum = d.getDate();
+  const monthName = months[d.getMonth()];
+  const year = d.getFullYear();
+
+  return `${dayName} ${dayNum} de ${monthName} de ${year}`;
 }
 
 // --- Helper: read existing files and find next index ---
@@ -191,7 +192,8 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-async function sendSessionReportEmail({ isTest = false } = {}) {
+// --- Daily session report email ---
+async function sendSessionReportEmail() {
   if (!mailTransporter) {
     console.log('Mail transporter not configured, skipping report email.');
     return;
@@ -206,22 +208,21 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
   }
 
   const prime = computePrimeHour(sessionStats.events);
-  const subject = 'Reporte de sesión – Selfie App'; // no (PRUEBA)
+  const longDate = formatPRDateLong();
 
-  const dateLabel = formatSpanishDatePR();
+  const subject = 'Reporte de sesión diaria – Selfie App · Municipio de Mayagüez';
 
-  // Text report (attachment + fallback)
   const textReport =
     `REPORTE DE SESION - SELFIE APP - MUNICIPIO DE MAYAGÜEZ\n` +
-    `${dateLabel}\n\n` +
+    `${longDate}\n\n` +
     `Visitas a la app: ${sessionStats.visits}\n` +
     `Formularios completados: ${sessionStats.forms}\n` +
     `Fotos capturadas/subidas: ${sessionStats.uploads}\n\n` +
     (prime
-      ? `Horario de mayor actividad (hora local PR): ${formatHourRange(prime.hour)} ` +
+      ? `Horario de mayor actividad: ${formatHourRange(prime.hour)} ` +
         `(${prime.count} interacciones)\n`
       : `No se pudo determinar un horario de mayor actividad.\n`) +
-    `\nTotal de interacciones registradas: ${totalEvents}\n`;
+    `\nTotal de eventos registrados: ${totalEvents}\n`;
 
   const htmlReport = `<!DOCTYPE html>
 <html>
@@ -232,54 +233,59 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
   <body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
+        <!-- LEFT aligned main block -->
         <td align="left" style="padding:24px;">
+          <!-- Card -->
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
                  style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
                         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-            <!-- HEADER: same style as "Nueva familia registrada" -->
+            <!-- Header band (same style as "Nueva familia registrada") -->
             <tr>
               <td style="padding:20px 24px 16px 24px;background:#0a192f;
                          border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
                 <div style="font-size:18px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">
-                  REPORTE DE SESIÓN
+                  REPORTE DE SESIÓN DIARIA
                 </div>
                 <div style="margin-top:4px;font-size:10px;opacity:0.9;">
                   Pantalla Plaza Colón · Selfie App · Municipio de Mayagüez
                 </div>
+                <div style="margin-top:4px;font-size:10px;opacity:0.9;">
+                  ${longDate}
+                </div>
               </td>
             </tr>
 
-            <!-- BODY -->
+            <!-- Body -->
             <tr>
-              <td style="padding:18px 24px 12px 24px;font-size:13px;color:#333;">
+              <td style="padding:18px 24px 8px 24px;font-size:13px;color:#333333;text-align:left;">
                 <p style="margin:0 0 10px 0;">
                   A continuación encontrarás el resumen de uso de la aplicación durante esta sesión:
                 </p>
 
-                <p style="margin:0 0 10px 0;font-size:12px;color:#555;">
-                  <strong>Fecha del reporte:</strong> ${dateLabel}
+                <p style="margin:0 0 6px 0;">
+                  <strong>Visitas a la app:</strong> ${sessionStats.visits}
                 </p>
-
-                <ul style="margin:0 0 10px 20px;padding:0;font-size:13px;">
-                  <li><strong>Visitas a la app:</strong> ${sessionStats.visits}</li>
-                  <li><strong>Formularios completados:</strong> ${sessionStats.forms}</li>
-                  <li><strong>Fotos capturadas/subidas:</strong> ${sessionStats.uploads}</li>
-                </ul>
+                <p style="margin:0 0 6px 0;">
+                  <strong>Formularios completados:</strong> ${sessionStats.forms}
+                </p>
+                <p style="margin:0 0 6px 0;">
+                  <strong>Fotos capturadas/subidas:</strong> ${sessionStats.uploads}
+                </p>
 
                 ${
                   prime
-                    ? `<p style="margin:6px 0 0 0;font-size:13px;">
-                        <strong>Horario de mayor actividad (hora local PR):</strong>
-                        ${formatHourRange(prime.hour)} (${prime.count} interacciones)
+                    ? `<p style="margin:10px 0 0 0;font-size:13px;">
+                         <strong>Horario de mayor actividad:</strong>
+                         ${formatHourRange(prime.hour)} (${prime.count} interacciones)
                        </p>`
-                    : `<p style="margin:6px 0 0 0;font-size:13px;">
-                        No se pudo determinar un horario de mayor actividad.
+                    : `<p style="margin:10px 0 0 0;font-size:13px;">
+                         No se pudo determinar un horario de mayor actividad.
                        </p>`
                 }
               </td>
             </tr>
 
-            <!-- FOOTER: same logo/footer block as "Nueva familia registrada" -->
+            <!-- Footer with centered logo + text (same as other emails) -->
             <tr>
               <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
                 <img
@@ -295,7 +301,6 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
                 </p>
               </td>
             </tr>
-
           </table>
         </td>
       </tr>
@@ -317,7 +322,7 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
     ]
   });
 
-  console.log(isTest ? 'Test session report email sent.' : 'Session report email sent.');
+  console.log('Daily session report email sent.');
 }
 
 // --- Main uploader: uses global index ---
@@ -344,13 +349,13 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
   return response.data.id;
 }
 
+// --------- Upload route (counts uploads) ----------
 app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
   if (!req.body || req.body.length === 0) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
 
   try {
-    // count uploads as events
     registerEvent('upload');
 
     const fileId = await uploadFile(
@@ -365,12 +370,12 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 });
 
-// ---------- Visit logging + per-form email ----------
+// ---------- Visit logging (form submissions) ----------
 app.post('/visit', async (req, res) => {
   try {
     const { country, lastName, email, newsletter, timestamp } = req.body || {};
 
-    // count forms as events
+    // Count forms as events
     registerEvent('form', timestamp || new Date().toISOString());
 
     console.log('Visit payload:', { country, lastName, email, newsletter, timestamp });
@@ -399,10 +404,13 @@ app.post('/visit', async (req, res) => {
   <body style="margin:0;padding:0;background:#f4f4f4;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
+        <!-- LEFT aligned main block -->
         <td align="left" style="padding:24px;">
+          <!-- Card -->
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
                  style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
                         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+            <!-- Header band -->
             <tr>
               <td style="padding:20px 24px 16px 24px;background:#0a192f; 
                          border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
@@ -414,17 +422,22 @@ app.post('/visit', async (req, res) => {
                 </div>
               </td>
             </tr>
+
+            <!-- Body -->
             <tr>
               <td style="padding:18px 24px 8px 24px;font-size:13px;color:#333333;text-align:left;">
                 <p style="margin:0 0 12px 0;">
                   Se ha registrado una nueva familia en el sistema:
                 </p>
+
                 <p style="margin:0 0 6px 0;">
                   <strong>Nos visitan desde:</strong> ${country || 'No provisto'}
                 </p>
+
                 <p style="margin:0 0 6px 0;">
                   <strong>Apellidos de la familia:</strong> ${lastName || 'No provisto'}
                 </p>
+
                 <p style="margin:0 0 6px 0;">
                   <strong>Correo electrónico:</strong>
                   ${
@@ -433,14 +446,18 @@ app.post('/visit', async (req, res) => {
                       : 'No provisto'
                   }
                 </p>
+
                 <p style="margin:0 0 6px 0;">
                   <strong>Acepta recibir noticias y ofertas:</strong> ${newsletter ? 'Sí' : 'No'}
                 </p>
+
                 <p style="margin:10px 0 0 0;font-size:11px;color:#666666;">
                   <strong>Fecha y hora (UTC):</strong> ${timestamp || new Date().toISOString()}
                 </p>
               </td>
             </tr>
+
+            <!-- Footer with centered logo + text -->
             <tr>
               <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
                 <img
@@ -479,26 +496,39 @@ app.post('/visit', async (req, res) => {
   }
 });
 
-// Manual trigger for debugging (does NOT reset stats)
-app.post('/session-report-now', async (req, res) => {
+// --------- Daily report route (for Vercel cron) ----------
+app.get('/session-report-daily', async (req, res) => {
   try {
-    await sendSessionReportEmail({ isTest: true });
+    const totalEvents =
+      sessionStats.visits + sessionStats.forms + sessionStats.uploads;
+
+    if (totalEvents === 0) {
+      console.log('No activity today, skipping daily report.');
+      // Still reset so each day is fresh
+      resetSessionStats();
+      return res.json({ ok: true, skipped: true });
+    }
+
+    await sendSessionReportEmail();
+    // IMPORTANT: reset daily counters AFTER sending
+    resetSessionStats();
+
     res.json({ ok: true });
   } catch (e) {
-    console.error('Error sending manual session report:', e);
+    console.error('Error sending daily session report:', e);
     res.status(500).json({ ok: false, error: 'report_failed' });
   }
 });
 
-// ✅ DAILY CRON ENDPOINT: used by Vercel cron at 9pm PR (01:00 UTC)
-app.get('/session-report-daily', async (req, res) => {
+// MANUAL trigger for debugging 
+app.post('/session-report-now', async (req, res) => {
   try {
-    await sendSessionReportEmail({ isTest: false });
-    resetSessionStats(); // start fresh for next day
+    await sendSessionReportEmail();
+    resetSessionStats();
     res.json({ ok: true });
   } catch (e) {
-    console.error('Error sending daily session report:', e);
-    res.status(500).json({ ok: false, error: 'daily_report_failed' });
+    console.error('Error sending manual session report:', e);
+    res.status(500).json({ ok: false, error: 'report_failed' });
   }
 });
 
