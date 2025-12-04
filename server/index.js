@@ -740,7 +740,8 @@ app.post('/admin/approve', async (req, res) => {
       fileId,
       addParents: APPROVED_FOLDER_ID,
       removeParents: PENDING_FOLDER_ID,
-      fields: 'id, parents'
+      fields: 'id, parents',
+      supportsAllDrives: true
     });
 
     res.json({ ok: true });
@@ -761,7 +762,8 @@ app.post('/admin/reject', async (req, res) => {
     await drive.files.update({
       fileId,
       requestBody: { trashed: true },
-      fields: 'id, trashed'
+      fields: 'id, trashed',
+      supportsAllDrives: true
     });
 
     res.json({ ok: true });
