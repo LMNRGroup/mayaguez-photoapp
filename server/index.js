@@ -7,7 +7,7 @@ const dotenv = require('dotenv');
 const stream = require('stream');
 const nodemailer = require('nodemailer');
 const path = require('path');
-const cookieParser = require('cookie-parser'); // ⬅️ NEW
+const cookieParser = require('cookie-parser');
 
 dotenv.config();
 
@@ -53,31 +53,25 @@ if (process.env.MAIL_USER && process.env.MAIL_PASS) {
   console.log('Mail transporter NOT configured (missing MAIL_USER or MAIL_PASS)');
 }
 
+// ---------- Express setup ----------
 const app = express();
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow same-origin (no Origin header) and these specific origins
-    const allowedOrigins = [
-      undefined, // for same-origin / server-side / curl
-      'https://mayaguez.luminarapps.com',
-      'https://mayaguez-photoapp.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:4173',
-      'http://localhost:5173',
-    ];
+// ✅ Simplified, safe CORS with credentials
+const allowedOrigins = [
+  'https://mayaguez.luminarapps.com',
+  'https://mayaguez-photoapp.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:4173'
+];
 
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // or lock down later if you want
-    }
-  },
-  credentials: true, // REQUIRED for cookies + fetch(..., { credentials: "include" })
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // ⬅️ Handle preflight globally
+app.options('*', cors(corsOptions)); // handle preflight
 
 app.use(cookieParser());
 app.use(express.json());
@@ -773,6 +767,7 @@ app.post('/visit', async (req, res) => {
 
 app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
   if (!ADMIN_ACCESS_CODE) {
+    console.error('ADMIN_ACCESS_CODE is not configured');
     return res.status(500).json({ error: 'admin_code_not_configured' });
   }
 
