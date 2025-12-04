@@ -757,7 +757,7 @@
             headers: {
               'Content-Type': blob.type,
               'X-File-Name': buildPhotoFileName(),
-              'x-session-id' : getSessionID()
+              'x-session-id': getSessionID()
             },
             body: blob
           });
@@ -858,37 +858,35 @@
         submitIntroButton.classList.remove('button-loading');
       }
     });
+     // --- SESSION ID HELPERS ---
+
+    // Keep the same ID for this user while the tab is open / reused
+    function getSessionId() {
+      let id = localStorage.getItem('lumi_session_id');
+      if (!id) {
+        id = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('lumi_session_id', id);
+      }
+      return id;
+    }
+
+    // Call this once on page load (logs a visit with session_id)
+    function pingSession() {
+      fetch(`${BACKEND_URL}/ping`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-id': getSessionId()
+        },
+        body: JSON.stringify({})
+      }).catch(console.error);
+    }
+
+    // Run as soon as the page is ready
     window.addEventListener('load', () => {
       introModal.style.display = 'flex';
-
-      // NEW: log app visit (so sessionStats.visits increases)
-      fetch(`${BACKEND_URL}/ping`, { method: 'POST' })
-        .catch(() => {});
+      pingSession();
     });
-      // Keep the same ID for this user while the tab is open / reused
-      function getSessionId() {
-        let id = localStorage.getItem('lumi_session_id');
-        if (!id) {
-          id = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-          localStorage.setItem('lumi_session_id', id);
-        }
-        return id;
-      }
-
-      // Call this once on page load
-      function pingSession() {
-        fetch('/ping', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-session-id': getSessionId()
-          },
-          body: JSON.stringify({})
-        }).catch(console.error);
-      }
-
-      // Run as soon as the page is ready
-      window.addEventListener('load', pingSession);
   </script>
 </body>
 </html>
