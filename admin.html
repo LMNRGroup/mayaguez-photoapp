@@ -44,12 +44,12 @@
     }
 
     .title {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 600;
     }
 
     .subtitle {
-      font-size: 11px;
+      font-size: 12px;
       color: #9ca3af;
     }
 
@@ -57,7 +57,14 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 6px;
+      gap: 8px;
+    }
+
+    .logo {
+      height: 22px;
+      max-width: 180px;
+      opacity: 0.9;
+      display: block;
     }
 
     .status-pill {
@@ -272,6 +279,12 @@
       </div>
 
       <div class="header-right">
+        <img
+          class="logo"
+          src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
+          alt="Luminar Apps"
+        />
+
         <div class="app-toggle">
           <span class="app-toggle-label">Estado Selfie App</span>
           <div class="app-toggle-control">
@@ -282,6 +295,7 @@
             </label>
           </div>
         </div>
+
         <span id="statusPill" class="status-pill">Cargando…</span>
       </div>
     </div>
@@ -347,7 +361,6 @@
       });
     })();
 
-    // --- Existing logic ---
     function setBusy(busy) {
       isBusy = busy;
       approveBtn.disabled = busy || !currentFileId;
@@ -455,8 +468,38 @@
     photoFrame.addEventListener("touchstart", onStart);
     photoFrame.addEventListener("touchend", onEnd);
 
-    // Initial load
+    // --- Auto-refresh / live updates ---
+    async function checkForUpdates() {
+      if (isBusy) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/next-photo`);
+        const data = await res.json();
+
+        if (data.empty) {
+          // If we thought we had a file but backend says empty, refresh UI
+          if (currentFileId !== null) {
+            await loadNextPhoto();
+          }
+          return;
+        }
+
+        // If we had no file, or backend's "next" differs, sync to latest
+        if (currentFileId === null || data.fileId !== currentFileId) {
+          await loadNextPhoto();
+        }
+      } catch (err) {
+        console.error("Auto-refresh error", err);
+      }
+    }
+
+    function startAutoRefresh() {
+      setInterval(checkForUpdates, 10000); // every 10s
+    }
+
+    // Initial load + start polling
     loadNextPhoto();
+    startAutoRefresh();
   </script>
 </body>
 </html>
