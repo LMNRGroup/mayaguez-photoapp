@@ -32,7 +32,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// *** Visit ping so FE can log app opens ***
+// Simple visit endpoint so FE can log app opens
 app.post('/ping', (req, res) => {
   registerEvent('visit');
   res.json({ ok: true });
@@ -471,16 +471,6 @@ app.post('/visit', async (req, res) => {
       html
     });
 
-    // For testing: send report once we get AT LEAST 1 form
-    if (sessionStats.forms >= 1 && !sessionStats.testReportSent) {
-      try {
-        await sendSessionReportEmail({ isTest: true });
-        sessionStats.testReportSent = true;
-      } catch (e) {
-        console.error('Error sending test session report:', e);
-      }
-    }
-
     console.log('Email sent OK');
     res.json({ ok: true });
   } catch (err) {
@@ -489,7 +479,7 @@ app.post('/visit', async (req, res) => {
   }
 });
 
-// Manual trigger endpoint
+// Manual trigger for debugging (does NOT reset stats)
 app.post('/session-report-now', async (req, res) => {
   try {
     await sendSessionReportEmail({ isTest: true });
@@ -497,6 +487,18 @@ app.post('/session-report-now', async (req, res) => {
   } catch (e) {
     console.error('Error sending manual session report:', e);
     res.status(500).json({ ok: false, error: 'report_failed' });
+  }
+});
+
+// ✅ DAILY CRON ENDPOINT: used by Vercel cron at 9pm PR (01:00 UTC)
+app.get('/session-report-daily', async (req, res) => {
+  try {
+    await sendSessionReportEmail({ isTest: false });
+    resetSessionStats(); // start fresh for next day
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Error sending daily session report:', e);
+    res.status(500).json({ ok: false, error: 'daily_report_failed' });
   }
 });
 
