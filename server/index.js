@@ -8,6 +8,7 @@ const stream = require('stream');
 const nodemailer = require('nodemailer');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
 
 dotenv.config();
 
@@ -36,6 +37,30 @@ const ADMIN_BLOCK_MINUTES = 30;
 
 // In-memory IP tracker: { ip: { attempts, blockedUntil } }
 const ipTracker = new Map();
+
+// In-memory admin sessions: token -> { ip, createdAt }
+const adminSessions = new Map();
+
+function createAdminSession(ip) {
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, {
+    ip,
+    createdAt: Date.now(),
+  });
+  return token;
+}
+
+function getAdminSessionFromRequest(req) {
+  const token =
+    req.headers['x-admin-token'] ||  // for XHR/fetch
+    req.query.token ||               // for <img src="...&token=...">
+    null;
+
+  if (!token) return null;
+  const session = adminSessions.get(token);
+  if (!session) return null;
+  return { token, session };
+}
 
 // ---------- Mail setup ----------
 let mailTransporter = null;
@@ -219,14 +244,21 @@ function ensureAdminAuth(req, res, next) {
     });
   }
 
-  const token = req.cookies?.adminAuth;
-  if (token === '1') {
-    return next();
+  const result = getAdminSessionFromRequest(req);
+  if (!result) {
+    return res.status(401).json({ error: 'unauthorized' });
   }
 
-  return res.status(401).json({ error: 'unauthorized' });
-}
+  const { session } = result;
 
+  // Optional: tie session to IP (comment out if you don't care)
+  if (session.ip && session.ip !== ip) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  // you could attach stuff to req if needed
+  next();
+}
 // ---------- HELPERS PARA DRIVE (FOTOS) ----------
 
 // build filename 01_DD_MM_YY-HH_MM_SS.jpeg
@@ -790,18 +822,17 @@ app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
       blockedMinutes: remainingBlockMinutes(ip),
     });
   }
-
+  
   if (code === ADMIN_ACCESS_CODE) {
-    // Success → reset attempts, clear block, set cookie
+    // Success → reset attempts, clear block, create session token
     record = { attempts: 0, blockedUntil: 0 };
     ipTracker.set(ip, record);
 
-    res.cookie('adminAuth', '1', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',   
-      maxAge: 8 * 60 * 60 * 1000,
-    });
+    const token = createAdminSession(ip);
+
+    // We NO LONGER set a cookie, we just return the token
+    return res.json({ ok: true, token });
+  }
 
     return res.json({ ok: true });
   }
