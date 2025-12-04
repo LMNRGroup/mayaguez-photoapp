@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 const stream = require('stream');
 const nodemailer = require('nodemailer');
 const path = require('path');
-const LUMI_LOGO_URL = 
+const LUMI_LOGO_URL =
   'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png';
 dotenv.config();
 
@@ -29,6 +29,12 @@ if (process.env.MAIL_USER && process.env.MAIL_PASS) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// *** NEW: simple visit endpoint so FE can log app opens ***
+app.post('/ping', (req, res) => {
+  registerEvent('visit');
+  res.json({ ok: true });
+});
 
 // Create a new JWT client using the service account
 const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
@@ -69,6 +75,7 @@ function resetSessionStats() {
   sessionStats.events = [];
   sessionStats.testReportSent = false;
 }
+
 // --- Helper: get Puerto Rico time (GMT-4) ---
 function getPRDate() {
   const now = new Date();
@@ -118,7 +125,6 @@ function computePrimeHour(events) {
 }
 
 function formatHourRange(hour) {
-  // Simple 24h → "HH:00–HH:59"
   const h = String(hour).padStart(2, '0');
   return `${h}:00–${h}:59`;
 }
@@ -175,7 +181,6 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
     ? 'REPORTE DE SESIÓN (PRUEBA) – Selfie App'
     : 'Reporte de sesión – Selfie App';
 
-  // Text version (for attachment + plain fallback)
   const textReport =
     `REPORTE DE SESIÓN - SELFIE APP\n\n` +
     `Visitas a la app: ${sessionStats.visits}\n` +
@@ -214,13 +219,11 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
                 <p style="margin:0 0 10px 0;">
                   A continuación encontrarás el resumen de uso de la aplicación durante esta sesión:
                 </p>
-
                 <ul style="margin:0 0 10px 20px;padding:0;font-size:13px;">
                   <li><strong>Visitas a la app:</strong> ${sessionStats.visits}</li>
                   <li><strong>Formularios completados:</strong> ${sessionStats.forms}</li>
                   <li><strong>Fotos capturadas/subidas:</strong> ${sessionStats.uploads}</li>
                 </ul>
-
                 ${
                   prime
                     ? `<p style="margin:6px 0 0 0;font-size:13px;">
@@ -267,10 +270,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
   const bufferStream = new stream.PassThrough();
   bufferStream.end(fileBuffer);
 
-  // 1) Look at existing files in the folder and get next number
   const nextIndex = await getNextPhotoIndex();
-
-  // 2) Build filename like 03_02_12_25-20_15_09.jpeg
   const finalName = buildServerFileName(nextIndex);
 
   const response = await drive.files.create({
@@ -295,11 +295,14 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 
   try {
+    // *** NEW: count uploads as events ***
+    registerEvent('upload');
+
     const fileId = await uploadFile(
-    req.body,
-    'ignored.jpeg',
-    req.headers['content-type']
-  );
+      req.body,
+      'ignored.jpeg',
+      req.headers['content-type']
+    );
     res.json({ message: 'File uploaded successfully', fileId: fileId });
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -312,6 +315,9 @@ app.post('/visit', async (req, res) => {
   try {
     const { country, lastName, email, newsletter, timestamp } = req.body || {};
 
+    // *** NEW: count forms as events ***
+    registerEvent('form', timestamp || new Date().toISOString());
+
     console.log('Visit payload:', { country, lastName, email, newsletter, timestamp });
 
     if (!mailTransporter) {
@@ -321,7 +327,6 @@ app.post('/visit', async (req, res) => {
 
     const subject = 'Nueva familia registrada (Selfie App)';
 
-    // Plain-text fallback (kept simple)
     const text =
       'Una nueva familia ha sido registrada en el sistema.\n\n' +
       `La familia nos visita desde: ${country || 'No provisto'}\n` +
@@ -330,7 +335,6 @@ app.post('/visit', async (req, res) => {
       `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
       `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
 
-    // HTML version
     const html = `<!DOCTYPE html>
 <html>
   <head>
@@ -340,13 +344,10 @@ app.post('/visit', async (req, res) => {
   <body style="margin:0;padding:0;background:#f4f4f4;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
-        <!-- LEFT aligned main block -->
         <td align="left" style="padding:24px;">
-          <!-- Card -->
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
                  style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
                         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-            <!-- Header band -->
             <tr>
               <td style="padding:20px 24px 16px 24px;background:#0a192f; 
                          border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
@@ -358,22 +359,17 @@ app.post('/visit', async (req, res) => {
                 </div>
               </td>
             </tr>
-
-            <!-- Body -->
             <tr>
               <td style="padding:18px 24px 8px 24px;font-size:13px;color:#333333;text-align:left;">
                 <p style="margin:0 0 12px 0;">
                   Se ha registrado una nueva familia en el sistema:
                 </p>
-
                 <p style="margin:0 0 6px 0;">
                   <strong>Nos visitan desde:</strong> ${country || 'No provisto'}
                 </p>
-
                 <p style="margin:0 0 6px 0;">
                   <strong>Apellidos de la familia:</strong> ${lastName || 'No provisto'}
                 </p>
-
                 <p style="margin:0 0 6px 0;">
                   <strong>Correo electrónico:</strong>
                   ${
@@ -382,18 +378,14 @@ app.post('/visit', async (req, res) => {
                       : 'No provisto'
                   }
                 </p>
-
                 <p style="margin:0 0 6px 0;">
                   <strong>Acepta recibir noticias y ofertas:</strong> ${newsletter ? 'Sí' : 'No'}
                 </p>
-
                 <p style="margin:10px 0 0 0;font-size:11px;color:#666666;">
                   <strong>Fecha y hora (UTC):</strong> ${timestamp || new Date().toISOString()}
                 </p>
               </td>
             </tr>
-
-            <!-- Footer with centered logo + text -->
             <tr>
               <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
                 <img
@@ -416,19 +408,39 @@ app.post('/visit', async (req, res) => {
   </body>
 </html>`;
 
-  await mailTransporter.sendMail({
-    from: `"Luminar Apps" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
-    to: process.env.MAIL_TO || process.env.MAIL_USER,
-    subject,
-    text,
-    html
-  });
+    await mailTransporter.sendMail({
+      from: `"Luminar Apps" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+      to: process.env.MAIL_TO || process.env.MAIL_USER,
+      subject,
+      text,
+      html
+    });
+
+    // *** NEW: auto-send test report ***
+    if (sessionStats.forms >= 3 && !sessionStats.testReportSent) {
+      try {
+        await sendSessionReportEmail({ isTest: true });
+        sessionStats.testReportSent = true;
+      } catch (e) {
+        console.error('Error sending test session report:', e);
+      }
+    }
 
     console.log('Email sent OK');
     res.json({ ok: true });
   } catch (err) {
     console.error('Error sending visit email:', err);
     res.status(500).json({ ok: false, error: 'email_failed' });
+  }
+});
+
+app.post('/session-report-now', async (req, res) => {
+  try {
+    await sendSessionReportEmail({ isTest: true });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Error sending manual session report:', e);
+    res.status(500).json({ ok: false, error: 'report_failed' });
   }
 });
 
