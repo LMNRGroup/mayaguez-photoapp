@@ -66,7 +66,10 @@ const allowedOrigins = [
 ];
 
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // Allow all origins (including same-origin, custom domains, previews)
+    callback(null, true);
+  },
   credentials: true,
 };
 
