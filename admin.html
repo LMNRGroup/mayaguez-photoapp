@@ -1,1 +1,291 @@
+<!-- admin.html -->
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Revisión de Fotos – Selfie App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Arial, sans-serif;
+      background: #0b1020;
+      color: #f5f5f5;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #111827;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      max-width: 420px;
+      width: 100%;
+      padding: 18px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #111827;
+      border: 1px solid #374151;
+      color: #e5e7eb;
+    }
+
+    .photo-frame {
+      position: relative;
+      background: #020617;
+      border-radius: 14px;
+      overflow: hidden;
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: pan-y;
+    }
+
+    .photo-frame img {
+      max-width: 100%;
+      max-height: 420px;
+      display: block;
+      object-fit: contain;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+    }
+
+    .photo-frame.empty {
+      border: 1px dashed #374151;
+    }
+
+    .empty-text {
+      font-size: 13px;
+      color: #9ca3af;
+      text-align: center;
+      padding: 24px 16px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    button {
+      flex: 1;
+      border-radius: 999px;
+      border: none;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-reject {
+      background: #1f2937;
+      color: #f9fafb;
+    }
+
+    .btn-approve {
+      background: #10b981;
+      color: #022c22;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .helper {
+      font-size: 11px;
+      color: #9ca3af;
+      text-align: center;
+      margin-top: 2px;
+    }
+
+    .badge-swipe {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="title">Revisión de fotos</div>
+        <div class="subtitle">Desliza para aprobar o rechazar · o usa los botones</div>
+      </div>
+      <span id="statusPill" class="status-pill">Cargando…</span>
+    </div>
+
+    <div id="photoFrame" class="photo-frame empty">
+      <div id="emptyText" class="empty-text">
+        Cargando próxima foto pendiente…
+      </div>
+      <img id="photoImg" alt="Foto pendiente" style="display:none;" />
+    </div>
+
+    <div class="buttons">
+      <button id="rejectBtn" class="btn-reject" disabled>Rechazar</button>
+      <button id="approveBtn" class="btn-approve" disabled>Aprobar</button>
+    </div>
+
+    <div class="helper">
+      <span class="badge-swipe">⬅ Desliza a la izquierda = Rechazar · Desliza a la derecha = Aprobar ➡</span>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = ""; // same origin
+    const photoFrame = document.getElementById("photoFrame");
+    const photoImg = document.getElementById("photoImg");
+    const emptyText = document.getElementById("emptyText");
+    const statusPill = document.getElementById("statusPill");
+    const approveBtn = document.getElementById("approveBtn");
+    const rejectBtn = document.getElementById("rejectBtn");
+
+    let currentFileId = null;
+    let isBusy = false;
+
+    function setBusy(busy) {
+      isBusy = busy;
+      approveBtn.disabled = busy || !currentFileId;
+      rejectBtn.disabled = busy || !currentFileId;
+      statusPill.textContent = busy ? "Procesando…" : "Lista";
+    }
+
+    async function loadNextPhoto() {
+      setBusy(true);
+      photoImg.style.display = "none";
+      emptyText.style.display = "block";
+      emptyText.textContent = "Cargando próxima foto pendiente…";
+      photoFrame.classList.add("empty");
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/next-photo`);
+        const data = await res.json();
+
+        if (data.empty) {
+          currentFileId = null;
+          emptyText.textContent = "No hay fotos pendientes en este momento.";
+          statusPill.textContent = "Sin pendientes";
+          approveBtn.disabled = true;
+          rejectBtn.disabled = true;
+          return;
+        }
+
+        currentFileId = data.fileId;
+        const url = `${BASE_URL}/admin/photo/${encodeURIComponent(
+          currentFileId
+        )}?t=${Date.now()}`;
+
+        photoImg.src = url;
+        photoImg.onload = () => {
+          photoFrame.classList.remove("empty");
+          emptyText.style.display = "none";
+          photoImg.style.display = "block";
+        };
+
+        statusPill.textContent = "Pendiente";
+        approveBtn.disabled = false;
+        rejectBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        emptyText.textContent = "Error cargando foto. Recarga la página.";
+        statusPill.textContent = "Error";
+        approveBtn.disabled = true;
+        rejectBtn.disabled = true;
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function sendAction(endpoint) {
+      if (!currentFileId || isBusy) return;
+      setBusy(true);
+
+      try {
+        await fetch(`${BASE_URL}${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileId: currentFileId }),
+        });
+      } catch (err) {
+        console.error(err);
+        statusPill.textContent = "Error";
+      } finally {
+        await loadNextPhoto();
+      }
+    }
+
+    approveBtn.addEventListener("click", () =>
+      sendAction("/admin/approve")
+    );
+    rejectBtn.addEventListener("click", () =>
+      sendAction("/admin/reject")
+    );
+
+    // --- Swipe logic ---
+    let startX = null;
+
+    function onStart(e) {
+      const touch = e.touches ? e.touches[0] : e;
+      startX = touch.clientX;
+    }
+
+    function onEnd(e) {
+      if (startX == null || !currentFileId || isBusy) return;
+      const touch = e.changedTouches ? e.changedTouches[0] : e;
+      const dx = touch.clientX - startX;
+
+      const threshold = 50; // px
+      if (dx > threshold) {
+        // swipe right -> approve
+        sendAction("/admin/approve");
+      } else if (dx < -threshold) {
+        // swipe left -> reject
+        sendAction("/admin/reject");
+      }
+      startX = null;
+    }
+
+    photoFrame.addEventListener("mousedown", onStart);
+    photoFrame.addEventListener("mouseup", onEnd);
+    photoFrame.addEventListener("touchstart", onStart);
+    photoFrame.addEventListener("touchend", onEnd);
+
+    // Initial load
+    loadNextPhoto();
+  </script>
+</body>
+</html>
