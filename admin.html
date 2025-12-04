@@ -279,14 +279,14 @@
   margin-bottom: 16px;
 }
 
-/* same width / height + bigger "secret" asterisks */
 .lock-input,
 .lock-button {
   width: 100%;
   border-radius: 999px;
   padding: 12px 16px;
-  font-size: 18px;           /* >=16px so iOS doesn’t zoom */
+  font-size: 18px;          
   line-height: 1.2;
+  box-sizing: border-box;   
 }
 
 /* input */
@@ -330,8 +330,12 @@
   min-height: 16px;
 }
 
-/* prevent iOS zoom on focus (safety net) */
 @media (max-width: 640px) {
+  .lock-card {
+    margin: 0 16px;                
+    padding: 20px 16px 18px;      
+  }
+
   .lock-input,
   .lock-button {
     font-size: 18px;
@@ -626,25 +630,28 @@
         data = await res.json();
       } catch (_) {}
 
-      if (res.ok && data.ok && data.token) {
+            if (res.ok && data.ok && data.token) {
+        // ✅ Guardamos token de sesión
         adminToken = data.token;
-        localStorage.setItem(STORED_TOKEN_KEY, adminToken);
         hideLock();
+        accessCodeInput.value = "";
         await loadNextPhoto();
         startAutoRefresh();
       } else if (res.status === 401 && data.remainingAttempts != null) {
+        accessCodeInput.value = "";
+        accessCodeInput.focus();
         accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
-        triggerLockShake();
       } else if (res.status === 403 && data.error === "blocked") {
-        const minutes = Math.ceil(data.blockedMinutes || 30);
-        accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
-        triggerLockShake();
+        accessCodeInput.value = "";
+        accessError.textContent = `Acceso bloqueado por ${Math.ceil(
+          data.blockedMinutes || 30
+        )} minutos. Contacta al administrador.`;
       } else if (data.error === "admin_code_not_configured") {
+        accessCodeInput.value = "";
         accessError.textContent = "Código de acceso no configurado en el servidor.";
-        triggerLockShake();
       } else {
+        accessCodeInput.value = "";
         accessError.textContent = "Error de autenticación. Intenta de nuevo.";
-        triggerLockShake();
       }
     } catch (err) {
       console.error(err);
