@@ -422,290 +422,308 @@
       </div>
     </div>
   </div>
-
   <script>
-    // Use same origin as where admin.html is served
-    const BASE_URL = "https://mayaguez-photoapp.vercel.app";
-    
-    // Lock / auth elements
-    const lockScreen = document.getElementById("lockScreen");
-    const accessCodeInput = document.getElementById("accessCode");
-    const accessSubmitBtn = document.getElementById("accessSubmit");
-    const accessError = document.getElementById("accessError");
+  // Use same origin as where admin.html is served
+  const BASE_URL = window.location.origin;
 
-    // Admin UI elements
-    const photoFrame = document.getElementById("photoFrame");
-    const photoImg = document.getElementById("photoImg");
-    const emptyText = document.getElementById("emptyText");
-    const statusPill = document.getElementById("statusPill");
-    const approveBtn = document.getElementById("approveBtn");
-    const rejectBtn = document.getElementById("rejectBtn");
+  // Admin auth token (from /admin/auth)
+  let adminToken = null;
 
-    const appToggleInput = document.getElementById("appToggle");
-    const appToggleWrapper = document.getElementById("appToggleWrapper");
-    const appStatusDot = document.getElementById("appStatusDot");
+  // Helper: fetch that sends x-admin-token when we have it
+  function authFetch(path, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (adminToken) {
+      headers['x-admin-token'] = adminToken;
+    }
+    return fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers,
+      // credentials not needed anymore, but harmless:
+      // credentials: 'include',
+    });
+  }
 
-    let currentFileId = null;
-    let isBusy = false;
-    let autoRefreshId = null;
+  // Lock / auth elements
+  const lockScreen = document.getElementById("lockScreen");
+  const accessCodeInput = document.getElementById("accessCode");
+  const accessSubmitBtn = document.getElementById("accessSubmit");
+  const accessError = document.getElementById("accessError");
 
-    // --- Toggle UI (frontend only) ---
-    function updateAppToggleUI(enabled) {
-      if (enabled) {
-        appToggleWrapper.classList.add("is-on");
-        appStatusDot.classList.add("on");
-        appStatusDot.classList.remove("off");
-      } else {
-        appToggleWrapper.classList.remove("is-on");
-        appStatusDot.classList.remove("on");
-        appStatusDot.classList.add("off");
-      }
+  // Admin UI elements
+  const photoFrame = document.getElementById("photoFrame");
+  const photoImg = document.getElementById("photoImg");
+  const emptyText = document.getElementById("emptyText");
+  const statusPill = document.getElementById("statusPill");
+  const approveBtn = document.getElementById("approveBtn");
+  const rejectBtn = document.getElementById("rejectBtn");
+
+  const appToggleInput = document.getElementById("appToggle");
+  const appToggleWrapper = document.getElementById("appToggleWrapper");
+  const appStatusDot = document.getElementById("appStatusDot");
+
+  let currentFileId = null;
+  let isBusy = false;
+  let autoRefreshId = null;
+
+  // --- Toggle UI (frontend only) ---
+  function updateAppToggleUI(enabled) {
+    if (enabled) {
+      appToggleWrapper.classList.add("is-on");
+      appStatusDot.classList.add("on");
+      appStatusDot.classList.remove("off");
+    } else {
+      appToggleWrapper.classList.remove("is-on");
+      appStatusDot.classList.remove("on");
+      appStatusDot.classList.add("off");
+    }
+  }
+
+  (function initAppToggle() {
+    const stored = localStorage.getItem("selfieAppEnabled");
+    const enabled = stored === null ? true : stored === "true";
+    appToggleInput.checked = enabled;
+    updateAppToggleUI(enabled);
+
+    appToggleInput.addEventListener("change", () => {
+      const isEnabled = appToggleInput.checked;
+      updateAppToggleUI(isEnabled);
+      // FUTURE: call backend /admin/toggle-app here
+      localStorage.setItem("selfieAppEnabled", String(isEnabled));
+    });
+  })();
+
+  // --- Lock helpers ---
+  function showLock(message) {
+    if (message) {
+      accessError.textContent = message;
+    }
+    lockScreen.style.display = "flex";
+    stopAutoRefresh();
+    currentFileId = null;
+    adminToken = null; // 🔐 clear token when we lock
+    approveBtn.disabled = true;
+    rejectBtn.disabled = true;
+  }
+
+  function hideLock() {
+    accessError.textContent = "";
+    lockScreen.style.display = "none";
+  }
+
+  async function attemptLogin() {
+    const code = accessCodeInput.value.trim();
+    if (!code) {
+      accessError.textContent = "Ingresa el código de acceso.";
+      return;
     }
 
-    (function initAppToggle() {
-      const stored = localStorage.getItem("selfieAppEnabled");
-      const enabled = stored === null ? true : stored === "true";
-      appToggleInput.checked = enabled;
-      updateAppToggleUI(enabled);
+    accessSubmitBtn.disabled = true;
+    accessError.textContent = "";
 
-      appToggleInput.addEventListener("change", () => {
-        const isEnabled = appToggleInput.checked;
-        updateAppToggleUI(isEnabled);
-        // FUTURE: call backend /admin/toggle-app here
-        localStorage.setItem("selfieAppEnabled", String(isEnabled));
+    try {
+      const res = await fetch(`${BASE_URL}/admin/auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
       });
-    })();
 
-    // --- Lock helpers ---
-    function showLock(message) {
-      if (message) {
-        accessError.textContent = message;
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (res.ok && data.ok && data.token) {
+        // ✅ Login OK → store token
+        adminToken = data.token;
+        hideLock();
+        accessCodeInput.value = "";
+        await loadNextPhoto();
+        startAutoRefresh();
+      } else if (res.status === 401 && data.remainingAttempts != null) {
+        accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
+      } else if (res.status === 403 && data.error === "blocked") {
+        const minutes = Math.ceil(data.blockedMinutes || 30);
+        accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
+      } else if (data && data.error) {
+        accessError.textContent = "Error de autenticación. Intenta de nuevo.";
+      } else {
+        accessError.textContent = "Error de autenticación. Intenta de nuevo.";
       }
-      lockScreen.style.display = "flex";
-      stopAutoRefresh();
-      currentFileId = null;
-      approveBtn.disabled = true;
-      rejectBtn.disabled = true;
+    } catch (err) {
+      console.error(err);
+      accessError.textContent = "Error de red. Intenta de nuevo.";
+    } finally {
+      accessSubmitBtn.disabled = false;
     }
+  }
 
-    function hideLock() {
-      accessError.textContent = "";
-      lockScreen.style.display = "none";
-    }
+  accessSubmitBtn.addEventListener("click", attemptLogin);
+  accessCodeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") attemptLogin();
+  });
 
-    async function attemptLogin() {
-      const code = accessCodeInput.value.trim();
-      if (!code) {
-        accessError.textContent = "Ingresa el código de acceso.";
+  // --- Busy + admin logic ---
+  function setBusy(busy) {
+    isBusy = busy;
+    approveBtn.disabled = busy || !currentFileId;
+    rejectBtn.disabled = busy || !currentFileId;
+    statusPill.textContent = busy ? "Procesando…" : "Lista";
+  }
+
+  async function loadNextPhoto() {
+    setBusy(true);
+    photoImg.style.display = "none";
+    emptyText.style.display = "block";
+    emptyText.textContent = "Cargando próxima foto pendiente…";
+    photoFrame.classList.add("empty");
+
+    try {
+      const res = await authFetch("/admin/next-photo");
+
+      if (res.status === 401 || res.status === 403) {
+        showLock("Ingresa el código de acceso para continuar.");
         return;
       }
 
-      accessSubmitBtn.disabled = true;
-      accessError.textContent = "";
+      const data = await res.json();
 
-      try {
-        const res = await fetch(`${BASE_URL}/admin/auth`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
-          credentials: "include",
-        });
-
-        let data = {};
-        try {
-          data = await res.json();
-        } catch (_) {}
-
-        if (res.ok && data.ok) {
-          hideLock();
-          accessCodeInput.value = "";
-          await loadNextPhoto();
-          startAutoRefresh();
-        } else if (res.status === 401 && data.remainingAttempts != null) {
-          accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
-        } else if (res.status === 403 && data.error === "blocked") {
-          const minutes = Math.ceil(data.blockedMinutes || 30);
-          accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
-        } else {
-          accessError.textContent = "Error de autenticación. Intenta de nuevo.";
-        }
-      } catch (err) {
-        console.error(err);
-        accessError.textContent = "Error de red. Intenta de nuevo.";
-      } finally {
-        accessSubmitBtn.disabled = false;
-      }
-    }
-
-    accessSubmitBtn.addEventListener("click", attemptLogin);
-    accessCodeInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") attemptLogin();
-    });
-
-    // --- Busy + admin logic ---
-    function setBusy(busy) {
-      isBusy = busy;
-      approveBtn.disabled = busy || !currentFileId;
-      rejectBtn.disabled = busy || !currentFileId;
-      statusPill.textContent = busy ? "Procesando…" : "Lista";
-    }
-
-    async function loadNextPhoto() {
-      setBusy(true);
-      photoImg.style.display = "none";
-      emptyText.style.display = "block";
-      emptyText.textContent = "Cargando próxima foto pendiente…";
-      photoFrame.classList.add("empty");
-
-      try {
-        const res = await fetch(`${BASE_URL}/admin/next-photo`, {
-          credentials: "include",
-        });
-
-        if (res.status === 401 || res.status === 403) {
-          showLock("Ingresa el código de acceso para continuar.");
-          return;
-        }
-
-        const data = await res.json();
-
-        if (data.empty) {
-          currentFileId = null;
-          emptyText.textContent = "No hay fotos pendientes en este momento.";
-          statusPill.textContent = "Sin pendientes";
-          approveBtn.disabled = true;
-          rejectBtn.disabled = true;
-          return;
-        }
-
-        currentFileId = data.fileId;
-        const url = `${BASE_URL}/admin/photo/${encodeURIComponent(
-          currentFileId
-        )}?t=${Date.now()}`;
-
-        photoImg.src = url;
-        photoImg.onload = () => {
-          photoFrame.classList.remove("empty");
-          emptyText.style.display = "none";
-          photoImg.style.display = "block";
-        };
-
-        statusPill.textContent = "Pendiente";
-        approveBtn.disabled = false;
-        rejectBtn.disabled = false;
-      } catch (err) {
-        console.error(err);
-        emptyText.textContent = "Error cargando foto. Recarga la página.";
-        statusPill.textContent = "Error";
+      if (data.empty) {
+        currentFileId = null;
+        emptyText.textContent = "No hay fotos pendientes en este momento.";
+        statusPill.textContent = "Sin pendientes";
         approveBtn.disabled = true;
         rejectBtn.disabled = true;
-      } finally {
-        setBusy(false);
+        return;
       }
+
+      currentFileId = data.fileId;
+
+      // 🔑 pass token via query so the image route can auth
+      const tokenQuery = adminToken ? `&token=${encodeURIComponent(adminToken)}` : "";
+      const url = `${BASE_URL}/admin/photo/${encodeURIComponent(
+        currentFileId
+      )}?t=${Date.now()}${tokenQuery}`;
+
+      photoImg.src = url;
+      photoImg.onload = () => {
+        photoFrame.classList.remove("empty");
+        emptyText.style.display = "none";
+        photoImg.style.display = "block";
+      };
+
+      statusPill.textContent = "Pendiente";
+      approveBtn.disabled = false;
+      rejectBtn.disabled = false;
+    } catch (err) {
+      console.error(err);
+      emptyText.textContent = "Error cargando foto. Recarga la página.";
+      statusPill.textContent = "Error";
+      approveBtn.disabled = true;
+      rejectBtn.disabled = true;
+    } finally {
+      setBusy(false);
     }
+  }
 
-    async function sendAction(endpoint) {
-      if (!currentFileId || isBusy) return;
-      setBusy(true);
+  async function sendAction(endpoint) {
+    if (!currentFileId || isBusy) return;
+    setBusy(true);
 
-      try {
-        const res = await fetch(`${BASE_URL}${endpoint}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileId: currentFileId }),
-          credentials: "include",
-        });
+    try {
+      const res = await authFetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: currentFileId })
+      });
 
-        if (res.status === 401 || res.status === 403) {
-          showLock("Sesión expirada. Ingresa el código de acceso.");
-          return;
-        }
-      } catch (err) {
-        console.error(err);
-        statusPill.textContent = "Error";
-      } finally {
-        await loadNextPhoto();
+      if (res.status === 401 || res.status === 403) {
+        showLock("Sesión expirada. Ingresa el código de acceso.");
+        return;
       }
+    } catch (err) {
+      console.error(err);
+      statusPill.textContent = "Error";
+    } finally {
+      await loadNextPhoto();
     }
+  }
 
-    approveBtn.addEventListener("click", () =>
-      sendAction("/admin/approve")
-    );
-    rejectBtn.addEventListener("click", () =>
-      sendAction("/admin/reject")
-    );
+  approveBtn.addEventListener("click", () =>
+    sendAction("/admin/approve")
+  );
+  rejectBtn.addEventListener("click", () =>
+    sendAction("/admin/reject")
+  );
 
-    // --- Swipe logic ---
-    let startX = null;
+  // --- Swipe logic ---
+  let startX = null;
 
-    function onStart(e) {
-      const touch = e.touches ? e.touches[0] : e;
-      startX = touch.clientX;
+  function onStart(e) {
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+  }
+
+  function onEnd(e) {
+    if (startX == null || !currentFileId || isBusy) return;
+    const touch = e.changedTouches ? e.changedTouches[0] : e;
+    const dx = touch.clientX - startX;
+
+    const threshold = 50; // px
+    if (dx > threshold) {
+      sendAction("/admin/approve");
+    } else if (dx < -threshold) {
+      sendAction("/admin/reject");
     }
+    startX = null;
+  }
 
-    function onEnd(e) {
-      if (startX == null || !currentFileId || isBusy) return;
-      const touch = e.changedTouches ? e.changedTouches[0] : e;
-      const dx = touch.clientX - startX;
+  photoFrame.addEventListener("mousedown", onStart);
+  photoFrame.addEventListener("mouseup", onEnd);
+  photoFrame.addEventListener("touchstart", onStart);
+  photoFrame.addEventListener("touchend", onEnd);
 
-      const threshold = 50; // px
-      if (dx > threshold) {
-        sendAction("/admin/approve");
-      } else if (dx < -threshold) {
-        sendAction("/admin/reject");
+  // --- Auto-refresh / live updates ---
+  async function checkForUpdates() {
+    if (isBusy) return;
+
+    try {
+      const res = await authFetch("/admin/next-photo");
+
+      if (res.status === 401 || res.status === 403) {
+        showLock("Sesión expirada. Ingresa el código de acceso.");
+        return;
       }
-      startX = null;
-    }
 
-    photoFrame.addEventListener("mousedown", onStart);
-    photoFrame.addEventListener("mouseup", onEnd);
-    photoFrame.addEventListener("touchstart", onStart);
-    photoFrame.addEventListener("touchend", onEnd);
+      const data = await res.json();
 
-    // --- Auto-refresh / live updates ---
-    async function checkForUpdates() {
-      if (isBusy) return;
-
-      try {
-        const res = await fetch(`${BASE_URL}/admin/next-photo`, {
-          credentials: "include",
-        });
-
-        if (res.status === 401 || res.status === 403) {
-          showLock("Sesión expirada. Ingresa el código de acceso.");
-          return;
-        }
-
-        const data = await res.json();
-
-        if (data.empty) {
-          if (currentFileId !== null) {
-            await loadNextPhoto();
-          }
-          return;
-        }
-
-        if (currentFileId === null || data.fileId !== currentFileId) {
+      if (data.empty) {
+        if (currentFileId !== null) {
           await loadNextPhoto();
         }
-      } catch (err) {
-        console.error("Auto-refresh error", err);
+        return;
       }
-    }
 
-    function startAutoRefresh() {
-      if (autoRefreshId) return;
-      autoRefreshId = setInterval(checkForUpdates, 10000);
+      if (currentFileId === null || data.fileId !== currentFileId) {
+        await loadNextPhoto();
+      }
+    } catch (err) {
+      console.error("Auto-refresh error", err);
     }
+  }
 
-    function stopAutoRefresh() {
-      if (!autoRefreshId) return;
-      clearInterval(autoRefreshId);
-      autoRefreshId = null;
-    }
+  function startAutoRefresh() {
+    if (autoRefreshId) return;
+    autoRefreshId = setInterval(checkForUpdates, 10000);
+  }
 
-    // On first load we stay locked until /admin/auth succeeds
-    showLock();
-  </script>
+  function stopAutoRefresh() {
+    if (!autoRefreshId) return;
+    clearInterval(autoRefreshId);
+    autoRefreshId = null;
+  }
+
+  // On first load we stay locked until /admin/auth succeeds
+  showLock();
+</script>
 </body>
 </html>
