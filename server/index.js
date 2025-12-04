@@ -212,7 +212,7 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
 
   // Text report (attachment + fallback)
   const textReport =
-    `REPORTE DE SESION - SELFIE APP - MUNICIPIO DE MAYAGYUEZ\n` +
+    `REPORTE DE SESION - SELFIE APP - MUNICIPIO DE MAYAGÜEZ\n` +
     `${dateLabel}\n\n` +
     `Visitas a la app: ${sessionStats.visits}\n` +
     `Formularios completados: ${sessionStats.forms}\n` +
@@ -221,7 +221,7 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
       ? `Horario de mayor actividad (hora local PR): ${formatHourRange(prime.hour)} ` +
         `(${prime.count} interacciones)\n`
       : `No se pudo determinar un horario de mayor actividad.\n`) +
-    `\nTotal de eventos registrados: ${totalEvents}\n`;
+    `\nTotal de interacciones registradas: ${totalEvents}\n`;
 
   const htmlReport = `<!DOCTYPE html>
 <html>
