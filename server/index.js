@@ -34,7 +34,8 @@ app.use(express.json());
 
 // *** Simple visit endpoint so FE can log app opens ***
 app.post('/ping', (req, res) => {
-  registerEvent('visit');
+  // count a "visit"
+  registerEvent('visit', new Date().toISOString());
   res.json({ ok: true });
 });
 
@@ -70,6 +71,7 @@ function registerEvent(type, timestampISO) {
 }
 
 function resetSessionStats() {
+  console.log('Resetting session stats to zero...');
   sessionStats.visits = 0;
   sessionStats.forms = 0;
   sessionStats.uploads = 0;
@@ -356,7 +358,7 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 
   try {
-    registerEvent('upload');
+    registerEvent('upload', new Date().toISOString());
 
     const fileId = await uploadFile(
       req.body,
@@ -502,10 +504,14 @@ app.get('/session-report-daily', async (req, res) => {
     const totalEvents =
       sessionStats.visits + sessionStats.forms + sessionStats.uploads;
 
+    console.log(
+      'Daily cron hit. Current stats:',
+      JSON.stringify(sessionStats, null, 2)
+    );
+
     if (totalEvents === 0) {
       console.log('No activity today, skipping daily report.');
-      // Still reset so each day is fresh
-      resetSessionStats();
+      resetSessionStats(); // keep next day clean anyway
       return res.json({ ok: true, skipped: true });
     }
 
