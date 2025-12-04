@@ -856,9 +856,12 @@
         submitIntroButton.classList.remove('button-loading');
       }
     });
-
     window.addEventListener('load', () => {
       introModal.style.display = 'flex';
+
+      // NEW: log app visit (so sessionStats.visits increases)
+      fetch(`${BACKEND_URL}/ping`, { method: 'POST' })
+        .catch(() => {});
     });
   </script>
 </body>
