@@ -756,7 +756,8 @@
             method: 'POST',
             headers: {
               'Content-Type': blob.type,
-              'X-File-Name': buildPhotoFileName()
+              'X-File-Name': buildPhotoFileName(),
+              'x-session-id' : getsessionID()
             },
             body: blob
           });
@@ -834,7 +835,8 @@
         await fetch(`${BACKEND_URL}/visit`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-session-id': getSessionId()
           },
           body: JSON.stringify({
             country,
@@ -863,6 +865,33 @@
       fetch(`${BACKEND_URL}/ping`, { method: 'POST' })
         .catch(() => {});
     });
+
+   <script>
+      // Keep the same ID for this user while the tab is open / reused
+      function getSessionId() {
+        let id = localStorage.getItem('lumi_session_id');
+        if (!id) {
+          id = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+          localStorage.setItem('lumi_session_id', id);
+        }
+        return id;
+      }
+
+      // Call this once on page load
+      function pingSession() {
+        fetch('/ping', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-session-id': getSessionId()
+          },
+          body: JSON.stringify({})
+        }).catch(console.error);
+      }
+
+      // Run as soon as the page is ready
+      window.addEventListener('load', pingSession);
+    </script>
   </script>
 </body>
 </html>
