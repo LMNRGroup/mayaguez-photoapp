@@ -43,6 +43,32 @@ const jwtClient = new google.auth.JWT(
 const drive = google.drive({ version: 'v3', auth: jwtClient });
 const DRIVE_FOLDER_ID = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs';
 
+// ---- In-memory session stats (reset on server restart) ----
+const sessionStats = {
+  visits: 0,
+  forms: 0,
+  uploads: 0,
+  events: [],          // { type: 'visit' | 'form' | 'upload', ts: ISO string }
+  testReportSent: false
+};
+
+function registerEvent(type, timestampISO) {
+  const ts = timestampISO || new Date().toISOString();
+
+  if (type === 'visit')  sessionStats.visits++;
+  if (type === 'form')   sessionStats.forms++;
+  if (type === 'upload') sessionStats.uploads++;
+
+  sessionStats.events.push({ type, ts });
+}
+
+function resetSessionStats() {
+  sessionStats.visits = 0;
+  sessionStats.forms = 0;
+  sessionStats.uploads = 0;
+  sessionStats.events = [];
+  sessionStats.testReportSent = false;
+}
 // --- Helper: get Puerto Rico time (GMT-4) ---
 function getPRDate() {
   const now = new Date();
@@ -64,6 +90,37 @@ function buildServerFileName(counter) {
   const num = String(counter).padStart(2, '0'); // 01, 02, 03, ...
 
   return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
+}
+
+function computePrimeHour(events) {
+  if (!events.length) return null;
+
+  const bucket = {}; // hour -> count
+  for (const ev of events) {
+    const d = new Date(ev.ts);
+    if (Number.isNaN(d.getTime())) continue;
+    const h = d.getHours(); // 0–23
+    bucket[h] = (bucket[h] || 0) + 1;
+  }
+
+  let bestHour = null;
+  let bestCount = 0;
+  for (const [hourStr, count] of Object.entries(bucket)) {
+    const hour = Number(hourStr);
+    if (count > bestCount) {
+      bestCount = count;
+      bestHour = hour;
+    }
+  }
+
+  if (bestHour === null) return null;
+  return { hour: bestHour, count: bestCount };
+}
+
+function formatHourRange(hour) {
+  // Simple 24h → "HH:00–HH:59"
+  const h = String(hour).padStart(2, '0');
+  return `${h}:00–${h}:59`;
 }
 
 // --- Helper: read existing files and find next index ---
@@ -96,6 +153,113 @@ async function getNextPhotoIndex() {
   } while (pageToken);
 
   return maxIndex + 1;
+}
+
+async function sendSessionReportEmail({ isTest = false } = {}) {
+  if (!mailTransporter) {
+    console.log('Mail transporter not configured, skipping report email.');
+    return;
+  }
+
+  const totalEvents =
+    sessionStats.visits + sessionStats.forms + sessionStats.uploads;
+
+  if (totalEvents === 0) {
+    console.log('No activity in session, skipping report email.');
+    return;
+  }
+
+  const prime = computePrimeHour(sessionStats.events);
+
+  const subject = isTest
+    ? 'REPORTE DE SESIÓN (PRUEBA) – Selfie App'
+    : 'Reporte de sesión – Selfie App';
+
+  // Text version (for attachment + plain fallback)
+  const textReport =
+    `REPORTE DE SESIÓN - SELFIE APP\n\n` +
+    `Visitas a la app: ${sessionStats.visits}\n` +
+    `Formularios completados: ${sessionStats.forms}\n` +
+    `Fotos capturadas/subidas: ${sessionStats.uploads}\n\n` +
+    (prime
+      ? `Horario de mayor actividad: ${formatHourRange(prime.hour)} ` +
+        `(${prime.count} interacciones)\n`
+      : `No se pudo determinar un horario de mayor actividad.\n`) +
+    `\nTotal de eventos registrados: ${totalEvents}\n`;
+
+  const htmlReport = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>${subject}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td align="left" style="padding:24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
+                 style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+            <tr>
+              <td style="padding:18px 24px;background:#1f2933;border-radius:8px 8px 0 0;color:#ffffff;">
+                <div style="font-size:16px;font-weight:600;">
+                  ${isTest ? 'REPORTE DE SESIÓN (PRUEBA)' : 'REPORTE DE SESIÓN'}
+                </div>
+                <div style="font-size:11px;margin-top:4px;opacity:0.9;">
+                  Selfie App · Municipio de Mayagüez
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 24px 12px 24px;font-size:13px;color:#333;">
+                <p style="margin:0 0 10px 0;">
+                  A continuación encontrarás el resumen de uso de la aplicación durante esta sesión:
+                </p>
+
+                <ul style="margin:0 0 10px 20px;padding:0;font-size:13px;">
+                  <li><strong>Visitas a la app:</strong> ${sessionStats.visits}</li>
+                  <li><strong>Formularios completados:</strong> ${sessionStats.forms}</li>
+                  <li><strong>Fotos capturadas/subidas:</strong> ${sessionStats.uploads}</li>
+                </ul>
+
+                ${
+                  prime
+                    ? `<p style="margin:6px 0 0 0;font-size:13px;">
+                        <strong>Horario de mayor actividad:</strong>
+                        ${formatHourRange(prime.hour)} (${prime.count} interacciones)
+                       </p>`
+                    : `<p style="margin:6px 0 0 0;font-size:13px;">
+                        No se pudo determinar un horario de mayor actividad.
+                       </p>`
+                }
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 24px 18px 24px;font-size:10px;color:#888;border-top:1px solid #f0f0f0;text-align:center;">
+                Este reporte fue generado automáticamente por Luminar Apps – Selfie App.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  await mailTransporter.sendMail({
+    from: `"Luminar Apps" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+    to: process.env.MAIL_TO || process.env.MAIL_USER,
+    subject,
+    text: textReport,
+    html: htmlReport,
+    attachments: [
+      {
+        filename: 'reporte_sesion.txt',
+        content: textReport
+      }
+    ]
+  });
+
+  console.log(isTest ? 'Test session report email sent.' : 'Session report email sent.');
 }
 
 // --- Main uploader: uses global index ---
