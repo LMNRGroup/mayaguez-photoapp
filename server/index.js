@@ -7,6 +7,7 @@ const dotenv = require('dotenv');
 const stream = require('stream');
 const nodemailer = require('nodemailer');
 const path = require('path');
+const cookieParser = require('cookie-parser'); // ⬅️ NEW
 
 dotenv.config();
 
@@ -25,6 +26,16 @@ const SESSION_SHEET_ID =
 
 // Rango donde están las columnas: timestamp_utc, timestamp_pr, event_type, email, session_id, metadata
 const SESSION_SHEET_RANGE = 'A:F';
+
+// ---------- ADMIN SECURITY ----------
+const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE; // e.g. "MAYAGUEZ2025!"
+const ADMIN_UNLOCK_KEY = process.env.ADMIN_UNLOCK_KEY;   // manual unblock key
+
+const ADMIN_MAX_ATTEMPTS = 3;
+const ADMIN_BLOCK_MINUTES = 30;
+
+// In-memory IP tracker: { ip: { attempts, blockedUntil } }
+const ipTracker = new Map();
 
 // ---------- Mail setup ----------
 let mailTransporter = null;
@@ -45,6 +56,7 @@ if (process.env.MAIL_USER && process.env.MAIL_PASS) {
 // ---------- Express setup ----------
 const app = express();
 app.use(cors());
+app.use(cookieParser());       // ⬅️ for adminAuth cookie
 app.use(express.json());
 
 // ---------- Google Auth (Service Account) ----------
@@ -137,6 +149,62 @@ function getTodayPRRangeUtc() {
     startUtc: prToUtc(startPR),
     endUtc: prToUtc(endPR)
   };
+}
+
+// ---------- ADMIN AUTH HELPERS ----------
+
+function getClientIp(req) {
+  const xfwd = req.headers['x-forwarded-for'];
+  if (xfwd) {
+    return xfwd.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function isBlocked(ip) {
+  const record = ipTracker.get(ip);
+  if (!record || !record.blockedUntil) return false;
+  return record.blockedUntil > Date.now();
+}
+
+function remainingBlockMinutes(ip) {
+  const record = ipTracker.get(ip);
+  if (!record || !record.blockedUntil) return 0;
+  const remainingMs = record.blockedUntil - Date.now();
+  return Math.max(0, Math.ceil(remainingMs / 60000));
+}
+
+// Middleware: reject if IP is blocked
+function ensureNotBlocked(req, res, next) {
+  const ip = getClientIp(req);
+  if (isBlocked(ip)) {
+    return res.status(403).json({
+      error: 'blocked',
+      message: 'IP bloqueada temporalmente',
+      blockedMinutes: remainingBlockMinutes(ip),
+    });
+  }
+  next();
+}
+
+// Middleware: require valid admin cookie AND not blocked
+function ensureAdminAuth(req, res, next) {
+  const ip = getClientIp(req);
+
+  if (isBlocked(ip)) {
+    return res.status(403).json({
+      error: 'blocked',
+      message: 'IP bloqueada temporalmente',
+      blockedMinutes: remainingBlockMinutes(ip),
+    });
+  }
+
+  const token = req.cookies?.adminAuth;
+  if (token === '1') {
+    return next();
+  }
+
+  return res.status(401).json({ error: 'unauthorized' });
 }
 
 // ---------- HELPERS PARA DRIVE (FOTOS) ----------
@@ -678,10 +746,91 @@ app.post('/visit', async (req, res) => {
   }
 });
 
+// --------- ADMIN AUTH ROUTE ----------
+
+app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
+  if (!ADMIN_ACCESS_CODE) {
+    return res.status(500).json({ error: 'admin_code_not_configured' });
+  }
+
+  const ip = getClientIp(req);
+  const { code } = req.body || {};
+
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'missing_code' });
+  }
+
+  let record = ipTracker.get(ip) || { attempts: 0, blockedUntil: 0 };
+
+  // Safety: if already blocked
+  if (isBlocked(ip)) {
+    return res.status(403).json({
+      error: 'blocked',
+      blockedMinutes: remainingBlockMinutes(ip),
+    });
+  }
+
+  if (code === ADMIN_ACCESS_CODE) {
+    // Success → reset attempts, clear block, set cookie
+    record = { attempts: 0, blockedUntil: 0 };
+    ipTracker.set(ip, record);
+
+    res.cookie('adminAuth', '1', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 8 * 60 * 60 * 1000, // 8h
+    });
+
+    return res.json({ ok: true });
+  }
+
+  // Wrong code
+  record.attempts += 1;
+
+  if (record.attempts >= ADMIN_MAX_ATTEMPTS) {
+    record.blockedUntil = Date.now() + ADMIN_BLOCK_MINUTES * 60 * 1000;
+    ipTracker.set(ip, record);
+
+    return res.status(403).json({
+      error: 'blocked',
+      blockedMinutes: ADMIN_BLOCK_MINUTES,
+    });
+  }
+
+  ipTracker.set(ip, record);
+
+  return res.status(401).json({
+    error: 'invalid_code',
+    remainingAttempts: ADMIN_MAX_ATTEMPTS - record.attempts,
+  });
+});
+
+// --------- ADMIN UNBLOCK (manual) ----------
+
+app.post('/admin/unblock', (req, res) => {
+  if (!ADMIN_UNLOCK_KEY) {
+    return res.status(500).json({ error: 'unlock_key_not_configured' });
+  }
+
+  const key = req.headers['x-admin-unlock-key'];
+  if (key !== ADMIN_UNLOCK_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const { ip } = req.body || {};
+  if (!ip) {
+    return res.status(400).json({ error: 'missing_ip' });
+  }
+
+  ipTracker.delete(ip);
+  return res.json({ ok: true, message: `IP ${ip} desbloqueada` });
+});
+
 // --------- ADMIN API: review photos ----------
 
 // Get next pending photo (for review UI)
-app.get('/admin/next-photo', async (req, res) => {
+app.get('/admin/next-photo', ensureAdminAuth, async (req, res) => {
   try {
     const file = await getNextPendingPhoto();
     if (!file) {
@@ -699,7 +848,7 @@ app.get('/admin/next-photo', async (req, res) => {
 });
 
 // Serve the actual image bytes so admin.html can <img src="...">
-app.get('/admin/photo/:id', async (req, res) => {
+app.get('/admin/photo/:id', ensureAdminAuth, async (req, res) => {
   const fileId = req.params.id;
 
   try {
@@ -729,7 +878,7 @@ app.get('/admin/photo/:id', async (req, res) => {
 });
 
 // Approve: move file from Pending to Approved
-app.post('/admin/approve', async (req, res) => {
+app.post('/admin/approve', ensureAdminAuth, async (req, res) => {
   try {
     const { fileId } = req.body || {};
     if (!fileId) {
@@ -752,7 +901,7 @@ app.post('/admin/approve', async (req, res) => {
 });
 
 // Reject: send file to Drive trash
-app.post('/admin/reject', async (req, res) => {
+app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
   try {
     const { fileId } = req.body || {};
     if (!fileId) {
