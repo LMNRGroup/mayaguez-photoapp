@@ -5,8 +5,10 @@ const dotenv = require('dotenv');
 const stream = require('stream');
 const nodemailer = require('nodemailer');
 const path = require('path');
+
 const LUMI_LOGO_URL =
   'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png';
+
 dotenv.config();
 
 // ---------- Mail setup ----------
@@ -30,7 +32,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// *** NEW: simple visit endpoint so FE can log app opens ***
+// *** Visit ping so FE can log app opens ***
 app.post('/ping', (req, res) => {
   registerEvent('visit');
   res.json({ ok: true });
@@ -77,10 +79,32 @@ function resetSessionStats() {
 }
 
 // --- Helper: get Puerto Rico time (GMT-4) ---
-function getPRDate() {
-  const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+function getPRDate(baseDate) {
+  // baseDate optional: if provided, convert THAT moment to PR time instead of "now"
+  const ref = baseDate ? new Date(baseDate) : new Date();
+  const utc = ref.getTime() + ref.getTimezoneOffset() * 60000;
   return new Date(utc - 4 * 60 * 60000);
+}
+
+// --- Helper: Spanish date string for reports ---
+function formatSpanishDatePR() {
+  const d = getPRDate(); // current date/time in PR
+
+  const days = [
+    'domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'
+  ];
+  const months = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+  ];
+
+  const dayName = days[d.getDay()];
+  const dayNumber = d.getDate();
+  const monthName = months[d.getMonth()];
+  const year = d.getFullYear();
+
+  const dayCap = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  return `${dayCap} ${dayNumber} de ${monthName} de ${year}`;
 }
 
 // --- Helper: build filename 01_DD_MM_YY-HH_MM_SS.jpeg ---
@@ -99,14 +123,20 @@ function buildServerFileName(counter) {
   return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
 }
 
+// --- Prime time in PUERTO RICO local time ---
 function computePrimeHour(events) {
   if (!events.length) return null;
 
-  const bucket = {}; // hour -> count
+  const bucket = {}; // hour (0-23 in PR) -> count
+
   for (const ev of events) {
-    const d = new Date(ev.ts);
-    if (Number.isNaN(d.getTime())) continue;
-    const h = d.getHours(); // 0–23
+    const dUTC = new Date(ev.ts);
+    if (Number.isNaN(dUTC.getTime())) continue;
+
+    // Convert this exact timestamp to PR time
+    const dPR = getPRDate(dUTC);
+    const h = dPR.getHours(); // 0–23 in PR
+
     bucket[h] = (bucket[h] || 0) + 1;
   }
 
@@ -176,18 +206,19 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
   }
 
   const prime = computePrimeHour(sessionStats.events);
+  const subject = 'Reporte de sesión – Selfie App'; // no (PRUEBA)
 
-  const subject = isTest
-    ? 'REPORTE DE SESIÓN (PRUEBA) – Selfie App'
-    : 'Reporte de sesión – Selfie App';
+  const dateLabel = formatSpanishDatePR();
 
+  // Text report (attachment + fallback)
   const textReport =
-    `REPORTE DE SESIÓN - SELFIE APP\n\n` +
+    `REPORTE DE SESION - SELFIE APP - MUNICIPIO DE MAYAGYUEZ\n` +
+    `${dateLabel}\n\n` +
     `Visitas a la app: ${sessionStats.visits}\n` +
     `Formularios completados: ${sessionStats.forms}\n` +
     `Fotos capturadas/subidas: ${sessionStats.uploads}\n\n` +
     (prime
-      ? `Horario de mayor actividad: ${formatHourRange(prime.hour)} ` +
+      ? `Horario de mayor actividad (hora local PR): ${formatHourRange(prime.hour)} ` +
         `(${prime.count} interacciones)\n`
       : `No se pudo determinar un horario de mayor actividad.\n`) +
     `\nTotal de eventos registrados: ${totalEvents}\n`;
@@ -203,31 +234,42 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
       <tr>
         <td align="left" style="padding:24px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
-                 style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                 style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+            <!-- HEADER: same style as "Nueva familia registrada" -->
             <tr>
-              <td style="padding:18px 24px;background:#1f2933;border-radius:8px 8px 0 0;color:#ffffff;">
-                <div style="font-size:16px;font-weight:600;">
-                  ${isTest ? 'REPORTE DE SESIÓN (PRUEBA)' : 'REPORTE DE SESIÓN'}
+              <td style="padding:20px 24px 16px 24px;background:#0a192f;
+                         border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
+                <div style="font-size:18px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;">
+                  REPORTE DE SESIÓN
                 </div>
-                <div style="font-size:11px;margin-top:4px;opacity:0.9;">
-                  Selfie App · Municipio de Mayagüez
+                <div style="margin-top:4px;font-size:10px;opacity:0.9;">
+                  Pantalla Plaza Colón · Selfie App · Municipio de Mayagüez
                 </div>
               </td>
             </tr>
+
+            <!-- BODY -->
             <tr>
               <td style="padding:18px 24px 12px 24px;font-size:13px;color:#333;">
                 <p style="margin:0 0 10px 0;">
                   A continuación encontrarás el resumen de uso de la aplicación durante esta sesión:
                 </p>
+
+                <p style="margin:0 0 10px 0;font-size:12px;color:#555;">
+                  <strong>Fecha del reporte:</strong> ${dateLabel}
+                </p>
+
                 <ul style="margin:0 0 10px 20px;padding:0;font-size:13px;">
                   <li><strong>Visitas a la app:</strong> ${sessionStats.visits}</li>
                   <li><strong>Formularios completados:</strong> ${sessionStats.forms}</li>
                   <li><strong>Fotos capturadas/subidas:</strong> ${sessionStats.uploads}</li>
                 </ul>
+
                 ${
                   prime
                     ? `<p style="margin:6px 0 0 0;font-size:13px;">
-                        <strong>Horario de mayor actividad:</strong>
+                        <strong>Horario de mayor actividad (hora local PR):</strong>
                         ${formatHourRange(prime.hour)} (${prime.count} interacciones)
                        </p>`
                     : `<p style="margin:6px 0 0 0;font-size:13px;">
@@ -236,11 +278,24 @@ async function sendSessionReportEmail({ isTest = false } = {}) {
                 }
               </td>
             </tr>
+
+            <!-- FOOTER: same logo/footer block as "Nueva familia registrada" -->
             <tr>
-              <td style="padding:16px 24px 18px 24px;font-size:10px;color:#888;border-top:1px solid #f0f0f0;text-align:center;">
-                Este reporte fue generado automáticamente por Luminar Apps – Selfie App.
+              <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
+                <img
+                  src="${LUMI_LOGO_URL}"
+                  alt="Luminar Apps"
+                  style="display:block;height:40px;margin:0 auto 6px auto;"
+                />
+                <p style="font-size:9px;color:#aaaaaa;line-height:1.4;margin:0 0 2px 0;">
+                  Este correo fue generado automáticamente por Luminar Apps.
+                </p>
+                <p style="font-size:9px;color:#aaaaaa;line-height:1.4;margin:0;">
+                  Favor no responder a este correo electrónico.
+                </p>
               </td>
             </tr>
+
           </table>
         </td>
       </tr>
@@ -295,7 +350,7 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 
   try {
-    // *** NEW: count uploads as events ***
+    // count uploads as events
     registerEvent('upload');
 
     const fileId = await uploadFile(
@@ -310,12 +365,12 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 });
 
-// ---------- Visit logging ----------
+// ---------- Visit logging + per-form email ----------
 app.post('/visit', async (req, res) => {
   try {
     const { country, lastName, email, newsletter, timestamp } = req.body || {};
 
-    // *** NEW: count forms as events ***
+    // count forms as events
     registerEvent('form', timestamp || new Date().toISOString());
 
     console.log('Visit payload:', { country, lastName, email, newsletter, timestamp });
@@ -389,7 +444,7 @@ app.post('/visit', async (req, res) => {
             <tr>
               <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
                 <img
-                  src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
+                  src="${LUMI_LOGO_URL}"
                   alt="Luminar Apps"
                   style="display:block;height:40px;margin:0 auto 6px auto;"
                 />
@@ -416,8 +471,8 @@ app.post('/visit', async (req, res) => {
       html
     });
 
-    // *** NEW: auto-send test report ***
-    if (sessionStats.forms >= 3 && !sessionStats.testReportSent) {
+    // For testing: send report once we get AT LEAST 1 form
+    if (sessionStats.forms >= 1 && !sessionStats.testReportSent) {
       try {
         await sendSessionReportEmail({ isTest: true });
         sessionStats.testReportSent = true;
@@ -434,6 +489,7 @@ app.post('/visit', async (req, res) => {
   }
 });
 
+// Manual trigger endpoint
 app.post('/session-report-now', async (req, res) => {
   try {
     await sendSessionReportEmail({ isTest: true });
