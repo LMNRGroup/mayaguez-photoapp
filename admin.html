@@ -424,7 +424,8 @@
   </div>
 
   <script>
-    const BASE_URL = "https://mayaguez-photoapp.vercel.app"; // same origin
+    // Use same origin as where admin.html is served
+    const BASE_URL = window.location.origin;
 
     // Lock / auth elements
     const lockScreen = document.getElementById("lockScreen");
@@ -507,6 +508,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code }),
+          credentials: "include",
         });
 
         let data = {};
@@ -556,7 +558,9 @@
       photoFrame.classList.add("empty");
 
       try {
-        const res = await fetch(`${BASE_URL}/admin/next-photo`);
+        const res = await fetch(`${BASE_URL}/admin/next-photo`, {
+          credentials: "include",
+        });
 
         if (res.status === 401 || res.status === 403) {
           showLock("Ingresa el código de acceso para continuar.");
@@ -609,6 +613,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileId: currentFileId }),
+          credentials: "include",
         });
 
         if (res.status === 401 || res.status === 403) {
@@ -662,7 +667,9 @@
       if (isBusy) return;
 
       try {
-        const res = await fetch(`${BASE_URL}/admin/next-photo`);
+        const res = await fetch(`${BASE_URL}/admin/next-photo`, {
+          credentials: "include",
+        });
 
         if (res.status === 401 || res.status === 403) {
           showLock("Sesión expirada. Ingresa el código de acceso.");
