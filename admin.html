@@ -17,9 +17,9 @@
       margin: 0;
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: flex-start; /* push content up, not dead-center */
       justify-content: center;
-      padding: 24px;
+      padding: 32px 24px 40px;
       background: #ffffff; /* WHITE PAGE BG for logo visibility */
     }
 
@@ -27,14 +27,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 20px;
       width: 100%;
       max-width: 960px;
     }
 
     .logo-top {
-      height: 40px;
-      max-width: 260px;
+      height: 44px;
+      max-width: 320px;
       object-fit: contain;
     }
 
@@ -259,23 +259,26 @@
     .lock-card {
       background: #020617;
       border-radius: 18px;
-      padding: 20px 18px 18px;
+      padding: 22px 20px 20px;
       width: 100%;
-      max-width: 360px;
+      max-width: 380px;
       box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
       color: #f9fafb;
+      text-align: center;
     }
 
     .lock-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 4px;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
     .lock-subtitle {
       font-size: 12px;
       color: #9ca3af;
-      margin-bottom: 14px;
+      margin-bottom: 18px;
     }
 
     .lock-input {
@@ -283,10 +286,19 @@
       border-radius: 999px;
       border: 1px solid #374151;
       background: #020617;
-      padding: 10px 12px;
+      padding: 11px 14px;
       color: #e5e7eb;
-      font-size: 13px;
+      font-size: 14px;
       outline: none;
+      text-align: center;
+      letter-spacing: 0.22em;
+      font-weight: 600;
+    }
+
+    .lock-input::placeholder {
+      letter-spacing: 0;
+      font-weight: 400;
+      color: #6b7280;
     }
 
     .lock-input:focus {
@@ -295,7 +307,7 @@
     }
 
     .lock-button {
-      margin-top: 10px;
+      margin-top: 12px;
       width: 100%;
       border-radius: 999px;
       border: none;
@@ -303,10 +315,10 @@
       color: #022c22;
       font-size: 13px;
       font-weight: 600;
-      padding: 10px 14px;
+      padding: 11px 14px;
       cursor: pointer;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.12em;
     }
 
     .lock-button:disabled {
@@ -315,10 +327,21 @@
     }
 
     .lock-error {
-      margin-top: 8px;
+      margin-top: 10px;
       font-size: 11px;
       color: #f97373;
       min-height: 14px;
+    }
+
+    /* Shake animation for wrong code */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    .lock-card.shake {
+      animation: shake 0.32s ease;
     }
 
     /* Desktop tweaks */
@@ -327,13 +350,17 @@
         padding: 40px;
       }
 
+      .logo-top {
+        height: 64px;
+      }
+
       .card {
-        padding: 24px 24px 26px;
+        padding: 26px 26px 28px;
         gap: 18px;
       }
 
       .title {
-        font-size: 18px;
+        font-size: 19px;
       }
 
       .subtitle {
@@ -341,11 +368,11 @@
       }
 
       .photo-frame {
-        min-height: 400px;
+        min-height: 420px;
       }
 
       .photo-frame img {
-        max-height: 600px;
+        max-height: 620px;
       }
 
       .helper {
@@ -357,19 +384,22 @@
 <body>
   <!-- LOCK OVERLAY -->
   <div id="lockScreen" class="lock-screen">
-    <div class="lock-card">
-      <div class="lock-title">Panel de revisión</div>
+    <div class="lock-card" id="lockCard">
+      <div class="lock-title">PANEL DE REVISIÓN</div>
       <div class="lock-subtitle">
         Ingresa el código de acceso para revisar y moderar las fotos.
       </div>
       <input
         id="accessCode"
         class="lock-input"
-        type="password"
+        type="text"
         placeholder="Código de acceso"
         autocomplete="off"
+        inputmode="text"
+        autocapitalize="off"
+        spellcheck="false"
       />
-      <button id="accessSubmit" class="lock-button">Entrar</button>
+      <button id="accessSubmit" class="lock-button">ENTRAR</button>
       <div id="accessError" class="lock-error"></div>
     </div>
   </div>
@@ -422,7 +452,8 @@
       </div>
     </div>
   </div>
- <script>
+
+  <script>
   // Backend origin – this is where your Node/Express lives
   const BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
@@ -431,6 +462,7 @@
 
   // Lock / auth elements
   const lockScreen = document.getElementById("lockScreen");
+  const lockCard = document.getElementById("lockCard");
   const accessCodeInput = document.getElementById("accessCode");
   const accessSubmitBtn = document.getElementById("accessSubmit");
   const accessError = document.getElementById("accessError");
@@ -450,6 +482,35 @@
   let currentFileId = null;
   let isBusy = false;
   let autoRefreshId = null;
+
+  // Store "real" code while showing ****
+  let secretCode = "";
+
+  function maskInput() {
+    accessCodeInput.value = "*".repeat(secretCode.length);
+  }
+
+  accessCodeInput.addEventListener("input", (e) => {
+    const newVal = e.target.value;
+    // If user added chars
+    if (newVal.length > secretCode.length) {
+      const added = newVal.slice(secretCode.length);
+      secretCode += added;
+    } else if (newVal.length < secretCode.length) {
+      // Deleted chars from the end
+      secretCode = secretCode.slice(0, newVal.length);
+    }
+    maskInput();
+  });
+
+  // Ensure backspace/delete still works even with mask
+  accessCodeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Backspace") {
+      secretCode = secretCode.slice(0, -1);
+      maskInput();
+      e.preventDefault();
+    }
+  });
 
   // --- Toggle UI (frontend only) ---
   function updateAppToggleUI(enabled) {
@@ -478,6 +539,13 @@
     });
   })();
 
+  function triggerLockShake() {
+    lockCard.classList.remove("shake");
+    // force reflow so animation restarts
+    void lockCard.offsetWidth;
+    lockCard.classList.add("shake");
+  }
+
   // --- Lock helpers ---
   function showLock(message) {
     if (message) {
@@ -489,11 +557,15 @@
     adminToken = null; // invalidate token on lock
     approveBtn.disabled = true;
     rejectBtn.disabled = true;
+    secretCode = "";
+    accessCodeInput.value = "";
   }
 
   function hideLock() {
     accessError.textContent = "";
     lockScreen.style.display = "none";
+    secretCode = "";
+    accessCodeInput.value = "";
   }
 
   // Helper: headers with admin token when available
@@ -506,9 +578,10 @@
   }
 
   async function attemptLogin() {
-    const code = accessCodeInput.value.trim();
+    const code = secretCode.trim();
     if (!code) {
       accessError.textContent = "Ingresa el código de acceso.";
+      triggerLockShake();
       return;
     }
 
@@ -531,30 +604,38 @@
         // ✅ Guardamos token de sesión
         adminToken = data.token;
         hideLock();
-        accessCodeInput.value = "";
         await loadNextPhoto();
         startAutoRefresh();
       } else if (res.status === 401 && data.remainingAttempts != null) {
         accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
+        triggerLockShake();
       } else if (res.status === 403 && data.error === "blocked") {
         const minutes = Math.ceil(data.blockedMinutes || 30);
         accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
+        triggerLockShake();
       } else if (data.error === "admin_code_not_configured") {
         accessError.textContent = "Código de acceso no configurado en el servidor.";
+        triggerLockShake();
       } else {
         accessError.textContent = "Error de autenticación. Intenta de nuevo.";
+        triggerLockShake();
       }
     } catch (err) {
       console.error(err);
       accessError.textContent = "Error de red. Intenta de nuevo.";
+      triggerLockShake();
     } finally {
       accessSubmitBtn.disabled = false;
+      // keep code so they can re-try or clear manually
     }
   }
 
   accessSubmitBtn.addEventListener("click", attemptLogin);
   accessCodeInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") attemptLogin();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      attemptLogin();
+    }
   });
 
   // --- Busy + admin logic ---
@@ -728,6 +809,6 @@
 
   // On first load we stay locked until /admin/auth succeeds
   showLock();
-</script>
+  </script>
 </body>
 </html>
