@@ -6,10 +6,19 @@ const stream = require('stream');
 const nodemailer = require('nodemailer');
 const path = require('path');
 
+dotenv.config();
+
+// ---------- CONSTANTES ----------
 const LUMI_LOGO_URL =
   'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png';
 
-dotenv.config();
+// ID de tu Google Sheet de logs
+const SESSION_SHEET_ID =
+  process.env.SESSION_SHEET_ID ||
+  '1bPctG2H31Ix2N8jVNgFTgiB3FVWyr6BudXNY8YOD4GE';
+
+// Rango donde están las columnas: timestamp_utc, timestamp_pr, event_type, email, session_id, metadata
+const SESSION_SHEET_RANGE = 'A:F';
 
 // ---------- Mail setup ----------
 let mailTransporter = null;
@@ -18,8 +27,8 @@ if (process.env.MAIL_USER && process.env.MAIL_PASS) {
   mailTransporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.MAIL_USER,   // Luminar Apps email
-      pass: process.env.MAIL_PASS    // app password
+      user: process.env.MAIL_USER, // Luminar Apps email
+      pass: process.env.MAIL_PASS  // App password
     }
   });
   console.log('Mail transporter configured');
@@ -27,121 +36,47 @@ if (process.env.MAIL_USER && process.env.MAIL_PASS) {
   console.log('Mail transporter NOT configured (missing MAIL_USER or MAIL_PASS)');
 }
 
-// ---------- Express / Drive setup ----------
+// ---------- Express setup ----------
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// *** Simple visit endpoint so FE can log app opens ***
-app.post('/ping', (req, res) => {
-  // count a "visit"
-  registerEvent('visit', new Date().toISOString());
-  res.json({ ok: true });
-});
-
-// Create a new JWT client using the service account
+// ---------- Google Auth (Service Account) ----------
 const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+
+// Scopes: Drive + Sheets
 const jwtClient = new google.auth.JWT(
   credentials.client_email,
   null,
   credentials.private_key,
-  ['https://www.googleapis.com/auth/drive']
+  [
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/spreadsheets'
+  ]
 );
 
-// Create a new Drive client
+// Clients
 const drive = google.drive({ version: 'v3', auth: jwtClient });
+const sheets = google.sheets({ version: 'v4', auth: jwtClient });
+
 const DRIVE_FOLDER_ID = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs';
 
-// ---- In-memory session stats (reset when we call resetSessionStats) ----
-const sessionStats = {
-  visits: 0,
-  forms: 0,
-  uploads: 0,
-  events: [] // { type: 'visit' | 'form' | 'upload', ts: ISO string }
-};
+// ---------- HELPERS DE FECHA / HORA ----------
 
-function registerEvent(type, timestampISO) {
-  const ts = timestampISO || new Date().toISOString();
-
-  if (type === 'visit')  sessionStats.visits++;
-  if (type === 'form')   sessionStats.forms++;
-  if (type === 'upload') sessionStats.uploads++;
-
-  sessionStats.events.push({ type, ts });
-}
-
-function resetSessionStats() {
-  console.log('Resetting session stats to zero...');
-  sessionStats.visits = 0;
-  sessionStats.forms = 0;
-  sessionStats.uploads = 0;
-  sessionStats.events = [];
-}
-
-// --- Helper: get Puerto Rico time (GMT-4) for "now" ---
+// Puerto Rico time "ahora" (GMT-4 fijo, sin DST)
 function getPRDate() {
   const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utc - 4 * 60 * 60000);
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utcMs - 4 * 60 * 60 * 1000);
 }
 
-// --- Helper: convert any Date to PR timezone (used for each event) ---
+// Convertir una Date (UTC) a PR
 function toPR(date) {
-  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
-  return new Date(utc - 4 * 60 * 60000);
+  const utcMs = date.getTime() + date.getTimezoneOffset() * 60000;
+  return new Date(utcMs - 4 * 60 * 60 * 1000);
 }
 
-// --- Helper: build filename 01_DD_MM_YY-HH_MM_SS.jpeg ---
-function buildServerFileName(counter) {
-  const prNow = getPRDate();
-
-  const dd = String(prNow.getDate()).padStart(2, '0');
-  const mm = String(prNow.getMonth() + 1).padStart(2, '0');
-  const yy = String(prNow.getFullYear()).slice(-2);
-  const HH = String(prNow.getHours()).padStart(2, '0');
-  const MM = String(prNow.getMinutes()).padStart(2, '0');
-  const SS = String(prNow.getSeconds()).padStart(2, '0');
-
-  const num = String(counter).padStart(2, '0'); // 01, 02, 03, ...
-
-  return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
-}
-
-// --- Prime hour of activity in PR time ---
-function computePrimeHour(events) {
-  if (!events.length) return null;
-
-  const bucket = {}; // hour -> count
-  for (const ev of events) {
-    const dUTC = new Date(ev.ts);
-    if (Number.isNaN(dUTC.getTime())) continue;
-
-    const dPR = toPR(dUTC);
-    const h = dPR.getHours(); // 0–23 in Puerto Rico time
-
-    bucket[h] = (bucket[h] || 0) + 1;
-  }
-
-  let bestHour = null;
-  let bestCount = 0;
-  for (const [hourStr, count] of Object.entries(bucket)) {
-    const hour = Number(hourStr);
-    if (count > bestCount) {
-      bestCount = count;
-      bestHour = hour;
-    }
-  }
-
-  if (bestHour === null) return null;
-  return { hour: bestHour, count: bestCount };
-}
-
-function formatHourRange(hour) {
-  const h = String(hour).padStart(2, '0');
-  return `${h}:00–${h}:59`;
-}
-
-// Long Spanish date: "Miércoles 3 de diciembre de 2025"
+// Fecha larga en español: "Miércoles 3 de diciembre de 2025"
 function formatPRDateLong() {
   const d = getPRDate();
 
@@ -162,7 +97,65 @@ function formatPRDateLong() {
   return `${dayName} ${dayNum} de ${monthName} de ${year}`;
 }
 
-// --- Helper: read existing files and find next index ---
+// Fecha/hora corta para guardar en la columna timestamp_pr del sheet
+// Ej: "03/12/2025 22:05:31"
+function formatPRDateTimeShort(prDate) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const dd = pad(prDate.getDate());
+  const mm = pad(prDate.getMonth() + 1);
+  const yyyy = prDate.getFullYear();
+  const HH = pad(prDate.getHours());
+  const MM = pad(prDate.getMinutes());
+  const SS = pad(prDate.getSeconds());
+  return `${dd}/${mm}/${yyyy} ${HH}:${MM}:${SS}`;
+}
+
+// Para el reporte: "HH:00–HH:59"
+function formatHourRange(hour) {
+  const h = String(hour).padStart(2, '0');
+  return `${h}:00–${h}:59`;
+}
+
+// Rango de HOY (en PR) pero expresado en UTC, para filtrar los logs
+function getTodayPRRangeUtc() {
+  const nowPR = getPRDate();
+
+  const startPR = new Date(nowPR);
+  startPR.setHours(0, 0, 0, 0);
+
+  const endPR = new Date(nowPR);
+  endPR.setHours(23, 59, 59, 999);
+
+  // PR time → UTC (PR = UTC-4, así que sumamos 4h)
+  const prToUtc = (dPR) => new Date(dPR.getTime() + 4 * 60 * 60 * 1000);
+
+  return {
+    startUtc: prToUtc(startPR),
+    endUtc: prToUtc(endPR)
+  };
+}
+
+// ---------- HELPERS PARA DRIVE (FOTOS) ----------
+
+// build filename 01_DD_MM_YY-HH_MM_SS.jpeg
+function buildServerFileName(counter) {
+  const prNow = getPRDate();
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const dd = pad(prNow.getDate());
+  const mm = pad(prNow.getMonth() + 1);
+  const yy = String(prNow.getFullYear()).slice(-2);
+  const HH = pad(prNow.getHours());
+  const MM = pad(prNow.getMinutes());
+  const SS = pad(prNow.getSeconds());
+
+  const num = pad(counter); // 01, 02, 03, ...
+
+  return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
+}
+
+// Buscar el próximo índice para el nombre del archivo en Drive
 async function getNextPhotoIndex() {
   let pageToken = null;
   let maxIndex = 0;
@@ -194,22 +187,174 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-// --- Daily session report email ---
-async function sendSessionReportEmail() {
+// Subir archivo a Drive
+async function uploadFile(fileBuffer, originalname, mimetype) {
+  const bufferStream = new stream.PassThrough();
+  bufferStream.end(fileBuffer);
+
+  const nextIndex = await getNextPhotoIndex();
+  const finalName = buildServerFileName(nextIndex);
+
+  const response = await drive.files.create({
+    requestBody: {
+      name: finalName,
+      mimeType: mimetype,
+      parents: [DRIVE_FOLDER_ID]
+    },
+    media: {
+      mimeType: mimetype,
+      body: bufferStream
+    },
+    supportsAllDrives: true
+  });
+
+  return { fileId: response.data.id, finalName };
+}
+
+// ---------- HELPERS PARA SHEETS (LOGS) ----------
+
+// Log genérico a Google Sheets
+async function logEventToSheet(eventType, {
+  email = '',
+  sessionId = '',
+  metadata = null,
+  timestampUtc = null
+} = {}) {
+  if (!SESSION_SHEET_ID) {
+    console.warn('SESSION_SHEET_ID missing, skipping logEventToSheet');
+    return;
+  }
+
+  const utcStr = timestampUtc || new Date().toISOString();
+  const dUtc = new Date(utcStr);
+  if (Number.isNaN(dUtc.getTime())) {
+    console.warn('Invalid UTC timestamp for logEventToSheet, skipping:', utcStr);
+    return;
+  }
+
+  const dPR = toPR(dUtc);
+  const prStr = formatPRDateTimeShort(dPR);
+
+  const metaString = metadata ? JSON.stringify(metadata) : '';
+
+  const values = [[utcStr, prStr, eventType, email || '', sessionId || '', metaString]];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SESSION_SHEET_ID,
+    range: SESSION_SHEET_RANGE,
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: { values }
+  });
+
+  console.log('Logged event to sheet:', { eventType, utcStr, prStr, email, sessionId });
+}
+
+// Leer logs de HOY (en PR) desde el Sheet y computar stats
+async function getTodayStatsFromSheet() {
+  if (!SESSION_SHEET_ID) {
+    console.warn('SESSION_SHEET_ID missing, cannot compute stats.');
+    return {
+      visits: 0,
+      forms: 0,
+      uploads: 0,
+      eventsForPrimeHour: []
+    };
+  }
+
+  const { startUtc, endUtc } = getTodayPRRangeUtc();
+
+  const resp = await sheets.spreadsheets.values.get({
+    spreadsheetId: SESSION_SHEET_ID,
+    range: SESSION_SHEET_RANGE
+  });
+
+  const rows = resp.data.values || [];
+  if (rows.length <= 1) {
+    // Solo headers, nada más
+    return {
+      visits: 0,
+      forms: 0,
+      uploads: 0,
+      eventsForPrimeHour: []
+    };
+  }
+
+  let visits = 0;
+  let forms = 0;
+  let uploads = 0;
+  const eventsForPrimeHour = []; // { ts: string }
+
+  // Saltamos el header row (fila 0)
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const tsUtcStr = row[0];
+    const eventType = row[2];
+
+    if (!tsUtcStr || !eventType) continue;
+
+    const ts = new Date(tsUtcStr);
+    if (Number.isNaN(ts.getTime())) continue;
+
+    if (ts < startUtc || ts > endUtc) continue;
+
+    if (eventType === 'visit') visits++;
+    else if (eventType === 'form') forms++;
+    else if (eventType === 'upload') uploads++;
+
+    eventsForPrimeHour.push({ ts: tsUtcStr });
+  }
+
+  return { visits, forms, uploads, eventsForPrimeHour };
+}
+
+// Calcular prime hour usando eventos del día (en PR)
+function computePrimeHour(events) {
+  if (!events.length) return null;
+
+  const bucket = {}; // hour -> count
+
+  for (const ev of events) {
+    const dUTC = new Date(ev.ts);
+    if (Number.isNaN(dUTC.getTime())) continue;
+
+    const dPR = toPR(dUTC);
+    const h = dPR.getHours(); // 0–23
+
+    bucket[h] = (bucket[h] || 0) + 1;
+  }
+
+  let bestHour = null;
+  let bestCount = 0;
+  for (const [hourStr, count] of Object.entries(bucket)) {
+    const hour = Number(hourStr);
+    if (count > bestCount) {
+      bestCount = count;
+      bestHour = hour;
+    }
+  }
+
+  if (bestHour === null) return null;
+  return { hour: bestHour, count: bestCount };
+}
+
+// ---------- EMAIL DE REPORTE DIARIO (usa el Sheet) ----------
+async function sendSessionReportEmailFromSheet() {
   if (!mailTransporter) {
     console.log('Mail transporter not configured, skipping report email.');
     return;
   }
 
-  const totalEvents =
-    sessionStats.visits + sessionStats.forms + sessionStats.uploads;
+  const { visits, forms, uploads, eventsForPrimeHour } =
+    await getTodayStatsFromSheet();
 
+  const totalEvents = visits + forms + uploads;
   if (totalEvents === 0) {
-    console.log('No activity in session, skipping report email.');
+    console.log('No activity today in sheet, skipping report email.');
     return;
   }
 
-  const prime = computePrimeHour(sessionStats.events);
+  const prime = computePrimeHour(eventsForPrimeHour);
   const longDate = formatPRDateLong();
 
   const subject = 'Reporte de sesión diaria – Selfie App · Municipio de Mayagüez';
@@ -217,9 +362,9 @@ async function sendSessionReportEmail() {
   const textReport =
     `REPORTE DE SESION - SELFIE APP - MUNICIPIO DE MAYAGÜEZ\n` +
     `${longDate}\n\n` +
-    `Visitas a la app: ${sessionStats.visits}\n` +
-    `Formularios completados: ${sessionStats.forms}\n` +
-    `Fotos capturadas/subidas: ${sessionStats.uploads}\n\n` +
+    `Visitas a la app: ${visits}\n` +
+    `Formularios completados: ${forms}\n` +
+    `Fotos capturadas/subidas: ${uploads}\n\n` +
     (prime
       ? `Horario de mayor actividad: ${formatHourRange(prime.hour)} ` +
         `(${prime.count} interacciones)\n`
@@ -241,7 +386,7 @@ async function sendSessionReportEmail() {
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
                  style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
                         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-            <!-- Header band (same style as "Nueva familia registrada") -->
+            <!-- Header band (igual que "Nueva familia registrada") -->
             <tr>
               <td style="padding:20px 24px 16px 24px;background:#0a192f;
                          border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
@@ -265,13 +410,13 @@ async function sendSessionReportEmail() {
                 </p>
 
                 <p style="margin:0 0 6px 0;">
-                  <strong>Visitas a la app:</strong> ${sessionStats.visits}
+                  <strong>Visitas a la app:</strong> ${visits}
                 </p>
                 <p style="margin:0 0 6px 0;">
-                  <strong>Formularios completados:</strong> ${sessionStats.forms}
+                  <strong>Formularios completados:</strong> ${forms}
                 </p>
                 <p style="margin:0 0 6px 0;">
-                  <strong>Fotos capturadas/subidas:</strong> ${sessionStats.uploads}
+                  <strong>Fotos capturadas/subidas:</strong> ${uploads}
                 </p>
 
                 ${
@@ -287,7 +432,7 @@ async function sendSessionReportEmail() {
               </td>
             </tr>
 
-            <!-- Footer with centered logo + text (same as other emails) -->
+            <!-- Footer con logo centrado (igual que otros correos) -->
             <tr>
               <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
                 <img
@@ -324,63 +469,78 @@ async function sendSessionReportEmail() {
     ]
   });
 
-  console.log('Daily session report email sent.');
+  console.log('Daily session report email sent (from Sheets data).');
 }
 
-// --- Main uploader: uses global index ---
-async function uploadFile(fileBuffer, originalname, mimetype) {
-  const bufferStream = new stream.PassThrough();
-  bufferStream.end(fileBuffer);
+// ---------- RUTAS ----------
 
-  const nextIndex = await getNextPhotoIndex();
-  const finalName = buildServerFileName(nextIndex);
+// Simple visit endpoint: FE puede llamar esto en page load
+app.post('/ping', async (req, res) => {
+  try {
+    const sessionId = req.headers['x-session-id'] || '';
+    await logEventToSheet('visit', { sessionId });
+  } catch (e) {
+    console.error('Error logging visit to sheet:', e);
+  }
+  res.json({ ok: true });
+});
 
-  const response = await drive.files.create({
-    requestBody: {
-      name: finalName,
-      mimeType: mimetype,
-      parents: [DRIVE_FOLDER_ID]
-    },
-    media: {
-      mimeType: mimetype,
-      body: bufferStream
-    },
-    supportsAllDrives: true
-  });
-
-  return response.data.id;
-}
-
-// --------- Upload route (counts uploads) ----------
+// Upload de foto (cuenta como "upload")
 app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
   if (!req.body || req.body.length === 0) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
 
   try {
-    registerEvent('upload', new Date().toISOString());
-
-    const fileId = await uploadFile(
+    const { fileId, finalName } = await uploadFile(
       req.body,
       'ignored.jpeg',
       req.headers['content-type']
     );
-    res.json({ message: 'File uploaded successfully', fileId: fileId });
+
+    // Log a Sheet
+    try {
+      const sessionId = req.headers['x-session-id'] || '';
+      await logEventToSheet('upload', {
+        sessionId,
+        metadata: { driveFileId: fileId, filename: finalName }
+      });
+    } catch (e) {
+      console.error('Error logging upload event to sheet:', e);
+    }
+
+    res.json({ message: 'File uploaded successfully', fileId });
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).json({ error: 'Error uploading file', details: error.message });
   }
 });
 
-// ---------- Visit logging (form submissions) ----------
+// Visit logging (form submissions)
 app.post('/visit', async (req, res) => {
   try {
     const { country, lastName, email, newsletter, timestamp } = req.body || {};
 
-    // Count forms as events
-    registerEvent('form', timestamp || new Date().toISOString());
+    const timestampUtc = timestamp || new Date().toISOString();
 
-    console.log('Visit payload:', { country, lastName, email, newsletter, timestamp });
+    // Log a Sheet como "form"
+    try {
+      const sessionId = req.headers['x-session-id'] || '';
+      await logEventToSheet('form', {
+        email,
+        sessionId,
+        timestampUtc,
+        metadata: {
+          country,
+          lastName,
+          newsletter
+        }
+      });
+    } catch (e) {
+      console.error('Error logging form event to sheet:', e);
+    }
+
+    console.log('Visit payload:', { country, lastName, email, newsletter, timestampUtc });
 
     if (!mailTransporter) {
       console.log('Mail transporter is not configured, skipping email.');
@@ -395,7 +555,7 @@ app.post('/visit', async (req, res) => {
       `Apellidos de la familia: ${lastName || 'No provisto'}\n` +
       `Correo electrónico de la familia: ${email || 'No provisto'}\n` +
       `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
-      `Fecha y hora (UTC): ${timestamp || new Date().toISOString()}`;
+      `Fecha y hora (UTC): ${timestampUtc}`;
 
     const html = `<!DOCTYPE html>
 <html>
@@ -454,7 +614,7 @@ app.post('/visit', async (req, res) => {
                 </p>
 
                 <p style="margin:10px 0 0 0;font-size:11px;color:#666666;">
-                  <strong>Fecha y hora (UTC):</strong> ${timestamp || new Date().toISOString()}
+                  <strong>Fecha y hora (UTC):</strong> ${timestampUtc}
                 </p>
               </td>
             </tr>
@@ -501,24 +661,8 @@ app.post('/visit', async (req, res) => {
 // --------- Daily report route (for Vercel cron) ----------
 app.get('/session-report-daily', async (req, res) => {
   try {
-    const totalEvents =
-      sessionStats.visits + sessionStats.forms + sessionStats.uploads;
-
-    console.log(
-      'Daily cron hit. Current stats:',
-      JSON.stringify(sessionStats, null, 2)
-    );
-
-    if (totalEvents === 0) {
-      console.log('No activity today, skipping daily report.');
-      resetSessionStats(); // keep next day clean anyway
-      return res.json({ ok: true, skipped: true });
-    }
-
-    await sendSessionReportEmail();
-    // IMPORTANT: reset daily counters AFTER sending
-    resetSessionStats();
-
+    console.log('Daily cron hit: /session-report-daily');
+    await sendSessionReportEmailFromSheet();
     res.json({ ok: true });
   } catch (e) {
     console.error('Error sending daily session report:', e);
@@ -526,11 +670,10 @@ app.get('/session-report-daily', async (req, res) => {
   }
 });
 
-// MANUAL trigger for debugging 
+// MANUAL trigger for debugging (puedes hacer POST desde Postman / curl)
 app.post('/session-report-now', async (req, res) => {
   try {
-    await sendSessionReportEmail();
-    resetSessionStats();
+    await sendSessionReportEmailFromSheet();
     res.json({ ok: true });
   } catch (e) {
     console.error('Error sending manual session report:', e);
