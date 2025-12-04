@@ -422,26 +422,9 @@
       </div>
     </div>
   </div>
-  <script>
-  // Use same origin as where admin.html is served
-  const BASE_URL = window.location.origin;
-
-  // Admin auth token (from /admin/auth)
-  let adminToken = null;
-
-  // Helper: fetch that sends x-admin-token when we have it
-  function authFetch(path, options = {}) {
-    const headers = { ...(options.headers || {}) };
-    if (adminToken) {
-      headers['x-admin-token'] = adminToken;
-    }
-    return fetch(`${BASE_URL}${path}`, {
-      ...options,
-      headers,
-      // credentials not needed anymore, but harmless:
-      // credentials: 'include',
-    });
-  }
+ <script>
+  // API lives here (Express server)
+  const API_BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
   // Lock / auth elements
   const lockScreen = document.getElementById("lockScreen");
@@ -464,6 +447,7 @@
   let currentFileId = null;
   let isBusy = false;
   let autoRefreshId = null;
+  let adminToken = null; // <-- new session token
 
   // --- Toggle UI (frontend only) ---
   function updateAppToggleUI(enabled) {
@@ -500,7 +484,7 @@
     lockScreen.style.display = "flex";
     stopAutoRefresh();
     currentFileId = null;
-    adminToken = null; // 🔐 clear token when we lock
+    adminToken = null; // reset token on lock
     approveBtn.disabled = true;
     rejectBtn.disabled = true;
   }
@@ -521,10 +505,10 @@
     accessError.textContent = "";
 
     try {
-      const res = await fetch(`${BASE_URL}/admin/auth`, {
+      const res = await fetch(`${API_BASE_URL}/admin/auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code }),
       });
 
       let data = {};
@@ -533,19 +517,18 @@
       } catch (_) {}
 
       if (res.ok && data.ok && data.token) {
-        // ✅ Login OK → store token
+        // ✅ login OK
         adminToken = data.token;
         hideLock();
         accessCodeInput.value = "";
         await loadNextPhoto();
         startAutoRefresh();
       } else if (res.status === 401 && data.remainingAttempts != null) {
+        // ❌ wrong code
         accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
       } else if (res.status === 403 && data.error === "blocked") {
         const minutes = Math.ceil(data.blockedMinutes || 30);
         accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
-      } else if (data && data.error) {
-        accessError.textContent = "Error de autenticación. Intenta de nuevo.";
       } else {
         accessError.textContent = "Error de autenticación. Intenta de nuevo.";
       }
@@ -571,6 +554,11 @@
   }
 
   async function loadNextPhoto() {
+    if (!adminToken) {
+      showLock("Sesión expirada. Ingresa el código de acceso.");
+      return;
+    }
+
     setBusy(true);
     photoImg.style.display = "none";
     emptyText.style.display = "block";
@@ -578,7 +566,9 @@
     photoFrame.classList.add("empty");
 
     try {
-      const res = await authFetch("/admin/next-photo");
+      const res = await fetch(`${API_BASE_URL}/admin/next-photo`, {
+        headers: { "x-admin-token": adminToken },
+      });
 
       if (res.status === 401 || res.status === 403) {
         showLock("Ingresa el código de acceso para continuar.");
@@ -597,12 +587,9 @@
       }
 
       currentFileId = data.fileId;
-
-      // 🔑 pass token via query so the image route can auth
-      const tokenQuery = adminToken ? `&token=${encodeURIComponent(adminToken)}` : "";
-      const url = `${BASE_URL}/admin/photo/${encodeURIComponent(
+      const url = `${API_BASE_URL}/admin/photo/${encodeURIComponent(
         currentFileId
-      )}?t=${Date.now()}${tokenQuery}`;
+      )}?t=${Date.now()}&token=${encodeURIComponent(adminToken)}`;
 
       photoImg.src = url;
       photoImg.onload = () => {
@@ -626,14 +613,17 @@
   }
 
   async function sendAction(endpoint) {
-    if (!currentFileId || isBusy) return;
+    if (!currentFileId || isBusy || !adminToken) return;
     setBusy(true);
 
     try {
-      const res = await authFetch(endpoint, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId: currentFileId })
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-token": adminToken,
+        },
+        body: JSON.stringify({ fileId: currentFileId }),
       });
 
       if (res.status === 401 || res.status === 403) {
@@ -648,12 +638,8 @@
     }
   }
 
-  approveBtn.addEventListener("click", () =>
-    sendAction("/admin/approve")
-  );
-  rejectBtn.addEventListener("click", () =>
-    sendAction("/admin/reject")
-  );
+  approveBtn.addEventListener("click", () => sendAction("/admin/approve"));
+  rejectBtn.addEventListener("click", () => sendAction("/admin/reject"));
 
   // --- Swipe logic ---
   let startX = null;
@@ -684,10 +670,12 @@
 
   // --- Auto-refresh / live updates ---
   async function checkForUpdates() {
-    if (isBusy) return;
+    if (isBusy || !adminToken) return;
 
     try {
-      const res = await authFetch("/admin/next-photo");
+      const res = await fetch(`${API_BASE_URL}/admin/next-photo`, {
+        headers: { "x-admin-token": adminToken },
+      });
 
       if (res.status === 401 || res.status === 403) {
         showLock("Sesión expirada. Ingresa el código de acceso.");
