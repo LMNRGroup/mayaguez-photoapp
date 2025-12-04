@@ -21,25 +21,26 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
+      background: #0b1020;
     }
 
     .card {
       background: #111827;
       border-radius: 18px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-      max-width: 420px;
+      max-width: 900px;
       width: 100%;
-      padding: 18px 18px 20px;
+      padding: 20px 20px 22px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
 
     .card-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 8px;
+      align-items: flex-start;
+      gap: 12px;
     }
 
     .title {
@@ -52,6 +53,13 @@
       color: #9ca3af;
     }
 
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
     .status-pill {
       font-size: 11px;
       padding: 4px 8px;
@@ -59,6 +67,91 @@
       background: #111827;
       border: 1px solid #374151;
       color: #e5e7eb;
+    }
+
+    /* App toggle */
+    .app-toggle {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .app-toggle-label {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .app-toggle-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #ef4444; /* default OFF */
+      box-shadow: none;
+      flex-shrink: 0;
+    }
+
+    .status-dot.on {
+      background: #10b981;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.9);
+    }
+
+    .status-dot.off {
+      background: #ef4444;
+      box-shadow: none;
+    }
+
+    .toggle {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      width: 34px;
+      height: 18px;
+      border-radius: 999px;
+      background: #111827;
+      border: 1px solid #374151;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .toggle input {
+      display: none;
+    }
+
+    .toggle-slider {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .toggle-slider::before {
+      content: "";
+      position: absolute;
+      top: 1px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #9ca3af;
+      transition: transform 0.18s ease, background 0.18s ease;
+    }
+
+    .toggle.is-on {
+      border-color: #10b981;
+      background: #022c22;
+    }
+
+    .toggle.is-on .toggle-slider::before {
+      transform: translateX(14px);
+      background: #10b981;
     }
 
     .photo-frame {
@@ -136,6 +229,38 @@
       font-weight: 500;
       color: #e5e7eb;
     }
+
+    /* Desktop tweaks */
+    @media (min-width: 768px) {
+      body {
+        padding: 40px;
+      }
+
+      .card {
+        padding: 24px 24px 26px;
+        gap: 18px;
+      }
+
+      .title {
+        font-size: 18px;
+      }
+
+      .subtitle {
+        font-size: 12px;
+      }
+
+      .photo-frame {
+        min-height: 400px;
+      }
+
+      .photo-frame img {
+        max-height: 600px;
+      }
+
+      .helper {
+        font-size: 12px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -145,7 +270,20 @@
         <div class="title">Revisión de fotos</div>
         <div class="subtitle">Desliza para aprobar o rechazar · o usa los botones</div>
       </div>
-      <span id="statusPill" class="status-pill">Cargando…</span>
+
+      <div class="header-right">
+        <div class="app-toggle">
+          <span class="app-toggle-label">Estado Selfie App</span>
+          <div class="app-toggle-control">
+            <span id="appStatusDot" class="status-dot off"></span>
+            <label class="toggle" id="appToggleWrapper">
+              <input type="checkbox" id="appToggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <span id="statusPill" class="status-pill">Cargando…</span>
+      </div>
     </div>
 
     <div id="photoFrame" class="photo-frame empty">
@@ -174,9 +312,42 @@
     const approveBtn = document.getElementById("approveBtn");
     const rejectBtn = document.getElementById("rejectBtn");
 
+    const appToggleInput = document.getElementById("appToggle");
+    const appToggleWrapper = document.getElementById("appToggleWrapper");
+    const appStatusDot = document.getElementById("appStatusDot");
+
     let currentFileId = null;
     let isBusy = false;
 
+    // --- Toggle UI (frontend only) ---
+    function updateAppToggleUI(enabled) {
+      if (enabled) {
+        appToggleWrapper.classList.add("is-on");
+        appStatusDot.classList.add("on");
+        appStatusDot.classList.remove("off");
+      } else {
+        appToggleWrapper.classList.remove("is-on");
+        appStatusDot.classList.remove("on");
+        appStatusDot.classList.add("off");
+      }
+    }
+
+    // Initialize toggle from localStorage (default: ON)
+    (function initAppToggle() {
+      const stored = localStorage.getItem("selfieAppEnabled");
+      const enabled = stored === null ? true : stored === "true";
+      appToggleInput.checked = enabled;
+      updateAppToggleUI(enabled);
+
+      appToggleInput.addEventListener("change", () => {
+        const isEnabled = appToggleInput.checked;
+        updateAppToggleUI(isEnabled);
+        // FUTURE: call backend /admin/toggle-app here
+        localStorage.setItem("selfieAppEnabled", String(isEnabled));
+      });
+    })();
+
+    // --- Existing logic ---
     function setBusy(busy) {
       isBusy = busy;
       approveBtn.disabled = busy || !currentFileId;
