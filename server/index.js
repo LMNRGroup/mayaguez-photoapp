@@ -1,3 +1,5 @@
+// server/index.js
+
 const express = require('express');
 const { google } = require('googleapis');
 const cors = require('cors');
@@ -11,6 +13,10 @@ dotenv.config();
 // ---------- CONSTANTES ----------
 const LUMI_LOGO_URL =
   'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png';
+
+// Google Drive folders
+const PENDING_FOLDER_ID  = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs'; // existing uploads
+const APPROVED_FOLDER_ID = '1blA55AfkUykFcYzgFzmvthXMvVFv6I0u'; // new "Approved" folder
 
 // ID de tu Google Sheet de logs
 const SESSION_SHEET_ID =
@@ -58,8 +64,6 @@ const jwtClient = new google.auth.JWT(
 // Clients
 const drive = google.drive({ version: 'v3', auth: jwtClient });
 const sheets = google.sheets({ version: 'v4', auth: jwtClient });
-
-const DRIVE_FOLDER_ID = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs';
 
 // ---------- HELPERS DE FECHA / HORA ----------
 
@@ -155,14 +159,14 @@ function buildServerFileName(counter) {
   return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
 }
 
-// Buscar el próximo índice para el nombre del archivo en Drive
+// Buscar el próximo índice para el nombre del archivo en Drive (PENDING)
 async function getNextPhotoIndex() {
   let pageToken = null;
   let maxIndex = 0;
 
   do {
     const res = await drive.files.list({
-      q: `'${DRIVE_FOLDER_ID}' in parents and trashed = false`,
+      q: `'${PENDING_FOLDER_ID}' in parents and trashed = false`,
       fields: 'files(name), nextPageToken',
       pageSize: 100,
       supportsAllDrives: true,
@@ -187,7 +191,7 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-// Subir archivo a Drive
+// Subir archivo a Drive → PENDING folder
 async function uploadFile(fileBuffer, originalname, mimetype) {
   const bufferStream = new stream.PassThrough();
   bufferStream.end(fileBuffer);
@@ -199,7 +203,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     requestBody: {
       name: finalName,
       mimeType: mimetype,
-      parents: [DRIVE_FOLDER_ID]
+      parents: [PENDING_FOLDER_ID]
     },
     media: {
       mimeType: mimetype,
@@ -209,6 +213,20 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
   });
 
   return { fileId: response.data.id, finalName };
+}
+
+// Obtener la próxima foto pendiente más vieja
+async function getNextPendingPhoto() {
+  const res = await drive.files.list({
+    q: `'${PENDING_FOLDER_ID}' in parents and trashed = false`,
+    orderBy: 'createdTime asc',
+    pageSize: 1,
+    fields: 'files(id, name)'
+  });
+
+  const files = res.data.files || [];
+  if (!files.length) return null;
+  return files[0]; // { id, name }
 }
 
 // ---------- HELPERS PARA SHEETS (LOGS) ----------
@@ -655,6 +673,99 @@ app.post('/visit', async (req, res) => {
   } catch (err) {
     console.error('Error sending visit email:', err);
     res.status(500).json({ ok: false, error: 'email_failed' });
+  }
+});
+
+// --------- ADMIN API: review photos ----------
+
+// Get next pending photo (for review UI)
+app.get('/admin/next-photo', async (req, res) => {
+  try {
+    const file = await getNextPendingPhoto();
+    if (!file) {
+      return res.json({ empty: true });
+    }
+    res.json({
+      empty: false,
+      fileId: file.id,
+      name: file.name
+    });
+  } catch (err) {
+    console.error('Error fetching next pending photo:', err);
+    res.status(500).json({ error: 'failed_next_photo' });
+  }
+});
+
+// Serve the actual image bytes so admin.html can <img src="...">
+app.get('/admin/photo/:id', async (req, res) => {
+  const fileId = req.params.id;
+
+  try {
+    const driveRes = await drive.files.get(
+      {
+        fileId,
+        alt: 'media'
+      },
+      { responseType: 'stream' }
+    );
+
+    res.setHeader('Content-Type', 'image/jpeg');
+    driveRes.data
+      .on('error', (err) => {
+        console.error('Error streaming photo:', err);
+        if (!res.headersSent) {
+          res.status(500).end('Error streaming file');
+        }
+      })
+      .pipe(res);
+  } catch (err) {
+    console.error('Error getting photo from Drive:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'failed_photo_stream' });
+    }
+  }
+});
+
+// Approve: move file from Pending to Approved
+app.post('/admin/approve', async (req, res) => {
+  try {
+    const { fileId } = req.body || {};
+    if (!fileId) {
+      return res.status(400).json({ error: 'missing_fileId' });
+    }
+
+    await drive.files.update({
+      fileId,
+      addParents: APPROVED_FOLDER_ID,
+      removeParents: PENDING_FOLDER_ID,
+      fields: 'id, parents'
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error approving photo:', err);
+    res.status(500).json({ error: 'failed_approve' });
+  }
+});
+
+// Reject: send file to Drive trash
+app.post('/admin/reject', async (req, res) => {
+  try {
+    const { fileId } = req.body || {};
+    if (!fileId) {
+      return res.status(400).json({ error: 'missing_fileId' });
+    }
+
+    await drive.files.update({
+      fileId,
+      requestBody: { trashed: true },
+      fields: 'id, trashed'
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error rejecting photo:', err);
+    res.status(500).json({ error: 'failed_reject' });
   }
 });
 
