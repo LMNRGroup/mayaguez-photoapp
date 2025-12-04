@@ -1,5 +1,4 @@
-<!-- admin.html -->
-
+<!-- ADMIN REVIEW PANEL -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -17,10 +16,10 @@
       margin: 0;
       min-height: 100vh;
       display: flex;
-      align-items: flex-start; /* push content up, not dead-center */
+      align-items: center;
       justify-content: center;
-      padding: 32px 24px 40px;
-      background: #ffffff; /* WHITE PAGE BG for logo visibility */
+      padding: 24px;
+      background: #ffffff;
     }
 
     .page-wrapper {
@@ -33,21 +32,21 @@
     }
 
     .logo-top {
-      height: 44px;
-      max-width: 320px;
+      height: 52px;
+      max-width: 340px;
       object-fit: contain;
     }
 
     .card {
-      background: #111827;
-      border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-      max-width: 900px;
+      background: #020617;
+      border-radius: 22px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
+      max-width: 920px;
       width: 100%;
-      padding: 20px 20px 22px;
+      padding: 22px 22px 26px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
       color: #f5f5f5;
     }
 
@@ -55,11 +54,11 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 12px;
+      gap: 16px;
     }
 
     .title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 600;
     }
 
@@ -77,9 +76,9 @@
 
     .status-pill {
       font-size: 11px;
-      padding: 4px 8px;
+      padding: 4px 9px;
       border-radius: 999px;
-      background: #111827;
+      background: #020617;
       border: 1px solid #374151;
       color: #e5e7eb;
     }
@@ -107,7 +106,7 @@
       width: 10px;
       height: 10px;
       border-radius: 999px;
-      background: #ef4444; /* default OFF */
+      background: #ef4444;
       box-shadow: none;
       flex-shrink: 0;
     }
@@ -129,7 +128,7 @@
       width: 34px;
       height: 18px;
       border-radius: 999px;
-      background: #111827;
+      background: #020617;
       border: 1px solid #374151;
       cursor: pointer;
       flex-shrink: 0;
@@ -171,14 +170,15 @@
 
     .photo-frame {
       position: relative;
-      background: #020617;
-      border-radius: 14px;
+      background: radial-gradient(circle at top, #020617, #020617 40%, #030712);
+      border-radius: 16px;
       overflow: hidden;
       min-height: 260px;
       display: flex;
       align-items: center;
       justify-content: center;
       touch-action: pan-y;
+      border: 1px solid #111827;
     }
 
     .photo-frame img {
@@ -190,14 +190,15 @@
     }
 
     .photo-frame.empty {
-      border: 1px dashed #374151;
+      border-style: dashed;
+      border-color: #272b3a;
     }
 
     .empty-text {
       font-size: 13px;
       color: #9ca3af;
       text-align: center;
-      padding: 24px 16px;
+      padding: 32px 16px;
     }
 
     .buttons {
@@ -219,7 +220,7 @@
     }
 
     .btn-reject {
-      background: #1f2937;
+      background: #111827;
       color: #f9fafb;
     }
 
@@ -235,7 +236,7 @@
 
     .helper {
       font-size: 11px;
-      color: #9ca3af;
+      color: #6b7280;
       text-align: center;
       margin-top: 2px;
     }
@@ -249,7 +250,7 @@
     .lock-screen {
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+      background: radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(2,6,23,0.98));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -257,100 +258,133 @@
     }
 
     .lock-card {
-  background: #020617;
-  border-radius: 20px;
-  padding: 22px 20px 20px;
-  width: 100%;
-  max-width: 380px;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
-  color: #f9fafb;
-  text-align: center;
-}
+      background: #020617;
+      border-radius: 24px;
+      padding: 22px 20px 20px;
+      width: min(90vw, 380px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+      color: #f9fafb;
+      text-align: center;
+      border: 1px solid rgba(148,163,184,0.15);
+    }
 
-.lock-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
+    .lock-header-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: radial-gradient(circle, #10b981 0%, #065f46 60%, #020617 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 10px;
+      box-shadow: 0 0 18px rgba(16,185,129,0.7);
+    }
 
-.lock-subtitle {
-  font-size: 12px;
-  color: #9ca3af;
-  margin-bottom: 16px;
-}
+    .lock-header-icon span {
+      font-size: 18px;
+    }
 
-.lock-input,
-.lock-button {
-  width: 100%;
-  border-radius: 999px;
-  padding: 12px 16px;
-  font-size: 18px;          
-  line-height: 1.2;
-  box-sizing: border-box;   
-}
+    .lock-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
 
-/* input */
-.lock-input {
-  border: 1px solid #374151;
-  background: #020617;
-  color: #e5e7eb;
-  outline: none;
-}
+    .lock-subtitle {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 16px;
+    }
 
-.lock-input::placeholder {
-  color: #4b5563;
-}
+    .lock-input-wrapper {
+      background: #020617;
+      border-radius: 999px;
+      padding: 3px;
+      border: 1px solid #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
 
-.lock-input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.5);
-}
+    .lock-input-wrapper-inner {
+      flex: 1;
+      border-radius: 999px;
+      padding: 6px 14px;
+      background: #020617;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-/* button */
-.lock-button {
-  margin-top: 12px;
-  border: none;
-  background: #10b981;
-  color: #022c22;
-  font-weight: 700;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
+    .lock-input-icon {
+      font-size: 14px;
+      color: #6b7280;
+    }
 
-.lock-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
+    .lock-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: #e5e7eb;
+      font-size: 16px;
+      outline: none;
+    }
 
-.lock-error {
-  margin-top: 10px;
-  font-size: 12px;
-  color: #f97373;
-  min-height: 16px;
-}
+    /* Big centered asterisks */
+    .lock-input.masked {
+      text-align: center;
+      font-size: 22px;
+      letter-spacing: 4px;
+      font-weight: 700;
+      font-family: monospace;
+      padding: 4px 0;
+    }
 
-@media (max-width: 640px) {
-  .lock-card {
-    margin: 0 16px;                
-    padding: 20px 16px 18px;      
-  }
+    .lock-button {
+      margin-top: 8px;
+      width: 100%;
+      border-radius: 999px;
+      border: none;
+      background: #10b981;
+      color: #022c22;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 11px 14px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
 
-  .lock-input,
-  .lock-button {
-    font-size: 18px;
-  }
-}
+    .lock-button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
 
-    /* Shake animation for wrong code */
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-6px); }
-      40%, 80% { transform: translateX(6px); }
+    .lock-error {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #f97373;
+      min-height: 14px;
+    }
+
+    .lock-meta {
+      margin-top: 10px;
+      font-size: 10px;
+      color: #6b7280;
+    }
+
+    @keyframes lock-shake {
+      0%   { transform: translateX(0); }
+      20%  { transform: translateX(-6px); }
+      40%  { transform: translateX(6px); }
+      60%  { transform: translateX(-4px); }
+      80%  { transform: translateX(4px); }
+      100% { transform: translateX(0); }
     }
 
     .lock-card.shake {
-      animation: shake 0.32s ease;
+      animation: lock-shake 0.32s ease;
     }
 
     /* Desktop tweaks */
@@ -359,21 +393,13 @@
         padding: 40px;
       }
 
-      .logo-top {
-        height: 64px;
-      }
-
       .card {
-        padding: 26px 26px 28px;
-        gap: 18px;
+        padding: 26px 26px 30px;
+        gap: 20px;
       }
 
       .title {
-        font-size: 19px;
-      }
-
-      .subtitle {
-        font-size: 12px;
+        font-size: 20px;
       }
 
       .photo-frame {
@@ -381,11 +407,30 @@
       }
 
       .photo-frame img {
-        max-height: 620px;
+        max-height: 640px;
       }
 
       .helper {
         font-size: 12px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .page-wrapper {
+        gap: 14px;
+      }
+
+      .logo-top {
+        height: 44px;
+      }
+
+      .card {
+        border-radius: 20px;
+        padding: 18px 16px 22px;
+      }
+
+      .photo-frame {
+        min-height: 300px;
       }
     }
   </style>
@@ -394,27 +439,37 @@
   <!-- LOCK OVERLAY -->
   <div id="lockScreen" class="lock-screen">
     <div id="lockCard" class="lock-card">
-      <div class="lock-title">PANEL DE REVISIÓN</div>
+      <div class="lock-header-icon">
+        <span>🔒</span>
+      </div>
+      <div class="lock-title">Panel de revisión</div>
       <div class="lock-subtitle">
         Ingresa el código de acceso para revisar y moderar las fotos.
       </div>
-      <input
-        id="accessCode"
-        class="lock-input"
-        type="text"
-        placeholder="Código de acceso"
-        autocomplete="off"
-        inputmode="text"
-        autocapitalize="off"
-        spellcheck="false"
-      />
+
+      <div class="lock-input-wrapper">
+        <div class="lock-input-wrapper-inner">
+          <span class="lock-input-icon">●●●</span>
+          <input
+            id="accessCode"
+            class="lock-input masked"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            aria-label="Código de acceso"
+          />
+        </div>
+      </div>
+
       <button id="accessSubmit" class="lock-button">ENTRAR</button>
       <div id="accessError" class="lock-error"></div>
+      <div class="lock-meta">
+        Acceso restringido · Luminar Apps · Municipio de Mayagüez
+      </div>
     </div>
   </div>
 
   <div class="page-wrapper">
-    <!-- LOGO ON WHITE, ABOVE CARD -->
     <img
       class="logo-top"
       src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
@@ -457,400 +512,400 @@
       </div>
 
       <div class="helper">
-        <span class="badge-swipe">⬅ Desliza a la izquierda = Rechazar · Desliza a la derecha = Aprobar ➡</span>
+        <span class="badge-swipe">
+          ⬅ Desliza a la izquierda = Rechazar · Desliza a la derecha = Aprobar ➡
+        </span>
       </div>
     </div>
   </div>
 
-<script>
-  // Backend origin – this is where your Node/Express lives
-  const BASE_URL = "https://mayaguez-photoapp.vercel.app";
+  <script>
+    const BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
-  const STORED_TOKEN_KEY = "adminSessionToken";
-  const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
+    let adminToken = null;
+    let currentFileId = null;
+    let isBusy = false;
+    let autoRefreshId = null;
 
-  // Will store the admin session token returned by /admin/auth
-  let adminToken = null;
-  let inactivityTimer = null;
+    const lockScreen = document.getElementById("lockScreen");
+    const lockCard = document.getElementById("lockCard");
+    const accessCodeInput = document.getElementById("accessCode");
+    const accessSubmitBtn = document.getElementById("accessSubmit");
+    const accessError = document.getElementById("accessError");
 
-  // Lock / auth elements
-  const lockScreen = document.getElementById("lockScreen");
-  const lockCard = document.getElementById("lockCard");
-  const accessCodeInput = document.getElementById("accessCode");
-  const accessSubmitBtn = document.getElementById("accessSubmit");
-  const accessError = document.getElementById("accessError");
+    const photoFrame = document.getElementById("photoFrame");
+    const photoImg = document.getElementById("photoImg");
+    const emptyText = document.getElementById("emptyText");
+    const statusPill = document.getElementById("statusPill");
+    const approveBtn = document.getElementById("approveBtn");
+    const rejectBtn = document.getElementById("rejectBtn");
 
-  // Admin UI elements
-  const photoFrame = document.getElementById("photoFrame");
-  const photoImg = document.getElementById("photoImg");
-  const emptyText = document.getElementById("emptyText");
-  const statusPill = document.getElementById("statusPill");
-  const approveBtn = document.getElementById("approveBtn");
-  const rejectBtn = document.getElementById("rejectBtn");
+    const appToggleInput = document.getElementById("appToggle");
+    const appToggleWrapper = document.getElementById("appToggleWrapper");
+    const appStatusDot = document.getElementById("appStatusDot");
 
-  const appToggleInput = document.getElementById("appToggle");
-  const appToggleWrapper = document.getElementById("appToggleWrapper");
-  const appStatusDot = document.getElementById("appStatusDot");
+    const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
 
-  let currentFileId = null;
-  let isBusy = false;
-  let autoRefreshId = null;
+    // --- ACTIVITY / SESSION PERSISTENCE ---
 
-  // Store "real" code while showing ****
-  let secretCode = "";
-
-  function maskInput() {
-    accessCodeInput.value = "*".repeat(secretCode.length);
-  }
-
-  accessCodeInput.addEventListener("input", (e) => {
-    const newVal = e.target.value;
-    if (newVal.length > secretCode.length) {
-      const added = newVal.slice(secretCode.length);
-      secretCode += added;
-    } else if (newVal.length < secretCode.length) {
-      secretCode = secretCode.slice(0, newVal.length);
-    }
-    maskInput();
-  });
-
-  accessCodeInput.addEventListener("keydown", (e) => {
-    if (e.key === "Backspace") {
-      secretCode = secretCode.slice(0, -1);
-      maskInput();
-      e.preventDefault();
-    }
-  });
-
-  // --- Toggle UI (frontend only) ---
-  function updateAppToggleUI(enabled) {
-    if (enabled) {
-      appToggleWrapper.classList.add("is-on");
-      appStatusDot.classList.add("on");
-      appStatusDot.classList.remove("off");
-    } else {
-      appToggleWrapper.classList.remove("is-on");
-      appStatusDot.classList.remove("on");
-      appStatusDot.classList.add("off");
-    }
-  }
-
-  (function initAppToggle() {
-    const stored = localStorage.getItem("selfieAppEnabled");
-    const enabled = stored === null ? true : stored === "true";
-    appToggleInput.checked = enabled;
-    updateAppToggleUI(enabled);
-
-    appToggleInput.addEventListener("change", () => {
-      const isEnabled = appToggleInput.checked;
-      updateAppToggleUI(isEnabled);
-      localStorage.setItem("selfieAppEnabled", String(isEnabled));
-    });
-  })();
-
-  function triggerLockShake() {
-    lockCard.classList.remove("shake");
-    void lockCard.offsetWidth; // restart animation
-    lockCard.classList.add("shake");
-  }
-
-  // Inactivity handling
-  function resetInactivityTimer() {
-    if (!adminToken) return;
-    if (inactivityTimer) clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-      console.log("Auto-logout for inactivity");
-      showLock("Sesión cerrada por inactividad. Ingresa el código de acceso.");
-    }, INACTIVITY_MS);
-  }
-
-  ["click", "keydown", "mousemove", "touchstart"].forEach((ev) => {
-    window.addEventListener(ev, resetInactivityTimer);
-  });
-
-  // --- Lock helpers ---
-  function showLock(message) {
-    if (message) {
-      accessError.textContent = message;
-    }
-    lockScreen.style.display = "flex";
-    stopAutoRefresh();
-    currentFileId = null;
-    adminToken = null;
-    localStorage.removeItem(STORED_TOKEN_KEY);
-
-    approveBtn.disabled = true;
-    rejectBtn.disabled = true;
-    secretCode = "";
-    accessCodeInput.value = "";
-
-    if (inactivityTimer) {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = null;
-    }
-  }
-
-  function hideLock() {
-    accessError.textContent = "";
-    lockScreen.style.display = "none";
-    secretCode = "";
-    accessCodeInput.value = "";
-    resetInactivityTimer();
-  }
-
-  // Helper: headers with admin token when available
-  function withAdminHeaders(extra = {}) {
-    const headers = { ...extra };
-    if (adminToken) {
-      headers["x-admin-token"] = adminToken;
-    }
-    return headers;
-  }
-
-  async function attemptLogin() {
-    const code = secretCode.trim();
-    if (!code) {
-      accessError.textContent = "Ingresa el código de acceso.";
-      triggerLockShake();
-      return;
+    function touchActivity() {
+      localStorage.setItem("admin_last_active", Date.now().toString());
     }
 
-    accessSubmitBtn.disabled = true;
-    accessError.textContent = "";
+    function isSessionExpired() {
+      const last = parseInt(localStorage.getItem("admin_last_active") || "0", 10);
+      if (!last) return true;
+      return Date.now() - last > IDLE_LIMIT_MS;
+    }
 
-    try {
-      const res = await fetch(`${BASE_URL}/admin/auth`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
+    function saveToken(token) {
+      adminToken = token;
+      localStorage.setItem("admin_token", token);
+      touchActivity();
+    }
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (_) {}
+    function clearToken() {
+      adminToken = null;
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_last_active");
+    }
 
-            if (res.ok && data.ok && data.token) {
-        // ✅ Guardamos token de sesión
-        adminToken = data.token;
-        hideLock();
-        accessCodeInput.value = "";
-        await loadNextPhoto();
-        startAutoRefresh();
-      } else if (res.status === 401 && data.remainingAttempts != null) {
-        accessCodeInput.value = "";
-        accessCodeInput.focus();
-        accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
-      } else if (res.status === 403 && data.error === "blocked") {
-        accessCodeInput.value = "";
-        accessError.textContent = `Acceso bloqueado por ${Math.ceil(
-          data.blockedMinutes || 30
-        )} minutos. Contacta al administrador.`;
-      } else if (data.error === "admin_code_not_configured") {
-        accessCodeInput.value = "";
-        accessError.textContent = "Código de acceso no configurado en el servidor.";
+    // --- Toggle UI (frontend only) ---
+    function updateAppToggleUI(enabled) {
+      if (enabled) {
+        appToggleWrapper.classList.add("is-on");
+        appStatusDot.classList.add("on");
+        appStatusDot.classList.remove("off");
       } else {
-        accessCodeInput.value = "";
-        accessError.textContent = "Error de autenticación. Intenta de nuevo.";
+        appToggleWrapper.classList.remove("is-on");
+        appStatusDot.classList.remove("on");
+        appStatusDot.classList.add("off");
       }
-    } catch (err) {
-      console.error(err);
-      accessError.textContent = "Error de red. Intenta de nuevo.";
-      triggerLockShake();
-    } finally {
-      accessSubmitBtn.disabled = false;
     }
-  }
 
-  accessSubmitBtn.addEventListener("click", attemptLogin);
-  accessCodeInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      attemptLogin();
-    }
-  });
+    (function initAppToggle() {
+      const stored = localStorage.getItem("selfieAppEnabled");
+      const enabled = stored === null ? true : stored === "true";
+      appToggleInput.checked = enabled;
+      updateAppToggleUI(enabled);
 
-  // --- Busy + admin logic ---
-  function setBusy(busy) {
-    isBusy = busy;
-    approveBtn.disabled = busy || !currentFileId;
-    rejectBtn.disabled = busy || !currentFileId;
-    statusPill.textContent = busy ? "Procesando…" : "Lista";
-  }
-
-  async function loadNextPhoto() {
-    setBusy(true);
-    photoImg.style.display = "none";
-    emptyText.style.display = "block";
-    emptyText.textContent = "Cargando próxima foto pendiente…";
-    photoFrame.classList.add("empty");
-
-    try {
-      const res = await fetch(`${BASE_URL}/admin/next-photo`, {
-        headers: withAdminHeaders(),
+      appToggleInput.addEventListener("change", () => {
+        const isEnabled = appToggleInput.checked;
+        updateAppToggleUI(isEnabled);
+        localStorage.setItem("selfieAppEnabled", String(isEnabled));
       });
+    })();
 
-      if (res.status === 401 || res.status === 403) {
-        showLock("Ingresa el código de acceso para continuar.");
-        return;
+    // --- Lock helpers ---
+
+    function shakeLockCard() {
+      lockCard.classList.remove("shake");
+      void lockCard.offsetWidth;
+      lockCard.classList.add("shake");
+    }
+
+    function showLock(message) {
+      if (message) {
+        accessError.textContent = message;
       }
-
-      const data = await res.json();
-
-      if (data.empty) {
-        currentFileId = null;
-        emptyText.textContent = "No hay fotos pendientes en este momento.";
-        statusPill.textContent = "Sin pendientes";
-        approveBtn.disabled = true;
-        rejectBtn.disabled = true;
-        return;
-      }
-
-      currentFileId = data.fileId;
-
-      const imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
-        currentFileId
-      )}?token=${encodeURIComponent(adminToken)}`;
-
-      photoImg.src = imgUrl;
-      photoImg.onload = () => {
-        photoFrame.classList.remove("empty");
-        emptyText.style.display = "none";
-        photoImg.style.display = "block";
-      };
-
-      statusPill.textContent = "Pendiente";
-      approveBtn.disabled = false;
-      rejectBtn.disabled = false;
-    } catch (err) {
-      console.error(err);
-      emptyText.textContent = "Error cargando foto. Recarga la página.";
-      statusPill.textContent = "Error";
+      lockScreen.style.display = "flex";
+      stopAutoRefresh();
+      currentFileId = null;
+      clearToken();
       approveBtn.disabled = true;
       rejectBtn.disabled = true;
-    } finally {
-      setBusy(false);
-      resetInactivityTimer();
-    }
-  }
-
-  async function sendAction(endpoint) {
-    if (!currentFileId || isBusy) return;
-    if (!adminToken) {
-      showLock("Sesión expirada. Ingresa el código de acceso.");
-      return;
     }
 
-    setBusy(true);
+    function hideLock() {
+      accessError.textContent = "";
+      lockScreen.style.display = "none";
+    }
 
-    try {
-      const res = await fetch(`${BASE_URL}${endpoint}`, {
-        method: "POST",
-        headers: withAdminHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ fileId: currentFileId }),
-      });
-
-      if (res.status === 401 || res.status === 403) {
-        showLock("Sesión expirada. Ingresa el código de acceso.");
-        return;
+    function withAdminHeaders(extra = {}) {
+      const headers = { ...extra };
+      if (adminToken) {
+        headers["x-admin-token"] = adminToken;
       }
-    } catch (err) {
-      console.error(err);
-      statusPill.textContent = "Error";
-    } finally {
-      await loadNextPhoto();
+      return headers;
     }
-  }
 
-  approveBtn.addEventListener("click", () =>
-    sendAction("/admin/approve")
-  );
-  rejectBtn.addEventListener("click", () =>
-    sendAction("/admin/reject")
-  );
+    // --- Custom password masking (big centered asterisks) ---
+    let realPassword = "";
 
-  // --- Swipe logic ---
-  let startX = null;
-
-  function onStart(e) {
-    const touch = e.touches ? e.touches[0] : e;
-    startX = touch.clientX;
-  }
-
-  function onEnd(e) {
-    if (startX == null || !currentFileId || isBusy) return;
-    const touch = e.changedTouches ? e.changedTouches[0] : e;
-    const dx = touch.clientX - startX;
-
-    const threshold = 50;
-    if (dx > threshold) {
-      sendAction("/admin/approve");
-    } else if (dx < -threshold) {
-      sendAction("/admin/reject");
-    }
-    startX = null;
-  }
-
-  photoFrame.addEventListener("mousedown", onStart);
-  photoFrame.addEventListener("mouseup", onEnd);
-  photoFrame.addEventListener("touchstart", onStart);
-  photoFrame.addEventListener("touchend", onEnd);
-
-  // --- Auto-refresh / live updates ---
-  async function checkForUpdates() {
-    if (isBusy) return;
-    if (!adminToken) return;
-
-    try {
-      const res = await fetch(`${BASE_URL}/admin/next-photo`, {
-        headers: withAdminHeaders(),
-      });
-
-      if (res.status === 401 || res.status === 403) {
-        showLock("Sesión expirada. Ingresa el código de acceso.");
+    accessCodeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace") {
+        realPassword = realPassword.slice(0, -1);
+        accessCodeInput.value = "*".repeat(realPassword.length);
+        e.preventDefault();
         return;
       }
 
-      const data = await res.json();
+      if (e.key === "Enter") {
+        // Let Enter fall through to the keydown handler on window (below)
+        return;
+      }
 
-      if (data.empty) {
-        if (currentFileId !== null) {
-          await loadNextPhoto();
+      if (
+        e.key.length === 1 &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        if (realPassword.length < 64) {
+          realPassword += e.key;
         }
+        accessCodeInput.value = "*".repeat(realPassword.length);
+        e.preventDefault();
+      }
+    });
+
+    // --- LOGIN LOGIC ---
+
+    async function attemptLogin() {
+      const code = realPassword.trim();
+
+      if (!code) {
+        accessError.textContent = "Ingresa el código de acceso.";
+        shakeLockCard();
         return;
       }
 
-      if (currentFileId === null || data.fileId !== currentFileId) {
+      accessSubmitBtn.disabled = true;
+      accessError.textContent = "";
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/auth`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (_) {}
+
+        if (res.ok && data.ok && data.token) {
+          saveToken(data.token);
+          hideLock();
+          realPassword = "";
+          accessCodeInput.value = "";
+          await loadNextPhoto();
+          startAutoRefresh();
+        } else if (res.status === 401 && data.remainingAttempts != null) {
+          accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
+          realPassword = "";
+          accessCodeInput.value = "";
+          shakeLockCard();
+        } else if (res.status === 403 && data.error === "blocked") {
+          const minutes = Math.ceil(data.blockedMinutes || 30);
+          accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
+          realPassword = "";
+          accessCodeInput.value = "";
+          shakeLockCard();
+        } else if (data.error === "admin_code_not_configured") {
+          accessError.textContent = "Código de acceso no configurado en el servidor.";
+        } else {
+          accessError.textContent = "Error de autenticación. Intenta de nuevo.";
+          realPassword = "";
+          accessCodeInput.value = "";
+          shakeLockCard();
+        }
+      } catch (err) {
+        console.error(err);
+        accessError.textContent = "Error de red. Intenta de nuevo.";
+      } finally {
+        accessSubmitBtn.disabled = false;
+      }
+    }
+
+    accessSubmitBtn.addEventListener("click", attemptLogin);
+
+    accessCodeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        attemptLogin();
+      }
+    });
+
+    // --- Busy + admin logic ---
+
+    function setBusy(busy) {
+      isBusy = busy;
+      approveBtn.disabled = busy || !currentFileId;
+      rejectBtn.disabled = busy || !currentFileId;
+      statusPill.textContent = busy ? "Procesando…" : "Lista";
+      if (!busy) touchActivity();
+    }
+
+    async function loadNextPhoto() {
+      setBusy(true);
+      photoImg.style.display = "none";
+      emptyText.style.display = "block";
+      emptyText.textContent = "Cargando próxima foto pendiente…";
+      photoFrame.classList.add("empty");
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/next-photo`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Ingresa el código de acceso para continuar.");
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.empty) {
+          currentFileId = null;
+          emptyText.textContent = "No hay fotos pendientes en este momento.";
+          statusPill.textContent = "Sin pendientes";
+          approveBtn.disabled = true;
+          rejectBtn.disabled = true;
+          return;
+        }
+
+        currentFileId = data.fileId;
+
+        const imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
+          currentFileId
+        )}?token=${encodeURIComponent(adminToken)}`;
+
+        photoImg.src = imgUrl;
+        photoImg.onload = () => {
+          photoFrame.classList.remove("empty");
+          emptyText.style.display = "none";
+          photoImg.style.display = "block";
+        };
+
+        statusPill.textContent = "Pendiente";
+        approveBtn.disabled = false;
+        rejectBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        emptyText.textContent = "Error cargando foto. Recarga la página.";
+        statusPill.textContent = "Error";
+        approveBtn.disabled = true;
+        rejectBtn.disabled = true;
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function sendAction(endpoint) {
+      if (!currentFileId || isBusy) return;
+      if (!adminToken) {
+        showLock("Sesión expirada. Ingresa el código de acceso.");
+        return;
+      }
+
+      setBusy(true);
+
+      try {
+        const res = await fetch(`${BASE_URL}${endpoint}`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ fileId: currentFileId }),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Sesión expirada. Ingresa el código de acceso.");
+          return;
+        }
+      } catch (err) {
+        console.error(err);
+        statusPill.textContent = "Error";
+      } finally {
         await loadNextPhoto();
       }
-    } catch (err) {
-      console.error("Auto-refresh error", err);
     }
-  }
 
-  function startAutoRefresh() {
-    if (autoRefreshId) return;
-    autoRefreshId = setInterval(checkForUpdates, 10000);
-  }
+    approveBtn.addEventListener("click", () => sendAction("/admin/approve"));
+    rejectBtn.addEventListener("click", () => sendAction("/admin/reject"));
 
-  function stopAutoRefresh() {
-    if (!autoRefreshId) return;
-    clearInterval(autoRefreshId);
-    autoRefreshId = null;
-  }
+    // --- Swipe logic ---
+    let startX = null;
 
-  // Try to restore session on load
-  (function initAdmin() {
-    const storedToken = localStorage.getItem(STORED_TOKEN_KEY);
-    if (!storedToken) {
-      showLock();
-      return;
+    function onStart(e) {
+      const touch = e.touches ? e.touches[0] : e;
+      startX = touch.clientX;
     }
-    adminToken = storedToken;
-    hideLock();
-    loadNextPhoto();
-    startAutoRefresh();
-  })();
-</script>
+
+    function onEnd(e) {
+      if (startX == null || !currentFileId || isBusy) return;
+      const touch = e.changedTouches ? e.changedTouches[0] : e;
+      const dx = touch.clientX - startX;
+
+      const threshold = 50;
+      if (dx > threshold) {
+        sendAction("/admin/approve");
+      } else if (dx < -threshold) {
+        sendAction("/admin/reject");
+      }
+      startX = null;
+    }
+
+    photoFrame.addEventListener("mousedown", onStart);
+    photoFrame.addEventListener("mouseup", onEnd);
+    photoFrame.addEventListener("touchstart", onStart);
+    photoFrame.addEventListener("touchend", onEnd);
+
+    // --- Auto-refresh / live updates ---
+    async function checkForUpdates() {
+      if (isBusy || !adminToken) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/next-photo`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Sesión expirada. Ingresa el código de acceso.");
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.empty) {
+          if (currentFileId !== null) {
+            await loadNextPhoto();
+          }
+          return;
+        }
+
+        if (currentFileId === null || data.fileId !== currentFileId) {
+          await loadNextPhoto();
+        }
+      } catch (err) {
+        console.error("Auto-refresh error", err);
+      }
+    }
+
+    function startAutoRefresh() {
+      if (autoRefreshId) return;
+      autoRefreshId = setInterval(checkForUpdates, 10000);
+    }
+
+    function stopAutoRefresh() {
+      if (!autoRefreshId) return;
+      clearInterval(autoRefreshId);
+      autoRefreshId = null;
+    }
+
+    // --- INITIAL LOAD: try restore session if still fresh ---
+    window.addEventListener("load", async () => {
+      const storedToken = localStorage.getItem("admin_token");
+      if (storedToken && !isSessionExpired()) {
+        adminToken = storedToken;
+        hideLock();
+        touchActivity();
+        await loadNextPhoto();
+        startAutoRefresh();
+      } else {
+        showLock();
+      }
+    });
+  </script>
 </body>
 </html>
