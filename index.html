@@ -757,7 +757,7 @@
             headers: {
               'Content-Type': blob.type,
               'X-File-Name': buildPhotoFileName(),
-              'x-session-id' : getsessionID()
+              'x-session-id' : getSessionID()
             },
             body: blob
           });
@@ -865,8 +865,6 @@
       fetch(`${BACKEND_URL}/ping`, { method: 'POST' })
         .catch(() => {});
     });
-
-   <script>
       // Keep the same ID for this user while the tab is open / reused
       function getSessionId() {
         let id = localStorage.getItem('lumi_session_id');
@@ -891,7 +889,6 @@
 
       // Run as soon as the page is ready
       window.addEventListener('load', pingSession);
-    </script>
   </script>
 </body>
 </html>
