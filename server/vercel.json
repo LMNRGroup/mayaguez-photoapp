@@ -15,7 +15,7 @@
   "crons": [
     {
       "path": "/session-report-daily",
-      "schedule": "0 1 * * *"
+      "schedule": "20 1 * * *"
     }
   ]
 }
