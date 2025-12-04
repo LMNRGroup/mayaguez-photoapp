@@ -796,8 +796,8 @@ app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
     res.cookie('adminAuth', '1', {
       httpOnly: true,
       secure: true,
-      sameSite: 'strict',
-      maxAge: 8 * 60 * 60 * 1000, // 8h
+      sameSite: 'none',   
+      maxAge: 8 * 60 * 60 * 1000,
     });
 
     return res.json({ ok: true });
