@@ -822,7 +822,8 @@ app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
       blockedMinutes: remainingBlockMinutes(ip),
     });
   }
-  
+
+  // ✅ Correct code
   if (code === ADMIN_ACCESS_CODE) {
     // Success → reset attempts, clear block, create session token
     record = { attempts: 0, blockedUntil: 0 };
@@ -830,14 +831,11 @@ app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
 
     const token = createAdminSession(ip);
 
-    // We NO LONGER set a cookie, we just return the token
+    // No cookie; we return the token
     return res.json({ ok: true, token });
   }
 
-    return res.json({ ok: true });
-  }
-
-  // Wrong code
+  // ❌ Wrong code
   record.attempts += 1;
 
   if (record.attempts >= ADMIN_MAX_ATTEMPTS) {
