@@ -221,7 +221,9 @@ async function getNextPendingPhoto() {
     q: `'${PENDING_FOLDER_ID}' in parents and trashed = false`,
     orderBy: 'createdTime asc',
     pageSize: 1,
-    fields: 'files(id, name)'
+    fields: 'files(id, name)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
 
   const files = res.data.files || [];
