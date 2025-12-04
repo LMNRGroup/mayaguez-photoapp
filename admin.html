@@ -453,12 +453,16 @@
     </div>
   </div>
 
-  <script>
+<script>
   // Backend origin – this is where your Node/Express lives
   const BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
+  const STORED_TOKEN_KEY = "adminSessionToken";
+  const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
+
   // Will store the admin session token returned by /admin/auth
   let adminToken = null;
+  let inactivityTimer = null;
 
   // Lock / auth elements
   const lockScreen = document.getElementById("lockScreen");
@@ -492,18 +496,15 @@
 
   accessCodeInput.addEventListener("input", (e) => {
     const newVal = e.target.value;
-    // If user added chars
     if (newVal.length > secretCode.length) {
       const added = newVal.slice(secretCode.length);
       secretCode += added;
     } else if (newVal.length < secretCode.length) {
-      // Deleted chars from the end
       secretCode = secretCode.slice(0, newVal.length);
     }
     maskInput();
   });
 
-  // Ensure backspace/delete still works even with mask
   accessCodeInput.addEventListener("keydown", (e) => {
     if (e.key === "Backspace") {
       secretCode = secretCode.slice(0, -1);
@@ -534,17 +535,29 @@
     appToggleInput.addEventListener("change", () => {
       const isEnabled = appToggleInput.checked;
       updateAppToggleUI(isEnabled);
-      // FUTURE: call backend /admin/toggle-app here
       localStorage.setItem("selfieAppEnabled", String(isEnabled));
     });
   })();
 
   function triggerLockShake() {
     lockCard.classList.remove("shake");
-    // force reflow so animation restarts
-    void lockCard.offsetWidth;
+    void lockCard.offsetWidth; // restart animation
     lockCard.classList.add("shake");
   }
+
+  // Inactivity handling
+  function resetInactivityTimer() {
+    if (!adminToken) return;
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+      console.log("Auto-logout for inactivity");
+      showLock("Sesión cerrada por inactividad. Ingresa el código de acceso.");
+    }, INACTIVITY_MS);
+  }
+
+  ["click", "keydown", "mousemove", "touchstart"].forEach((ev) => {
+    window.addEventListener(ev, resetInactivityTimer);
+  });
 
   // --- Lock helpers ---
   function showLock(message) {
@@ -554,11 +567,18 @@
     lockScreen.style.display = "flex";
     stopAutoRefresh();
     currentFileId = null;
-    adminToken = null; // invalidate token on lock
+    adminToken = null;
+    localStorage.removeItem(STORED_TOKEN_KEY);
+
     approveBtn.disabled = true;
     rejectBtn.disabled = true;
     secretCode = "";
     accessCodeInput.value = "";
+
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = null;
+    }
   }
 
   function hideLock() {
@@ -566,6 +586,7 @@
     lockScreen.style.display = "none";
     secretCode = "";
     accessCodeInput.value = "";
+    resetInactivityTimer();
   }
 
   // Helper: headers with admin token when available
@@ -601,8 +622,8 @@
       } catch (_) {}
 
       if (res.ok && data.ok && data.token) {
-        // ✅ Guardamos token de sesión
         adminToken = data.token;
+        localStorage.setItem(STORED_TOKEN_KEY, adminToken);
         hideLock();
         await loadNextPhoto();
         startAutoRefresh();
@@ -626,7 +647,6 @@
       triggerLockShake();
     } finally {
       accessSubmitBtn.disabled = false;
-      // keep code so they can re-try or clear manually
     }
   }
 
@@ -676,7 +696,6 @@
 
       currentFileId = data.fileId;
 
-      // para <img> usamos query ?token= porque no se pueden setear headers
       const imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
         currentFileId
       )}?token=${encodeURIComponent(adminToken)}`;
@@ -699,6 +718,7 @@
       rejectBtn.disabled = true;
     } finally {
       setBusy(false);
+      resetInactivityTimer();
     }
   }
 
@@ -750,7 +770,7 @@
     const touch = e.changedTouches ? e.changedTouches[0] : e;
     const dx = touch.clientX - startX;
 
-    const threshold = 50; // px
+    const threshold = 50;
     if (dx > threshold) {
       sendAction("/admin/approve");
     } else if (dx < -threshold) {
@@ -807,8 +827,18 @@
     autoRefreshId = null;
   }
 
-  // On first load we stay locked until /admin/auth succeeds
-  showLock();
-  </script>
+  // Try to restore session on load
+  (function initAdmin() {
+    const storedToken = localStorage.getItem(STORED_TOKEN_KEY);
+    if (!storedToken) {
+      showLock();
+      return;
+    }
+    adminToken = storedToken;
+    hideLock();
+    loadNextPhoto();
+    startAutoRefresh();
+  })();
+</script>
 </body>
 </html>
