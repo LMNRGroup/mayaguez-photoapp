@@ -38,28 +38,70 @@ const ADMIN_BLOCK_MINUTES = 30;
 // In-memory IP tracker: { ip: { attempts, blockedUntil } }
 const ipTracker = new Map();
 
-// In-memory admin sessions: token -> { ip, createdAt }
-const adminSessions = new Map();
+// --- Admin session tokens (stateless, safe for Vercel) ---
+const ADMIN_SESSION_SECRET =
+  process.env.ADMIN_SESSION_SECRET ||
+  (ADMIN_ACCESS_CODE ? `${ADMIN_ACCESS_CODE}_secret` : 'fallback_admin_secret');
 
 function createAdminSession(ip) {
-  const token = crypto.randomBytes(32).toString('hex');
-  adminSessions.set(token, {
+  // payload we will sign
+  const payload = {
     ip,
-    createdAt: Date.now(),
-  });
-  return token;
+    iat: Date.now(), // issued-at
+  };
+
+  const payloadJson = JSON.stringify(payload);
+  const payloadB64 = Buffer.from(payloadJson, 'utf8').toString('base64url');
+
+  const sig = crypto
+    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .update(payloadB64)
+    .digest('hex');
+
+  // token = base64url(payload).signature
+  return `${payloadB64}.${sig}`;
+}
+
+function verifyAdminSessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [payloadB64, sig] = parts;
+
+  const expectedSig = crypto
+    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .update(payloadB64)
+    .digest('hex');
+
+  if (sig !== expectedSig) return null;
+
+  try {
+    const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf8');
+    const payload = JSON.parse(payloadJson);
+
+    // Optional: expire after 8 hours
+    const maxAgeMs = 8 * 60 * 60 * 1000;
+    if (Date.now() - payload.iat > maxAgeMs) {
+      return null;
+    }
+
+    return payload; // { ip, iat }
+  } catch (e) {
+    return null;
+  }
 }
 
 function getAdminSessionFromRequest(req) {
-  const token =
-    req.headers['x-admin-token'] ||  // for XHR/fetch
-    req.query.token ||               // for <img src="...&token=...">
-    null;
+  const headerToken = req.headers['x-admin-token'];
+  const queryToken = req.query && req.query.token;
+  const token = (headerToken || queryToken || '').toString();
 
   if (!token) return null;
-  const session = adminSessions.get(token);
-  if (!session) return null;
-  return { token, session };
+  const payload = verifyAdminSessionToken(token);
+  if (!payload) return null;
+
+  return payload; // { ip, iat }
 }
 
 // ---------- Mail setup ----------
@@ -244,19 +286,19 @@ function ensureAdminAuth(req, res, next) {
     });
   }
 
-  const result = getAdminSessionFromRequest(req);
-  if (!result) {
+  const session = getAdminSessionFromRequest(req);
+  if (!session) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  const { session } = result;
-
-  // Optional: tie session to IP (comment out if you don't care)
+  // Optional binding: token only valid from same IP that logged in
   if (session.ip && session.ip !== ip) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  // you could attach stuff to req if needed
+  // If you want, you can attach the session to req here:
+  // req.adminSession = session;
+
   next();
 }
 // ---------- HELPERS PARA DRIVE (FOTOS) ----------
@@ -823,19 +865,16 @@ app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
     });
   }
 
-  // ✅ Correct code
   if (code === ADMIN_ACCESS_CODE) {
-    // reset attempts, clear block, create session token
+    // Success → reset attempts, clear block, create signed token
     record = { attempts: 0, blockedUntil: 0 };
     ipTracker.set(ip, record);
 
     const token = createAdminSession(ip);
-
-    // Return token to FE (no cookies)
     return res.json({ ok: true, token });
   }
 
-  // ❌ Wrong code
+  // Wrong code
   record.attempts += 1;
 
   if (record.attempts >= ADMIN_MAX_ATTEMPTS) {
