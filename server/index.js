@@ -825,13 +825,13 @@ app.post('/admin/auth', ensureNotBlocked, async (req, res) => {
 
   // ✅ Correct code
   if (code === ADMIN_ACCESS_CODE) {
-    // Success → reset attempts, clear block, create session token
+    // reset attempts, clear block, create session token
     record = { attempts: 0, blockedUntil: 0 };
     ipTracker.set(ip, record);
 
     const token = createAdminSession(ip);
 
-    // No cookie; we return the token
+    // Return token to FE (no cookies)
     return res.json({ ok: true, token });
   }
 
