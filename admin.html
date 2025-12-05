@@ -65,6 +65,7 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 12px;
+      position: relative;
     }
 
     .title {
@@ -82,6 +83,7 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 8px;
+      position: relative;
     }
 
     .status-pill {
@@ -249,9 +251,212 @@
       margin-top: 2px;
     }
 
-    .badge-swipe {
-      font-weight: 500;
+    /* THREE DOTS MENU */
+    .kebab-button {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      background: #020617;
       color: #e5e7eb;
+      font-size: 18px;
+      line-height: 1;
+      padding: 4px 8px 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .kebab-button:hover {
+      background: #111827;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 6px;
+      min-width: 220px;
+      background: #020617;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+      padding: 6px 0;
+      z-index: 20;
+      display: none;
+    }
+
+    .dropdown-item {
+      font-size: 12px;
+      padding: 8px 12px;
+      color: #e5e7eb;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .dropdown-item span.helper-label {
+      font-size: 10px;
+      opacity: 0.6;
+    }
+
+    .dropdown-item:hover {
+      background: #111827;
+    }
+
+    .dropdown-separator {
+      height: 1px;
+      margin: 4px 0;
+      background: #1f2937;
+    }
+
+    /* APPROVED OVERLAY */
+    .approved-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.96);
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .approved-panel {
+      background: #020617;
+      border-radius: 18px;
+      width: 100%;
+      max-width: 900px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 18px 18px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.8);
+    }
+
+    .approved-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .approved-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .approved-subtitle {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+
+    .approved-close-btn {
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 16px;
+      padding: 2px 9px 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .approved-close-btn:hover {
+      background: #111827;
+    }
+
+    .approved-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 8px;
+      padding-top: 4px;
+      padding-bottom: 6px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .approved-empty {
+      font-size: 13px;
+      color: #9ca3af;
+      padding: 20px 4px 10px;
+      text-align: center;
+    }
+
+    .approved-thumb {
+      position: relative;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      padding: 0;
+      overflow: hidden;
+      background: #020617;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .approved-thumb img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .approved-thumb::after {
+      content: "Tocar para borrar";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 4px 4px 3px;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: linear-gradient(
+        to top,
+        rgba(15, 23, 42, 0.95),
+        rgba(15, 23, 42, 0.6),
+        transparent
+      );
+      color: #f9fafb;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+
+    .approved-thumb:hover::after {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .approved-thumb.busy {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .approved-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .approved-footer-note {
+      font-size: 10px;
+      color: #9ca3af;
+    }
+
+    .approved-footer button {
+      flex: 0 0 auto;
+      min-width: 84px;
+      font-size: 11px;
+      padding: 7px 10px;
     }
 
     /* LOCK SCREEN */
@@ -527,6 +732,22 @@
           </div>
 
           <span id="statusPill" class="status-pill">Cargando…</span>
+
+          <button id="moreButton" class="kebab-button" type="button">⋮</button>
+
+          <div id="moreMenu" class="dropdown-menu">
+            <div id="menuViewApproved" class="dropdown-item">
+              <span>Ver fotos aprobadas</span>
+            </div>
+            <div class="dropdown-separator"></div>
+            <div id="menuResetLogs" class="dropdown-item">
+              <span>Reset logs</span>
+              <span class="helper-label">(demo)</span>
+            </div>
+            <div id="menuClearApproved" class="dropdown-item">
+              <span>Vaciar carpeta aprobadas</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -540,6 +761,41 @@
       <div class="buttons">
         <button id="rejectBtn" class="btn-reject" disabled>Rechazar</button>
         <button id="approveBtn" class="btn-approve" disabled>Aprobar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAY: APPROVED PHOTOS GRID -->
+  <div id="approvedOverlay" class="approved-overlay">
+    <div class="approved-panel">
+      <div class="approved-header">
+        <div>
+          <div class="approved-title">Fotos aprobadas</div>
+          <div class="approved-subtitle">
+            Toca una miniatura para eliminarla de la galería.
+          </div>
+        </div>
+        <button
+          type="button"
+          class="approved-close-btn"
+          data-close-approved="1"
+        >×</button>
+      </div>
+
+      <div id="approvedEmpty" class="approved-empty">
+        Cargando fotos aprobadas…
+      </div>
+      <div id="approvedGrid" class="approved-grid"></div>
+
+      <div class="approved-footer">
+        <div class="approved-footer-note">
+          Los cambios pueden tardar unos segundos en reflejarse en la pantalla pública.
+        </div>
+        <button
+          type="button"
+          class="btn-reject"
+          data-close-approved="1"
+        >Cerrar</button>
       </div>
     </div>
   </div>
@@ -572,6 +828,17 @@
     const appToggleInput = document.getElementById("appToggle");
     const appToggleWrapper = document.getElementById("appToggleWrapper");
     const appStatusDot = document.getElementById("appStatusDot");
+
+    // Menu + approved overlay
+    const moreButton = document.getElementById("moreButton");
+    const moreMenu = document.getElementById("moreMenu");
+    const menuViewApproved = document.getElementById("menuViewApproved");
+    const menuResetLogs = document.getElementById("menuResetLogs");
+    const menuClearApproved = document.getElementById("menuClearApproved");
+
+    const approvedOverlay = document.getElementById("approvedOverlay");
+    const approvedGrid = document.getElementById("approvedGrid");
+    const approvedEmpty = document.getElementById("approvedEmpty");
 
     let currentFileId = null;
     let isBusy = false;
@@ -912,6 +1179,212 @@
       clearInterval(autoRefreshId);
       autoRefreshId = null;
     }
+
+    // --- THREE DOTS MENU LOGIC ---
+    function closeMoreMenu() {
+      moreMenu.style.display = "none";
+    }
+
+    function toggleMoreMenu() {
+      if (moreMenu.style.display === "block") {
+        closeMoreMenu();
+      } else {
+        moreMenu.style.display = "block";
+      }
+    }
+
+    moreButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMoreMenu();
+    });
+
+    document.addEventListener("click", (e) => {
+      // close menu when clicking outside
+      if (!moreMenu.contains(e.target) && e.target !== moreButton) {
+        closeMoreMenu();
+      }
+    });
+
+    // --- APPROVED GRID FUNCTIONS ---
+    function openApprovedOverlay() {
+      closeMoreMenu();
+      if (!adminToken) {
+        showLock("Sesión expirada. Ingresa el código de acceso.");
+        return;
+      }
+      approvedOverlay.style.display = "flex";
+      loadApprovedGrid();
+    }
+
+    function closeApprovedOverlay() {
+      approvedOverlay.style.display = "none";
+    }
+
+    document.querySelectorAll("[data-close-approved]").forEach((btn) => {
+      btn.addEventListener("click", closeApprovedOverlay);
+    });
+
+    async function loadApprovedGrid() {
+      approvedGrid.innerHTML = "";
+      approvedEmpty.style.display = "block";
+      approvedEmpty.textContent = "Cargando fotos aprobadas…";
+
+      if (!adminToken) {
+        approvedEmpty.textContent = "Sesión expirada. Ingresa de nuevo.";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/approved-list`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          approvedEmpty.textContent = "Sesión expirada. Ingresa de nuevo.";
+          showLock("Sesión expirada. Ingresa el código de acceso.");
+          return;
+        }
+
+        const data = await res.json();
+        const files = data.files || [];
+
+        if (!files.length) {
+          approvedEmpty.textContent = "No hay fotos aprobadas en este momento.";
+          return;
+        }
+
+        approvedEmpty.style.display = "none";
+
+        files.forEach((f) => {
+          const id = f.id || f.fileId;
+          if (!id) return;
+
+          const thumbUrl = `${BASE_URL}/admin/approved-photo/${encodeURIComponent(
+            id
+          )}?token=${encodeURIComponent(adminToken || "")}&thumb=1`;
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "approved-thumb";
+          btn.dataset.id = id;
+
+          const img = document.createElement("img");
+          img.src = thumbUrl;
+          img.alt = "Foto aprobada";
+
+          btn.appendChild(img);
+
+          btn.addEventListener("click", () => {
+            confirmDeleteApproved(id, btn);
+          });
+
+          approvedGrid.appendChild(btn);
+        });
+      } catch (err) {
+        console.error("Error loading approved list", err);
+        approvedEmpty.style.display = "block";
+        approvedEmpty.textContent =
+          "Error cargando las fotos aprobadas. Intenta nuevamente.";
+      }
+    }
+
+    function confirmDeleteApproved(fileId, thumbEl) {
+      if (!adminToken) {
+        showLock("Sesión expirada. Ingresa el código de acceso.");
+        return;
+      }
+      const ok = window.confirm(
+        "¿Seguro que deseas eliminar esta foto aprobada de la galería?\n\nEsta acción no se puede deshacer."
+      );
+      if (!ok) return;
+      deleteApprovedPhoto(fileId, thumbEl);
+    }
+
+    async function deleteApprovedPhoto(fileId, thumbEl) {
+      if (!fileId) return;
+      thumbEl.classList.add("busy");
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/delete-approved`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ fileId }),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Sesión expirada. Ingresa el código de acceso.");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        thumbEl.remove();
+        if (!approvedGrid.children.length) {
+          approvedEmpty.style.display = "block";
+          approvedEmpty.textContent = "No hay fotos aprobadas en este momento.";
+        }
+      } catch (err) {
+        console.error("Error deleting approved photo", err);
+        thumbEl.classList.remove("busy");
+        alert("No se pudo eliminar la foto aprobada. Intenta de nuevo.");
+      }
+    }
+
+    async function clearApprovedFolder() {
+      closeMoreMenu();
+      if (!adminToken) {
+        showLock("Sesión expirada. Ingresa el código de acceso.");
+        return;
+      }
+
+      const ok = window.confirm(
+        "¿Vaciar TODAS las fotos aprobadas?\n\n" +
+          "Esto eliminará definitivamente las imágenes de la carpeta aprobadas."
+      );
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/clear-approved`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({}),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Sesión expirada. Ingresa el código de acceso.");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        // If overlay is open, clear it visually too
+        if (approvedOverlay.style.display === "flex") {
+          approvedGrid.innerHTML = "";
+          approvedEmpty.style.display = "block";
+          approvedEmpty.textContent = "No hay fotos aprobadas en este momento.";
+        }
+
+        alert("Carpeta de fotos aprobadas vaciada.");
+      } catch (err) {
+        console.error("Error clearing approved folder", err);
+        alert("No se pudo vaciar la carpeta. Intenta nuevamente.");
+      }
+    }
+
+    // --- MENU ITEM HANDLERS ---
+    menuViewApproved.addEventListener("click", openApprovedOverlay);
+
+    menuResetLogs.addEventListener("click", () => {
+      closeMoreMenu();
+      // Dummy: only frontend notice
+      alert("Logs reseteados (modo demo, sin cambios en el servidor).");
+    });
+
+    menuClearApproved.addEventListener("click", clearApprovedFolder);
 
     // --- Try to restore existing session on load ---
     (function bootstrapAdmin() {
