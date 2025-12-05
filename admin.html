@@ -14,7 +14,7 @@
       font-weight: normal;
       font-style: normal;
       font-display: swap;
-    }
+    */
 
     :root {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -272,7 +272,8 @@
       gap: 10px;
       width: 100%;
       max-width: 420px;
-      padding: 0 16px;
+      padding: 0 24px; /* more breathing room on phones */
+      box-sizing: border-box;
     }
 
     .lock-brand {
@@ -294,13 +295,16 @@
       max-width: 380px;
       box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
       color: #f9fafb;
+      box-sizing: border-box;
     }
 
     .lock-title {
       font-size: 19px;
       font-weight: 600;
       margin-bottom: 4px;
-      text-align: left;
+      text-align: center;
+      color: #f97373; /* red by default */
+      transition: color 0.2s ease;
     }
 
     .lock-subtitle {
@@ -368,6 +372,18 @@
       text-align: left;
     }
 
+    .lock-subnote-brand {
+      text-align: left;
+    }
+
+    .lock-inactivity {
+      margin-top: 6px;
+      font-size: 10px;
+      color: #9ca3af;
+      text-align: center;
+      max-width: 360px;
+    }
+
     @keyframes lock-shake {
       0%   { transform: translateX(0); }
       20%  { transform: translateX(-6px); }
@@ -425,7 +441,7 @@
       <div class="lock-brand">LMNR Group X Municipio de Mayaguez</div>
 
       <div class="lock-card" id="lockCard">
-        <div class="lock-title">Acceso restringido</div>
+        <div class="lock-title" id="lockTitle">Acceso restringido</div>
         <div class="lock-subtitle">
           Ingresa el código de acceso para revisar y moderar las fotos.
         </div>
@@ -442,9 +458,13 @@
         <button id="accessSubmit" class="lock-button">ENTRAR</button>
 
         <div id="accessError" class="lock-error"></div>
-        <div class="lock-subnote">
-          Después de unos minutos sin actividad, el panel se cierra automáticamente.
+        <div class="lock-subnote lock-subnote-brand">
+          Luminar Apps • Municipio de Mayagüez
         </div>
+      </div>
+
+      <div class="lock-inactivity">
+        Después de unos minutos sin actividad, el panel se cierra automáticamente.
       </div>
     </div>
   </div>
@@ -510,6 +530,7 @@
     // Lock / auth elements
     const lockScreen = document.getElementById("lockScreen");
     const lockCard = document.getElementById("lockCard");
+    const lockTitle = document.getElementById("lockTitle");
     const accessCodeInput = document.getElementById("accessCode");
     const accessSubmitBtn = document.getElementById("accessSubmit");
     const accessError = document.getElementById("accessError");
@@ -599,6 +620,9 @@
       approveBtn.disabled = true;
       rejectBtn.disabled = true;
       accessCodeInput.value = "";
+      if (lockTitle) {
+        lockTitle.style.color = "#f97373"; // reset to red
+      }
     }
 
     function hideLock() {
@@ -644,10 +668,25 @@
           adminToken = data.token;
           localStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
 
-          hideLock();
           accessCodeInput.value = "";
-          await loadNextPhoto();
-          startAutoRefresh();
+          accessError.textContent = "";
+
+          // Turn title GREEN briefly before showing panel
+          if (lockTitle) {
+            lockTitle.style.color = "#22c55e"; // green
+          }
+
+          setTimeout(() => {
+            hideLock();
+            if (lockTitle) {
+              lockTitle.style.color = "#f97373"; // back to red for next time
+            }
+            loadNextPhoto()
+              .then(startAutoRefresh)
+              .catch(() => {
+                showLock();
+              });
+          }, 500); // ~0.5s for user to see the change
         } else if (res.status === 401 && data.remainingAttempts != null) {
           accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
           accessCodeInput.value = "";
@@ -658,7 +697,7 @@
           accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
           accessCodeInput.value = "";
           shakeLockCard();
-        } else if (data.error === "admin_code_not_configured") {
+        } else if (data.error === "admin_code_not_configurado") {
           accessError.textContent = "Código de acceso no configurado en el servidor.";
           accessCodeInput.value = "";
           shakeLockCard();
