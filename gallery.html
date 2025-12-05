@@ -51,13 +51,14 @@
       overflow: hidden;
     }
 
+    /* Photo window = red box reference
+       1350x900 inside 1920x1080, 20px from top/right */
     .photo-window {
       position: absolute;
-      left: 63.90%;
-      top: 43.77%;
-      width: 68.56%;
-      height: 81.26%;
-      transform: translate(-50%, -50%);
+      top: 1.85%;        /* 20 / 1080 */
+      left: 28.65%;      /* 550 / 1920 */
+      width: 70.3125%;   /* 1350 / 1920 */
+      height: 83.3333%;  /* 900 / 1080 */
       overflow: hidden;
       z-index: 2;
     }
@@ -110,7 +111,7 @@
   <div class="wall">
     <div class="stage">
 
-      <!-- PHOTO WINDOW using your exact Illustrator coordinates -->
+      <!-- PHOTO WINDOW using your red-box coordinates -->
       <div class="photo-window">
         <img id="photoA" class="photo" alt="Selfie aprobado A" />
         <img id="photoB" class="photo" alt="Selfie aprobado B" />
