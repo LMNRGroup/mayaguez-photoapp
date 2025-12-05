@@ -694,7 +694,7 @@
 
             await loadNextPhoto();
             startAutoRefresh();
-          }, 320);
+          }, 850);
         } else if (res.status === 401 && data.remainingAttempts != null) {
           accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
           accessCodeInput.value = "";
