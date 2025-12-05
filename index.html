@@ -749,78 +749,76 @@
     }
 
     function drawLocationOverlay(ctx, width, height) {
-      const country = localStorage.getItem('lumi_country') || '';
-      const region = localStorage.getItem('lumi_region') || '';
+  const country = localStorage.getItem('lumi_country') || '';
+  const region = localStorage.getItem('lumi_region') || '';
 
-      if (!country && !region) return;
+  if (!country && !region) return;
 
-      let label = '';
-      if (country && region) {
-        label = `${region}, ${country}`;
-      } else {
-        label = country || region;
-      }
+  let label = '';
+  if (country && region) {
+    label = `${region}, ${country}`;
+  } else {
+    label = country || region;
+  }
 
-      if (!label) return;
+  if (!label) return;
 
-      // Position bottom-left
-      const padding = 24;
-      const flagWidth = 60;
-      const flagHeight = 40;
-      const textOffsetX = flagWidth + 12;
+  // --- layout constants ---
+  const padding = 24;           // distance from canvas edge
+  const flagWidth = 60;
+  const flagHeight = 40;
+  const gapBetween = 12;        // space between flag and text
 
-      const baseX = padding;
-      const baseY = height - padding - flagHeight; // top of flag box
+  // pick flag image
+  let flagImg = null;
+  if (country === 'Puerto Rico') flagImg = flagImages.PR;
+  if (country === 'Estados Unidos') flagImg = flagImages.US;
 
-         // Choose flag
-    let flagImg = null;
-    if (country === 'Puerto Rico') flagImg = flagImages.PR;
-    if (country === 'Estados Unidos') flagImg = flagImages.US;
+  ctx.save();
 
-    ctx.save();
+  // text metrics
+  ctx.font = 'bold 24px Arial';
+  ctx.textBaseline = 'middle';
+  const textMetrics = ctx.measureText(label);
+  const textWidth = textMetrics.width;
 
-    // ---- background box that auto-sizes to text + flag ----
-    ctx.font = 'bold 24px Arial';
-    ctx.textBaseline = 'middle';
+  const sidePadding = 12;       // inside box: left/right
+  const topPadding = 8;         // inside box: top/bottom
+  const boxHeight = flagHeight + topPadding * 2;
+  const contentWidth = flagWidth + gapBetween + textWidth;
+  const boxWidth = contentWidth + sidePadding * 2;
 
-    const textMetrics = ctx.measureText(label);
-    const textWidth   = textMetrics.width;
+  // --- TOP-RIGHT position ---
+  const boxX = width - padding - boxWidth; // right-aligned
+  const boxY = padding;                    // from top
 
-    const sidePadding = 12;        // left/right padding inside the box
-    const topPadding  = 8;         // top/bottom padding
-    const boxHeight   = flagHeight + topPadding * 2;
-    const boxWidth    = sidePadding * 2 + flagWidth + textOffsetX + textWidth;
+  // background box
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
 
-    // box starts a bit to the left of the flag (same as before, but dynamic width)
-    ctx.globalAlpha = 0.75;
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(
-      baseX - sidePadding,
-      baseY - topPadding,
-      boxWidth,
-      boxHeight
-    );
+  // flag position
+  const flagX = boxX + sidePadding;
+  const flagY = boxY + topPadding;
 
-    // ---- flag ----
-    if (flagImg && flagImg.complete) {
-      ctx.drawImage(flagImg, baseX, baseY, flagWidth, flagHeight);
-    }
+  if (flagImg && flagImg.complete) {
+    ctx.drawImage(flagImg, flagX, flagY, flagWidth, flagHeight);
+  }
 
-    // ---- text ----
-    ctx.fillStyle = '#ffffff';
+  // text position
+  ctx.fillStyle = '#ffffff';
+  const textX = flagX + flagWidth + gapBetween;
+  const textY = boxY + boxHeight / 2;
 
-    const textX = baseX + textOffsetX;
-    const textY = baseY + flagHeight / 2;
+  // Simple text shadow for readability
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
 
-    // Simple text shadow for readability
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = 1;
-    ctx.shadowOffsetY = 1;
-
-    ctx.fillText(label, textX, textY);
-    ctx.restore();
-    }
+  ctx.fillText(label, textX, textY);
+  ctx.restore();
+}
     // Capture selfie
     captureButton.addEventListener('click', () => {
       // Always capture to a horizontal 3:2 canvas for upload + preview
