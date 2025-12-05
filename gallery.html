@@ -51,34 +51,43 @@
       overflow: hidden;
     }
 
-    /* Photos behind the frame */
+    /* === PHOTO WINDOW (your exact Illustrator rectangle) === */
+    .photo-window {
+      position: absolute;
+      left: 1225.381px;
+      top: 468.7852px;
+      width: 1316.355px;
+      height: 877.5703px;
+      overflow: hidden;
+      z-index: 2; /* below frame, above empty text */
+    }
+
+    /* Photos inside window */
     .photo {
       position: absolute;
-      inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover; /* we’ll refine crop later if needed */
+      object-fit: cover; /* fill window perfectly */
       opacity: 0;
       transition: opacity 0.8s ease;
-      z-index: 1; /* behind the frame overlay */
     }
 
     .photo.visible {
       opacity: 1;
     }
 
-    /* Christmas template PNG in front, with transparent “hole” */
+    /* Christmas frame PNG on top */
     .frame-image {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: fill; /* template is already 1920x1080 */
+      object-fit: fill;
       z-index: 10;
       pointer-events: none;
     }
 
-    /* Optional message when there are no approved photos yet */
+    /* Waiting text */
     .empty {
       position: absolute;
       inset: 0;
@@ -89,7 +98,7 @@
       padding: 24px;
       font-size: 20px;
       color: #9ca3af;
-      z-index: 2; /* above photos, below frame */
+      z-index: 3;
     }
 
     .empty.hidden {
@@ -100,15 +109,18 @@
 <body>
   <div class="wall">
     <div class="stage">
-      <!-- Two image slots so we can cross-fade -->
-      <img id="photoA" class="photo" alt="Selfie aprobado A" />
-      <img id="photoB" class="photo" alt="Selfie aprobado B" />
+
+      <!-- PHOTO WINDOW using your exact Illustrator coordinates -->
+      <div class="photo-window">
+        <img id="photoA" class="photo" alt="Selfie aprobado A" />
+        <img id="photoB" class="photo" alt="Selfie aprobado B" />
+      </div>
 
       <div id="galleryEmpty" class="empty">
         Esperando las primeras fotos aprobadas…
       </div>
 
-      <!-- FRONT overlay (your 1920x1080 PNG with transparent window) -->
+      <!-- FRONT FRAME (your transparent PNG) -->
       <img
         class="frame-image"
         src="Assets/Photo App Template Image.png"
@@ -120,9 +132,7 @@
   <script>
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
-    // How long each photo stays on screen
     const DISPLAY_MS = 8000;
-    // How often we re-fetch the approved list
     const REFRESH_MS = 10000;
 
     const imgA = document.getElementById("photoA");
@@ -143,7 +153,6 @@
     }
 
     function setEmptyState() {
-      // Hide photos, show “waiting” text
       imgSlots.forEach((img) => {
         img.classList.remove("visible");
         img.removeAttribute("src");
@@ -153,7 +162,6 @@
     }
 
     function crossfadeTo(url) {
-      // If this is the first ever photo, we don’t need cross-fade
       if (!hasImage) {
         const img = imgSlots[activeIndex];
         img.onload = () => {
@@ -170,11 +178,7 @@
       const nextIndex = 1 - activeIndex;
       const nextImg = imgSlots[nextIndex];
 
-      // Clean old onload to avoid multiple triggers
-      nextImg.onload = null;
-
       nextImg.onload = () => {
-        // New image fades in, old fades out
         nextImg.classList.add("visible");
         currentImg.classList.remove("visible");
         activeIndex = nextIndex;
@@ -230,9 +234,9 @@
         }
 
         const newPhotos = data.files || [];
-
         const oldIds = photos.map((p) => p.id).join(",");
         const newIds = newPhotos.map((p) => p.id).join(",");
+
         photos = newPhotos;
 
         if (!photos.length) {
@@ -241,7 +245,6 @@
           return;
         }
 
-        // If list changed (new approvals or deletions), restart rotation
         if (oldIds !== newIds) {
           if (currentIndex >= photos.length) {
             currentIndex = photos.length - 1;
@@ -258,7 +261,6 @@
       refreshTimer = setInterval(fetchApproved, REFRESH_MS);
     }
 
-    // Bootstrap
     fetchApproved().then(startRefreshLoop);
   </script>
 </body>
