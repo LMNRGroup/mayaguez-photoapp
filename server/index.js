@@ -12,25 +12,25 @@ const crypto = require('crypto');
 
 dotenv.config();
 
-// ---------- CONSTANTES ----------
+// ---------- CONSTANTS ----------
 const LUMI_LOGO_URL =
   'https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png';
 
 // Google Drive folders
 const PENDING_FOLDER_ID  = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs'; // existing uploads
-const APPROVED_FOLDER_ID = '1blA55AfkUykFcYzgFzmvthXMvVFv6I0u'; // new "Approved" folder
+const APPROVED_FOLDER_ID = '1blA55AfkUykFcYzgFzmvthXMvVFv6I0u'; // "Approved" folder
 
-// ID de tu Google Sheet de logs
+// Logs Google Sheet ID
 const SESSION_SHEET_ID =
   process.env.SESSION_SHEET_ID ||
   '1bPctG2H31Ix2N8jVNgFTgiB3FVWyr6BudXNY8YOD4GE';
 
-// Rango donde están las columnas: timestamp_utc, timestamp_pr, event_type, email, session_id, metadata
+// Range with columns: timestamp_utc, timestamp_pr, event_type, email, session_id, metadata
 const SESSION_SHEET_RANGE = 'A:F';
 
 // ---------- ADMIN SECURITY ----------
 const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE; // e.g. "MAYAGUEZ2025!"
-const ADMIN_UNLOCK_KEY = process.env.ADMIN_UNLOCK_KEY;   // MASTER
+const ADMIN_UNLOCK_KEY = process.env.ADMIN_UNLOCK_KEY;   // master unlock key
 
 const ADMIN_MAX_ATTEMPTS = 3;
 const ADMIN_BLOCK_MINUTES = 30;
@@ -123,7 +123,7 @@ if (process.env.MAIL_USER && process.env.MAIL_PASS) {
 // ---------- Express setup ----------
 const app = express();
 
-// ✅ Simplified, safe CORS with credentials
+// Simplified, safe CORS with credentials
 const allowedOrigins = [
   'https://mayaguez.luminarapps.com',
   'https://mayaguez-photoapp.vercel.app',
@@ -164,22 +164,22 @@ const jwtClient = new google.auth.JWT(
 const drive = google.drive({ version: 'v3', auth: jwtClient });
 const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
-// ---------- HELPERS DE FECHA / HORA ----------
+// ---------- DATE / TIME HELPERS ----------
 
-// Puerto Rico time "ahora" (GMT-4 fijo, sin DST)
+// Puerto Rico time "now" (GMT-4 fixed, no DST)
 function getPRDate() {
   const now = new Date();
   const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
   return new Date(utcMs - 4 * 60 * 60 * 1000);
 }
 
-// Convertir una Date (UTC) a PR
+// Convert a Date (UTC) to PR time
 function toPR(date) {
   const utcMs = date.getTime() + date.getTimezoneOffset() * 60000;
   return new Date(utcMs - 4 * 60 * 60 * 1000);
 }
 
-// Fecha larga en español: "Miércoles 3 de diciembre de 2025"
+// Long date in Spanish: "Miércoles 3 de diciembre de 2025"
 function formatPRDateLong() {
   const d = getPRDate();
 
@@ -200,8 +200,8 @@ function formatPRDateLong() {
   return `${dayName} ${dayNum} de ${monthName} de ${year}`;
 }
 
-// Fecha/hora corta para guardar en la columna timestamp_pr del sheet
-// Ej: "03/12/2025 22:05:31"
+// Short date/time string for the timestamp_pr column in the Sheet
+// Example: "03/12/2025 22:05:31"
 function formatPRDateTimeShort(prDate) {
   const pad = (n) => String(n).padStart(2, '0');
   const dd = pad(prDate.getDate());
@@ -213,13 +213,13 @@ function formatPRDateTimeShort(prDate) {
   return `${dd}/${mm}/${yyyy} ${HH}:${MM}:${SS}`;
 }
 
-// Para el reporte: "HH:00–HH:59"
+// For reports: "HH:00–HH:59"
 function formatHourRange(hour) {
   const h = String(hour).padStart(2, '0');
   return `${h}:00–${h}:59`;
 }
 
-// Rango de HOY (en PR) pero expresado en UTC, para filtrar los logs
+// Today range (in PR) but expressed in UTC, for filtering logs
 function getTodayPRRangeUtc() {
   const nowPR = getPRDate();
 
@@ -229,7 +229,7 @@ function getTodayPRRangeUtc() {
   const endPR = new Date(nowPR);
   endPR.setHours(23, 59, 59, 999);
 
-  // PR time → UTC (PR = UTC-4, así que sumamos 4h)
+  // PR time → UTC (PR = UTC-4, so we add 4h)
   const prToUtc = (dPR) => new Date(dPR.getTime() + 4 * 60 * 60 * 1000);
 
   return {
@@ -267,21 +267,21 @@ function ensureNotBlocked(req, res, next) {
   if (isBlocked(ip)) {
     return res.status(403).json({
       error: 'blocked',
-      message: 'IP bloqueada temporalmente',
+      message: 'IP temporarily blocked',
       blockedMinutes: remainingBlockMinutes(ip),
     });
   }
   next();
 }
 
-// Middleware: require valid admin cookie AND not blocked
+// Middleware: require valid admin token AND not blocked
 function ensureAdminAuth(req, res, next) {
   const ip = getClientIp(req);
 
   if (isBlocked(ip)) {
     return res.status(403).json({
       error: 'blocked',
-      message: 'IP bloqueada temporalmente',
+      message: 'IP temporarily blocked',
       blockedMinutes: remainingBlockMinutes(ip),
     });
   }
@@ -296,14 +296,15 @@ function ensureAdminAuth(req, res, next) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  // If you want, you can attach the session to req here:
+  // If needed, attach session:
   // req.adminSession = session;
 
   next();
 }
-// ---------- HELPERS PARA DRIVE (FOTOS) ----------
 
-// build filename 01_DD_MM_YY-HH_MM_SS.jpeg
+// ---------- DRIVE HELPERS (PHOTOS) ----------
+
+// Build filename 01_DD_MM_YY-HH_MM_SS.jpeg
 function buildServerFileName(counter) {
   const prNow = getPRDate();
 
@@ -321,7 +322,7 @@ function buildServerFileName(counter) {
   return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
 }
 
-// Buscar el próximo índice para el nombre del archivo en Drive (PENDING)
+// Find next index for filename in Drive (PENDING)
 async function getNextPhotoIndex() {
   let pageToken = null;
   let maxIndex = 0;
@@ -353,7 +354,7 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-// Subir archivo a Drive → PENDING folder
+// Upload file to Drive → PENDING folder
 async function uploadFile(fileBuffer, originalname, mimetype) {
   const bufferStream = new stream.PassThrough();
   bufferStream.end(fileBuffer);
@@ -377,7 +378,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
   return { fileId: response.data.id, finalName };
 }
 
-// Obtener la próxima foto pendiente más vieja
+// Get the oldest pending photo
 async function getNextPendingPhoto() {
   const res = await drive.files.list({
     q: `'${PENDING_FOLDER_ID}' in parents and trashed = false`,
@@ -393,9 +394,9 @@ async function getNextPendingPhoto() {
   return files[0]; // { id, name }
 }
 
-// ---------- HELPERS PARA SHEETS (LOGS) ----------
+// ---------- SHEETS HELPERS (LOGS) ----------
 
-// Log genérico a Google Sheets
+// Generic log to Google Sheets
 async function logEventToSheet(eventType, {
   email = '',
   sessionId = '',
@@ -432,7 +433,7 @@ async function logEventToSheet(eventType, {
   console.log('Logged event to sheet:', { eventType, utcStr, prStr, email, sessionId });
 }
 
-// Leer logs de HOY (en PR) desde el Sheet y computar stats
+// Read TODAY logs (in PR) from the Sheet and compute stats
 async function getTodayStatsFromSheet() {
   if (!SESSION_SHEET_ID) {
     console.warn('SESSION_SHEET_ID missing, cannot compute stats.');
@@ -453,7 +454,7 @@ async function getTodayStatsFromSheet() {
 
   const rows = resp.data.values || [];
   if (rows.length <= 1) {
-    // Solo headers, nada más
+    // Only headers, nothing else
     return {
       visits: 0,
       forms: 0,
@@ -467,7 +468,7 @@ async function getTodayStatsFromSheet() {
   let uploads = 0;
   const eventsForPrimeHour = []; // { ts: string }
 
-  // Saltamos el header row (fila 0)
+  // Skip header row (row 0)
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const tsUtcStr = row[0];
@@ -490,7 +491,7 @@ async function getTodayStatsFromSheet() {
   return { visits, forms, uploads, eventsForPrimeHour };
 }
 
-// Calcular prime hour usando eventos del día (en PR)
+// Compute prime hour using today's events (in PR time)
 function computePrimeHour(events) {
   if (!events.length) return null;
 
@@ -520,7 +521,7 @@ function computePrimeHour(events) {
   return { hour: bestHour, count: bestCount };
 }
 
-// ---------- EMAIL DE REPORTE DIARIO (usa el Sheet) ----------
+// ---------- DAILY REPORT EMAIL (uses Sheet data) ----------
 async function sendSessionReportEmailFromSheet() {
   if (!mailTransporter) {
     console.log('Mail transporter not configured, skipping report email.');
@@ -568,7 +569,7 @@ async function sendSessionReportEmailFromSheet() {
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560"
                  style="background:#ffffff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.06);
                         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-            <!-- Header band (igual que "Nueva familia registrada") -->
+            <!-- Header band (same style as "Nueva familia registrada") -->
             <tr>
               <td style="padding:20px 24px 16px 24px;background:#0a192f;
                          border-radius:8px 8px 0 0;color:#ffffff;text-align:center;">
@@ -614,7 +615,7 @@ async function sendSessionReportEmailFromSheet() {
               </td>
             </tr>
 
-            <!-- Footer con logo centrado (igual que otros correos) -->
+            <!-- Footer with centered logo (same as other emails) -->
             <tr>
               <td style="padding:18px 24px 20px 24px;text-align:center;border-top:1px solid #f0f0f0;">
                 <img
@@ -654,9 +655,9 @@ async function sendSessionReportEmailFromSheet() {
   console.log('Daily session report email sent (from Sheets data).');
 }
 
-// ---------- RUTAS ----------
+// ---------- ROUTES ----------
 
-// Simple visit endpoint: FE puede llamar esto en page load
+// Simple visit endpoint: FE can call this on page load
 app.post('/ping', async (req, res) => {
   try {
     const sessionId = req.headers['x-session-id'] || '';
@@ -667,7 +668,7 @@ app.post('/ping', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Upload de foto (cuenta como "upload")
+// Photo upload (counts as "upload")
 app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
   if (!req.body || req.body.length === 0) {
     return res.status(400).json({ error: 'No file uploaded.' });
@@ -680,7 +681,7 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
       req.headers['content-type']
     );
 
-    // Log a Sheet
+    // Log to Sheet
     try {
       const sessionId = req.headers['x-session-id'] || '';
       await logEventToSheet('upload', {
@@ -705,7 +706,7 @@ app.post('/visit', async (req, res) => {
 
     const timestampUtc = timestamp || new Date().toISOString();
 
-    // Log a Sheet como "form"
+    // Log to Sheet as "form"
     try {
       const sessionId = req.headers['x-session-id'] || '';
       await logEventToSheet('form', {
@@ -913,7 +914,7 @@ app.post('/admin/unblock', (req, res) => {
   }
 
   ipTracker.delete(ip);
-  return res.json({ ok: true, message: `IP ${ip} desbloqueada` });
+  return res.json({ ok: true, message: `IP ${ip} unblocked` });
 });
 
 // --------- ADMIN API: review photos ----------
@@ -1011,6 +1012,65 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
   }
 });
 
+// --------- PUBLIC GALLERY API (for Yodeck / gallery.html) ----------
+
+// List all approved photos (in order of creation)
+app.get('/gallery/approved', async (req, res) => {
+  try {
+    const response = await drive.files.list({
+      q: `'${APPROVED_FOLDER_ID}' in parents and trashed = false`,
+      fields: 'files(id, name, createdTime)',
+      orderBy: 'createdTime asc',
+      pageSize: 1000,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+
+    const files = (response.data.files || []).map((f) => ({
+      id: f.id,
+      name: f.name,
+      createdTime: f.createdTime,
+    }));
+
+    res.json({ ok: true, files });
+  } catch (err) {
+    console.error('Error listing approved files for gallery', err);
+    res.status(500).json({ ok: false, error: 'list_approved_failed' });
+  }
+});
+
+// Stream a single approved photo (no admin token, for public gallery)
+app.get('/gallery/photo/:fileId', async (req, res) => {
+  const { fileId } = req.params;
+
+  try {
+    const driveRes = await drive.files.get(
+      {
+        fileId,
+        alt: 'media',
+      },
+      { responseType: 'stream' }
+    );
+
+    // You can refine Content-Type by querying file metadata if needed
+    res.setHeader('Content-Type', 'image/jpeg');
+
+    driveRes.data
+      .on('error', (err) => {
+        console.error('Drive stream error (gallery)', err);
+        if (!res.headersSent) {
+          res.end();
+        }
+      })
+      .pipe(res);
+  } catch (err) {
+    console.error('Error streaming gallery photo', err);
+    if (!res.headersSent) {
+      res.status(404).end();
+    }
+  }
+});
+
 // --------- Daily report route (for Vercel cron) ----------
 app.get('/session-report-daily', async (req, res) => {
   try {
@@ -1023,7 +1083,7 @@ app.get('/session-report-daily', async (req, res) => {
   }
 });
 
-// MANUAL trigger for debugging (puedes hacer POST desde Postman / curl)
+// Manual trigger for debugging (you can POST from Postman / curl)
 app.post('/session-report-now', async (req, res) => {
   try {
     await sendSessionReportEmailFromSheet();
