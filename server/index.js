@@ -30,7 +30,7 @@ const SESSION_SHEET_RANGE = 'A:F';
 
 // ---------- ADMIN SECURITY ----------
 const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE; // e.g. "MAYAGUEZ2025!"
-const ADMIN_UNLOCK_KEY = process.env.ADMIN_UNLOCK_KEY;   // manual unblock key
+const ADMIN_UNLOCK_KEY = process.env.ADMIN_UNLOCK_KEY;   // MASTER
 
 const ADMIN_MAX_ATTEMPTS = 3;
 const ADMIN_BLOCK_MINUTES = 30;
