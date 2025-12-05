@@ -82,7 +82,7 @@
       width: 100%;
       max-width: 300px;
       aspect-ratio: 2 / 3;
-      margin: 30px auto 6px;
+      margin: 30px auto 15px;
       background-color: #000;
       position: relative;
       overflow: hidden;
@@ -340,6 +340,11 @@
       box-sizing: border-box;
     }
 
+    #countrySelect,
+    #regionSelect {
+      background: #fff;
+    }
+
     .intro-buttons {
       display: flex;
       justify-content: center;
@@ -415,82 +420,12 @@
       align-items: center;
     }
 
-    /* Orientation hint text */
     .orientation-hint {
       font-size: 11px;
-      color: #ffffff;
+      color: #f9fafb;
       text-align: center;
-      margin-bottom: 8px;
-      max-width: 280px;
+      margin-top: 6px;
       opacity: 0.85;
-    }
-
-    /* Orientation warning modal */
-    .orientation-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.75);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1001;
-    }
-
-    .orientation-modal.show {
-      display: flex;
-    }
-
-    .orientation-box {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 20px 18px;
-      max-width: 320px;
-      width: 85vw;
-      text-align: center;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    }
-
-    .orientation-box h3 {
-      margin: 0 0 10px;
-      font-size: 16px;
-    }
-
-    .orientation-box p {
-      margin: 0 0 10px;
-      font-size: 13px;
-      color: #444;
-    }
-
-    .orientation-strong {
-      font-weight: bold;
-    }
-
-    .orientation-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 10px;
-      flex-wrap: wrap;
-    }
-
-    .orientation-buttons button {
-      font-size: 12px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      text-transform: uppercase;
-      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
-    }
-
-    #orientationRetake {
-      background: #e74c3c;
-      color: #fff;
-    }
-
-    #orientationContinue {
-      background: #3ca360;
-      color: #fff;
     }
 
     @media (orientation: landscape) {
@@ -512,7 +447,7 @@
         width: 65%;
         max-width: 700px;
         aspect-ratio: 3 / 2;
-        margin: 0 auto 8px;
+        margin: 0 auto;
       }
 
       .controls-column {
@@ -540,27 +475,26 @@
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
 
-        <h2>¿De dónde nos visitas? 😊</h2>
-        <p>Selecciona tu país, pueblo/estado y apellidos, luego continúa a tu selfie.</p>
+        <h2>¿Desde dónde nos visitas? 😊</h2>
+        <p>Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.</p>
 
         <select id="countrySelect">
-          <option value="">Selecciona un país</option>
+          <option value="">Selecciona tu país</option>
           <option value="Puerto Rico">Puerto Rico</option>
           <option value="Estados Unidos">Estados Unidos</option>
         </select>
 
         <select id="regionSelect" disabled>
-          <option value="">Selecciona tu pueblo / estado</option>
+          <option value="">Selecciona tu municipio/estado</option>
         </select>
 
-        <input type="text" id="lastNameInput" placeholder="Apellidos (Ej. Pérez González)">
-
+        <input type="text" id="lastNameInput" placeholder="Apellidos de la familia (Ej. Pérez González)">
         <input
           type="email"
           id="emailInput"
           placeholder="Correo electrónico"
           required
-          pattern="^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+          pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
         />
 
         <label class="newsletter-label">
@@ -583,19 +517,6 @@
     </div>
   </div>
 
-  <!-- Orientation warning modal -->
-  <div id="orientationWarning" class="orientation-modal">
-    <div class="orientation-box">
-      <h3>Tu foto está en vertical</h3>
-      <p>Para que tu selfie se vea completa en la pantalla gigante, te recomendamos girar tu teléfono a horizontal y tomarla de nuevo.</p>
-      <p class="orientation-strong">Si continúas así, la imagen puede verse recortada.</p>
-      <div class="orientation-buttons">
-        <button id="orientationRetake">Retomar foto</button>
-        <button id="orientationContinue">Continuar de todos modos</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Main container -->
   <div class="container">
     <div class="logo-wrapper">
@@ -610,10 +531,6 @@
       </div>
 
       <div class="controls-column">
-        <p class="orientation-hint">
-          Consejo: gira tu teléfono a <strong>horizontal</strong> antes de tomar la selfie para que se vea completa en la pantalla gigante.
-        </p>
-
         <div class="button-group">
           <div class="btn-slot">
             <button id="switchCameraButton">
@@ -629,6 +546,9 @@
         </div>
 
         <div id="uploadStatus" class="upload-status"></div>
+        <div class="orientation-hint">
+          Para mejores resultados, gira tu teléfono a posición horizontal antes de tomar la foto.
+        </div>
         <div id="errorLog"></div>
       </div>
     </div>
@@ -661,17 +581,13 @@
     const countrySelect = document.getElementById('countrySelect');
     const regionSelect = document.getElementById('regionSelect');
     const lastNameInput = document.getElementById('lastNameInput');
+    const emailInput = document.getElementById('emailInput');
     const submitIntroButton = document.getElementById('submitIntroButton');
     const introError = document.getElementById('introError');
     const introBox = document.querySelector('.intro-box');
     const uploadStatus = document.getElementById('uploadStatus');
     const thankYouToast = document.getElementById('thankYouToast');
     const cameraArea = document.getElementById('cameraArea');
-    const orientationModal = document.getElementById('orientationWarning');
-    const orientationRetakeBtn = document.getElementById('orientationRetake');
-    const orientationContinueBtn = document.getElementById('orientationContinue');
-
-    const emailInput = document.getElementById('emailInput');
 
     let currentFacingMode = 'user';           // Start with front camera
     let currentStream = null;                 // Active MediaStream
@@ -680,62 +596,81 @@
 
     let photoCounter = 1;
     let lastCaptureWasPortrait = false;
-    let allowPortraitUploadOnce = false;
+    let hasShownPortraitWarning = false;
 
-    // --- LOCATION OPTIONS ---
+    // Preload flag images
+    const flagImages = {
+      PR: new Image(),
+      US: new Image()
+    };
+    flagImages.PR.src = 'Assets/pr_flag.png';
+    flagImages.US.src = 'Assets/us_flag.png';
+
+    // --- REGION DATA ---
 
     const PR_MUNICIPALITIES = [
-      "Adjuntas","Aguada","Aguadilla","Aguas Buenas","Aibonito","Añasco",
-      "Arecibo","Arroyo","Barceloneta","Barranquitas","Bayamón","Cabo Rojo",
-      "Caguas","Camuy","Canóvanas","Carolina","Cataño","Cayey","Ceiba",
-      "Ciales","Cidra","Coamo","Comerío","Corozal","Culebra","Dorado",
-      "Fajardo","Florida","Guánica","Guayama","Guayanilla","Guaynabo",
-      "Gurabo","Hatillo","Hormigueros","Humacao","Isabela","Jayuya",
-      "Juana Díaz","Juncos","Lajas","Lares","Las Marías","Las Piedras",
-      "Loíza","Luquillo","Manatí","Maricao","Maunabo","Mayagüez","Moca",
-      "Morovis","Naguabo","Naranjito","Orocovis","Patillas","Peñuelas",
-      "Ponce","Quebradillas","Rincón","Río Grande","Sabana Grande",
-      "Salinas","San Germán","San Juan","San Lorenzo","San Sebastián",
-      "Santa Isabel","Toa Alta","Toa Baja","Trujillo Alto","Utuado",
-      "Vega Alta","Vega Baja","Vieques","Villalba","Yabucoa","Yauco"
+      "Adjuntas","Aguada","Aguadilla","Aguas Buenas","Aibonito","Añasco","Arecibo",
+      "Arroyo","Barceloneta","Barranquitas","Bayamón","Cabo Rojo","Caguas","Camuy",
+      "Canóvanas","Carolina","Cataño","Cayey","Ceiba","Ciales","Cidra","Coamo",
+      "Comerío","Corozal","Culebra","Dorado","Fajardo","Florida","Guánica","Guayama",
+      "Guayanilla","Guaynabo","Gurabo","Hatillo","Hormigueros","Humacao","Isabela",
+      "Jayuya","Juana Díaz","Juncos","Lajas","Lares","Las Marías","Las Piedras",
+      "Loíza","Luquillo","Manatí","Maricao","Maunabo","Mayagüez","Moca","Morovis",
+      "Naguabo","Naranjito","Orocovis","Patillas","Peñuelas","Ponce","Quebradillas",
+      "Rincón","Río Grande","Sabana Grande","Salinas","San Germán","San Juan",
+      "San Lorenzo","San Sebastián","Santa Isabel","Toa Alta","Toa Baja","Trujillo Alto",
+      "Utuado","Vega Alta","Vega Baja","Vieques","Villalba","Yabucoa","Yauco"
     ];
 
     const US_STATES = [
-      "Alabama","Alaska","Arizona","Arkansas","California","Colorado",
-      "Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho",
-      "Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine",
-      "Maryland","Massachusetts","Michigan","Minnesota","Mississippi",
-      "Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey",
-      "New Mexico","New York","North Carolina","North Dakota","Ohio",
-      "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina",
-      "South Dakota","Tennessee","Texas","Utah","Vermont","Virginia",
-      "Washington","West Virginia","Wisconsin","Wyoming"
+      "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+      "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+      "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+      "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada",
+      "New Hampshire","New Jersey","New Mexico","New York","North Carolina",
+      "North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
+      "South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont",
+      "Virginia","Washington","West Virginia","Wisconsin","Wyoming"
     ];
 
-    countrySelect.addEventListener('change', () => {
-      const value = countrySelect.value;
-      regionSelect.innerHTML = '<option value="">Selecciona tu pueblo / estado</option>';
+    function populateRegionOptions(country, preselected) {
+      regionSelect.innerHTML = '';
       let list = [];
 
-      if (value === 'Puerto Rico') {
+      if (country === 'Puerto Rico') {
         list = PR_MUNICIPALITIES;
-      } else if (value === 'Estados Unidos') {
+      } else if (country === 'Estados Unidos') {
         list = US_STATES;
       }
 
-      if (!list.length) {
+      if (!country || list.length === 0) {
         regionSelect.disabled = true;
+        regionSelect.innerHTML = '<option value="">Selecciona tu municipio/estado</option>';
         return;
       }
 
-      list.forEach(name => {
+      regionSelect.disabled = false;
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = country === 'Puerto Rico'
+        ? 'Selecciona tu municipio'
+        : 'Selecciona tu estado';
+      regionSelect.appendChild(placeholder);
+
+      list.forEach(item => {
         const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
+        opt.value = item;
+        opt.textContent = item;
         regionSelect.appendChild(opt);
       });
 
-      regionSelect.disabled = false;
+      if (preselected && list.includes(preselected)) {
+        regionSelect.value = preselected;
+      }
+    }
+
+    countrySelect.addEventListener('change', () => {
+      populateRegionOptions(countrySelect.value, null);
     });
 
     function getPRDate() {
@@ -813,6 +748,66 @@
       setupCamera(currentFacingMode);
     }
 
+    function drawLocationOverlay(ctx, width, height) {
+      const country = localStorage.getItem('lumi_country') || '';
+      const region = localStorage.getItem('lumi_region') || '';
+
+      if (!country && !region) return;
+
+      let label = '';
+      if (country && region) {
+        label = `${region}, ${country}`;
+      } else {
+        label = country || region;
+      }
+
+      if (!label) return;
+
+      // Position bottom-left
+      const padding = 24;
+      const flagWidth = 60;
+      const flagHeight = 40;
+      const textOffsetX = flagWidth + 12;
+
+      const baseX = padding;
+      const baseY = height - padding - flagHeight; // top of flag box
+
+      // Background box
+      const boxHeight = flagHeight + 16;
+      const boxWidth = 260; // enough for flag+text
+      ctx.save();
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(baseX - 8, baseY - 8, boxWidth, boxHeight);
+      ctx.restore();
+
+      // Choose flag
+      let flagImg = null;
+      if (country === 'Puerto Rico') flagImg = flagImages.PR;
+      if (country === 'Estados Unidos') flagImg = flagImages.US;
+
+      ctx.save();
+      if (flagImg && flagImg.complete) {
+        ctx.drawImage(flagImg, baseX, baseY, flagWidth, flagHeight);
+      }
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 24px Arial';
+      ctx.textBaseline = 'middle';
+
+      const textX = baseX + textOffsetX;
+      const textY = baseY + flagHeight / 2;
+
+      // Simple text shadow for readability
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+
+      ctx.fillText(label, textX, textY);
+      ctx.restore();
+    }
+
     // Capture selfie
     captureButton.addEventListener('click', () => {
       // Always capture to a horizontal 3:2 canvas for upload + preview
@@ -829,13 +824,12 @@
       const vh = video.videoHeight;
 
       if (!vw || !vh) {
-        errorLog.textContent = 'Error: Cámara no está lista aún.';
+        errorLog.textContent = 'Error: Camera not ready';
         return;
       }
 
-      // Detect orientation of the raw camera frame
-      lastCaptureWasPortrait = vh >= vw;
-      allowPortraitUploadOnce = false;
+      // Detect if the video feed is effectively "portrait"
+      lastCaptureWasPortrait = vh > vw;
 
       const videoAspect  = vw / vh;
       const canvasAspect = targetWidth / targetHeight;
@@ -870,6 +864,9 @@
 
       ctx.restore();
 
+      // Draw country/region flag + text overlay
+      drawLocationOverlay(ctx, canvas.width, canvas.height);
+
       // Swap UI: VOLTEAR/TOMAR → RETOMAR/SUBIR
       video.style.display = 'none';
       canvas.style.display = 'block';
@@ -899,12 +896,26 @@
       uploadButton.classList.remove('button-loading');
       uploadStatus.textContent = '';
       errorLog.textContent = '';
-
-      lastCaptureWasPortrait = false;
-      allowPortraitUploadOnce = false;
     });
 
-    function actuallyUploadPhoto() {
+    // Upload
+    uploadButton.addEventListener('click', async () => {
+      if (uploadButton.disabled) return;
+
+      // If the last capture was in portrait feed, warn once
+      if (lastCaptureWasPortrait && !hasShownPortraitWarning) {
+        const proceed = window.confirm(
+          'Tu foto se ve vertical y podría salir recortada en la pantalla.\n\n' +
+          '¿Quieres subirla así de todos modos?\n\nPulsa "Aceptar" para subirla así, o "Cancelar" para volver y retomar la foto.'
+        );
+        if (!proceed) {
+          uploadStatus.textContent =
+            'Te recomendamos girar tu teléfono a horizontal y volver a tomar la foto.';
+          return;
+        }
+        hasShownPortraitWarning = true;
+      }
+
       uploadButton.disabled = true;
       uploadButton.textContent = 'SUBIENDO...';
       uploadButton.classList.add('button-loading');
@@ -944,32 +955,6 @@
           uploadStatus.textContent = 'Hubo un error. Intenta nuevamente.';
         }
       }, 'image/jpeg');
-    }
-
-    // Upload with vertical warning
-    uploadButton.addEventListener('click', () => {
-      if (uploadButton.disabled) return;
-
-      if (lastCaptureWasPortrait && !allowPortraitUploadOnce) {
-        // Show warning modal instead of uploading
-        orientationModal.classList.add('show');
-        return;
-      }
-
-      actuallyUploadPhoto();
-    });
-
-    // Orientation modal actions
-    orientationRetakeBtn.addEventListener('click', () => {
-      orientationModal.classList.remove('show');
-      retakeButton.click();
-    });
-
-    orientationContinueBtn.addEventListener('click', () => {
-      orientationModal.classList.remove('show');
-      allowPortraitUploadOnce = true;
-      // Trigger actual upload
-      actuallyUploadPhoto();
     });
 
     switchCameraButton.addEventListener('click', switchCamera);
@@ -978,31 +963,24 @@
     function startCameraAfterIntro() {
       introModal.style.display = 'none';
       setupCamera(currentFacingMode);
-      showThankYou('Consejo: gira tu teléfono a horizontal para que tu selfie salga completa.');
     }
 
     introClose.addEventListener('click', () => {
       startCameraAfterIntro();
+      showThankYou('Puedes tomar tu selfie cuando estés listo.');
     });
 
     submitIntroButton.addEventListener('click', async () => {
       if (submitIntroButton.disabled) return;
 
-      const countryCode = countrySelect.value;
+      const country = countrySelect.value;
       const region = regionSelect.value;
       const lastName = lastNameInput.value.trim();
       const email = emailInput.value.trim();
       const newsletter = document.getElementById('newsletterOptIn').checked;
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-      if (!countryCode || !region) {
-        introError.textContent = 'Selecciona tu país y pueblo/estado para continuar.';
-        introBox.classList.remove('shake');
-        void introBox.offsetWidth;
-        introBox.classList.add('shake');
-        return;
-      }
-
+      // VALIDATION + SHAKE
       if (!emailRegex.test(email)) {
         introError.textContent = 'Por favor escribe un correo electrónico válido.';
         introBox.classList.remove('shake');
@@ -1011,7 +989,7 @@
         return;
       }
 
-      if (!lastName || !email) {
+      if (!country || !region || !lastName || !email) {
         introError.textContent = 'Por favor completa todos los campos para continuar.';
         introBox.classList.remove('shake');
         void introBox.offsetWidth;
@@ -1026,10 +1004,15 @@
       submitIntroButton.textContent = 'ENVIANDO...';
       submitIntroButton.classList.add('button-loading');
 
-      // Keep "country" field compatible with previous backend shape:
-      const countryCombined = `${region}, ${countryCode}`;
+      // Save locally for overlay + persistence
+      localStorage.setItem('lumi_country', country);
+      localStorage.setItem('lumi_region', region);
+      localStorage.setItem('lumi_lastname', lastName);
+      localStorage.setItem('lumi_email', email);
+      localStorage.setItem('lumi_newsletter', newsletter ? '1' : '0');
 
       try {
+        // Send to backend (country combined with region for backwards compatibility)
         await fetch(`${BACKEND_URL}/visit`, {
           method: 'POST',
           headers: {
@@ -1037,9 +1020,7 @@
             'x-session-id': getSessionId()
           },
           body: JSON.stringify({
-            country: countryCombined,
-            countryCode,
-            region,
+            country: `${region}, ${country}`,
             lastName,
             email,
             newsletter,
@@ -1048,7 +1029,7 @@
         });
 
         startCameraAfterIntro();
-        showThankYou('¡Gracias por registrarte! Ahora toma tu selfie en horizontal.');
+        showThankYou('¡Gracias por registrarte! Ahora toma tu selfie.');
       } catch (err) {
         console.error('Error sending visit info:', err);
         introError.textContent = 'Hubo un error al enviar tus datos. Intenta de nuevo.';
@@ -1061,7 +1042,6 @@
 
     // --- SESSION ID HELPERS ---
 
-    // Keep the same ID for this user while the tab is open / reused
     function getSessionId() {
       let id = localStorage.getItem('lumi_session_id');
       if (!id) {
@@ -1083,8 +1063,27 @@
       }).catch(console.error);
     }
 
+    // Prefill intro from localStorage (if exists)
+    function prefillIntroFromStorage() {
+      const storedCountry = localStorage.getItem('lumi_country') || '';
+      const storedRegion = localStorage.getItem('lumi_region') || '';
+      const storedLast = localStorage.getItem('lumi_lastname') || '';
+      const storedEmail = localStorage.getItem('lumi_email') || '';
+      const storedNewsletter = localStorage.getItem('lumi_newsletter') === '1';
+
+      if (storedCountry) {
+        countrySelect.value = storedCountry;
+        populateRegionOptions(storedCountry, storedRegion);
+      }
+
+      if (storedLast) lastNameInput.value = storedLast;
+      if (storedEmail) emailInput.value = storedEmail;
+      document.getElementById('newsletterOptIn').checked = storedNewsletter;
+    }
+
     // Run as soon as the page is ready
     window.addEventListener('load', () => {
+      prefillIntroFromStorage();
       introModal.style.display = 'flex';
       pingSession();
     });
