@@ -393,7 +393,36 @@ async function getNextPendingPhoto() {
   if (!files.length) return null;
   return files[0]; // { id, name }
 }
+// List all files in a Drive folder (non-trashed)
+async function listFilesInFolder(folderId) {
+  let pageToken = null;
+  const results = [];
 
+  do {
+    const res = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'files(id, name, createdTime), nextPageToken',
+      orderBy: 'createdTime asc',
+      pageSize: 100,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageToken,
+    });
+
+    const files = res.data.files || [];
+    for (const f of files) {
+      results.push({
+        id: f.id,
+        name: f.name,
+        createdTime: f.createdTime,
+      });
+    }
+
+    pageToken = res.data.nextPageToken;
+  } while (pageToken);
+
+  return results;
+}
 // ---------- SHEETS HELPERS (LOGS) ----------
 
 // Generic log to Google Sheets
@@ -1011,7 +1040,84 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
     res.status(500).json({ error: 'failed_reject' });
   }
 });
+// --------- ADMIN: list / manage APPROVED photos ----------
 
+// List approved photos for the admin thumbnail grid
+app.get('/admin/approved-list', ensureAdminAuth, async (req, res) => {
+  try {
+    const files = await listFilesInFolder(APPROVED_FOLDER_ID);
+    // admin UI can build thumb src as /admin/photo/:id?token=...
+    res.json({ ok: true, files });
+  } catch (err) {
+    console.error('Error listing approved files for admin:', err);
+    res.status(500).json({ ok: false, error: 'list_approved_failed' });
+  }
+});
+
+// Delete a single approved photo (send to trash)
+app.post('/admin/delete-approved', ensureAdminAuth, async (req, res) => {
+  try {
+    const { fileId } = req.body || {};
+    if (!fileId) {
+      return res.status(400).json({ error: 'missing_fileId' });
+    }
+
+    await drive.files.update({
+      fileId,
+      requestBody: { trashed: true },
+      fields: 'id, trashed',
+      supportsAllDrives: true,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting approved photo:', err);
+    res.status(500).json({ ok: false, error: 'delete_approved_failed' });
+  }
+});
+
+// Clear Drive: send ALL pending + approved photos to trash
+// ⚠️ CAREFUL: this is meant for after the event.
+app.post('/admin/clear-drive', ensureAdminAuth, async (req, res) => {
+  try {
+    const pendingFiles = await listFilesInFolder(PENDING_FOLDER_ID);
+    const approvedFiles = await listFilesInFolder(APPROVED_FOLDER_ID);
+
+    const allFiles = [...pendingFiles, ...approvedFiles];
+
+    for (const file of allFiles) {
+      try {
+        await drive.files.update({
+          fileId: file.id,
+          requestBody: { trashed: true },
+          fields: 'id, trashed',
+          supportsAllDrives: true,
+        });
+      } catch (innerErr) {
+        console.error('Error trashing file during clear-drive:', file.id, innerErr);
+      }
+    }
+
+    res.json({
+      ok: true,
+      trashedCount: allFiles.length,
+    });
+  } catch (err) {
+    console.error('Error clearing Drive folders:', err);
+    res.status(500).json({ ok: false, error: 'clear_drive_failed' });
+  }
+});
+
+// Reset logs (dummy): does NOT touch Sheets yet, just responds OK
+app.post('/admin/reset-logs', ensureAdminAuth, async (req, res) => {
+  try {
+    console.log('Admin requested reset-logs (dummy endpoint, no-op).');
+    res.json({ ok: true, message: 'reset-logs dummy endpoint reached (no changes applied).' });
+  } catch (err) {
+    console.error('Error in reset-logs (dummy):', err);
+    res.status(500).json({ ok: false, error: 'reset_logs_failed' });
+  }
+});
 // --------- PUBLIC GALLERY API (for Yodeck / gallery.html) ----------
 
 // List all approved photos (in order of creation)
