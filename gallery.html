@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Selfie Wall – Plaza Colón</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Arial, sans-serif;
+      color: #f9fafb;
+      background: #020617;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #020617 0%, #020617 45%, #020617 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .frame {
+      position: relative;
+      width: 100%;
+      max-width: 1080px;
+      max-height: 1920px;
+      aspect-ratio: 9 / 16;
+      background: #020617;
+      border-radius: 24px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .photo {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transform: scale(1.01);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+      display: block;
+    }
+
+    .photo.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .empty {
+      font-size: 20px;
+      color: #6b7280;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 20px;
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #9ca3af;
+    }
+
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+    }
+
+    .counter {
+      font-variant-numeric: tabular-nums;
+      opacity: 0.8;
+    }
+
+    @media (max-width: 768px) {
+      .frame {
+        border-radius: 16px;
+      }
+
+      .hud {
+        padding: 10px 12px;
+      }
+
+      .hud-top {
+        font-size: 11px;
+      }
+
+      .hud-bottom {
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <img id="galleryPhoto" class="photo" alt="Selfie aprobado" />
+    <div id="galleryEmpty" class="empty">
+      Esperando las primeras fotos aprobadas…
+    </div>
+
+    <div class="hud">
+      <div class="hud-top">
+        <span class="badge">Plaza Colón · Selfie Wall</span>
+        <span class="badge">LMNR Group · Municipio de Mayagüez</span>
+      </div>
+      <div class="hud-bottom">
+        <span>Las fotos se muestran en orden de aprobación.</span>
+        <span class="counter" id="galleryCounter">0 / 0</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = "https://mayaguez-photoapp.vercel.app";
+
+    // how long each photo stays on screen
+    const DISPLAY_MS = 8000;
+    // how often we re-fetch the approved list
+    const REFRESH_MS = 10000;
+
+    const imgEl = document.getElementById("galleryPhoto");
+    const emptyEl = document.getElementById("galleryEmpty");
+    const counterEl = document.getElementById("galleryCounter");
+
+    let photos = [];
+    let currentIndex = 0;
+    let rotateTimer = null;
+    let refreshTimer = null;
+
+    function buildPhotoUrl(fileId) {
+      return `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
+    }
+
+    function showCurrentPhoto() {
+      if (!photos.length) {
+        imgEl.classList.remove("visible");
+        imgEl.removeAttribute("src");
+        emptyEl.style.display = "block";
+        counterEl.textContent = "0 / 0";
+        return;
+      }
+
+      const fileId = photos[currentIndex].id;
+      const url = buildPhotoUrl(fileId);
+
+      emptyEl.style.display = "none";
+      counterEl.textContent = `${currentIndex + 1} / ${photos.length}`;
+
+      // fade out, swap src, fade in on load
+      imgEl.classList.remove("visible");
+      imgEl.onload = () => {
+        imgEl.classList.add("visible");
+      };
+      imgEl.src = url;
+    }
+
+    function startRotation() {
+      if (rotateTimer) clearInterval(rotateTimer);
+      if (!photos.length) return;
+
+      showCurrentPhoto();
+
+      rotateTimer = setInterval(() => {
+        if (!photos.length) return;
+        currentIndex = (currentIndex + 1) % photos.length;
+        showCurrentPhoto();
+      }, DISPLAY_MS);
+    }
+
+    async function fetchApproved() {
+      try {
+        const res = await fetch(`${BASE_URL}/gallery/approved`);
+        if (!res.ok) {
+          console.error("Error fetching approved list", res.status);
+          return;
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          console.error("API returned not ok", data);
+          return;
+        }
+
+        const newPhotos = data.files || [];
+
+        // If nothing changed, do nothing
+        const oldIds = photos.map((p) => p.id).join(",");
+        const newIds = newPhotos.map((p) => p.id).join(",");
+        photos = newPhotos;
+
+        if (!photos.length) {
+          currentIndex = 0;
+          showCurrentPhoto();
+          return;
+        }
+
+        if (oldIds !== newIds) {
+          // keep index roughly in same position if possible
+          if (currentIndex >= photos.length) {
+            currentIndex = photos.length - 1;
+          }
+          startRotation();
+        }
+      } catch (err) {
+        console.error("Failed to fetch approved photos", err);
+      }
+    }
+
+    function startRefreshLoop() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(fetchApproved, REFRESH_MS);
+    }
+
+    // bootstrap
+    fetchApproved().then(startRefreshLoop);
+  </script>
+</body>
+</html>
