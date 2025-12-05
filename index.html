@@ -772,41 +772,54 @@
       const baseX = padding;
       const baseY = height - padding - flagHeight; // top of flag box
 
-      // Background box
-      const boxHeight = flagHeight + 16;
-      const boxWidth = 260; // enough for flag+text
-      ctx.save();
-      ctx.globalAlpha = 0.75;
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(baseX - 8, baseY - 8, boxWidth, boxHeight);
-      ctx.restore();
+         // Choose flag
+    let flagImg = null;
+    if (country === 'Puerto Rico') flagImg = flagImages.PR;
+    if (country === 'Estados Unidos') flagImg = flagImages.US;
 
-      // Choose flag
-      let flagImg = null;
-      if (country === 'Puerto Rico') flagImg = flagImages.PR;
-      if (country === 'Estados Unidos') flagImg = flagImages.US;
+    ctx.save();
 
-      ctx.save();
-      if (flagImg && flagImg.complete) {
-        ctx.drawImage(flagImg, baseX, baseY, flagWidth, flagHeight);
-      }
+    // ---- background box that auto-sizes to text + flag ----
+    ctx.font = 'bold 24px Arial';
+    ctx.textBaseline = 'middle';
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 24px Arial';
-      ctx.textBaseline = 'middle';
+    const textMetrics = ctx.measureText(label);
+    const textWidth   = textMetrics.width;
 
-      const textX = baseX + textOffsetX;
-      const textY = baseY + flagHeight / 2;
+    const sidePadding = 12;        // left/right padding inside the box
+    const topPadding  = 8;         // top/bottom padding
+    const boxHeight   = flagHeight + topPadding * 2;
+    const boxWidth    = sidePadding * 2 + flagWidth + textOffsetX + textWidth;
 
-      // Simple text shadow for readability
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
+    // box starts a bit to the left of the flag (same as before, but dynamic width)
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(
+      baseX - sidePadding,
+      baseY - topPadding,
+      boxWidth,
+      boxHeight
+    );
 
-      ctx.fillText(label, textX, textY);
-      ctx.restore();
+    // ---- flag ----
+    if (flagImg && flagImg.complete) {
+      ctx.drawImage(flagImg, baseX, baseY, flagWidth, flagHeight);
     }
+
+    // ---- text ----
+    ctx.fillStyle = '#ffffff';
+
+    const textX = baseX + textOffsetX;
+    const textY = baseY + flagHeight / 2;
+
+    // Simple text shadow for readability
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+
+    ctx.fillText(label, textX, textY);
+    ctx.restore();
 
     // Capture selfie
     captureButton.addEventListener('click', () => {
