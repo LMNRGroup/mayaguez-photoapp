@@ -77,7 +77,7 @@
       align-items: center;
     }
 
-    /* Camera frame: fixed 2:3 portrait box */
+    /* Camera frame: fixed portrait box on phones */
     .camera-area {
       width: 100%;
       max-width: 300px;
@@ -99,6 +99,18 @@
       display: block;
       object-fit: cover;
       background-color: #000;
+    }
+
+    /* Postcard frame overlay (shown only on preview) */
+    .preview-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+      display: none;
+      z-index: 3;
     }
 
     /* Front camera “un-mirror” – added/removed from JS */
@@ -321,7 +333,8 @@
       color: #888888;
     }
 
-    #countryInput,
+    #countrySelect,
+    #regionSelect,
     #lastNameInput,
     #emailInput {
       width: 100%;
@@ -455,11 +468,20 @@
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
 
-        <h2>¿De qué pueblo nos visitas? 😊</h2>
-        <p>Escribe tu municipio o país y tus apellidos, luego continúa a tu selfie.</p>
+        <h2>¿Desde dónde nos visitas? 😊</h2>
+        <p>Selecciona tu país y municipio/estado, luego continúa a tu selfie.</p>
 
-        <input type="text" id="countryInput" placeholder="Ej. Mayagüez, Puerto Rico">
-        <input type="text" id="lastNameInput" placeholder="Ej. Pérez González">
+        <select id="countrySelect">
+          <option value="">Selecciona tu país</option>
+          <option value="PR">Puerto Rico</option>
+          <option value="US">Estados Unidos</option>
+        </select>
+
+        <select id="regionSelect">
+          <option value="">Selecciona tu municipio/estado</option>
+        </select>
+
+        <input type="text" id="lastNameInput" placeholder="Apellidos de la familia (Ej. Pérez González)">
         <input
           type="email"
           id="emailInput"
@@ -499,6 +521,13 @@
       <div class="camera-area">
         <video id="video" autoplay playsinline></video>
         <canvas id="canvas" style="display:none;"></canvas>
+        <!-- Postcard frame overlay (same art as big screen) -->
+        <img
+          id="previewFrame"
+          class="preview-frame"
+          src="Assets/Photo App Template Image.png"
+          alt="Postcard frame preview"
+        />
       </div>
 
       <div class="controls-column">
@@ -546,13 +575,17 @@
     const errorLog = document.getElementById('errorLog');
     const introModal = document.getElementById('introModal');
     const introClose = document.getElementById('introClose');
-    const countryInput = document.getElementById('countryInput');
+    const countrySelect = document.getElementById('countrySelect');
+    const regionSelect = document.getElementById('regionSelect');
     const lastNameInput = document.getElementById('lastNameInput');
     const submitIntroButton = document.getElementById('submitIntroButton');
     const introError = document.getElementById('introError');
     const introBox = document.querySelector('.intro-box');
     const uploadStatus = document.getElementById('uploadStatus');
     const thankYouToast = document.getElementById('thankYouToast');
+    const newsletterOptIn = document.getElementById('newsletterOptIn');
+    const emailInput = document.getElementById('emailInput');
+    const previewFrame = document.getElementById('previewFrame');
 
     let currentFacingMode = 'user';           // Start with front camera
     let currentStream = null;                 // Active MediaStream
@@ -581,10 +614,6 @@
       photoCounter++;
 
       return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
-    }
-
-    function isLandscape() {
-      return window.innerWidth > window.innerHeight;
     }
 
     function showThankYou(message) {
@@ -640,13 +669,58 @@
       setupCamera(currentFacingMode);
     }
 
-    // Capture selfie
-    captureButton.addEventListener('click', () => {
-      const isLand = isLandscape();
+    // ----- LOCATION DATA (PR MUNICIPALITIES & US STATES) -----
 
-      // 3:2 in landscape, 2:3 in portrait
-      const targetWidth  = isLand ? 1500 : 1000;
-      const targetHeight = isLand ? 1000 : 1500;
+    const PR_MUNICIPALITIES = [
+      "Adjuntas","Aguada","Aguadilla","Aguas Buenas","Aibonito","Añasco","Arecibo",
+      "Arroyo","Barceloneta","Barranquitas","Bayamón","Cabo Rojo","Caguas","Camuy",
+      "Canóvanas","Carolina","Cataño","Cayey","Ceiba","Ciales","Cidra","Coamo",
+      "Comerío","Corozal","Culebra","Dorado","Fajardo","Florida","Guánica","Guayama",
+      "Guayanilla","Guaynabo","Gurabo","Hatillo","Hormigueros","Humacao","Isabela",
+      "Jayuya","Juana Díaz","Juncos","Lajas","Lares","Las Marías","Las Piedras",
+      "Loíza","Luquillo","Manatí","Maricao","Maunabo","Mayagüez","Moca","Morovis",
+      "Naguabo","Naranjito","Orocovis","Patillas","Peñuelas","Ponce","Quebradillas",
+      "Rincón","Río Grande","Sabana Grande","Salinas","San Germán","San Juan",
+      "San Lorenzo","San Sebastián","Santa Isabel","Toa Alta","Toa Baja","Trujillo Alto",
+      "Utuado","Vega Alta","Vega Baja","Vieques","Villalba","Yabucoa","Yauco"
+    ];
+
+    const US_STATES = [
+      "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+      "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+      "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+      "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire",
+      "New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio",
+      "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
+      "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia",
+      "Wisconsin","Wyoming"
+    ];
+
+    function populateRegionOptions() {
+      const country = countrySelect.value;
+      let list = [];
+
+      if (country === 'PR') {
+        list = PR_MUNICIPALITIES;
+      } else if (country === 'US') {
+        list = US_STATES;
+      }
+
+      regionSelect.innerHTML = '<option value="">Selecciona tu municipio/estado</option>';
+      list.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        regionSelect.appendChild(opt);
+      });
+    }
+
+    countrySelect.addEventListener('change', populateRegionOptions);
+
+    // Capture selfie (always export 3:2 horizontal)
+    captureButton.addEventListener('click', () => {
+      const targetWidth  = 1500; // horizontal 3:2
+      const targetHeight = 1000;
 
       canvas.width  = targetWidth;
       canvas.height = targetHeight;
@@ -663,16 +737,18 @@
       }
 
       const videoAspect  = vw / vh;
-      const canvasAspect = targetWidth / targetHeight;
+      const canvasAspect = targetWidth / targetHeight; // 1.5
 
       let sx, sy, sWidth, sHeight;
 
       if (videoAspect > canvasAspect) {
+        // Video is wider than canvas → crop horizontally
         sHeight = vh;
         sWidth  = sHeight * canvasAspect;
         sx      = (vw - sWidth) / 2;
         sy      = 0;
       } else {
+        // Video is taller than canvas → crop vertically
         sWidth  = vw;
         sHeight = sWidth / canvasAspect;
         sx      = 0;
@@ -695,21 +771,10 @@
 
       ctx.restore();
 
-      // Draw logo on top (not mirrored)
-      const img = new Image();
-      img.src = 'Assets/Logo Mayaguez.png';
-      img.onload = () => {
-        const logoWidth = 500;
-        const logoHeight = (logoWidth / img.width) * img.height;
-        const margin = 20;
-        ctx.drawImage(
-          img,
-          (canvas.width - logoWidth) / 2,
-          margin,
-          logoWidth,
-          logoHeight
-        );
-      };
+      // Show postcard frame overlay for preview
+      if (previewFrame) {
+        previewFrame.style.display = 'block';
+      }
 
       // Swap UI: VOLTEAR/TOMAR → RETOMAR/SUBIR
       video.style.display = 'none';
@@ -738,6 +803,10 @@
       uploadButton.classList.remove('button-loading');
       uploadStatus.textContent = '';
       errorLog.textContent = '';
+
+      if (previewFrame) {
+        previewFrame.style.display = 'none';
+      }
     });
 
     // Upload
@@ -801,11 +870,23 @@
     submitIntroButton.addEventListener('click', async () => {
       if (submitIntroButton.disabled) return;
 
-      const country = countryInput.value.trim();
+      const countryCode = countrySelect.value;
+      const region = regionSelect.value.trim();
       const lastName = lastNameInput.value.trim();
-      const email = document.getElementById('emailInput').value.trim();
-      const newsletter = document.getElementById('newsletterOptIn').checked;
+      const email = emailInput.value.trim();
+      const newsletter = newsletterOptIn.checked;
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      // Build readable location string for backend/sheets
+      let countryLabel = '';
+      if (countryCode === 'PR') countryLabel = 'Puerto Rico';
+      else if (countryCode === 'US') countryLabel = 'Estados Unidos';
+      else countryLabel = countryCode || '';
+
+      const locationLabel = region
+        ? `${region}, ${countryLabel || 'No especificado'}`
+        : (countryLabel || '');
 
       // VALIDATION + SHAKE
       if (!emailRegex.test(email)) {
@@ -816,7 +897,7 @@
         return;
       }
 
-      if (!country || !lastName || !email) {
+      if (!countryCode || !region || !lastName || !email) {
         introError.textContent = 'Por favor completa todos los campos para continuar.';
         introBox.classList.remove('shake');
         void introBox.offsetWidth;
@@ -839,7 +920,7 @@
             'x-session-id': getSessionId()
           },
           body: JSON.stringify({
-            country,
+            country: locationLabel,   // keeps existing backend/email contract
             lastName,
             email,
             newsletter,
@@ -858,7 +939,8 @@
         submitIntroButton.classList.remove('button-loading');
       }
     });
-     // --- SESSION ID HELPERS ---
+
+    // --- SESSION ID HELPERS ---
 
     // Keep the same ID for this user while the tab is open / reused
     function getSessionId() {
