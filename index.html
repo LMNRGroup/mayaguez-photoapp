@@ -809,18 +809,23 @@
 
     // --- Ticket helpers ---
 
-    function formatTicketLabel(ticketNumber) {
-      if (ticketNumber === null || ticketNumber === undefined) return '';
-      // If already a string like "T001" or "#004", show as-is
-      if (typeof ticketNumber === 'string') {
-        return ticketNumber;
-      }
-      const n = Number(ticketNumber);
-      if (!Number.isFinite(n)) {
-        return String(ticketNumber);
-      }
-      return '#' + String(n).padStart(3, '0');
+    function formatTicketLabel(ticketFromServer) {
+  if (ticketFromServer == null) return '';
+
+  // If server sends "T001", "T12", etc → turn into "#001"
+  if (typeof ticketFromServer === 'string') {
+    const m = ticketFromServer.match(/T?(\d{1,})/i);
+    if (m) {
+      return '#' + m[1].padStart(3, '0');
     }
+    // Fallback: show raw string
+    return ticketFromServer;
+  }
+
+  const n = Number(ticketFromServer);
+  if (!Number.isFinite(n)) return String(ticketFromServer);
+  return '#' + String(n).padStart(3, '0');
+}
 
     function showTicketOverlay(ticketNumber) {
       if (!ticketOverlay) return;
@@ -1111,18 +1116,21 @@
           uploadButton.classList.remove('button-loading');
 
           // Try to read ticket info from backend (fallback-safe)
-          const ticketNumber =
-            result.ticketNumber ??
-            result.ticket ??
-            result.photoIndex ??
-            null;
+          // Try to read ticket info from backend (now using ticketLabel / ticketIndex)
+const ticketNumber =
+  result.ticketLabel ??      // "T001", "T002", ...
+  result.ticketIndex ??      // 1, 2, 3, ...
+  result.ticketNumber ??     // legacy/fallback
+  result.ticket ??           // legacy/fallback
+  result.photoIndex ??       // legacy/fallback
+  null;
 
-          if (ticketNumber !== null && ticketNumber !== undefined) {
-            showTicketOverlay(ticketNumber);
-            showThankYou('¡Gracias! Guarda tu número de turno.');
-          } else {
-            showThankYou('¡Gracias! Tu foto ha sido enviada.');
-          }
+if (ticketNumber !== null && ticketNumber !== undefined) {
+  showTicketOverlay(ticketNumber);
+  showThankYou('¡Gracias! Guarda tu número de turno.');
+} else {
+  showThankYou('¡Gracias! Tu foto ha sido enviada.');
+}
         } catch (error) {
           console.error('Upload error:', error);
           errorLog.textContent = `Error al subir la foto: ${error.message}`;
