@@ -659,10 +659,10 @@
           Tu foto será mostrada en la pantalla principal en los próximos minutos.
           Conserva este número para verificar tu turno.
         </div>
-            <div class="ticket-disclaimer" style="font-size:11px; color:#6b4a1e; margin-top:6px; line-height:1.4;">
-              Nota: Tu foto será mostrada en la pantalla principal <strong>una vez sea aprobada por el equipo del evento</strong>.  
-              Algunas fotos podrían no ser utilizadas.
-            </div>
+        <div class="ticket-disclaimer" style="font-size:11px; color:#6b4a1e; margin-top:6px; line-height:1.4;">
+          Nota: Tu foto será mostrada en la pantalla principal <strong>una vez sea aprobada por el equipo del evento</strong>.  
+          Algunas fotos podrían no ser utilizadas.
+        </div>
         <button id="ticketClose" class="ticket-close-button">
           LISTO
         </button>
@@ -700,6 +700,7 @@
     let currentStream = null;                 // Active MediaStream
     const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent); // <<< NEW
 
     let photoCounter = 1;
     let lastCaptureWasPortrait = false;
@@ -814,22 +815,22 @@
     // --- Ticket helpers ---
 
     function formatTicketLabel(ticketFromServer) {
-  if (ticketFromServer == null) return '';
+      if (ticketFromServer == null) return '';
 
-  // If server sends "T001", "T12", etc → turn into "#001"
-  if (typeof ticketFromServer === 'string') {
-    const m = ticketFromServer.match(/T?(\d{1,})/i);
-    if (m) {
-      return '#' + m[1].padStart(3, '0');
+      // If server sends "T001", "T12", etc → turn into "#001"
+      if (typeof ticketFromServer === 'string') {
+        const m = ticketFromServer.match(/T?(\d{1,})/i);
+        if (m) {
+          return '#' + m[1].padStart(3, '0');
+        }
+        // Fallback: show raw string
+        return ticketFromServer;
+      }
+
+      const n = Number(ticketFromServer);
+      if (!Number.isFinite(n)) return String(ticketFromServer);
+      return '#' + String(n).padStart(3, '0');
     }
-    // Fallback: show raw string
-    return ticketFromServer;
-  }
-
-  const n = Number(ticketFromServer);
-  if (!Number.isFinite(n)) return String(ticketFromServer);
-  return '#' + String(n).padStart(3, '0');
-}
 
     function showTicketOverlay(ticketNumber) {
       if (!ticketOverlay) return;
@@ -839,7 +840,6 @@
         ticketNumberEl.textContent = label;
       }
 
-      // Optional, could customize text here in the future if server sends more data
       if (ticketTextEl) {
         ticketTextEl.textContent = 'Tu número de turno es el que ves en este boleto.';
       }
@@ -858,7 +858,6 @@
 
     if (ticketOverlay) {
       ticketOverlay.addEventListener('click', (e) => {
-        // Close if clicking outside the ticket card
         if (e.target === ticketOverlay || e.target.classList.contains('ticket-backdrop')) {
           hideTicketOverlay();
         }
@@ -890,8 +889,8 @@
         video.srcObject = stream;
         await video.play();
 
-        // Toggle “un-mirror” only for front camera
-        if (facingMode === 'user') {
+        // Toggle “un-mirror” only for front camera on NON-ANDROID
+        if (facingMode === 'user' && !isAndroid) {
           video.classList.add('front-unmirror');
         } else {
           video.classList.remove('front-unmirror');
@@ -924,41 +923,35 @@
 
       if (!label) return;
 
-      // --- layout constants ---
-      const padding = 24;           // distance from canvas edge
+      const padding = 24;
       const flagWidth = 60;
       const flagHeight = 40;
-      const gapBetween = 12;        // space between flag and text
+      const gapBetween = 12;
 
-      // pick flag image
       let flagImg = null;
       if (country === 'Puerto Rico') flagImg = flagImages.PR;
       if (country === 'Estados Unidos') flagImg = flagImages.US;
 
       ctx.save();
 
-      // text metrics
       ctx.font = 'bold 24px Arial';
       ctx.textBaseline = 'middle';
       const textMetrics = ctx.measureText(label);
       const textWidth = textMetrics.width;
 
-      const sidePadding = 12;       // inside box: left/right
-      const topPadding = 8;         // inside box: top/bottom
+      const sidePadding = 12;
+      const topPadding = 8;
       const boxHeight = flagHeight + topPadding * 2;
       const contentWidth = flagWidth + gapBetween + textWidth;
       const boxWidth = contentWidth + sidePadding * 2;
 
-      // --- TOP-RIGHT position ---
-      const boxX = width - padding - boxWidth; // right-aligned
-      const boxY = padding;                    // from top
+      const boxX = width - padding - boxWidth;
+      const boxY = padding;
 
-      // background box
       ctx.globalAlpha = 0.75;
       ctx.fillStyle = '#000000';
       ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
 
-      // flag position
       const flagX = boxX + sidePadding;
       const flagY = boxY + topPadding;
 
@@ -966,12 +959,10 @@
         ctx.drawImage(flagImg, flagX, flagY, flagWidth, flagHeight);
       }
 
-      // text position
       ctx.fillStyle = '#ffffff';
       const textX = flagX + flagWidth + gapBetween;
       const textY = boxY + boxHeight / 2;
 
-      // Simple text shadow for readability
       ctx.shadowColor = 'rgba(0,0,0,0.8)';
       ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 1;
@@ -980,9 +971,9 @@
       ctx.fillText(label, textX, textY);
       ctx.restore();
     }
+
     // Capture selfie
     captureButton.addEventListener('click', () => {
-      // Always capture to a horizontal 3:2 canvas for upload + preview
       const targetWidth  = 1500;
       const targetHeight = 1000;
 
@@ -1000,7 +991,6 @@
         return;
       }
 
-      // Detect if the video feed is effectively "portrait"
       lastCaptureWasPortrait = vh > vw;
 
       const videoAspect  = vw / vh;
@@ -1022,8 +1012,8 @@
 
       ctx.save();
 
-      // Mirror the captured image only for the front camera
-      if (currentFacingMode === 'user') {
+      // Mirror the captured image only for the front camera on NON-ANDROID
+      if (currentFacingMode === 'user' && !isAndroid) {
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
@@ -1036,10 +1026,8 @@
 
       ctx.restore();
 
-      // Draw country/region flag + text overlay
       drawLocationOverlay(ctx, canvas.width, canvas.height);
 
-      // Swap UI: VOLTEAR/TOMAR → RETOMAR/SUBIR
       video.style.display = 'none';
       canvas.style.display = 'block';
       cameraArea.classList.add('preview-mode');
@@ -1075,7 +1063,6 @@
     uploadButton.addEventListener('click', async () => {
       if (uploadButton.disabled) return;
 
-      // If the last capture was in portrait feed, warn once
       if (lastCaptureWasPortrait && !hasShownPortraitWarning) {
         const proceed = window.confirm(
           'Tu foto se ve vertical y podría salir recortada en la pantalla.\n\n' +
@@ -1118,22 +1105,20 @@
           uploadButton.textContent = 'SUBIDA';
           uploadButton.classList.remove('button-loading');
 
-          // Try to read ticket info from backend (fallback-safe)
-          // Try to read ticket info from backend (now using ticketLabel / ticketIndex)
-const ticketNumber =
-  result.ticketLabel ??      // "T001", "T002", ...
-  result.ticketIndex ??      // 1, 2, 3, ...
-  result.ticketNumber ??     // legacy/fallback
-  result.ticket ??           // legacy/fallback
-  result.photoIndex ??       // legacy/fallback
-  null;
+          const ticketNumber =
+            result.ticketLabel ??
+            result.ticketIndex ??
+            result.ticketNumber ??
+            result.ticket ??
+            result.photoIndex ??
+            null;
 
-if (ticketNumber !== null && ticketNumber !== undefined) {
-  showTicketOverlay(ticketNumber);
-  showThankYou('¡Gracias! Guarda tu número de turno.');
-} else {
-  showThankYou('¡Gracias! Tu foto ha sido enviada.');
-}
+          if (ticketNumber !== null && ticketNumber !== undefined) {
+            showTicketOverlay(ticketNumber);
+            showThankYou('¡Gracias! Guarda tu número de turno.');
+          } else {
+            showThankYou('¡Gracias! Tu foto ha sido enviada.');
+          }
         } catch (error) {
           console.error('Upload error:', error);
           errorLog.textContent = `Error al subir la foto: ${error.message}`;
@@ -1169,7 +1154,6 @@ if (ticketNumber !== null && ticketNumber !== undefined) {
       const newsletter = document.getElementById('newsletterOptIn').checked;
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-      // VALIDATION + SHAKE
       if (!emailRegex.test(email)) {
         introError.textContent = 'Por favor escribe un correo electrónico válido.';
         introBox.classList.remove('shake');
@@ -1193,7 +1177,6 @@ if (ticketNumber !== null && ticketNumber !== undefined) {
       submitIntroButton.textContent = 'ENVIANDO...';
       submitIntroButton.classList.add('button-loading');
 
-      // Save locally for overlay + persistence
       localStorage.setItem('lumi_country', country);
       localStorage.setItem('lumi_region', region);
       localStorage.setItem('lumi_lastname', lastName);
@@ -1201,7 +1184,6 @@ if (ticketNumber !== null && ticketNumber !== undefined) {
       localStorage.setItem('lumi_newsletter', newsletter ? '1' : '0');
 
       try {
-        // Send to backend (country combined with region for backwards compatibility)
         await fetch(`${BACKEND_URL}/visit`, {
           method: 'POST',
           headers: {
@@ -1229,7 +1211,7 @@ if (ticketNumber !== null && ticketNumber !== undefined) {
       }
     });
 
-    // --- SESSION ID HELPERS ---
+    // SESSION ID HELPERS
 
     function getSessionId() {
       let id = localStorage.getItem('lumi_session_id');
@@ -1240,7 +1222,6 @@ if (ticketNumber !== null && ticketNumber !== undefined) {
       return id;
     }
 
-    // Call this once on page load (logs a visit with session_id)
     function pingSession() {
       fetch(`${BACKEND_URL}/ping`, {
         method: 'POST',
@@ -1252,7 +1233,6 @@ if (ticketNumber !== null && ticketNumber !== undefined) {
       }).catch(console.error);
     }
 
-    // Prefill intro from localStorage (if exists)
     function prefillIntroFromStorage() {
       const storedCountry = localStorage.getItem('lumi_country') || '';
       const storedRegion = localStorage.getItem('lumi_region') || '';
@@ -1270,7 +1250,6 @@ if (ticketNumber !== null && ticketNumber !== undefined) {
       document.getElementById('newsletterOptIn').checked = storedNewsletter;
     }
 
-    // Run as soon as the page is ready
     window.addEventListener('load', () => {
       prefillIntroFromStorage();
       introModal.style.display = 'flex';
