@@ -400,65 +400,41 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
   let processedBuffer = fileBuffer;
 
   try {
-  // 2) DRAW TICKET BADGE USING PNG (NO SVG, NO MISSING FONTS)
-  const baseImage = sharp(fileBuffer);
-  const { width = 1500, height = 1000 } = await baseImage.metadata();
+    // 2) DRAW TICKET BADGE USING A SINGLE SVG (FIXED TEXT)
+    const baseImage = sharp(fileBuffer);
+    const { width = 1500, height = 1000 } = await baseImage.metadata();
 
-  const badgeWidth  = 240;
-  const badgeHeight = 90;
-  const margin      = 30;
+    const badgeWidth  = 260;
+    const badgeHeight = 90;
+    const margin      = 30;
 
-  // Draw the badge background (rounded black box)
-  const badgeBackground = await sharp({
-    create: {
-      width: badgeWidth,
-      height: badgeHeight,
-      channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0.75 }
-    }
-  })
-    .png()
-    .toBuffer();
+    const ticketSvg = Buffer.from(`
+      <svg width="${badgeWidth}" height="${badgeHeight}" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="${badgeWidth}" height="${badgeHeight}" rx="16" ry="16"
+              fill="black" fill-opacity="0.75" />
+        <text x="50%" y="55%"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              font-size="44"
+              fill="white"
+              stroke="black"
+              stroke-width="2"
+              font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+          ${ticketText}
+        </text>
+      </svg>
+    `);
 
-  // Draw the ticket number text as its own PNG
-  const ticketTextPng = await sharp({
-    create: {
-      width: badgeWidth,
-      height: badgeHeight,
-      channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 }
-    }
-  })
-    .composite([
-      {
-        input: Buffer.from(
-          `<svg width="${badgeWidth}" height="${badgeHeight}">
-             <text x="20" y="58"
-               font-size="48"
-               font-family="sans-serif"
-               fill="white"
-               stroke="black"
-               stroke-width="2"
-             >${ticketText}</text>
-           </svg>`
-        ),
-        left: 0,
-        top: 0
-      }
-    ])
-    .png()
-    .toBuffer();
-
-  // Merge badge → then text → over the main image
-  let processed = await baseImage
-    .composite([
-      { input: badgeBackground, left: margin, top: margin },
-      { input: ticketTextPng,   left: margin, top: margin }
-    ])
-    .jpeg()
-    .toBuffer();
-
-  processedBuffer = processed;
+    processedBuffer = await baseImage
+      .composite([
+        {
+          input: ticketSvg,
+          left: margin,
+          top: margin
+        }
+      ])
+      .jpeg()
+      .toBuffer();
   } catch (err) {
     console.error('Error drawing ticket overlay with Sharp, uploading original image:', err);
     // If anything fails, we still upload the original buffer
