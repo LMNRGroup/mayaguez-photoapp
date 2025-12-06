@@ -1,5 +1,3 @@
-// server/index.js
-
 const express = require('express');
 const { google } = require('googleapis');
 const cors = require('cors');
@@ -387,7 +385,7 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-// Upload file to Drive → PENDING folder (now with ONLY ticket text, no square)
+// Upload file to Drive → PENDING folder (badge with readable #001)
 async function uploadFile(fileBuffer, originalname, mimetype) {
   // 1) Decide ticket index & labels first
   const nextIndex = await getNextPhotoIndex();
@@ -401,19 +399,26 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
 
   try {
     const baseImage = sharp(fileBuffer);
-    const { width = 1500, height = 1000 } = await baseImage.metadata();
+    await baseImage.metadata(); // we don't really need width/height here
 
-    const margin = 40;
+    const badgeWidth  = 280;
+    const badgeHeight = 140;  // tall enough so text never gets clipped
+    const margin      = 30;
 
-    // SVG with JUST the text, no rect behind it
     const ticketSvg = Buffer.from(`
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <text x="${margin}" y="${margin + 40}"
-              font-size="56"
+      <svg width="${badgeWidth}" height="${badgeHeight}"
+           viewBox="0 0 ${badgeWidth} ${badgeHeight}"
+           xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0"
+              width="${badgeWidth}" height="${badgeHeight}"
+              rx="18" ry="18"
+              fill="black" fill-opacity="0.75" />
+        <text x="50%" y="50%"
+              text-anchor="middle"
+              dominant-baseline="central"
+              font-size="60"
               fill="white"
-              stroke="black"
-              stroke-width="3"
-              font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+              font-family="Arial, Helvetica, sans-serif">
           ${ticketText}
         </text>
       </svg>
@@ -423,8 +428,8 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
       .composite([
         {
           input: ticketSvg,
-          left: 0,
-          top: 0
+          left: margin,
+          top: margin
         }
       ])
       .jpeg()
@@ -459,6 +464,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     ticketLabel, // "T001" (FE already expects this)
   };
 }
+
 // Get the oldest pending photo
 async function getNextPendingPhoto() {
   const res = await drive.files.list({
