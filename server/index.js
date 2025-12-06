@@ -394,6 +394,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
 
   // Text we actually draw on the photo → "#001"
   const ticketText = '#' + String(nextIndex).padStart(3, '0');
+  const ticketDisplay = ticketText; // what FE will show in the tan ticket
 
   let processedBuffer = fileBuffer;
 
@@ -461,7 +462,8 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     fileId: response.data.id,
     finalName,
     ticketIndex: nextIndex,
-    ticketLabel, // "T001" (FE already expects this)
+    ticketLabel,   // "T001"
+    ticketDisplay  // "#001" for FE overlay
   };
 }
 
@@ -793,7 +795,13 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 
   try {
-    const { fileId, finalName, ticketIndex, ticketLabel } = await uploadFile(
+    const {
+      fileId,
+      finalName,
+      ticketIndex,
+      ticketLabel,
+      ticketDisplay
+    } = await uploadFile(
       req.body,
       'ignored.jpeg',
       req.headers['content-type']
@@ -804,7 +812,12 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
       const sessionId = req.headers['x-session-id'] || '';
       await logEventToSheet('upload', {
         sessionId,
-        metadata: { driveFileId: fileId, filename: finalName, ticketLabel }
+        metadata: {
+          driveFileId: fileId,
+          filename: finalName,
+          ticketLabel,
+          ticketDisplay
+        }
       });
     } catch (e) {
       console.error('Error logging upload event to sheet:', e);
@@ -815,7 +828,8 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
       message: 'File uploaded successfully',
       fileId,
       ticketIndex,
-      ticketLabel
+      ticketLabel,
+      ticketDisplay
     });
   } catch (error) {
     console.error('Error uploading file:', error);
