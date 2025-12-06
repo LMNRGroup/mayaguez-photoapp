@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
-const sharp = require('sharp');
+// sharp REMOVED from usage – we leave the import out so nothing touches the image
 
 dotenv.config();
 
@@ -309,9 +309,6 @@ function ensureAdminAuth(req, res, next) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
-  // If needed, attach session:
-  // req.adminSession = session;
-
   next();
 }
 
@@ -385,65 +382,18 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-// Upload file to Drive → PENDING folder (badge with readable #001)
+// Upload file to Drive → PENDING folder
+// NO Sharp overlay anymore – we keep filename + ticket metadata only.
 async function uploadFile(fileBuffer, originalname, mimetype) {
-  // 1) Decide ticket index & labels first
+  // Decide ticket index & labels
   const nextIndex = await getNextPhotoIndex();
   const finalName = buildServerFileName(nextIndex);
-  const ticketLabel = formatTicketLabel(nextIndex); // e.g. "T001"
+  const ticketLabel = formatTicketLabel(nextIndex); // "T001"
+  const ticketDisplay = '#' + String(nextIndex).padStart(3, '0'); // "#001" for FE tan ticket
 
-  // Text we actually draw on the photo → "#001"
-  const ticketText = '#' + String(nextIndex).padStart(3, '0');
-  const ticketDisplay = ticketText; // what FE will show in the tan ticket
-
-  let processedBuffer = fileBuffer;
-
-  try {
-    const baseImage = sharp(fileBuffer);
-    await baseImage.metadata(); // we don't really need width/height here
-
-    const badgeWidth  = 280;
-    const badgeHeight = 140;  // tall enough so text never gets clipped
-    const margin      = 30;
-
-    const ticketSvg = Buffer.from(`
-      <svg width="${badgeWidth}" height="${badgeHeight}"
-           viewBox="0 0 ${badgeWidth} ${badgeHeight}"
-           xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0"
-              width="${badgeWidth}" height="${badgeHeight}"
-              rx="18" ry="18"
-              fill="black" fill-opacity="0.75" />
-        <text x="50%" y="50%"
-              text-anchor="middle"
-              dominant-baseline="central"
-              font-size="60"
-              fill="white"
-              font-family="Arial, Helvetica, sans-serif">
-          ${ticketText}
-        </text>
-      </svg>
-    `);
-
-    processedBuffer = await baseImage
-      .composite([
-        {
-          input: ticketSvg,
-          left: margin,
-          top: margin
-        }
-      ])
-      .jpeg()
-      .toBuffer();
-  } catch (err) {
-    console.error('Error drawing ticket overlay with Sharp, uploading original image:', err);
-    // If anything fails, we still upload the original buffer
-    processedBuffer = fileBuffer;
-  }
-
-  // 3) Upload the processed image to Drive
+  // Upload original buffer as-is
   const bufferStream = new stream.PassThrough();
-  bufferStream.end(processedBuffer);
+  bufferStream.end(fileBuffer);
 
   const response = await drive.files.create({
     requestBody: {
@@ -462,8 +412,8 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     fileId: response.data.id,
     finalName,
     ticketIndex: nextIndex,
-    ticketLabel,   // "T001"
-    ticketDisplay  // "#001" for FE overlay
+    ticketLabel,
+    ticketDisplay
   };
 }
 
