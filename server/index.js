@@ -9,6 +9,7 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
+const sharp = require('sharp');
 
 dotenv.config();
 
@@ -386,14 +387,67 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-// Upload file to Drive → PENDING folder
+// Upload file to Drive → PENDING folder (now with ticket overlay)
 async function uploadFile(fileBuffer, originalname, mimetype) {
-  const bufferStream = new stream.PassThrough();
-  bufferStream.end(fileBuffer);
-
+  // 1) Decide ticket index & labels first
   const nextIndex = await getNextPhotoIndex();
   const finalName = buildServerFileName(nextIndex);
-  const ticketLabel = formatTicketLabel(nextIndex);
+  const ticketLabel = formatTicketLabel(nextIndex); // e.g. "T001"
+
+  // Text we actually draw on the photo → "#001"
+  const ticketText = '#' + String(nextIndex).padStart(3, '0');
+
+  let processedBuffer = fileBuffer;
+
+  try {
+    // 2) Use Sharp to draw a small badge with the ticket number
+    const image = sharp(fileBuffer);
+    const metadata = await image.metadata();
+
+    const width  = metadata.width  || 1500;
+    const height = metadata.height || 1000;
+
+    // Simple top-left badge using SVG overlay
+    const badgeWidth  = 220;
+    const badgeHeight = 80;
+    const margin      = 24;
+
+    const svgOverlay = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <rect
+          x="${margin}"
+          y="${margin}"
+          rx="14"
+          ry="14"
+          width="${badgeWidth}"
+          height="${badgeHeight}"
+          fill="rgba(0,0,0,0.70)"
+        />
+        <text
+          x="${margin + 24}"
+          y="${margin + 52}"
+          font-family="Arial, sans-serif"
+          font-size="40"
+          fill="#ffffff"
+        >
+          ${ticketText}
+        </text>
+      </svg>
+    `;
+
+    processedBuffer = await image
+      .composite([{ input: Buffer.from(svgOverlay), left: 0, top: 0 }])
+      .jpeg()
+      .toBuffer();
+  } catch (err) {
+    console.error('Error drawing ticket overlay with Sharp, uploading original image:', err);
+    // If anything fails, we still upload the original buffer
+    processedBuffer = fileBuffer;
+  }
+
+  // 3) Upload the processed image to Drive
+  const bufferStream = new stream.PassThrough();
+  bufferStream.end(processedBuffer);
 
   const response = await drive.files.create({
     requestBody: {
@@ -412,7 +466,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     fileId: response.data.id,
     finalName,
     ticketIndex: nextIndex,
-    ticketLabel,
+    ticketLabel, // "T001" (FE already expects this)
   };
 }
 
