@@ -976,42 +976,6 @@
       ctx.fillText(label, textX, textY);
       ctx.restore();
     }
-    
-      if (!rawTicket) return;
-
-      // Convert T001 → #001
-      let label = '';
-      if (typeof rawTicket === 'string') {
-        const m = rawTicket.match(/T?(\d+)/i);
-        if (m) label = '#' + m[1].padStart(3, '0');
-      } else if (typeof rawTicket === 'number') {
-        label = '#' + String(rawTicket).padStart(3, '0');
-      }
-      if (!label) return;
-
-      const padding = 24;
-      const boxW = 160;
-      const boxH = 70;
-
-      ctx.save();
-      ctx.globalAlpha = 0.75;
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(padding, padding, boxW, boxH);
-
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 36px Arial';
-      ctx.textBaseline = 'middle';
-
-      // Slight text shadow
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
-
-      ctx.fillText(label, padding + 20, padding + boxH / 2);
-      ctx.restore();
-    }
     // Capture selfie
     captureButton.addEventListener('click', () => {
       // Always capture to a horizontal 3:2 canvas for upload + preview
