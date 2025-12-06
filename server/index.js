@@ -164,6 +164,20 @@ const jwtClient = new google.auth.JWT(
 const drive = google.drive({ version: 'v3', auth: jwtClient });
 const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
+// Extract ticket number from a filename "T"
+function extractTicketNumber(filename) {
+  try {
+    // filename starts with "T015-..."
+    const dashIndex = filename.indexOf("-");
+    if (dashIndex === -1) return null;
+
+    const ticketPart = filename.substring(1, dashIndex); // "015"
+    return parseInt(ticketPart, 10);
+  } catch {
+    return null;
+  }
+}
+
 // ---------- DATE / TIME HELPERS ----------
 
 // Puerto Rico time "now" (GMT-4 fixed, no DST)
