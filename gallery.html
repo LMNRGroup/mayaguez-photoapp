@@ -106,22 +106,22 @@
       display: none;
     }
 
-    /* Ticket badge over the frame */
-    .ticket-badge {
-      position: absolute;
-      top: 5%;
-      right: 5%;
-      z-index: 20;
-      padding: 10px 18px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.85);
-      color: #f9fafb;
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      display: none;
-    }
+/* Ticket badge INSIDE the photo window (top-left) */
+.ticket-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 20;              /* stays above the photo, clipped by .photo-window */
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #f9fafb;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: none;            /* JS will set to block when we have a photo */
+}
   </style>
 </head>
 <body>
@@ -129,18 +129,18 @@
     <div class="stage">
 
       <!-- PHOTO WINDOW -->
-      <div class="photo-window">
-        <img id="photoA" class="photo" alt="Selfie aprobado A" />
-        <img id="photoB" class="photo" alt="Selfie aprobado B" />
-      </div>
+<div class="photo-window">
+  <img id="photoA" class="photo" alt="Selfie aprobado A" />
+  <img id="photoB" class="photo" alt="Selfie aprobado B" />
 
-      <!-- Empty state -->
-      <div id="galleryEmpty" class="empty">
-        Esperando las primeras fotos aprobadas…
-      </div>
+  <!-- Ticket number overlay INSIDE the photo window -->
+  <div id="ticketBadge" class="ticket-badge">#000</div>
+</div>
 
-      <!-- Ticket number overlay -->
-      <div id="ticketBadge" class="ticket-badge">#000</div>
+<!-- Empty state -->
+<div id="galleryEmpty" class="empty">
+  Esperando las primeras fotos aprobadas…
+</div>
 
       <!-- FRONT FRAME (transparent PNG) -->
       <img
