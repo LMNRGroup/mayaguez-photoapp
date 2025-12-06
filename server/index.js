@@ -337,15 +337,14 @@ function buildServerFileName(counter) {
   return `${ticketLabel}-${dd}-${mm}-${yy}-${HH}-${MM}-PR.jpeg`;
 }
 
-// Find next index for filename in Drive (PENDING)
-// Supports both legacy "01_DD_MM..." and new "T001-..." patterns.
-async function getNextPhotoIndex() {
+// Internal helper: read max index from one folder with a given trashed flag
+async function getMaxIndexInFolderWithTrashFlag(folderId, trashedFlag) {
   let pageToken = null;
   let maxIndex = 0;
 
   do {
     const res = await drive.files.list({
-      q: `'${PENDING_FOLDER_ID}' in parents and trashed = false`,
+      q: `'${folderId}' in parents and trashed = ${trashedFlag ? 'true' : 'false'}`,
       fields: 'files(name), nextPageToken',
       pageSize: 100,
       supportsAllDrives: true,
@@ -379,9 +378,28 @@ async function getNextPhotoIndex() {
     pageToken = res.data.nextPageToken;
   } while (pageToken);
 
-  return maxIndex + 1;
+  return maxIndex;
 }
 
+// Find next index for filename in Drive (PENDING + APPROVED, including trashed)
+// So even rejected photos keep their ticket number reserved.
+async function getMaxIndexInFolderIncludingTrash(folderId) {
+  const [maxActive, maxTrashed] = await Promise.all([
+    getMaxIndexInFolderWithTrashFlag(folderId, false),
+    getMaxIndexInFolderWithTrashFlag(folderId, true),
+  ]);
+  return Math.max(maxActive, maxTrashed);
+}
+
+async function getNextPhotoIndex() {
+  const [pendingMax, approvedMax] = await Promise.all([
+    getMaxIndexInFolderIncludingTrash(PENDING_FOLDER_ID),
+    getMaxIndexInFolderIncludingTrash(APPROVED_FOLDER_ID)
+  ]);
+
+  const globalMax = Math.max(pendingMax, approvedMax);
+  return globalMax + 1;
+}
 // Upload file to Drive → PENDING folder
 // NO Sharp overlay anymore – we keep filename + ticket metadata only.
 async function uploadFile(fileBuffer, originalname, mimetype) {
