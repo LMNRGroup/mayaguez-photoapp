@@ -105,23 +105,44 @@
     .empty.hidden {
       display: none;
     }
+
+    /* Ticket badge over the frame */
+    .ticket-badge {
+      position: absolute;
+      top: 5%;
+      right: 5%;
+      z-index: 20;
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #f9fafb;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div class="wall">
     <div class="stage">
 
-      <!-- PHOTO WINDOW using your red-box coordinates -->
+      <!-- PHOTO WINDOW -->
       <div class="photo-window">
         <img id="photoA" class="photo" alt="Selfie aprobado A" />
         <img id="photoB" class="photo" alt="Selfie aprobado B" />
       </div>
 
+      <!-- Empty state -->
       <div id="galleryEmpty" class="empty">
         Esperando las primeras fotos aprobadas…
       </div>
 
-      <!-- FRONT FRAME (your transparent PNG) -->
+      <!-- Ticket number overlay -->
+      <div id="ticketBadge" class="ticket-badge">#000</div>
+
+      <!-- FRONT FRAME (transparent PNG) -->
       <img
         class="frame-image"
         src="Assets/Photo App Template Image.png"
@@ -139,6 +160,7 @@
     const imgA = document.getElementById("photoA");
     const imgB = document.getElementById("photoB");
     const emptyEl = document.getElementById("galleryEmpty");
+    const ticketBadgeEl = document.getElementById("ticketBadge");
 
     const imgSlots = [imgA, imgB];
     let activeIndex = 0;
@@ -153,12 +175,57 @@
       return `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
     }
 
+    // --- Ticket helpers (from filename) ---
+
+    function getTicketFromName(name) {
+      if (!name || typeof name !== "string") return null;
+
+      // New pattern: T001-...
+      let match = name.match(/^T(\d{1,})-/i);
+      if (match) return parseInt(match[1], 10);
+
+      // Legacy pattern: 01_...
+      match = name.match(/^(\d{1,})_/);
+      if (match) return parseInt(match[1], 10);
+
+      return null;
+    }
+
+    function formatTicketLabel(num) {
+      if (num == null || !Number.isFinite(Number(num))) return null;
+      const n = Number(num);
+      return "#" + String(n).padStart(3, "0");
+    }
+
+    function updateTicketBadge(fileName) {
+      if (!ticketBadgeEl) return;
+
+      const ticketNum = getTicketFromName(fileName);
+      const label = formatTicketLabel(ticketNum);
+
+      if (!label) {
+        ticketBadgeEl.style.display = "none";
+        ticketBadgeEl.textContent = "";
+        return;
+      }
+
+      ticketBadgeEl.textContent = label;
+      ticketBadgeEl.style.display = "block";
+    }
+
+    function hideTicketBadge() {
+      if (!ticketBadgeEl) return;
+      ticketBadgeEl.style.display = "none";
+      ticketBadgeEl.textContent = "";
+    }
+
     function setEmptyState() {
       imgSlots.forEach((img) => {
         img.classList.remove("visible");
         img.removeAttribute("src");
       });
       emptyEl.classList.remove("hidden");
+      hideTicketBadge();
       hasImage = false;
     }
 
@@ -197,8 +264,10 @@
         return;
       }
 
-      const fileId = photos[currentIndex].id;
-      const url = buildPhotoUrl(fileId);
+      const file = photos[currentIndex];
+      const url = buildPhotoUrl(file.id);
+
+      updateTicketBadge(file.name);
       crossfadeTo(url);
     }
 
