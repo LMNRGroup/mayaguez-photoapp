@@ -24,8 +24,10 @@ const SESSION_SHEET_ID =
   process.env.SESSION_SHEET_ID ||
   '1bPctG2H31Ix2N8jVNgFTgiB3FVWyr6BudXNY8YOD4GE';
 
-// Range with columns: timestamp_utc, timestamp_pr, event_type, email, session_id, metadata
-const SESSION_SHEET_RANGE = 'A:F';
+// Range with columns:
+// timestamp_utc, timestamp_pr, event_type, email, session_id,
+// country, region, last_name, newsletter, ticket
+const SESSION_SHEET_RANGE = 'A:J';
 
 // ---------- ADMIN SECURITY ----------
 const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE; // e.g. "MAYAGUEZ2025!"
@@ -400,6 +402,7 @@ async function getNextPhotoIndex() {
   const globalMax = Math.max(pendingMax, approvedMax);
   return globalMax + 1;
 }
+
 // Upload file to Drive → PENDING folder
 // NO Sharp overlay anymore – we keep filename + ticket metadata only.
 async function uploadFile(fileBuffer, originalname, mimetype) {
@@ -484,13 +487,20 @@ async function listFilesInFolder(folderId) {
 
 // ---------- SHEETS HELPERS (LOGS) ----------
 
-// Generic log to Google Sheets
-async function logEventToSheet(eventType, {
-  email = '',
-  sessionId = '',
-  metadata = null,
-  timestampUtc = null
-} = {}) {
+// Generic log to Google Sheets (new columns)
+async function logEventToSheet(
+  eventType,
+  {
+    email = '',
+    sessionId = '',
+    country = '',
+    region = '',
+    lastName = '',
+    newsletter = null,
+    ticket = '',
+    timestampUtc = null
+  } = {}
+) {
   if (!SESSION_SHEET_ID) {
     console.warn('SESSION_SHEET_ID missing, skipping logEventToSheet');
     return;
@@ -506,9 +516,29 @@ async function logEventToSheet(eventType, {
   const dPR = toPR(dUtc);
   const prStr = formatPRDateTimeShort(dPR);
 
-  const metaString = metadata ? JSON.stringify(metadata) : '';
+  // Normalize newsletter to "Y" / "N" / ""
+  let newsletterStr = '';
+  if (newsletter !== null && newsletter !== undefined) {
+    const val = String(newsletter).toLowerCase();
+    if (val === 'true' || val === '1' || val === 'sí' || val === 'si' || val === 'y') {
+      newsletterStr = 'Y';
+    } else if (val === 'false' || val === '0' || val === 'no' || val === 'n') {
+      newsletterStr = 'N';
+    }
+  }
 
-  const values = [[utcStr, prStr, eventType, email || '', sessionId || '', metaString]];
+  const values = [[
+    utcStr,          // A timestamp_utc
+    prStr,           // B timestamp_pr
+    eventType,       // C event_type
+    email || '',     // D email
+    sessionId || '', // E session_id
+    country || '',   // F country
+    region || '',    // G region
+    lastName || '',  // H last_name
+    newsletterStr,   // I newsletter
+    ticket || ''     // J ticket
+  ]];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SESSION_SHEET_ID,
@@ -518,7 +548,18 @@ async function logEventToSheet(eventType, {
     requestBody: { values }
   });
 
-  console.log('Logged event to sheet:', { eventType, utcStr, prStr, email, sessionId });
+  console.log('Logged event to sheet:', {
+    eventType,
+    utcStr,
+    prStr,
+    email,
+    sessionId,
+    country,
+    region,
+    lastName,
+    newsletter: newsletterStr,
+    ticket,
+  });
 }
 
 // Read TODAY logs (in PR) from the Sheet and compute stats
@@ -686,7 +727,7 @@ async function sendSessionReportEmailFromSheet() {
                 <p style="margin:0 0 6px 0;">
                   <strong>Formularios completados:</strong> ${forms}
                 </p>
-                <p style="margin:0 0 6px 0;">
+                <p style="margin:0 0 6px 0%;">
                   <strong>Fotos capturadas/subidas:</strong> ${uploads}
                 </p>
 
@@ -780,12 +821,7 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
       const sessionId = req.headers['x-session-id'] || '';
       await logEventToSheet('upload', {
         sessionId,
-        metadata: {
-          driveFileId: fileId,
-          filename: finalName,
-          ticketLabel,
-          ticketDisplay
-        }
+        ticket: ticketLabel // e.g. "T015"
       });
     } catch (e) {
       console.error('Error logging upload event to sheet:', e);
@@ -812,6 +848,24 @@ app.post('/visit', async (req, res) => {
 
     const timestampUtc = timestamp || new Date().toISOString();
 
+    // Split "region, country" if it comes combined
+    let countryClean = '';
+    let region = '';
+
+    if (country) {
+      const parts = String(country)
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      if (parts.length >= 2) {
+        region = parts[0];       // municipality / region
+        countryClean = parts[1]; // country
+      } else if (parts.length === 1) {
+        countryClean = parts[0];
+      }
+    }
+
     // Log to Sheet as "form"
     try {
       const sessionId = req.headers['x-session-id'] || '';
@@ -819,11 +873,10 @@ app.post('/visit', async (req, res) => {
         email,
         sessionId,
         timestampUtc,
-        metadata: {
-          country,
-          lastName,
-          newsletter
-        }
+        country: countryClean,
+        region,
+        lastName,
+        newsletter
       });
     } catch (e) {
       console.error('Error logging form event to sheet:', e);
