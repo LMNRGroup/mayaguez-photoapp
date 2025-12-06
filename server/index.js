@@ -9,7 +9,6 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
-const sharp = require('sharp');
 
 dotenv.config();
 
