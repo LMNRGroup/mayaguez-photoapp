@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Revisión de Fotos – Selfie App</title>
+  <title>Photo Review – Selfie App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
@@ -29,7 +29,7 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
-      background: #ffffff; /* WHITE PAGE BG for logo visibility */
+      background: #ffffff; /* WHITE PAGE BG */
     }
 
     .page-wrapper {
@@ -39,6 +39,33 @@
       gap: 16px;
       width: 100%;
       max-width: 960px;
+    }
+
+    /* PAGE HEADER ABOVE CARD */
+    .page-header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+
+    .page-app-name {
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #0b1020;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .page-location {
+      font-size: 12px;
+      color: #6b7280;
     }
 
     .logo-top {
@@ -63,14 +90,21 @@
     .card-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       gap: 12px;
       position: relative;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
     }
 
     .title {
       font-size: 18px;
       font-weight: 600;
+      text-transform: uppercase;
     }
 
     .subtitle {
@@ -87,12 +121,16 @@
     }
 
     .status-pill {
-      font-size: 11px;
-      padding: 4px 8px;
+      font-size: 10px;
+      padding: 4px 10px;
       border-radius: 999px;
       background: #111827;
       border: 1px solid #374151;
       color: #e5e7eb;
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
     }
 
     /* App toggle */
@@ -251,16 +289,16 @@
       margin-top: 2px;
     }
 
-    /* THREE DOTS MENU */
+    /* GEAR MENU BUTTON (formerly three dots) */
     .kebab-button {
       flex: 0 0 auto;
       border-radius: 999px;
       border: 1px solid #374151;
       background: #020617;
       color: #e5e7eb;
-      font-size: 18px;
+      font-size: 16px;
       line-height: 1;
-      padding: 4px 8px 6px;
+      padding: 5px 9px 7px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -274,7 +312,7 @@
     .dropdown-menu {
       position: absolute;
       top: 100%;
-      right: 0;
+      left: 0;
       margin-top: 6px;
       min-width: 220px;
       background: #020617;
@@ -407,7 +445,7 @@
     }
 
     .approved-thumb::after {
-      content: "Tocar para borrar";
+      content: "Tap to delete";
       position: absolute;
       left: 0;
       right: 0;
@@ -480,7 +518,7 @@
       padding: 0 24px;
     }
 
-    /* NEW: top identity above the card */
+    /* TOP IDENTITY ON LOCK */
     .lock-header-id {
       text-align: center;
       margin-bottom: 6px;
@@ -582,7 +620,6 @@
       text-align: center;
     }
 
-    /* Disclaimer inside the card, under button/error */
     .lock-meta {
       margin-top: 8px;
       font-size: 10px;
@@ -680,23 +717,23 @@
 
       <!-- CARD -->
       <div class="lock-card" id="lockCard">
-        <div id="lockTitle" class="lock-title">Acceso restringido</div>
+        <div id="lockTitle" class="lock-title">Restricted access</div>
 
         <input
           id="accessCode"
           class="lock-input"
           type="password"
-          placeholder="Código de acceso"
+          placeholder="Access code"
           autocomplete="off"
           inputmode="numeric"
         />
 
-        <button id="accessSubmit" class="lock-button">ENTRAR</button>
+        <button id="accessSubmit" class="lock-button">ENTER</button>
 
         <div id="accessError" class="lock-error"></div>
 
         <div class="lock-meta">
-          Esta herramienta es de uso interno para Luminar Apps y el Municipio de Mayagüez.
+          This tool is for internal use by Luminar Apps and Municipio de Mayagüez.
         </div>
       </div>
 
@@ -706,22 +743,25 @@
   </div>
 
   <div class="page-wrapper">
-    <!-- LOGO ON WHITE, ABOVE CARD -->
-    <img
-      class="logo-top"
-      src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
-      alt="Luminar Apps"
-    />
+    <!-- HEADER ABOVE CARD -->
+    <div class="page-header">
+      <div class="page-app-name">PHOTO APP</div>
+      <div class="page-location">Pantalla Plaza Colón</div>
+    </div>
 
     <div class="card">
       <div class="card-header">
-        <div>
-          <div class="title">Revisión de fotos</div>
+        <div class="header-left">
+          <button id="moreButton" class="kebab-button" type="button">⚙︎</button>
+          <div>
+            <div class="title">PHOTO REVIEW</div>
+            <div class="subtitle">Pantalla Plaza Colón</div>
+          </div>
         </div>
 
         <div class="header-right">
           <div class="app-toggle">
-            <span class="app-toggle-label">Estado Selfie App</span>
+            <span class="app-toggle-label">Selfie App status</span>
             <div class="app-toggle-control">
               <span id="appStatusDot" class="status-dot off"></span>
               <label class="toggle" id="appToggleWrapper">
@@ -731,13 +771,11 @@
             </div>
           </div>
 
-          <span id="statusPill" class="status-pill">Cargando…</span>
-
-          <button id="moreButton" class="kebab-button" type="button">⋮</button>
+          <span id="statusPill" class="status-pill">LOADING…</span>
 
           <div id="moreMenu" class="dropdown-menu">
             <div id="menuViewApproved" class="dropdown-item">
-              <span>Ver fotos aprobadas</span>
+              <span>View approved photos</span>
             </div>
             <div class="dropdown-separator"></div>
             <div id="menuResetLogs" class="dropdown-item">
@@ -745,7 +783,7 @@
               <span class="helper-label">(demo)</span>
             </div>
             <div id="menuClearApproved" class="dropdown-item">
-              <span>Vaciar carpeta aprobadas</span>
+              <span>Empty approved folder</span>
             </div>
           </div>
         </div>
@@ -753,16 +791,23 @@
 
       <div id="photoFrame" class="photo-frame empty">
         <div id="emptyText" class="empty-text">
-          Cargando próxima foto pendiente…
+          Loading next pending photo…
         </div>
-        <img id="photoImg" alt="Foto pendiente" style="display:none;" />
+        <img id="photoImg" alt="Pending photo" style="display:none;" />
       </div>
 
       <div class="buttons">
-        <button id="rejectBtn" class="btn-reject" disabled>Rechazar</button>
-        <button id="approveBtn" class="btn-approve" disabled>Aprobar</button>
+        <button id="rejectBtn" class="btn-reject" disabled>Reject</button>
+        <button id="approveBtn" class="btn-approve" disabled>Approve</button>
       </div>
     </div>
+
+    <!-- LOGO NOW BELOW CARD -->
+    <img
+      class="logo-top"
+      src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
+      alt="Luminar Apps"
+    />
   </div>
 
   <!-- OVERLAY: APPROVED PHOTOS GRID -->
@@ -770,9 +815,9 @@
     <div class="approved-panel">
       <div class="approved-header">
         <div>
-          <div class="approved-title">Fotos aprobadas</div>
+          <div class="approved-title">Approved photos</div>
           <div class="approved-subtitle">
-            Toca una miniatura para eliminarla de la galería.
+            Tap a thumbnail to remove it from the gallery.
           </div>
         </div>
         <button
@@ -783,19 +828,19 @@
       </div>
 
       <div id="approvedEmpty" class="approved-empty">
-        Cargando fotos aprobadas…
+        Loading approved photos…
       </div>
       <div id="approvedGrid" class="approved-grid"></div>
 
       <div class="approved-footer">
         <div class="approved-footer-note">
-          Los cambios pueden tardar unos segundos en reflejarse en la pantalla pública.
+          Changes may take a few seconds to appear on the public screen.
         </div>
         <button
           type="button"
           class="btn-reject"
           data-close-approved="1"
-        >Cerrar</button>
+        >Close</button>
       </div>
     </div>
   </div>
@@ -883,7 +928,7 @@
       if (inactivityTimer) clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
         clearAdminToken();
-        showLock("Sesión cerrada por inactividad.");
+        showLock("Session closed due to inactivity.");
       }, INACTIVITY_MS);
     }
 
@@ -906,7 +951,7 @@
       }
 
       // reset visual state
-      lockTitle.textContent = "Acceso restringido";
+      lockTitle.textContent = "Restricted access";
       lockTitle.style.color = "#f97373";
       lockCard.classList.remove("success");
 
@@ -937,7 +982,7 @@
     async function attemptLogin() {
       const code = accessCodeInput.value.trim();
       if (!code) {
-        accessError.textContent = "Ingresa el código de acceso.";
+        accessError.textContent = "Enter the access code.";
         shakeLockCard();
         return;
       }
@@ -958,12 +1003,12 @@
         } catch (_) {}
 
         if (res.ok && data.ok && data.token) {
-          // ✅ Guardamos token de sesión
+          // ✅ store session token
           adminToken = data.token;
           localStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
 
           // green flash before opening admin
-          lockTitle.textContent = "Acceso concedido";
+          lockTitle.textContent = "Access granted";
           lockTitle.style.color = "#22c55e";
           lockCard.classList.add("success");
           accessCodeInput.value = "";
@@ -971,35 +1016,35 @@
           setTimeout(async () => {
             hideLock();
             // restore label for next time
-            lockTitle.textContent = "Acceso restringido";
+            lockTitle.textContent = "Restricted access";
             lockTitle.style.color = "#f97373";
             lockCard.classList.remove("success");
 
             await loadNextPhoto();
             startAutoRefresh();
-          }, 850); // your custom duration – tweak if you want
+          }, 850);
         } else if (res.status === 401 && data.remainingAttempts != null) {
-          accessError.textContent = `Código incorrecto. Intentos restantes: ${data.remainingAttempts}.`;
+          accessError.textContent = `Incorrect code. Remaining attempts: ${data.remainingAttempts}.`;
           accessCodeInput.value = "";
           accessCodeInput.focus();
           shakeLockCard();
         } else if (res.status === 403 && data.error === "blocked") {
           const minutes = Math.ceil(data.blockedMinutes || 30);
-          accessError.textContent = `Acceso bloqueado por ${minutes} minutos. Contacta al administrador.`;
+          accessError.textContent = `Access blocked for ${minutes} minutes. Contact the administrator.`;
           accessCodeInput.value = "";
           shakeLockCard();
         } else if (data.error === "admin_code_not_configured") {
-          accessError.textContent = "Código de acceso no configurado en el servidor.";
+          accessError.textContent = "Access code is not configured on the server.";
           accessCodeInput.value = "";
           shakeLockCard();
         } else {
-          accessError.textContent = "Error de autenticación. Intenta de nuevo.";
+          accessError.textContent = "Authentication error. Please try again.";
           accessCodeInput.value = "";
           shakeLockCard();
         }
       } catch (err) {
         console.error(err);
-        accessError.textContent = "Error de red. Intenta de nuevo.";
+        accessError.textContent = "Network error. Please try again.";
         shakeLockCard();
       } finally {
         accessSubmitBtn.disabled = false;
@@ -1016,14 +1061,14 @@
       isBusy = busy;
       approveBtn.disabled = busy || !currentFileId;
       rejectBtn.disabled = busy || !currentFileId;
-      statusPill.textContent = busy ? "Procesando…" : "Lista";
+      statusPill.textContent = busy ? "PROCESSING…" : "READY";
     }
 
     async function loadNextPhoto() {
       setBusy(true);
       photoImg.style.display = "none";
       emptyText.style.display = "block";
-      emptyText.textContent = "Cargando próxima foto pendiente…";
+      emptyText.textContent = "Loading next pending photo…";
       photoFrame.classList.add("empty");
 
       try {
@@ -1032,7 +1077,7 @@
         });
 
         if (res.status === 401 || res.status === 403) {
-          showLock("Ingresa el código de acceso para continuar.");
+          showLock("Enter the access code to continue.");
           return;
         }
 
@@ -1040,8 +1085,8 @@
 
         if (data.empty) {
           currentFileId = null;
-          emptyText.textContent = "No hay fotos pendientes en este momento.";
-          statusPill.textContent = "Sin pendientes";
+          emptyText.textContent = "There are no pending photos at this moment.";
+          statusPill.textContent = "NO PENDING";
           approveBtn.disabled = true;
           rejectBtn.disabled = true;
           return;
@@ -1049,7 +1094,7 @@
 
         currentFileId = data.fileId;
 
-        // para <img> usamos query ?token= porque no se pueden setear headers
+        // for <img> we use query ?token= because we can't set headers
         const imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
           currentFileId
         )}?token=${encodeURIComponent(adminToken || "")}`;
@@ -1061,13 +1106,13 @@
           photoImg.style.display = "block";
         };
 
-        statusPill.textContent = "Pendiente";
+        statusPill.textContent = "PENDING";
         approveBtn.disabled = false;
         rejectBtn.disabled = false;
       } catch (err) {
         console.error(err);
-        emptyText.textContent = "Error cargando foto. Recarga la página.";
-        statusPill.textContent = "Error";
+        emptyText.textContent = "Error loading photo. Reload the page.";
+        statusPill.textContent = "ERROR";
         approveBtn.disabled = true;
         rejectBtn.disabled = true;
       } finally {
@@ -1078,7 +1123,7 @@
     async function sendAction(endpoint) {
       if (!currentFileId || isBusy) return;
       if (!adminToken) {
-        showLock("Sesión expirada. Ingresa el código de acceso.");
+        showLock("Session expired. Enter the access code.");
         return;
       }
 
@@ -1092,12 +1137,12 @@
         });
 
         if (res.status === 401 || res.status === 403) {
-          showLock("Sesión expirada. Ingresa el código de acceso.");
+          showLock("Session expired. Enter the access code.");
           return;
         }
       } catch (err) {
         console.error(err);
-        statusPill.textContent = "Error";
+        statusPill.textContent = "ERROR";
       } finally {
         await loadNextPhoto();
       }
@@ -1148,7 +1193,7 @@
         });
 
         if (res.status === 401 || res.status === 403) {
-          showLock("Sesión expirada. Ingresa el código de acceso.");
+          showLock("Session expired. Enter the access code.");
           return;
         }
 
@@ -1180,7 +1225,7 @@
       autoRefreshId = null;
     }
 
-    // --- THREE DOTS MENU LOGIC ---
+    // --- MENU LOGIC ---
     function closeMoreMenu() {
       moreMenu.style.display = "none";
     }
@@ -1209,7 +1254,7 @@
     function openApprovedOverlay() {
       closeMoreMenu();
       if (!adminToken) {
-        showLock("Sesión expirada. Ingresa el código de acceso.");
+        showLock("Session expired. Enter the access code.");
         return;
       }
       approvedOverlay.style.display = "flex";
@@ -1227,10 +1272,10 @@
     async function loadApprovedGrid() {
       approvedGrid.innerHTML = "";
       approvedEmpty.style.display = "block";
-      approvedEmpty.textContent = "Cargando fotos aprobadas…";
+      approvedEmpty.textContent = "Loading approved photos…";
 
       if (!adminToken) {
-        approvedEmpty.textContent = "Sesión expirada. Ingresa de nuevo.";
+        approvedEmpty.textContent = "Session expired. Log in again.";
         return;
       }
 
@@ -1240,8 +1285,8 @@
         });
 
         if (res.status === 401 || res.status === 403) {
-          approvedEmpty.textContent = "Sesión expirada. Ingresa de nuevo.";
-          showLock("Sesión expirada. Ingresa el código de acceso.");
+          approvedEmpty.textContent = "Session expired. Log in again.";
+          showLock("Session expired. Enter the access code.");
           return;
         }
 
@@ -1249,7 +1294,7 @@
         const files = data.files || [];
 
         if (!files.length) {
-          approvedEmpty.textContent = "No hay fotos aprobadas en este momento.";
+          approvedEmpty.textContent = "There are no approved photos at this moment.";
           return;
         }
 
@@ -1259,9 +1304,10 @@
           const id = f.id || f.fileId;
           if (!id) return;
 
-          const thumbUrl = `${BASE_URL}/admin/approved-photo/${encodeURIComponent(
+          // Use existing /admin/photo endpoint so thumbs actually load
+          const thumbUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
             id
-          )}?token=${encodeURIComponent(adminToken || "")}&thumb=1`;
+          )}?token=${encodeURIComponent(adminToken || "")}`;
 
           const btn = document.createElement("button");
           btn.type = "button";
@@ -1270,7 +1316,7 @@
 
           const img = document.createElement("img");
           img.src = thumbUrl;
-          img.alt = "Foto aprobada";
+          img.alt = "Approved photo";
 
           btn.appendChild(img);
 
@@ -1284,17 +1330,17 @@
         console.error("Error loading approved list", err);
         approvedEmpty.style.display = "block";
         approvedEmpty.textContent =
-          "Error cargando las fotos aprobadas. Intenta nuevamente.";
+          "Error loading approved photos. Please try again.";
       }
     }
 
     function confirmDeleteApproved(fileId, thumbEl) {
       if (!adminToken) {
-        showLock("Sesión expirada. Ingresa el código de acceso.");
+        showLock("Session expired. Enter the access code.");
         return;
       }
       const ok = window.confirm(
-        "¿Seguro que deseas eliminar esta foto aprobada de la galería?\n\nEsta acción no se puede deshacer."
+        "Are you sure you want to remove this approved photo from the gallery?\n\nThis action cannot be undone."
       );
       if (!ok) return;
       deleteApprovedPhoto(fileId, thumbEl);
@@ -1312,7 +1358,7 @@
         });
 
         if (res.status === 401 || res.status === 403) {
-          showLock("Sesión expirada. Ingresa el código de acceso.");
+          showLock("Session expired. Enter the access code.");
           return;
         }
 
@@ -1323,37 +1369,38 @@
         thumbEl.remove();
         if (!approvedGrid.children.length) {
           approvedEmpty.style.display = "block";
-          approvedEmpty.textContent = "No hay fotos aprobadas en este momento.";
+          approvedEmpty.textContent = "There are no approved photos at this moment.";
         }
       } catch (err) {
         console.error("Error deleting approved photo", err);
         thumbEl.classList.remove("busy");
-        alert("No se pudo eliminar la foto aprobada. Intenta de nuevo.");
+        alert("Could not delete the approved photo. Please try again.");
       }
     }
 
     async function clearApprovedFolder() {
       closeMoreMenu();
       if (!adminToken) {
-        showLock("Sesión expirada. Ingresa el código de acceso.");
+        showLock("Session expired. Enter the access code.");
         return;
       }
 
       const ok = window.confirm(
-        "¿Vaciar TODAS las fotos aprobadas?\n\n" +
-          "Esto eliminará definitivamente las imágenes de la carpeta aprobadas."
+        "Empty ALL approved photos?\n\n" +
+          "This will permanently delete the images from the approved folder."
       );
       if (!ok) return;
 
       try {
-        const res = await fetch(`${BASE_URL}/admin/clear-approved`, {
+        // backend route is /admin/clear-drive
+        const res = await fetch(`${BASE_URL}/admin/clear-drive`, {
           method: "POST",
           headers: withAdminHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({}),
         });
 
         if (res.status === 401 || res.status === 403) {
-          showLock("Sesión expirada. Ingresa el código de acceso.");
+          showLock("Session expired. Enter the access code.");
           return;
         }
 
@@ -1365,13 +1412,13 @@
         if (approvedOverlay.style.display === "flex") {
           approvedGrid.innerHTML = "";
           approvedEmpty.style.display = "block";
-          approvedEmpty.textContent = "No hay fotos aprobadas en este momento.";
+          approvedEmpty.textContent = "There are no approved photos at this moment.";
         }
 
-        alert("Carpeta de fotos aprobadas vaciada.");
+        alert("Approved folder cleared.");
       } catch (err) {
         console.error("Error clearing approved folder", err);
-        alert("No se pudo vaciar la carpeta. Intenta nuevamente.");
+        alert("Could not clear the folder. Please try again.");
       }
     }
 
@@ -1381,7 +1428,7 @@
     menuResetLogs.addEventListener("click", () => {
       closeMoreMenu();
       // Dummy: only frontend notice
-      alert("Logs reseteados (modo demo, sin cambios en el servidor).");
+      alert("Logs cleared (demo mode, no changes on server).");
     });
 
     menuClearApproved.addEventListener("click", clearApprovedFolder);
