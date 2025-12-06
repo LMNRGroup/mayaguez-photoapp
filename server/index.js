@@ -304,7 +304,13 @@ function ensureAdminAuth(req, res, next) {
 
 // ---------- DRIVE HELPERS (PHOTOS) ----------
 
-// Build filename 01_DD_MM_YY-HH_MM_SS.jpeg
+// Ticket label: T001, T002, ...
+function formatTicketLabel(counter) {
+  const num = String(counter).padStart(3, '0');
+  return `T${num}`;
+}
+
+// Build filename T001-DD-MM-YY-HH-MM-PR.jpeg
 function buildServerFileName(counter) {
   const prNow = getPRDate();
 
@@ -315,14 +321,14 @@ function buildServerFileName(counter) {
   const yy = String(prNow.getFullYear()).slice(-2);
   const HH = pad(prNow.getHours());
   const MM = pad(prNow.getMinutes());
-  const SS = pad(prNow.getSeconds());
 
-  const num = pad(counter); // 01, 02, 03, ...
+  const ticketLabel = formatTicketLabel(counter);
 
-  return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
+  return `${ticketLabel}-${dd}-${mm}-${yy}-${HH}-${MM}-PR.jpeg`;
 }
 
 // Find next index for filename in Drive (PENDING)
+// Supports both legacy "01_DD_MM..." and new "T001-..." patterns.
 async function getNextPhotoIndex() {
   let pageToken = null;
   let maxIndex = 0;
@@ -339,12 +345,24 @@ async function getNextPhotoIndex() {
 
     const files = res.data.files || [];
     for (const file of files) {
-      const match = /^(\d{2,})_/.exec(file.name);
-      if (match) {
-        const idx = parseInt(match[1], 10);
-        if (!Number.isNaN(idx) && idx > maxIndex) {
-          maxIndex = idx;
+      if (!file.name) continue;
+
+      let idx = 0;
+
+      // New pattern: T001-DD-MM-YY...
+      const matchNew = /^T(\d{3,})-/.exec(file.name);
+      if (matchNew) {
+        idx = parseInt(matchNew[1], 10);
+      } else {
+        // Legacy pattern: 01_DD_MM_YY-...
+        const matchOld = /^(\d{2,})_/.exec(file.name);
+        if (matchOld) {
+          idx = parseInt(matchOld[1], 10);
         }
+      }
+
+      if (!Number.isNaN(idx) && idx > maxIndex) {
+        maxIndex = idx;
       }
     }
 
@@ -361,6 +379,7 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
 
   const nextIndex = await getNextPhotoIndex();
   const finalName = buildServerFileName(nextIndex);
+  const ticketLabel = formatTicketLabel(nextIndex);
 
   const response = await drive.files.create({
     requestBody: {
@@ -375,7 +394,12 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     supportsAllDrives: true
   });
 
-  return { fileId: response.data.id, finalName };
+  return {
+    fileId: response.data.id,
+    finalName,
+    ticketIndex: nextIndex,
+    ticketLabel,
+  };
 }
 
 // Get the oldest pending photo
@@ -393,6 +417,7 @@ async function getNextPendingPhoto() {
   if (!files.length) return null;
   return files[0]; // { id, name }
 }
+
 // List all files in a Drive folder (non-trashed)
 async function listFilesInFolder(folderId) {
   let pageToken = null;
@@ -423,6 +448,7 @@ async function listFilesInFolder(folderId) {
 
   return results;
 }
+
 // ---------- SHEETS HELPERS (LOGS) ----------
 
 // Generic log to Google Sheets
@@ -704,7 +730,7 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 
   try {
-    const { fileId, finalName } = await uploadFile(
+    const { fileId, finalName, ticketIndex, ticketLabel } = await uploadFile(
       req.body,
       'ignored.jpeg',
       req.headers['content-type']
@@ -715,13 +741,19 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
       const sessionId = req.headers['x-session-id'] || '';
       await logEventToSheet('upload', {
         sessionId,
-        metadata: { driveFileId: fileId, filename: finalName }
+        metadata: { driveFileId: fileId, filename: finalName, ticketLabel }
       });
     } catch (e) {
       console.error('Error logging upload event to sheet:', e);
     }
 
-    res.json({ message: 'File uploaded successfully', fileId });
+    res.json({
+      ok: true,
+      message: 'File uploaded successfully',
+      fileId,
+      ticketIndex,
+      ticketLabel
+    });
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).json({ error: 'Error uploading file', details: error.message });
@@ -1040,6 +1072,7 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
     res.status(500).json({ error: 'failed_reject' });
   }
 });
+
 // --------- ADMIN: list / manage APPROVED photos ----------
 
 // List approved photos for the admin thumbnail grid
@@ -1118,9 +1151,10 @@ app.post('/admin/reset-logs', ensureAdminAuth, async (req, res) => {
     res.status(500).json({ ok: false, error: 'reset_logs_failed' });
   }
 });
+
 // --------- PUBLIC GALLERY API (for Yodeck / gallery.html) ----------
 
-// List all approved photos (in order of creation)
+// List approved photos (virtual rotation, max 12)
 app.get('/gallery/approved', async (req, res) => {
   try {
     const response = await drive.files.list({
@@ -1132,7 +1166,26 @@ app.get('/gallery/approved', async (req, res) => {
       includeItemsFromAllDrives: true,
     });
 
-    const files = (response.data.files || []).map((f) => ({
+    const all = response.data.files || [];
+    const ROTATION_MAX = 12;
+
+    let selected;
+
+    if (all.length <= ROTATION_MAX) {
+      // 12 or fewer → keep chronological order
+      selected = all;
+    } else {
+      // More than 12 → ring-buffer behavior:
+      // index i goes into slot (i % ROTATION_MAX)
+      const ring = new Array(ROTATION_MAX);
+      for (let i = 0; i < all.length; i++) {
+        const slot = i % ROTATION_MAX;
+        ring[slot] = all[i];
+      }
+      selected = ring;
+    }
+
+    const files = selected.map((f) => ({
       id: f.id,
       name: f.name,
       createdTime: f.createdTime,
