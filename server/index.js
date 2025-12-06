@@ -387,7 +387,7 @@ async function getNextPhotoIndex() {
   return maxIndex + 1;
 }
 
-// Upload file to Drive → PENDING folder (now with ticket overlay)
+// Upload file to Drive → PENDING folder (now with ONLY ticket text, no square)
 async function uploadFile(fileBuffer, originalname, mimetype) {
   // 1) Decide ticket index & labels first
   const nextIndex = await getNextPhotoIndex();
@@ -400,25 +400,19 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
   let processedBuffer = fileBuffer;
 
   try {
-    // 2) DRAW TICKET BADGE USING A SINGLE SVG (FIXED TEXT)
     const baseImage = sharp(fileBuffer);
     const { width = 1500, height = 1000 } = await baseImage.metadata();
 
-    const badgeWidth  = 260;
-    const badgeHeight = 90;
-    const margin      = 30;
+    const margin = 40;
 
+    // SVG with JUST the text, no rect behind it
     const ticketSvg = Buffer.from(`
-      <svg width="${badgeWidth}" height="${badgeHeight}" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="${badgeWidth}" height="${badgeHeight}" rx="16" ry="16"
-              fill="black" fill-opacity="0.75" />
-        <text x="50%" y="55%"
-              text-anchor="middle"
-              dominant-baseline="middle"
-              font-size="44"
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <text x="${margin}" y="${margin + 40}"
+              font-size="56"
               fill="white"
               stroke="black"
-              stroke-width="2"
+              stroke-width="3"
               font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
           ${ticketText}
         </text>
@@ -429,8 +423,8 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
       .composite([
         {
           input: ticketSvg,
-          left: margin,
-          top: margin
+          left: 0,
+          top: 0
         }
       ])
       .jpeg()
@@ -465,7 +459,6 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     ticketLabel, // "T001" (FE already expects this)
   };
 }
-
 // Get the oldest pending photo
 async function getNextPendingPhoto() {
   const res = await drive.files.list({
