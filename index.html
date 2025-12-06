@@ -466,6 +466,84 @@
         align-items: center;
       }
     }
+
+    /* TICKET OVERLAY (turno de foto) */
+    .ticket-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      display: none;
+    }
+
+    .ticket-backdrop {
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .ticket-card {
+      background: #f5e6c8;
+      border-radius: 18px;
+      padding: 20px 18px 18px;
+      max-width: 320px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      position: relative;
+      text-align: center;
+      border: 2px dashed #b48a3a;
+    }
+
+    .ticket-tag {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #8a5a16;
+      margin-bottom: 6px;
+    }
+
+    .ticket-number {
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      font-size: 40px;
+      letter-spacing: 0.12em;
+      color: #2b1a07;
+      margin: 4px 0 8px;
+    }
+
+    .ticket-text {
+      font-size: 13px;
+      color: #3f2a11;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .ticket-note {
+      font-size: 11px;
+      color: #6b4a1e;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .ticket-close-button {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      background: #3ca360;
+      color: #ffffff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      cursor: pointer;
+    }
+
+    .ticket-close-button:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 <body>
@@ -568,6 +646,26 @@
 
   <div id="thankYouToast" class="thank-you-toast"></div>
 
+  <!-- Ticket overlay (turno de foto) -->
+  <div id="ticketOverlay" class="ticket-overlay">
+    <div class="ticket-backdrop">
+      <div class="ticket-card">
+        <div class="ticket-tag">FOTO RECIBIDA</div>
+        <div id="ticketNumber" class="ticket-number">#000</div>
+        <div id="ticketText" class="ticket-text">
+          Tu número de turno es el que ves en este boleto.
+        </div>
+        <div class="ticket-note">
+          Tu foto será mostrada en la pantalla principal en los próximos minutos.
+          Conserva este número para verificar tu turno.
+        </div>
+        <button id="ticketClose" class="ticket-close-button">
+          LISTO
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -588,6 +686,11 @@
     const uploadStatus = document.getElementById('uploadStatus');
     const thankYouToast = document.getElementById('thankYouToast');
     const cameraArea = document.getElementById('cameraArea');
+
+    const ticketOverlay = document.getElementById('ticketOverlay');
+    const ticketNumberEl = document.getElementById('ticketNumber');
+    const ticketTextEl = document.getElementById('ticketText');
+    const ticketCloseBtn = document.getElementById('ticketClose');
 
     let currentFacingMode = 'user';           // Start with front camera
     let currentStream = null;                 // Active MediaStream
@@ -704,6 +807,55 @@
       }, 2500);
     }
 
+    // --- Ticket helpers ---
+
+    function formatTicketLabel(ticketNumber) {
+      if (ticketNumber === null || ticketNumber === undefined) return '';
+      // If already a string like "T001" or "#004", show as-is
+      if (typeof ticketNumber === 'string') {
+        return ticketNumber;
+      }
+      const n = Number(ticketNumber);
+      if (!Number.isFinite(n)) {
+        return String(ticketNumber);
+      }
+      return '#' + String(n).padStart(3, '0');
+    }
+
+    function showTicketOverlay(ticketNumber) {
+      if (!ticketOverlay) return;
+      const label = formatTicketLabel(ticketNumber);
+
+      if (ticketNumberEl && label) {
+        ticketNumberEl.textContent = label;
+      }
+
+      // Optional, could customize text here in the future if server sends more data
+      if (ticketTextEl) {
+        ticketTextEl.textContent = 'Tu número de turno es el que ves en este boleto.';
+      }
+
+      ticketOverlay.style.display = 'flex';
+    }
+
+    function hideTicketOverlay() {
+      if (!ticketOverlay) return;
+      ticketOverlay.style.display = 'none';
+    }
+
+    if (ticketCloseBtn) {
+      ticketCloseBtn.addEventListener('click', hideTicketOverlay);
+    }
+
+    if (ticketOverlay) {
+      ticketOverlay.addEventListener('click', (e) => {
+        // Close if clicking outside the ticket card
+        if (e.target === ticketOverlay || e.target.classList.contains('ticket-backdrop')) {
+          hideTicketOverlay();
+        }
+      });
+    }
+
     async function setupCamera(facingMode = 'user') {
       try {
         // ANDROID/OTHERS: stop previous stream before opening new one.
@@ -749,76 +901,77 @@
     }
 
     function drawLocationOverlay(ctx, width, height) {
-  const country = localStorage.getItem('lumi_country') || '';
-  const region = localStorage.getItem('lumi_region') || '';
+      const country = localStorage.getItem('lumi_country') || '';
+      const region = localStorage.getItem('lumi_region') || '';
 
-  if (!country && !region) return;
+      if (!country && !region) return;
 
-  let label = '';
-  if (country && region) {
-    label = `${region}, ${country}`;
-  } else {
-    label = country || region;
-  }
+      let label = '';
+      if (country && region) {
+        label = `${region}, ${country}`;
+      } else {
+        label = country || region;
+      }
 
-  if (!label) return;
+      if (!label) return;
 
-  // --- layout constants ---
-  const padding = 24;           // distance from canvas edge
-  const flagWidth = 60;
-  const flagHeight = 40;
-  const gapBetween = 12;        // space between flag and text
+      // --- layout constants ---
+      const padding = 24;           // distance from canvas edge
+      const flagWidth = 60;
+      const flagHeight = 40;
+      const gapBetween = 12;        // space between flag and text
 
-  // pick flag image
-  let flagImg = null;
-  if (country === 'Puerto Rico') flagImg = flagImages.PR;
-  if (country === 'Estados Unidos') flagImg = flagImages.US;
+      // pick flag image
+      let flagImg = null;
+      if (country === 'Puerto Rico') flagImg = flagImages.PR;
+      if (country === 'Estados Unidos') flagImg = flagImages.US;
 
-  ctx.save();
+      ctx.save();
 
-  // text metrics
-  ctx.font = 'bold 24px Arial';
-  ctx.textBaseline = 'middle';
-  const textMetrics = ctx.measureText(label);
-  const textWidth = textMetrics.width;
+      // text metrics
+      ctx.font = 'bold 24px Arial';
+      ctx.textBaseline = 'middle';
+      const textMetrics = ctx.measureText(label);
+      const textWidth = textMetrics.width;
 
-  const sidePadding = 12;       // inside box: left/right
-  const topPadding = 8;         // inside box: top/bottom
-  const boxHeight = flagHeight + topPadding * 2;
-  const contentWidth = flagWidth + gapBetween + textWidth;
-  const boxWidth = contentWidth + sidePadding * 2;
+      const sidePadding = 12;       // inside box: left/right
+      const topPadding = 8;         // inside box: top/bottom
+      const boxHeight = flagHeight + topPadding * 2;
+      const contentWidth = flagWidth + gapBetween + textWidth;
+      const boxWidth = contentWidth + sidePadding * 2;
 
-  // --- TOP-RIGHT position ---
-  const boxX = width - padding - boxWidth; // right-aligned
-  const boxY = padding;                    // from top
+      // --- TOP-RIGHT position ---
+      const boxX = width - padding - boxWidth; // right-aligned
+      const boxY = padding;                    // from top
 
-  // background box
-  ctx.globalAlpha = 0.75;
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+      // background box
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
 
-  // flag position
-  const flagX = boxX + sidePadding;
-  const flagY = boxY + topPadding;
+      // flag position
+      const flagX = boxX + sidePadding;
+      const flagY = boxY + topPadding;
 
-  if (flagImg && flagImg.complete) {
-    ctx.drawImage(flagImg, flagX, flagY, flagWidth, flagHeight);
-  }
+      if (flagImg && flagImg.complete) {
+        ctx.drawImage(flagImg, flagX, flagY, flagWidth, flagHeight);
+      }
 
-  // text position
-  ctx.fillStyle = '#ffffff';
-  const textX = flagX + flagWidth + gapBetween;
-  const textY = boxY + boxHeight / 2;
+      // text position
+      ctx.fillStyle = '#ffffff';
+      const textX = flagX + flagWidth + gapBetween;
+      const textY = boxY + boxHeight / 2;
 
-  // Simple text shadow for readability
-  ctx.shadowColor = 'rgba(0,0,0,0.8)';
-  ctx.shadowBlur = 4;
-  ctx.shadowOffsetX = 1;
-  ctx.shadowOffsetY = 1;
+      // Simple text shadow for readability
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
 
-  ctx.fillText(label, textX, textY);
-  ctx.restore();
-}
+      ctx.fillText(label, textX, textY);
+      ctx.restore();
+    }
+
     // Capture selfie
     captureButton.addEventListener('click', () => {
       // Always capture to a horizontal 3:2 canvas for upload + preview
@@ -874,7 +1027,7 @@
       );
 
       ctx.restore();
-    
+
       // Draw country/region flag + text overlay
       drawLocationOverlay(ctx, canvas.width, canvas.height);
 
@@ -907,6 +1060,7 @@
       uploadButton.classList.remove('button-loading');
       uploadStatus.textContent = '';
       errorLog.textContent = '';
+      hideTicketOverlay();
     });
 
     // Upload
@@ -955,7 +1109,20 @@
           uploadStatus.textContent = '¡Foto subida correctamente!';
           uploadButton.textContent = 'SUBIDA';
           uploadButton.classList.remove('button-loading');
-          showThankYou('¡Gracias! Tu foto ha sido enviada.');
+
+          // Try to read ticket info from backend (fallback-safe)
+          const ticketNumber =
+            result.ticketNumber ??
+            result.ticket ??
+            result.photoIndex ??
+            null;
+
+          if (ticketNumber !== null && ticketNumber !== undefined) {
+            showTicketOverlay(ticketNumber);
+            showThankYou('¡Gracias! Guarda tu número de turno.');
+          } else {
+            showThankYou('¡Gracias! Tu foto ha sido enviada.');
+          }
         } catch (error) {
           console.error('Upload error:', error);
           errorLog.textContent = `Error al subir la foto: ${error.message}`;
