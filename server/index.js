@@ -9,6 +9,7 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
+const sharp = require('sharp');
 
 dotenv.config();
 
@@ -400,44 +401,43 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
 
   try {
     // 2) Use Sharp to draw a small badge with the ticket number
-    const image = sharp(fileBuffer);
-    const metadata = await image.metadata();
+const image = sharp(fileBuffer);
+const metadata = await image.metadata();
 
-    const width  = metadata.width  || 1500;
-    const height = metadata.height || 1000;
+const width  = metadata.width  || 1500;
+const height = metadata.height || 1000;
 
-    // Simple top-left badge using SVG overlay
-    const badgeWidth  = 220;
-    const badgeHeight = 80;
-    const margin      = 24;
+const badgeWidth  = 220;
+const badgeHeight = 80;
+const margin      = 24;
 
-    const svgOverlay = `
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <rect
-          x="${margin}"
-          y="${margin}"
-          rx="14"
-          ry="14"
-          width="${badgeWidth}"
-          height="${badgeHeight}"
-          fill="rgba(0,0,0,0.70)"
-        />
-        <text
-          x="${margin + 24}"
-          y="${margin + 52}"
-          font-family="Arial, sans-serif"
-          font-size="40"
-          fill="#ffffff"
-        >
-          ${ticketText}
-        </text>
-      </svg>
-    `;
+const svgOverlay = `
+  <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <rect
+      x="${margin}"
+      y="${margin}"
+      rx="14"
+      ry="14"
+      width="${badgeWidth}"
+      height="${badgeHeight}"
+      fill="rgba(0,0,0,0.70)"
+    />
+    <text
+      x="${margin + 24}"
+      y="${margin + 52}"
+      font-family="Arial, sans-serif"
+      font-size="40"
+      fill="#ffffff"
+    >
+      ${ticketText}
+    </text>
+  </svg>
+`;
 
-    processedBuffer = await image
-      .composite([{ input: Buffer.from(svgOverlay), left: 0, top: 0 }])
-      .jpeg()
-      .toBuffer();
+processedBuffer = await image
+  .composite([{ input: Buffer.from(svgOverlay), left: 0, top: 0 }])
+  .jpeg()
+  .toBuffer();
   } catch (err) {
     console.error('Error drawing ticket overlay with Sharp, uploading original image:', err);
     // If anything fails, we still upload the original buffer
