@@ -351,7 +351,7 @@
       background: #1f2937;
     }
 
-    /* APPROVED OVERLAY */
+    /* APPROVED OVERLAY (grid) */
     .approved-overlay {
       position: fixed;
       inset: 0;
@@ -445,7 +445,7 @@
     }
 
     .approved-thumb::after {
-      content: "Tap to delete";
+      content: "Tap to view";
       position: absolute;
       left: 0;
       right: 0;
@@ -497,6 +497,86 @@
       padding: 7px 10px;
     }
 
+    /* APPROVED VIEWER (zoomed single photo) */
+    .approved-viewer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.96);
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .approved-viewer-panel {
+      position: relative;
+      background: #020617;
+      border-radius: 18px;
+      width: 100%;
+      max-width: 900px;
+      max-height: 90vh;
+      padding: 10px 10px 12px;
+      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .approved-viewer-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 2px 2px 0;
+    }
+
+    .viewer-icon-btn {
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 13px;
+      padding: 6px 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-transform: none;
+      letter-spacing: 0;
+      flex: 0 0 auto;
+    }
+
+    .viewer-icon-btn span.icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .viewer-icon-btn.danger {
+      border-color: #f97373;
+      color: #fecaca;
+    }
+
+    .viewer-icon-btn:hover {
+      background: #111827;
+    }
+
+    .approved-viewer-image-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+
+    .approved-viewer-img {
+      max-width: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.75);
+      background: #020617;
+    }
+
     /* LOCK SCREEN */
     .lock-screen {
       position: fixed;
@@ -505,7 +585,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 40;
+      z-index: 50;
     }
 
     .lock-wrapper {
@@ -817,7 +897,7 @@
         <div>
           <div class="approved-title">Approved photos</div>
           <div class="approved-subtitle">
-            Tap a thumbnail to remove it from the gallery.
+            Tap a thumbnail to view it, then download or delete.
           </div>
         </div>
         <button
@@ -845,11 +925,41 @@
     </div>
   </div>
 
+  <!-- OVERLAY: SINGLE APPROVED PHOTO VIEWER -->
+  <div id="approvedViewer" class="approved-viewer-overlay">
+    <div class="approved-viewer-panel">
+      <div class="approved-viewer-toolbar">
+        <button id="viewerDownloadBtn" type="button" class="viewer-icon-btn">
+          <span class="icon">⬇</span>
+          <span>Download</span>
+        </button>
+        <button id="viewerDeleteBtn" type="button" class="viewer-icon-btn danger">
+          <span class="icon">🗑</span>
+          <span>Delete</span>
+        </button>
+      </div>
+      <div class="approved-viewer-image-wrap">
+        <img
+          id="approvedViewerImg"
+          class="approved-viewer-img"
+          alt="Approved photo preview"
+        />
+      </div>
+    </div>
+  </div>
+
   <script>
     // Backend origin – this is where your Node/Express lives
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
     const ADMIN_TOKEN_KEY = "lumi_admin_token_v1";
     const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
+
+    // Frame template used in gallery & downloads
+    const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
+
+    // Reusable offscreen canvas for framed downloads
+    const downloadCanvas = document.createElement("canvas");
+    const downloadCtx = downloadCanvas.getContext("2d");
 
     // Will store the admin session token returned by /admin/auth
     let adminToken = null;
@@ -885,10 +995,20 @@
     const approvedGrid = document.getElementById("approvedGrid");
     const approvedEmpty = document.getElementById("approvedEmpty");
 
+    // Viewer overlay elements
+    const approvedViewer = document.getElementById("approvedViewer");
+    const approvedViewerImg = document.getElementById("approvedViewerImg");
+    const viewerDownloadBtn = document.getElementById("viewerDownloadBtn");
+    const viewerDeleteBtn = document.getElementById("viewerDeleteBtn");
+
     let currentFileId = null;
     let isBusy = false;
     let autoRefreshId = null;
     let inactivityTimer = null;
+
+    // Currently viewed approved file in zoom viewer
+    let viewerCurrentFileId = null;
+    let viewerCurrentImgUrl = null;
 
     // --- Toggle UI (frontend only) ---
     function updateAppToggleUI(enabled) {
@@ -1269,6 +1389,40 @@
       btn.addEventListener("click", closeApprovedOverlay);
     });
 
+    // Open / close viewer
+    function openApprovedViewer(fileId, imgUrl) {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+      viewerCurrentFileId = fileId;
+      viewerCurrentImgUrl = imgUrl;
+      approvedViewerImg.src = imgUrl;
+      approvedViewer.style.display = "flex";
+    }
+
+    function closeApprovedViewer() {
+      viewerCurrentFileId = null;
+      viewerCurrentImgUrl = null;
+      approvedViewer.style.display = "none";
+    }
+
+    approvedViewer.addEventListener("click", (e) => {
+      // only close when clicking the dark overlay, not the panel/image
+      if (e.target === approvedViewer) {
+        closeApprovedViewer();
+      }
+    });
+
+    // Helper to find the thumb element for a given fileId
+    function findThumbByFileId(fileId) {
+      const thumbs = approvedGrid.querySelectorAll(".approved-thumb");
+      for (const el of thumbs) {
+        if (el.dataset.id === String(fileId)) return el;
+      }
+      return null;
+    }
+
     // 🔧 UPDATED: use URL from backend if available, fallback to /admin/photo/:id
     async function loadApprovedGrid() {
       approvedGrid.innerHTML = "";
@@ -1352,8 +1506,9 @@
 
           btn.appendChild(img);
 
+          // NEW: click opens viewer instead of deleting directly
           btn.addEventListener("click", () => {
-            confirmDeleteApproved(fileId, btn);
+            openApprovedViewer(fileId, imgUrl);
           });
 
           approvedGrid.appendChild(btn);
@@ -1380,7 +1535,7 @@
 
     async function deleteApprovedPhoto(fileId, thumbEl) {
       if (!fileId) return;
-      thumbEl.classList.add("busy");
+      if (thumbEl) thumbEl.classList.add("busy");
 
       try {
         const res = await fetch(`${BASE_URL}/admin/delete-approved`, {
@@ -1398,14 +1553,17 @@
           throw new Error(`HTTP ${res.status}`);
         }
 
-        thumbEl.remove();
+        if (thumbEl) {
+          thumbEl.remove();
+        }
+
         if (!approvedGrid.children.length) {
           approvedEmpty.style.display = "block";
           approvedEmpty.textContent = "There are no approved photos at this moment.";
         }
       } catch (err) {
         console.error("Error deleting approved photo", err);
-        thumbEl.classList.remove("busy");
+        if (thumbEl) thumbEl.classList.remove("busy");
         alert("Could not delete the approved photo. Please try again.");
       }
     }
@@ -1453,6 +1611,126 @@
         alert("Could not clear the folder. Please try again.");
       }
     }
+
+    // --- Download with frame (viewer) ---
+    async function downloadApprovedWithFrame(fileId) {
+      if (!fileId) return;
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      // Raw photo URL from admin endpoint
+      const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
+        fileId
+      )}?token=${encodeURIComponent(adminToken || "")}`;
+
+      try {
+        const photoImg = new Image();
+        const frameImg = new Image();
+
+        photoImg.src = photoUrl;
+        frameImg.src = FRAME_IMAGE_URL;
+
+        await Promise.all([
+          new Promise((resolve, reject) => {
+            photoImg.onload = resolve;
+            photoImg.onerror = () => reject(new Error("Error loading photo"));
+          }),
+          new Promise((resolve, reject) => {
+            frameImg.onload = resolve;
+            frameImg.onerror = () => reject(new Error("Error loading frame PNG"));
+          })
+        ]);
+
+        const fw = frameImg.width || photoImg.width;
+        const fh = frameImg.height || photoImg.height;
+
+        if (!fw || !fh) {
+          alert("Could not determine frame size for download.");
+          return;
+        }
+
+        downloadCanvas.width = fw;
+        downloadCanvas.height = fh;
+        downloadCtx.clearRect(0, 0, fw, fh);
+
+        const pw = photoImg.width;
+        const ph = photoImg.height;
+
+        if (!pw || !ph) {
+          alert("Photo dimensions are invalid.");
+          return;
+        }
+
+        const photoAspect = pw / ph;
+        const frameAspect = fw / fh;
+
+        let sx, sy, sWidth, sHeight;
+
+        if (photoAspect > frameAspect) {
+          // photo is "wider" → crop left/right
+          sHeight = ph;
+          sWidth = sHeight * frameAspect;
+          sx = (pw - sWidth) / 2;
+          sy = 0;
+        } else {
+          // photo is "taller" → crop top/bottom
+          sWidth = pw;
+          sHeight = sWidth / frameAspect;
+          sx = 0;
+          sy = (ph - sHeight) / 2;
+        }
+
+        // Draw photo to fully cover the frame area
+        downloadCtx.drawImage(
+          photoImg,
+          sx,
+          sy,
+          sWidth,
+          sHeight,
+          0,
+          0,
+          fw,
+          fh
+        );
+
+        // Draw frame PNG on top
+        downloadCtx.drawImage(frameImg, 0, 0, fw, fh);
+
+        // Trigger download
+        downloadCanvas.toBlob((blob) => {
+          if (!blob) {
+            alert("Could not generate image for download.");
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `mayaguez_selfie_${fileId}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, "image/png");
+      } catch (err) {
+        console.error("Error generating framed download:", err);
+        alert("Could not create the framed image. Please try again.");
+      }
+    }
+
+    // --- Viewer button handlers ---
+    viewerDownloadBtn.addEventListener("click", () => {
+      if (!viewerCurrentFileId) return;
+      downloadApprovedWithFrame(viewerCurrentFileId);
+    });
+
+    viewerDeleteBtn.addEventListener("click", () => {
+      if (!viewerCurrentFileId) return;
+      const thumbEl = findThumbByFileId(viewerCurrentFileId);
+      confirmDeleteApproved(viewerCurrentFileId, thumbEl);
+      closeApprovedViewer();
+    });
 
     // --- MENU ITEM HANDLERS ---
     menuViewApproved.addEventListener("click", openApprovedOverlay);
