@@ -1515,6 +1515,99 @@ app.post('/session-report-now', async (req, res) => {
     res.status(500).json({ ok: false, error: 'report_failed' });
   }
 });
+// Generate report for a specific PR date (YYYY-MM-DD)
+app.post('/session-report-date', async (req, res) => {
+  try {
+    const { date } = req.body || {};
+    if (!date) {
+      return res.status(400).json({ ok: false, error: "missing_date" });
+    }
+
+    // date = "2025-12-06"
+    const [yyyy, mm, dd] = date.split("-");
+    const prefix = `${dd}/${mm}/${yyyy}`; // matches timestamp_pr format
+
+    // Pull entire sheet -----------------------------------------
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SESSION_SHEET_ID,
+      range: SESSION_SHEET_RANGE
+    });
+
+    const rows = resp.data.values || [];
+    if (rows.length <= 1) {
+      return res.json({ ok: true, reportText: `No data for ${date}.` });
+    }
+
+    // Filter rows belonging to this date -------------------------
+    const filtered = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const tsPr = row[1] || ""; // timestamp_pr
+      if (tsPr.startsWith(prefix)) filtered.push(row);
+    }
+
+    // Count metrics ---------------------------------------------
+    let visits = 0;
+    let forms = 0;
+    let uploads = 0;
+    let newsletter = 0;
+
+    const newsletterEmails = new Set();
+
+    for (const row of filtered) {
+      const eventType = row[2]; // event_type
+      const email = row[3];     // email
+      const newsletterFlag = row[8]; // I col
+
+      if (eventType === "visit") visits++;
+      else if (eventType === "form") forms++;
+      else if (eventType === "upload") uploads++;
+
+      if (newsletterFlag === "Y" && email) {
+        newsletterEmails.add(email.trim());
+      }
+    }
+
+    // Build final report ----------------------------------------
+    const report =
+      `SELFIE APP REPORT – ${date}\n` +
+      `--------------------------------------\n` +
+      `Visits: ${visits}\n` +
+      `Forms: ${forms}\n` +
+      `Uploads: ${uploads}\n` +
+      `Newsletter Opt-ins: ${newsletterEmails.size}\n\n` +
+      (newsletterEmails.size
+        ? `Emails:\n${Array.from(newsletterEmails).map(e => "- " + e).join("\n")}\n`
+        : ``) +
+      `--------------------------------------\n` +
+      `Generated at: ${new Date().toISOString()}`;
+
+    // Email it ---------------------------------------------------
+    if (mailTransporter && process.env.MAIL_TO) {
+      await mailTransporter.sendMail({
+        from: `"Luminar Apps" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+        to: process.env.MAIL_TO,
+        subject: `Selfie App Report – ${date}`,
+        text: report,
+        attachments: [
+          {
+            filename: `report_${date}.txt`,
+            content: report
+          }
+        ]
+      });
+    }
+
+    return res.json({
+      ok: true,
+      reportText: report
+    });
+
+  } catch (err) {
+    console.error("Error in /session-report-date:", err);
+    return res.status(500).json({ ok: false, error: "report_failed" });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
