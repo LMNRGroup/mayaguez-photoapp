@@ -101,6 +101,7 @@
       display: flex;
       align-items: flex-start;
       gap: 8px;
+      position: relative; /* so dropdown anchors under gear */
     }
 
     .title {
@@ -320,11 +321,34 @@
       background: #111827;
     }
 
+    /* QUICK APPROVED BUTTON */
+    .approved-button {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 14px;
+      line-height: 1;
+      padding: 5px 9px 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .approved-button:hover {
+      background: #111827;
+    }
+
     .dropdown-menu {
       position: absolute;
-      top: 100%;
+      top: calc(100% + 6px);
       left: 0;
-      margin-top: 6px;
       min-width: 220px;
       background: #020617;
       border-radius: 10px;
@@ -411,7 +435,7 @@
       background: #020617;
       color: #e5e7eb;
       font-size: 16px;
-      padding: 2px 9px 4px;
+      padding: 2px 8px 4px;
       cursor: pointer;
       flex-shrink: 0;
     }
@@ -455,37 +479,64 @@
       object-fit: cover;
     }
 
-    .approved-thumb::after {
-      content: "Tap to view";
+    .approved-thumb.busy {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    /* Hover mini popup with download/delete */
+    .approved-thumb-actions {
       position: absolute;
       left: 0;
       right: 0;
       bottom: 0;
       padding: 4px 4px 3px;
-      font-size: 9px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      pointer-events: none;
       background: linear-gradient(
         to top,
         rgba(15, 23, 42, 0.95),
         rgba(15, 23, 42, 0.6),
         transparent
       );
-      color: #f9fafb;
-      text-align: center;
-      opacity: 0;
-      transform: translateY(6px);
-      transition: opacity 0.16s ease, transform 0.16s ease;
     }
 
-    .approved-thumb:hover::after {
+    .approved-thumb:hover .approved-thumb-actions {
       opacity: 1;
       transform: translateY(0);
+      pointer-events: auto;
     }
 
-    .approved-thumb.busy {
-      opacity: 0.4;
-      cursor: default;
+    .thumb-action-btn {
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: rgba(2, 6, 23, 0.9);
+      color: #e5e7eb;
+      font-size: 9px;
+      padding: 3px 7px 4px;
+      text-transform: none;
+      letter-spacing: 0;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+
+    .thumb-action-btn span.icon {
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .thumb-action-btn.danger {
+      border-color: #f97373;
+      color: #fecaca;
     }
 
     .approved-footer {
@@ -539,9 +590,16 @@
 
     .approved-viewer-toolbar {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       gap: 6px;
       padding: 2px 2px 0;
+    }
+
+    .viewer-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .viewer-icon-btn {
@@ -570,6 +628,11 @@
       color: #fecaca;
     }
 
+    .viewer-icon-btn.close-only {
+      padding: 4px 10px 6px;
+      font-size: 18px;
+    }
+
     .viewer-icon-btn:hover {
       background: #111827;
     }
@@ -589,6 +652,37 @@
       border-radius: 12px;
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.75);
       background: #020617;
+    }
+
+    .approved-viewer-nav {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 2px 4px 0;
+    }
+
+    .viewer-nav-btn {
+      flex: 0 0 auto;
+      min-width: 70px;
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .viewer-nav-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .viewer-nav-btn.primary {
+      border-color: #10b981;
+      color: #a7f3d0;
     }
 
     /* LOCK SCREEN */
@@ -847,6 +941,26 @@
       <div class="card-header">
         <div class="header-left">
           <button id="moreButton" class="kebab-button" type="button">⚙︎</button>
+          <button id="approvedButton" class="approved-button" type="button">▦</button>
+
+          <div id="moreMenu" class="dropdown-menu">
+            <div id="menuViewApproved" class="dropdown-item">
+              <span>View approved photos</span>
+            </div>
+            <div id="menuGenerateReport" class="dropdown-item">
+              <span>Generate event report</span>
+              <span class="helper-label">(send email)</span>
+            </div>
+            <div class="dropdown-separator"></div>
+            <div id="menuResetLogs" class="dropdown-item">
+              <span>Reset logs</span>
+              <span class="helper-label">(demo)</span>
+            </div>
+            <div id="menuClearApproved" class="dropdown-item">
+              <span>Empty approved folder</span>
+            </div>
+          </div>
+
           <div>
             <div class="title">PHOTO REVIEW</div>
             <div class="subtitle">Pantalla Plaza Colón</div>
@@ -865,20 +979,6 @@
           </div>
 
           <span id="statusPill" class="status-pill">SERVER STATUS: LOADING…</span>
-
-          <div id="moreMenu" class="dropdown-menu">
-            <div id="menuViewApproved" class="dropdown-item">
-              <span>View approved photos</span>
-            </div>
-            <div class="dropdown-separator"></div>
-            <div id="menuResetLogs" class="dropdown-item">
-              <span>Reset logs</span>
-              <span class="helper-label">(demo)</span>
-            </div>
-            <div id="menuClearApproved" class="dropdown-item">
-              <span>Empty approved folder</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -910,7 +1010,7 @@
         <div>
           <div class="approved-title">Approved photos</div>
           <div class="approved-subtitle">
-            Tap a thumbnail to view it, then download or delete.
+            Tap a thumbnail to view it. Hover to download or delete.
           </div>
         </div>
         <button
@@ -930,9 +1030,6 @@
           Changes may take a few seconds to appear on the public screen.
         </div>
         <div class="approved-footer-controls">
-          <button type="button" class="btn-reject" data-close-approved="1">
-            Close
-          </button>
           <button type="button" id="approvedPrevBtn" class="btn-reject">
             Prev
           </button>
@@ -948,17 +1045,18 @@
   <div id="approvedViewer" class="approved-viewer-overlay">
     <div class="approved-viewer-panel">
       <div class="approved-viewer-toolbar">
-        <button id="viewerCloseBtn" type="button" class="viewer-icon-btn">
+        <div class="viewer-toolbar-left">
+          <button id="viewerDownloadBtn" type="button" class="viewer-icon-btn">
+            <span class="icon">⬇</span>
+            <span>Download</span>
+          </button>
+          <button id="viewerDeleteBtn" type="button" class="viewer-icon-btn danger">
+            <span class="icon">🗑</span>
+            <span>Delete</span>
+          </button>
+        </div>
+        <button id="viewerCloseBtn" type="button" class="viewer-icon-btn close-only">
           <span class="icon">×</span>
-          <span>Close</span>
-        </button>
-        <button id="viewerDownloadBtn" type="button" class="viewer-icon-btn">
-          <span class="icon">⬇</span>
-          <span>Download</span>
-        </button>
-        <button id="viewerDeleteBtn" type="button" class="viewer-icon-btn danger">
-          <span class="icon">🗑</span>
-          <span>Delete</span>
         </button>
       </div>
       <div class="approved-viewer-image-wrap">
@@ -967,6 +1065,14 @@
           class="approved-viewer-img"
           alt="Approved photo preview"
         />
+      </div>
+      <div class="approved-viewer-nav">
+        <button id="viewerPrevBtn" type="button" class="viewer-nav-btn">
+          ‹ Prev
+        </button>
+        <button id="viewerNextBtn" type="button" class="viewer-nav-btn primary">
+          Next ›
+        </button>
       </div>
     </div>
   </div>
@@ -979,6 +1085,15 @@
 
     // Frame template used in gallery & downloads
     const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
+
+    // Stage + window specs (same as gallery CSS)
+    const STAGE_WIDTH = 1920;
+    const STAGE_HEIGHT = 1080;
+    // photo-window = 1350x900 inside 1920x1080, 20px from top, 550px from left
+    const WINDOW_X = (550 / 1920) * STAGE_WIDTH;
+    const WINDOW_Y = (20 / 1080) * STAGE_HEIGHT;
+    const WINDOW_WIDTH = (1350 / 1920) * STAGE_WIDTH;
+    const WINDOW_HEIGHT = (900 / 1080) * STAGE_HEIGHT;
 
     // Reusable offscreen canvas for framed downloads
     const downloadCanvas = document.createElement("canvas");
@@ -1029,7 +1144,9 @@
     // Menu + approved overlay
     const moreButton = document.getElementById("moreButton");
     const moreMenu = document.getElementById("moreMenu");
+    const approvedButton = document.getElementById("approvedButton");
     const menuViewApproved = document.getElementById("menuViewApproved");
+    const menuGenerateReport = document.getElementById("menuGenerateReport");
     const menuResetLogs = document.getElementById("menuResetLogs");
     const menuClearApproved = document.getElementById("menuClearApproved");
 
@@ -1046,6 +1163,8 @@
     const viewerDownloadBtn = document.getElementById("viewerDownloadBtn");
     const viewerDeleteBtn = document.getElementById("viewerDeleteBtn");
     const viewerCloseBtn = document.getElementById("viewerCloseBtn");
+    const viewerPrevBtn = document.getElementById("viewerPrevBtn");
+    const viewerNextBtn = document.getElementById("viewerNextBtn");
 
     let currentFileId = null;
     let isBusy = false;
@@ -1055,6 +1174,7 @@
     // Currently viewed approved file in zoom viewer
     let viewerCurrentFileId = null;
     let viewerCurrentImgUrl = null;
+    let viewerCurrentIndex = -1;
 
     // App/server status
     let appServerEnabled = true;
@@ -1084,7 +1204,6 @@
         appStatusDot.classList.remove("off");
       } else {
         appToggleWrapper.classList.remove("is-on");
-        // toggle remains interactive visually but we may disable it in code
         appStatusDot.classList.remove("on");
         appStatusDot.classList.add("off");
       }
@@ -1479,6 +1598,11 @@
       toggleMoreMenu();
     });
 
+    approvedButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openApprovedOverlay();
+    });
+
     document.addEventListener("click", (e) => {
       // close menu when clicking outside
       if (!moreMenu.contains(e.target) && e.target !== moreButton) {
@@ -1506,6 +1630,17 @@
     });
 
     // Open / close viewer
+    function updateViewerNavButtons() {
+      const total = approvedFilesCache.length;
+      if (viewerCurrentIndex < 0 || total === 0) {
+        viewerPrevBtn.disabled = true;
+        viewerNextBtn.disabled = true;
+        return;
+      }
+      viewerPrevBtn.disabled = viewerCurrentIndex <= 0;
+      viewerNextBtn.disabled = viewerCurrentIndex >= total - 1;
+    }
+
     function openApprovedViewer(fileId, imgUrl) {
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
@@ -1515,11 +1650,17 @@
       viewerCurrentImgUrl = imgUrl;
       approvedViewerImg.src = imgUrl;
       approvedViewer.style.display = "flex";
+
+      viewerCurrentIndex = approvedFilesCache.findIndex(
+        (item) => String(item.fileId) === String(fileId)
+      );
+      updateViewerNavButtons();
     }
 
     function closeApprovedViewer() {
       viewerCurrentFileId = null;
       viewerCurrentImgUrl = null;
+      viewerCurrentIndex = -1;
       approvedViewer.style.display = "none";
     }
 
@@ -1551,7 +1692,34 @@
       img.src = imgUrl;
       img.alt = "Approved photo";
 
+      const actions = document.createElement("div");
+      actions.className = "approved-thumb-actions";
+
+      const dlBtn = document.createElement("button");
+      dlBtn.type = "button";
+      dlBtn.className = "thumb-action-btn";
+      dlBtn.innerHTML = '<span class="icon">⬇</span><span>DL</span>';
+
+      dlBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        downloadApprovedWithFrame(fileId);
+      });
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "thumb-action-btn danger";
+      delBtn.innerHTML = '<span class="icon">🗑</span><span>Del</span>';
+
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        confirmDeleteApproved(fileId, btn);
+      });
+
+      actions.appendChild(dlBtn);
+      actions.appendChild(delBtn);
+
       btn.appendChild(img);
+      btn.appendChild(actions);
 
       btn.addEventListener("click", () => {
         openApprovedViewer(fileId, imgUrl);
@@ -1774,7 +1942,7 @@
       }
     }
 
-    // --- Download with frame (viewer) ---
+    // --- Download with frame (viewer + thumb actions) ---
     async function downloadApprovedWithFrame(fileId) {
       if (!fileId) return;
       if (!adminToken) {
@@ -1802,13 +1970,8 @@
 
         await Promise.all([photoPromise]);
 
-        const fw = frameImg.width || photoImgEl.width;
-        const fh = frameImg.height || photoImgEl.height;
-
-        if (!fw || !fh) {
-          alert("Could not determine frame size for download.");
-          return;
-        }
+        const fw = STAGE_WIDTH;
+        const fh = STAGE_HEIGHT;
 
         downloadCanvas.width = fw;
         downloadCanvas.height = fh;
@@ -1823,39 +1986,41 @@
         }
 
         const photoAspect = pw / ph;
-        const frameAspect = fw / fh;
+        const windowAspect = WINDOW_WIDTH / WINDOW_HEIGHT;
 
         let sx, sy, sWidth, sHeight;
 
-        if (photoAspect > frameAspect) {
-          // photo is "wider" → crop left/right
+        if (photoAspect > windowAspect) {
+          // photo wider than window → crop left/right
           sHeight = ph;
-          sWidth = sHeight * frameAspect;
+          sWidth = sHeight * windowAspect;
           sx = (pw - sWidth) / 2;
           sy = 0;
         } else {
-          // photo is "taller" → crop top/bottom
+          // photo taller than window → crop top/bottom
           sWidth = pw;
-          sHeight = sWidth / frameAspect;
+          sHeight = sWidth / windowAspect;
           sx = 0;
           sy = (ph - sHeight) / 2;
         }
 
-        // Draw photo to fully cover the frame area
+        // Draw photo into the photo-window rectangle
         downloadCtx.drawImage(
           photoImgEl,
           sx,
           sy,
           sWidth,
           sHeight,
-          0,
-          0,
-          fw,
-          fh
+          WINDOW_X,
+          WINDOW_Y,
+          WINDOW_WIDTH,
+          WINDOW_HEIGHT
         );
 
-        // Draw frame PNG on top
-        downloadCtx.drawImage(frameImg, 0, 0, fw, fh);
+        // Draw frame PNG scaled to 1920x1080 on top
+        if (frameImg) {
+          downloadCtx.drawImage(frameImg, 0, 0, fw, fh);
+        }
 
         function triggerDownloadFromBlob(blob) {
           const url = URL.createObjectURL(blob);
@@ -1906,8 +2071,47 @@
       closeApprovedViewer();
     });
 
+    viewerPrevBtn.addEventListener("click", () => {
+      if (viewerCurrentIndex <= 0) return;
+      viewerCurrentIndex -= 1;
+      const item = approvedFilesCache[viewerCurrentIndex];
+      if (!item) return;
+      openApprovedViewer(item.fileId, item.imgUrl);
+    });
+
+    viewerNextBtn.addEventListener("click", () => {
+      if (viewerCurrentIndex < 0) return;
+      if (viewerCurrentIndex >= approvedFilesCache.length - 1) return;
+      viewerCurrentIndex += 1;
+      const item = approvedFilesCache[viewerCurrentIndex];
+      if (!item) return;
+      openApprovedViewer(item.fileId, item.imgUrl);
+    });
+
     // --- MENU ITEM HANDLERS ---
     menuViewApproved.addEventListener("click", openApprovedOverlay);
+
+    menuGenerateReport.addEventListener("click", async () => {
+      closeMoreMenu();
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+      try {
+        const res = await fetch(`${BASE_URL}/session-report-now`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        alert("Event report generated and sent to the configured email.");
+      } catch (err) {
+        console.error("Error generating event report", err);
+        alert("Could not generate the event report. Please try again.");
+      }
+    });
 
     menuResetLogs.addEventListener("click", () => {
       closeMoreMenu();
