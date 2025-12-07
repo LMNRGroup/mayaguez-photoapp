@@ -945,20 +945,24 @@
 
           <div id="moreMenu" class="dropdown-menu">
             <div id="menuViewApproved" class="dropdown-item">
-              <span>View approved photos</span>
-            </div>
-            <div id="menuGenerateReport" class="dropdown-item">
-              <span>Generate event report</span>
-              <span class="helper-label">(send email)</span>
-            </div>
-            <div class="dropdown-separator"></div>
-            <div id="menuResetLogs" class="dropdown-item">
-              <span>Reset logs</span>
-              <span class="helper-label">(demo)</span>
-            </div>
-            <div id="menuClearApproved" class="dropdown-item">
-              <span>Empty approved folder</span>
-            </div>
+  <span>View approved photos</span>
+</div>
+<div id="menuGenerateReport" class="dropdown-item">
+  <span>Generate event report</span>
+  <span class="helper-label">(send email)</span>
+</div>
+<div id="menuGenerateReportYesterday" class="dropdown-item">
+  <span>Generate yesterday's report</span>
+  <span class="helper-label">(send email)</span>
+</div>
+<div class="dropdown-separator"></div>
+<div id="menuResetLogs" class="dropdown-item">
+  <span>Reset logs</span>
+  <span class="helper-label">(demo)</span>
+</div>
+<div id="menuClearApproved" class="dropdown-item">
+  <span>Empty approved folder</span>
+</div>
           </div>
 
           <div>
@@ -1147,6 +1151,7 @@
     const approvedButton = document.getElementById("approvedButton");
     const menuViewApproved = document.getElementById("menuViewApproved");
     const menuGenerateReport = document.getElementById("menuGenerateReport");
+    const menuGenerateReportYesterday = document.getElementById("menuGenerateReportYesterday");
     const menuResetLogs = document.getElementById("menuResetLogs");
     const menuClearApproved = document.getElementById("menuClearApproved");
 
@@ -2087,7 +2092,15 @@
       if (!item) return;
       openApprovedViewer(item.fileId, item.imgUrl);
     });
-
+    
+  function getYesterdayDateString() {
+  const now = new Date();
+  now.setDate(now.getDate() - 1);
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
     // --- MENU ITEM HANDLERS ---
     menuViewApproved.addEventListener("click", openApprovedOverlay);
 
@@ -2112,7 +2125,38 @@
         alert("Could not generate the event report. Please try again.");
       }
     });
+menuGenerateReportYesterday.addEventListener("click", async () => {
+  closeMoreMenu();
+  if (!adminToken) {
+    showLock("Session expired. Enter the access code.");
+    return;
+  }
 
+  const dateStr = getYesterdayDateString();
+
+  try {
+    const res = await fetch(`${BASE_URL}/session-report-date`, {
+      method: "POST",
+      headers: withAdminHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ date: dateStr }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    // Optional: log text version in the console if you want to see it quickly
+    if (data && data.reportText) {
+      console.log(`Report for ${dateStr}:\n`, data.reportText);
+    }
+
+    alert(`Report for ${dateStr} generated and sent to the configured email.`);
+  } catch (err) {
+    console.error("Error generating yesterday report", err);
+    alert("Could not generate yesterday's report. Please try again.");
+  }
+});
     menuResetLogs.addEventListener("click", () => {
       closeMoreMenu();
       // Dummy: only frontend notice
