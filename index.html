@@ -972,72 +972,72 @@
       ctx.restore();
     }
 
-    // Capture selfie
-    captureButton.addEventListener('click', () => {
-      const targetWidth  = 1500;
-      const targetHeight = 1000;
+   // Capture selfie
+captureButton.addEventListener('click', () => {
+  const targetWidth  = 1500;
+  const targetHeight = 1000;
 
-      canvas.width  = targetWidth;
-      canvas.height = targetHeight;
+  canvas.width  = targetWidth;
+  canvas.height = targetHeight;
 
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
 
-      if (!vw || !vh) {
-        errorLog.textContent = 'Error: Camera not ready';
-        return;
-      }
+  if (!vw || !vh) {
+    errorLog.textContent = 'Error: Camera not ready';
+    return;
+  }
 
-      lastCaptureWasPortrait = vh > vw;
+  lastCaptureWasPortrait = vh > vw;
 
-      const videoAspect  = vw / vh;
-      const canvasAspect = targetWidth / targetHeight;
+  const videoAspect  = vw / vh;
+  const canvasAspect = targetWidth / targetHeight;
 
-      let sx, sy, sWidth, sHeight;
+  let sx, sy, sWidth, sHeight;
 
-      if (videoAspect > canvasAspect) {
-        sHeight = vh;
-        sWidth  = sHeight * canvasAspect;
-        sx      = (vw - sWidth) / 2;
-        sy      = 0;
-      } else {
-        sWidth  = vw;
-        sHeight = sWidth / canvasAspect;
-        sx      = 0;
-        sy      = (vh - sHeight) / 2;
-      }
+  if (videoAspect > canvasAspect) {
+    sHeight = vh;
+    sWidth  = sHeight * canvasAspect;
+    sx      = (vw - sWidth) / 2;
+    sy      = 0;
+  } else {
+    sWidth  = vw;
+    sHeight = sWidth / canvasAspect;
+    sx      = 0;
+    sy      = (vh - sHeight) / 2;
+  }
 
-      ctx.save();
+  ctx.save();
 
-      // Mirror the captured image only for the front camera on NON-ANDROID
-      if (currentFacingMode === 'user' && !isAndroid) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
+  // ✅ Mirror the captured image for ALL front cameras (iOS + Android)
+  if (currentFacingMode === 'user') {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
 
-      ctx.drawImage(
-        video,
-        sx, sy, sWidth, sHeight,
-        0, 0, canvas.width, canvas.height
-      );
+  ctx.drawImage(
+    video,
+    sx, sy, sWidth, sHeight,
+    0, 0, canvas.width, canvas.height
+  );
 
-      ctx.restore();
+  ctx.restore();
 
-      drawLocationOverlay(ctx, canvas.width, canvas.height);
+  drawLocationOverlay(ctx, canvas.width, canvas.height);
 
-      video.style.display = 'none';
-      canvas.style.display = 'block';
-      cameraArea.classList.add('preview-mode');
+  video.style.display = 'none';
+  canvas.style.display = 'block';
+  cameraArea.classList.add('preview-mode');
 
-      switchCameraButton.style.display = 'none';
-      retakeButton.style.display = 'inline-block';
+  switchCameraButton.style.display = 'none';
+  retakeButton.style.display = 'inline-block';
 
-      captureButton.style.display = 'none';
-      uploadButton.style.display = 'inline-block';
-    });
+  captureButton.style.display = 'none';
+  uploadButton.style.display = 'inline-block';
+});
 
     // Retake
     retakeButton.addEventListener('click', () => {
