@@ -147,6 +147,9 @@ app.options('*', cors(corsOptions)); // handle preflight
 app.use(cookieParser());
 app.use(express.json());
 
+// ---------- App enabled flag (for /admin/shutdown) ----------
+let appEnabled = true; // admin toggle will set this to false after event
+
 // ---------- Google Auth (Service Account) ----------
 const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
 
@@ -384,7 +387,6 @@ async function getMaxIndexInFolderWithTrashFlag(folderId, trashedFlag) {
 }
 
 // Find next index for filename in Drive (PENDING + APPROVED, including trashed)
-// So even rejected photos keep their ticket number reserved.
 async function getMaxIndexInFolderIncludingTrash(folderId) {
   const [maxActive, maxTrashed] = await Promise.all([
     getMaxIndexInFolderWithTrashFlag(folderId, false),
@@ -570,7 +572,8 @@ async function getTodayStatsFromSheet() {
       visits: 0,
       forms: 0,
       uploads: 0,
-      eventsForPrimeHour: []
+      eventsForPrimeHour: [],
+      newsletterEmails: []
     };
   }
 
@@ -588,7 +591,8 @@ async function getTodayStatsFromSheet() {
       visits: 0,
       forms: 0,
       uploads: 0,
-      eventsForPrimeHour: []
+      eventsForPrimeHour: [],
+      newsletterEmails: []
     };
   }
 
@@ -596,6 +600,7 @@ async function getTodayStatsFromSheet() {
   let forms = 0;
   let uploads = 0;
   const eventsForPrimeHour = []; // { ts: string }
+  const newsletterSet = new Set(); // dedupe emails
 
   // Skip header row (row 0)
   for (let i = 1; i < rows.length; i++) {
@@ -615,9 +620,18 @@ async function getTodayStatsFromSheet() {
     else if (eventType === 'upload') uploads++;
 
     eventsForPrimeHour.push({ ts: tsUtcStr });
+
+    // newsletter opt-in lives in column I (index 8), email in D (index 3)
+    const email = row[3];
+    const newsletterFlag = row[8];
+    if (newsletterFlag === 'Y' && email && email.trim()) {
+      // we store as-is (no lowercasing) to keep original
+      newsletterSet.add(email.trim());
+    }
   }
 
-  return { visits, forms, uploads, eventsForPrimeHour };
+  const newsletterEmails = Array.from(newsletterSet);
+  return { visits, forms, uploads, eventsForPrimeHour, newsletterEmails };
 }
 
 // Compute prime hour using today's events (in PR time)
@@ -650,6 +664,40 @@ function computePrimeHour(events) {
   return { hour: bestHour, count: bestCount };
 }
 
+// Helper: build plain-text session report (used by shutdown + daily email)
+function buildPlainTextSessionReport(longDate, visits, forms, uploads, prime, newsletterEmails) {
+  const totalEvents = visits + forms + uploads;
+
+  let report =
+    `REPORTE DE SESION - SELFIE APP - MUNICIPIO DE MAYAGÜEZ\n` +
+    `${longDate}\n\n` +
+    `Visitas a la app: ${visits}\n` +
+    `Formularios completados: ${forms}\n` +
+    `Fotos capturadas/subidas: ${uploads}\n\n`;
+
+  if (prime) {
+    report +=
+      `Horario de mayor actividad: ${formatHourRange(prime.hour)} ` +
+      `(${prime.count} interacciones)\n\n`;
+  } else {
+    report += `No se pudo determinar un horario de mayor actividad.\n\n`;
+  }
+
+  if (newsletterEmails && newsletterEmails.length) {
+    report += `Familias que aceptaron recibir noticias y ofertas:\n`;
+    for (const email of newsletterEmails) {
+      report += `- ${email}\n`;
+    }
+    report += `\n`;
+  } else {
+    report += `Ninguna familia aceptó recibir noticias y ofertas en esta sesión.\n\n`;
+  }
+
+  report += `Total de eventos registrados: ${totalEvents}\n`;
+
+  return report;
+}
+
 // ---------- DAILY REPORT EMAIL (uses Sheet data) ----------
 async function sendSessionReportEmailFromSheet() {
   if (!mailTransporter) {
@@ -657,8 +705,13 @@ async function sendSessionReportEmailFromSheet() {
     return;
   }
 
-  const { visits, forms, uploads, eventsForPrimeHour } =
-    await getTodayStatsFromSheet();
+  const {
+    visits,
+    forms,
+    uploads,
+    eventsForPrimeHour,
+    newsletterEmails = []
+  } = await getTodayStatsFromSheet();
 
   const totalEvents = visits + forms + uploads;
   if (totalEvents === 0) {
@@ -671,17 +724,35 @@ async function sendSessionReportEmailFromSheet() {
 
   const subject = 'Reporte de sesión diaria – Selfie App · Municipio de Mayagüez';
 
-  const textReport =
-    `REPORTE DE SESION - SELFIE APP - MUNICIPIO DE MAYAGÜEZ\n` +
-    `${longDate}\n\n` +
-    `Visitas a la app: ${visits}\n` +
-    `Formularios completados: ${forms}\n` +
-    `Fotos capturadas/subidas: ${uploads}\n\n` +
-    (prime
-      ? `Horario de mayor actividad: ${formatHourRange(prime.hour)} ` +
-        `(${prime.count} interacciones)\n`
-      : `No se pudo determinar un horario de mayor actividad.\n`) +
-    `\nTotal de eventos registrados: ${totalEvents}\n`;
+  const textReport = buildPlainTextSessionReport(
+    longDate,
+    visits,
+    forms,
+    uploads,
+    prime,
+    newsletterEmails
+  );
+
+  const htmlNewsletterBlock = newsletterEmails.length
+    ? `
+        <p style="margin:12px 0 4px 0;font-size:13px;">
+          <strong>Familias que aceptaron recibir noticias y ofertas:</strong>
+        </p>
+        <ul style="margin:0 0 10px 20px;padding:0;font-size:12px;color:#333333;">
+          ${newsletterEmails
+            .map(
+              (email) =>
+                `<li style="margin:0 0 2px 0;">${email}</li>`
+            )
+            .join('')}
+        </ul>
+      `
+    : `
+        <p style="margin:12px 0 10px 0;font-size:13px;">
+          <strong>Familias que aceptaron recibir noticias y ofertas:</strong>
+          Ninguna familia aceptó recibir noticias y ofertas en esta sesión.
+        </p>
+      `;
 
   const htmlReport = `<!DOCTYPE html>
 <html>
@@ -741,6 +812,8 @@ async function sendSessionReportEmailFromSheet() {
                          No se pudo determinar un horario de mayor actividad.
                        </p>`
                 }
+
+                ${htmlNewsletterBlock}
               </td>
             </tr>
 
@@ -799,6 +872,10 @@ app.post('/ping', async (req, res) => {
 
 // Photo upload (counts as "upload")
 app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, res) => {
+  if (!appEnabled) {
+    return res.status(503).json({ error: 'app_offline', message: 'Selfie app is offline for this event.' });
+  }
+
   if (!req.body || req.body.length === 0) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
@@ -1076,11 +1153,99 @@ app.post('/admin/unblock', (req, res) => {
   return res.json({ ok: true, message: `IP ${ip} unblocked` });
 });
 
+// --------- ADMIN APP STATUS (for toggle) ----------
+
+app.get('/admin/app-status', ensureAdminAuth, (req, res) => {
+  return res.json({ ok: true, enabled: appEnabled });
+});
+
+// --------- ADMIN SHUTDOWN (toggle OFF) ----------
+
+app.post('/admin/shutdown', ensureAdminAuth, async (req, res) => {
+  try {
+    const { accessCode } = req.body || {};
+
+    if (!ADMIN_ACCESS_CODE) {
+      return res.status(500).json({ error: 'admin_code_not_configured' });
+    }
+
+    if (!accessCode || typeof accessCode !== 'string') {
+      return res.status(400).json({ error: 'missing_access_code' });
+    }
+
+    // Require re-entering the admin code (or unlock key if you want)
+    if (accessCode !== ADMIN_ACCESS_CODE && accessCode !== ADMIN_UNLOCK_KEY) {
+      return res.status(401).json({ error: 'invalid_access_code' });
+    }
+
+    // Compute session stats and build report text
+    const {
+      visits,
+      forms,
+      uploads,
+      eventsForPrimeHour,
+      newsletterEmails = []
+    } = await getTodayStatsFromSheet();
+
+    const prime = computePrimeHour(eventsForPrimeHour);
+    const longDate = formatPRDateLong();
+
+    const reportText = buildPlainTextSessionReport(
+      longDate,
+      visits,
+      forms,
+      uploads,
+      prime,
+      newsletterEmails
+    );
+
+    // Set app to offline
+    appEnabled = false;
+
+    // Optionally also send the same report via email on shutdown
+    if (mailTransporter) {
+      try {
+        await mailTransporter.sendMail({
+          from: `"Luminar Apps" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+          to: process.env.MAIL_TO || process.env.MAIL_USER,
+          subject: 'Reporte de cierre – Selfie App · Municipio de Mayagüez',
+          text: reportText,
+          attachments: [
+            {
+              filename: 'reporte_sesion.txt',
+              content: reportText
+            }
+          ]
+        });
+        console.log('Shutdown report email sent.');
+      } catch (mailErr) {
+        console.error('Error sending shutdown report email:', mailErr);
+      }
+    } else {
+      console.log('Mail transporter not configured; shutdown report email skipped.');
+    }
+
+    // Return report text to the admin UI so it can be downloaded as .txt
+    return res.json({
+      ok: true,
+      enabled: false,
+      reportText
+    });
+  } catch (err) {
+    console.error('Error in /admin/shutdown:', err);
+    return res.status(500).json({ ok: false, error: 'shutdown_failed' });
+  }
+});
+
 // --------- ADMIN API: review photos ----------
 
 // Get next pending photo (for review UI)
 app.get('/admin/next-photo', ensureAdminAuth, async (req, res) => {
   try {
+    if (!appEnabled) {
+      return res.json({ empty: true, reason: 'app_offline' });
+    }
+
     const file = await getNextPendingPhoto();
     if (!file) {
       return res.json({ empty: true });
