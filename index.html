@@ -889,9 +889,9 @@
         video.srcObject = stream;
         await video.play();
 
-        // Toggle “un-mirror” only for front camera on NON-ANDROID
-        if (facingMode === 'user' && !isAndroid) {
-          video.classList.add('front-unmirror');
+        // ✅ Always mirror preview for front camera
+        if (facingMode === 'user') {
+          video.classList.add('front-unmirror'); // CSS: transform: scaleX(-1);
         } else {
           video.classList.remove('front-unmirror');
         }
