@@ -1269,6 +1269,7 @@
       btn.addEventListener("click", closeApprovedOverlay);
     });
 
+    // 🔧 UPDATED: use URL from backend if available, fallback to /admin/photo/:id
     async function loadApprovedGrid() {
       approvedGrid.innerHTML = "";
       approvedEmpty.style.display = "block";
@@ -1293,6 +1294,8 @@
         const data = await res.json();
         const files = data.files || [];
 
+        console.log("Approved files payload:", data);
+
         if (!files.length) {
           approvedEmpty.textContent = "There are no approved photos at this moment.";
           return;
@@ -1301,27 +1304,56 @@
         approvedEmpty.style.display = "none";
 
         files.forEach((f) => {
-          const id = f.id || f.fileId;
-          if (!id) return;
+          let fileId = null;
+          let imgUrl = "";
 
-          // Use existing /admin/photo endpoint so thumbs actually load
-          const thumbUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
-            id
-          )}?token=${encodeURIComponent(adminToken || "")}`;
+          if (typeof f === "string") {
+            // Could be a direct URL or a filename/id
+            if (f.startsWith("http://") || f.startsWith("https://")) {
+              imgUrl = f;
+            } else {
+              fileId = f;
+            }
+          } else if (f && typeof f === "object") {
+            fileId = f.id || f.fileId || f.name || null;
+
+            // Prefer explicit URL-like fields if present
+            imgUrl =
+              f.url ||
+              f.thumbnailUrl ||
+              f.thumbnailLink ||
+              f.webViewLink ||
+              "";
+          }
+
+          // If backend didn't give us a URL, fall back to /admin/photo/:id
+          if (!imgUrl && fileId) {
+            imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
+              fileId
+            )}?token=${encodeURIComponent(adminToken || "")}`;
+          }
+
+          // If we still don't have anything usable, skip
+          if (!imgUrl) return;
+
+          // If fileId is still null, use URL as ID for delete route fallback
+          if (!fileId) {
+            fileId = imgUrl;
+          }
 
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "approved-thumb";
-          btn.dataset.id = id;
+          btn.dataset.id = fileId;
 
           const img = document.createElement("img");
-          img.src = thumbUrl;
+          img.src = imgUrl;
           img.alt = "Approved photo";
 
           btn.appendChild(img);
 
           btn.addEventListener("click", () => {
-            confirmDeleteApproved(id, btn);
+            confirmDeleteApproved(fileId, btn);
           });
 
           approvedGrid.appendChild(btn);
