@@ -67,13 +67,19 @@
     overflow-x: hidden;
   }
 
-  .page-wrapper {
-    width: 100%;
-    max-width: 1360px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
+.page-wrapper {
+  width: 100%;
+  max-width: 1800px;  /* bigger desktop limit */
+  min-width: 1280px;  /* keeps layout spacing stable */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scale: 1.05; /* optional slight upscale */
+}
+     .card {
+  max-width: 100%;
+}
 
   /* TOP HEADER BAR (logo + title + server status) */
   .admin-header {
