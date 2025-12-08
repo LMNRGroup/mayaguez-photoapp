@@ -1535,6 +1535,43 @@ Report preview will appear here once the backend preview endpoint is configured.
     // NEW: photo meta elements
     const photoLabel = document.getElementById("photoLabel");
     const pendingCountEl = document.getElementById("pendingCount");
+        // Pending counter state (frontend)
+    let pendingCountState = 0;
+    // Delta we expect after our own actions (approve/reject)
+    let pendingCountDelta = 0;
+
+    function updatePendingDisplay() {
+      if (!pendingCountEl) return;
+      pendingCountEl.textContent = `AWAITING APPROVAL: ${pendingCountState}`;
+    }
+
+    // Use backend count, but adjust if we know we just removed some items
+    function applyPendingFromServer(rawPendingCount, isEmptyFlag) {
+      if (!pendingCountEl) return;
+
+      let serverCount = null;
+      if (typeof rawPendingCount === "number") {
+        serverCount = rawPendingCount;
+      } else if (isEmptyFlag) {
+        serverCount = 0;
+      }
+
+      // If backend didn't send anything, don't touch the current display
+      if (serverCount === null) return;
+
+      // If backend returns the SAME number we had before, but we know we just
+      // approved/rejected items (pendingCountDelta != 0), adjust it by that delta.
+      if (pendingCountDelta !== 0 && pendingCountState === serverCount) {
+        pendingCountState = Math.max(0, serverCount + pendingCountDelta);
+        pendingCountDelta = 0;
+      } else {
+        // Normal case: trust the backend
+        pendingCountState = serverCount;
+        pendingCountDelta = 0;
+      }
+
+      updatePendingDisplay();
+    }
 
     // LEFT NAV
     const navDashboard = document.getElementById("navDashboard");
@@ -1808,13 +1845,17 @@ Report preview will appear here once the backend preview endpoint is configured.
     }
 
     async function loadNextPhoto() {
-      if (!appServerEnabled) {
+        if (!appServerEnabled) {
         disableAdminControlsForOffline();
         photoImg.style.display = "none";
         emptyText.style.display = "block";
         emptyText.textContent = "Server is offline for this event.";
         photoFrame.classList.add("empty");
-        if (pendingCountEl) pendingCountEl.textContent = "AWAITING APPROVAL: 0";
+        if (pendingCountEl) {
+          pendingCountState = 0;
+          pendingCountDelta = 0;
+          updatePendingDisplay();
+        }
         if (photoLabel) photoLabel.textContent = "PHOTO";
         return;
       }
@@ -1837,13 +1878,9 @@ Report preview will appear here once the backend preview endpoint is configured.
 
         const data = await res.json();
 
-        // NEW: handle pending counter & photo number if backend sends them
-        if (pendingCountEl) {
-          const pending = typeof data.pendingCount === "number" ? data.pendingCount : (data.empty ? 0 : null);
-          if (pending !== null) {
-            pendingCountEl.textContent = `AWAITING APPROVAL: ${pending}`;
-          }
-        }
+        // NEW: handle pending counter & photo number using helper
+        applyPendingFromServer(data.pendingCount, data.empty);
+
         if (photoLabel) {
           if (data.photoNumber != null) {
             photoLabel.textContent = `PHOTO #${data.photoNumber}`;
@@ -1916,6 +1953,21 @@ Report preview will appear here once the backend preview endpoint is configured.
           showLock("Session expired. Enter the access code.");
           return;
         }
+
+        if (!res.ok) {
+          console.error("Action failed", res.status);
+          statusPill.textContent = "ERROR";
+          return;
+        }
+
+        // If the action actually succeeded, we know ONE item left the pending queue.
+        if (endpoint === "/admin/approve" || endpoint === "/admin/reject") {
+          pendingCountDelta -= 1; // accumulate in case of multiple quick actions
+          if (pendingCountEl) {
+            const previewCount = Math.max(0, pendingCountState + pendingCountDelta);
+            pendingCountEl.textContent = `AWAITING APPROVAL: ${previewCount}`;
+          }
+        }
       } catch (err) {
         console.error(err);
         statusPill.textContent = "ERROR";
@@ -1976,13 +2028,9 @@ Report preview will appear here once the backend preview endpoint is configured.
 
         const data = await res.json();
 
-        // update counters if present
-        if (pendingCountEl) {
-          const pending = typeof data.pendingCount === "number" ? data.pendingCount : (data.empty ? 0 : null);
-          if (pending !== null) {
-            pendingCountEl.textContent = `AWAITING APPROVAL: ${pending}`;
-          }
-        }
+        // update counters if present (respecting our local delta)
+        applyPendingFromServer(data.pendingCount, data.empty);
+        
         if (photoLabel && data.photoNumber != null && !data.empty) {
           photoLabel.textContent = `PHOTO #${data.photoNumber}`;
         }
@@ -2645,7 +2693,12 @@ Report preview will appear here once the backend preview endpoint is configured.
           emptyText.style.display = "block";
           emptyText.textContent = "Server is offline for this event.";
           photoFrame.classList.add("empty");
-          if (pendingCountEl) pendingCountEl.textContent = "AWAITING APPROVAL: 0";
+          
+          if (pendingCountEl) {
+            pendingCountState = 0;
+            pendingCountDelta = 0;
+            updatePendingDisplay();
+          }
 
           alert("Server has been shut down and the event report was generated.");
         } catch (err) {
