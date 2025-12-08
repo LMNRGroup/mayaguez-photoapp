@@ -1659,7 +1659,32 @@ Report preview will appear here once the backend preview endpoint is configured.
       });
       return frameImagePromise;
     }
+let globalLottie = null;
 
+function ensureGlobalLottie() {
+  if (!globalLottie) {
+    globalLottie = lottie.loadAnimation({
+      container: document.getElementById("globalLottie"),
+      renderer: "svg",
+      loop: true,
+      autoplay: false,
+      path: "Assets/Material wave loading.json",
+    });
+  }
+}
+
+function showGlobalLoader() {
+  ensureGlobalLottie();
+  const el = document.getElementById("globalLoader");
+  el.style.display = "flex";
+  globalLottie.goToAndPlay(0);
+}
+
+function hideGlobalLoader() {
+  const el = document.getElementById("globalLoader");
+  el.style.display = "none";
+  if (globalLottie) globalLottie.stop();
+}
     // Will store the admin session token returned by /admin/auth
     let adminToken = null;
 
@@ -2830,7 +2855,7 @@ function hideReportLoading() {
   // If the modal is open, we show the animation there.
   // If it's not open (called from kebab menu), it still runs fine.
   if (reportOverlay.style.display === "flex") {
-    showReportLoading();
+    showGlobalLoader();
   }
 
   try {
@@ -2871,7 +2896,7 @@ function hideReportLoading() {
     }
     alert("Could not generate the event report. Please try again.");
   } finally {
-    hideReportLoading();
+    hideGlobalLoader();
   }
 }
 
@@ -3107,5 +3132,16 @@ reportViewBtn.addEventListener("click", async () => {
         });
     })();
   </script>
+  <div id="globalLoader" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(10,17,30,0.75);
+  z-index:99999;
+  align-items:center;
+  justify-content:center;
+">
+  <div id="globalLottie" style="width:180px;height:180px;"></div>
+</div>
 </body>
 </html>
