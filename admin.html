@@ -1130,13 +1130,6 @@
       .sidebar-right { grid-area: right; }
     }
 
-    @media (max-width: 768px) {
-      .admin-header {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
-
       .card-main {
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto auto auto;
@@ -1180,8 +1173,21 @@
       .activity-bars {
         gap: 4px;
       }
+      .report-loading {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+}
+        @media (max-width: 768px) {
+      .admin-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" integrity="sha512-tB17y8UnF6R45OZyeP+fM4x6hzFH6qC1t1PmiJdWWYV7eonbbyrcF0av8RyzZkjIl95QoUiG+2l3OjVhL7Jqmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <!-- LOCK OVERLAY -->
@@ -1446,27 +1452,31 @@
   </div>
 
   <!-- EVENT REPORT MODAL -->
-  <div id="reportOverlay" class="modal-overlay">
-    <div class="modal-panel">
-      <div class="modal-header">
-        <div class="modal-title">Event reports</div>
-        <button id="reportCloseBtn" class="modal-close">×</button>
+<div id="reportOverlay" class="modal-overlay">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div class="modal-title">Event reports</div>
+      <button id="reportCloseBtn" class="modal-close">×</button>
+    </div>
+    <div class="modal-body">
+      <p>
+        View the current session summary or generate a full report that will be
+        delivered to your configured email.
+      </p>
+      <div class="modal-actions">
+        <button id="reportViewBtn" class="btn-ghost">View report (preview)</button>
+        <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
       </div>
-      <div class="modal-body">
-        <p>
-          View the current session summary or generate a full report that will be
-          delivered to your configured email.
-        </p>
-        <div class="modal-actions">
-          <button id="reportViewBtn" class="btn-ghost">View report (preview)</button>
-          <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
-        </div>
-        <pre id="reportPreview" class="report-preview">
+
+      <!-- NEW: Lottie loader container -->
+      <div id="reportLoading" class="report-loading" style="display:none;"></div>
+
+      <pre id="reportPreview" class="report-preview">
 Report preview will appear here once the backend preview endpoint is configured.
-        </pre>
-      </div>
+      </pre>
     </div>
   </div>
+</div>
 
   <script>
     // Backend origin – this is where your Node/Express lives
@@ -1612,6 +1622,46 @@ Report preview will appear here once the backend preview endpoint is configured.
     const reportViewBtn = document.getElementById("reportViewBtn");
     const reportGenerateBtn = document.getElementById("reportGenerateBtn");
     const reportPreview = document.getElementById("reportPreview");
+    const reportLoading = document.getElementById("reportLoading");
+
+// Lottie loader for the report modal
+let reportLottie = null;
+
+function ensureReportLottie() {
+  if (reportLottie || !window.lottie || !reportLoading) return;
+  reportLottie = lottie.loadAnimation({
+    container: reportLoading,
+    renderer: "svg",
+    loop: true,
+    autoplay: false,
+    path: "Assets/Material wave loading.json", // 🔥 your file
+  });
+}
+
+function showReportLoading() {
+  ensureReportLottie();
+  if (reportLoading) {
+    reportLoading.style.display = "flex";
+  }
+  if (reportLottie) {
+    reportLottie.play();
+  }
+  // lock buttons while we load
+  if (reportViewBtn) reportViewBtn.disabled = true;
+  if (reportGenerateBtn) reportGenerateBtn.disabled = true;
+  if (reportPreview) reportPreview.textContent = "";
+}
+
+function hideReportLoading() {
+  if (reportLottie) {
+    reportLottie.stop();
+  }
+  if (reportLoading) {
+    reportLoading.style.display = "none";
+  }
+  if (reportViewBtn) reportViewBtn.disabled = false;
+  if (reportGenerateBtn) reportGenerateBtn.disabled = false;
+}
 
     let currentFileId = null;
     let isBusy = false;
@@ -2562,63 +2612,59 @@ Report preview will appear here once the backend preview endpoint is configured.
     // --- MENU ITEM HANDLERS ---
     menuViewApproved.addEventListener("click", openApprovedOverlay);
 
-    async function generateReportNow() {
-      if (!adminToken) {
-        showLock("Session expired. Enter the access code.");
-        return;
-      }
-      try {
-        const res = await fetch(`${BASE_URL}/session-report-now`, {
-          method: "POST",
-          headers: withAdminHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({}),
-        });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        alert("Event report generated and sent to the configured email.");
-      } catch (err) {
-        console.error("Error generating event report", err);
-        alert("Could not generate the event report. Please try again.");
-      }
+   async function generateReportNow() {
+  if (!adminToken) {
+    showLock("Session expired. Enter the access code.");
+    return;
+  }
+
+  // If the modal is open, we show the animation there.
+  // If it's not open (called from kebab menu), it still runs fine.
+  if (reportOverlay.style.display === "flex") {
+    showReportLoading();
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/session-report-now`, {
+      method: "POST",
+      headers: withAdminHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({}),
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      showLock("Session expired. Enter the access code.");
+      return;
     }
 
-    menuGenerateReport.addEventListener("click", async () => {
-      closeMoreMenu();
-      await generateReportNow();
-    });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
 
-    menuGenerateReportYesterday.addEventListener("click", async () => {
-      closeMoreMenu();
-      if (!adminToken) {
-        showLock("Session expired. Enter the access code.");
-        return;
-      }
+    let data = {};
+    try {
+      data = await res.json();
+    } catch (_) {}
 
-      const dateStr = getYesterdayDateString();
+    const text =
+      (data && data.reportText) ||
+      "Event report generated and sent to the configured email.";
 
-      try {
-        const res = await fetch(`${BASE_URL}/session-report-date`, {
-          method: "POST",
-          headers: withAdminHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ date: dateStr }),
-        });
+    if (reportPreview) {
+      reportPreview.textContent = text;
+    }
 
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        if (data && data.reportText) {
-          console.log(`Report for ${dateStr}:\n`, data.reportText);
-        }
-
-        alert(`Report for ${dateStr} generated and sent to the configured email.`);
-      } catch (err) {
-        console.error("Error generating yesterday report", err);
-        alert("Could not generate yesterday's report. Please try again.");
-      }
-    });
+    alert("Event report generated and sent to the configured email.");
+  } catch (err) {
+    console.error("Error generating event report", err);
+    if (reportPreview) {
+      reportPreview.textContent =
+        "Could not generate the event report. Please try again.";
+    }
+    alert("Could not generate the event report. Please try again.");
+  } finally {
+    hideReportLoading();
+  }
+}
 
     menuResetLogs.addEventListener("click", () => {
       closeMoreMenu();
@@ -2765,11 +2811,11 @@ Report preview will appear here once the backend preview endpoint is configured.
 
     // --- REPORT MODAL LOGIC ---
 
-    function openReportOverlay() {
-      reportOverlay.style.display = "flex";
-      reportPreview.textContent =
-        "Report preview will appear here once the backend preview endpoint is configured.";
-    }
+function openReportOverlay() {
+  reportOverlay.style.display = "flex";
+  reportPreview.textContent = "Tap “View report (preview)” to load the current summary.";
+  hideReportLoading(); // make sure loader is off when you first open
+}
 
     function closeReportOverlay() {
       reportOverlay.style.display = "none";
@@ -2782,17 +2828,47 @@ Report preview will appear here once the backend preview endpoint is configured.
       }
     });
 
-    reportViewBtn.addEventListener("click", async () => {
-      if (!adminToken) {
-        showLock("Session expired. Enter the access code.");
-        return;
-      }
+reportViewBtn.addEventListener("click", async () => {
+  if (!adminToken) {
+    showLock("Session expired. Enter the access code.");
+    return;
+  }
 
-      // Placeholder: waiting for a dedicated preview endpoint.
-      // This avoids accidentally sending emails when the user only wants a preview.
-      reportPreview.textContent =
-        "Preview mode is UI-only for now.\n\nOnce the backend exposes a preview endpoint (e.g. /session-report-preview), this button can fetch the live report text and render it here without emailing or downloading anything.";
+  showReportLoading();
+
+  try {
+    const res = await fetch(`${BASE_URL}/session-report-preview`, {
+      method: "GET",
+      headers: withAdminHeaders(),
     });
+
+    if (res.status === 401 || res.status === 403) {
+      showLock("Session expired. Enter the access code.");
+      return;
+    }
+
+    if (!res.ok) {
+      reportPreview.textContent =
+        "Could not load the report preview. Please try again.";
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data && data.reportText) {
+      reportPreview.textContent = data.reportText;
+    } else {
+      reportPreview.textContent =
+        "No report text was returned by the server.";
+    }
+  } catch (err) {
+    console.error("Error fetching report preview", err);
+    reportPreview.textContent =
+      "Error loading the report preview. Please try again.";
+  } finally {
+    hideReportLoading();
+  }
+});
 
     reportGenerateBtn.addEventListener("click", async () => {
       await generateReportNow();
