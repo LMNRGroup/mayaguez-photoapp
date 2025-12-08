@@ -17,119 +17,107 @@
     }
 
     :root {
+      --navy: #0A192F;
+      --gold: #D4AF37;
+      --dark-grey: #1C1C1C;
+      --light-grey: #F4F4F4;
+      --muted-grey: #9CA3AF;
+      --danger: #F97373;
+      --success: #10B981;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
         Roboto, Arial, sans-serif;
-      color: #0b1020;
+      color: var(--light-grey);
+      background: var(--navy);
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body {
       margin: 0;
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
       padding: 24px;
-      background: #ffffff; /* WHITE PAGE BG */
+      background: radial-gradient(circle at top, #0f172a, var(--navy));
+      color: var(--light-grey);
+      overflow-x: hidden;
     }
 
     .page-wrapper {
+      width: 100%;
+      max-width: 1360px;
       display: flex;
       flex-direction: column;
+      gap: 16px;
+    }
+
+    /* TOP HEADER BAR (logo + title + server status) */
+    .admin-header {
+      display: flex;
       align-items: center;
-      gap: 16px;
-      width: 100%;
-      max-width: 960px;
-    }
-
-    /* PAGE HEADER ABOVE CARD */
-    .page-header {
-      width: 100%;
-      max-width: 900px;
-      display: flex;
-      flex-direction: column;
-      align-items: center; /* centered now */
-      gap: 4px;
-    }
-
-    .page-app-name {
-      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-        "Segoe UI", Roboto, Arial, sans-serif;
-      font-size: 40px;      /* 2–3x bigger */
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: #0b1020;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: center;
-    }
-
-    .page-location {
-      font-size: 13px;
-      color: #6b7280;
-      text-align: center;
-    }
-
-    .logo-top {
-      height: 48px;
-      max-width: 320px;
-      object-fit: contain;
-    }
-
-    .card {
-      background: #111827;
-      border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-      max-width: 900px;
-      width: 100%;
-      padding: 20px 20px 22px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      color: #f5f5f5;
-    }
-
-    .card-header {
-      display: flex;
       justify-content: space-between;
-      align-items: center;
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: #020b1b;
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
       gap: 12px;
-      position: relative;
     }
 
     .header-left {
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      position: relative; /* so dropdown anchors under gear */
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
     }
 
-    .title {
-      font-size: 18px;
-      font-weight: 600;
+    .header-logo {
+      height: 32px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .header-brand-text {
+      font-size: 14px;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
+      color: var(--light-grey);
+      white-space: nowrap;
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
     }
 
-    .subtitle {
-      font-size: 12px;
-      color: #9ca3af;
+    .header-title {
+      flex: 1;
+      text-align: center;
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--gold);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .header-right {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
-      position: relative;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
     }
 
     .status-pill {
-      font-size: 12px; /* a bit bigger */
-      padding: 4px 12px;
+      font-size: 11px;
+      padding: 6px 14px;
       border-radius: 999px;
-      background: #111827;
-      border: 1px solid #374151;
-      color: #e5e7eb;
+      border: 1px solid rgba(212, 175, 55, 0.6);
+      background: rgba(10, 25, 47, 0.9);
+      color: var(--light-grey);
       font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
         "Segoe UI", Roboto, Arial, sans-serif;
       letter-spacing: 0.16em;
@@ -138,39 +126,29 @@
     }
 
     .status-pill.offline {
-      border-color: #ef4444;
+      border-color: var(--danger);
       color: #fecaca;
     }
 
-    /* App toggle */
     .app-toggle {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
-    }
-
-    /* label text removed on purpose */
-
-    .app-toggle-control {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
     .status-dot {
-      width: 12px;
-      height: 12px;
+      width: 14px;
+      height: 14px;
       border-radius: 999px;
-      background: #ef4444; /* default OFF */
+      background: #ef4444;
       box-shadow: none;
       flex-shrink: 0;
       display: inline-block;
     }
 
     .status-dot.on {
-      background: #10b981;
-      box-shadow: 0 0 8px rgba(16, 185, 129, 0.9);
+      background: var(--success);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.9);
     }
 
     .status-dot.off {
@@ -182,11 +160,11 @@
       position: relative;
       display: inline-flex;
       align-items: center;
-      width: 40px;
-      height: 20px;
+      width: 46px;
+      height: 24px;
       border-radius: 999px;
-      background: #111827;
-      border: 1px solid #374151;
+      background: #020b1b;
+      border: 1px solid rgba(212, 175, 55, 0.4);
       cursor: pointer;
       flex-shrink: 0;
     }
@@ -208,26 +186,151 @@
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 14px;
-      height: 14px;
+      width: 18px;
+      height: 18px;
       border-radius: 999px;
       background: #9ca3af;
       transition: transform 0.18s ease, background 0.18s ease;
     }
 
     .toggle.is-on {
-      border-color: #10b981;
+      border-color: var(--success);
       background: #022c22;
     }
 
     .toggle.is-on .toggle-slider::before {
-      transform: translateX(18px);
-      background: #10b981;
+      transform: translateX(20px);
+      background: var(--success);
     }
 
     .toggle.disabled {
       opacity: 0.4;
       cursor: default;
+    }
+
+    /* LAYOUT CARD (NAV + PHOTO + LOGS) */
+
+    .card {
+      margin-top: 8px;
+      background: rgba(2, 11, 27, 0.96);
+      border-radius: 20px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
+      padding: 18px 18px 16px;
+      display: flex;
+      flex-direction: column;
+      color: var(--light-grey);
+      border: 1px solid rgba(15, 23, 42, 0.9);
+    }
+
+    .card-main {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr) 250px;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    /* LEFT NAV */
+
+    .sidebar-left {
+      border-right: 1px solid rgba(55, 65, 81, 0.7);
+      padding-right: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .nav-label {
+      font-size: 14px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .nav-item {
+      text-align: left;
+      border: none;
+      background: transparent;
+      color: var(--light-grey);
+      font-size: 14px;
+      padding: 6px 0;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      position: relative;
+    }
+
+    .nav-item::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 0;
+      height: 2px;
+      background: var(--gold);
+      transition: width 0.18s ease;
+    }
+
+    .nav-item:hover {
+      color: var(--gold);
+    }
+
+    .nav-item:hover::before,
+    .nav-item.active::before {
+      width: 22px;
+    }
+
+    .nav-item.active {
+      color: var(--gold);
+    }
+
+    .nav-item-lock {
+      margin-top: 24px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #fca5a5;
+    }
+
+    .nav-item-lock:hover {
+      color: #fecaca;
+    }
+
+    /* CENTER PANEL (PHOTO AREA) */
+
+    .center-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .photo-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 14px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--gold);
+    }
+
+    .photo-label {
+      white-space: nowrap;
+    }
+
+    .pending-count {
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      color: var(--light-grey);
     }
 
     .photo-frame {
@@ -240,23 +343,25 @@
       align-items: center;
       justify-content: center;
       touch-action: pan-y;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+    }
+
+    .photo-frame.empty {
+      border-style: dashed;
+      border-color: rgba(55, 65, 81, 0.8);
     }
 
     .photo-frame img {
       max-width: 100%;
-      max-height: 420px;
+      max-height: 520px;
       display: block;
       object-fit: contain;
       transition: transform 0.18s ease, opacity 0.18s ease;
     }
 
-    .photo-frame.empty {
-      border: 1px dashed #374151;
-    }
-
     .empty-text {
       font-size: 13px;
-      color: #9ca3af;
+      color: var(--muted-grey);
       text-align: center;
       padding: 24px 16px;
     }
@@ -264,29 +369,43 @@
     .buttons {
       display: flex;
       gap: 10px;
-      margin-top: 6px;
+      margin-top: 10px;
     }
 
     button {
+      font-family: inherit;
+    }
+
+    .btn-reject,
+    .btn-approve {
       flex: 1;
       border-radius: 999px;
-      border: none;
+      border: 1px solid rgba(55, 65, 81, 0.9);
       padding: 10px 14px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.08em;
     }
 
     .btn-reject {
-      background: #1f2937;
+      background: #111827;
       color: #f9fafb;
     }
 
+    .btn-reject:hover {
+      background: #1f2937;
+    }
+
     .btn-approve {
-      background: #10b981;
+      background: var(--success);
       color: #022c22;
+      border-color: rgba(16, 185, 129, 0.9);
+    }
+
+    .btn-approve:hover {
+      filter: brightness(1.05);
     }
 
     button:disabled {
@@ -296,101 +415,135 @@
 
     .helper {
       font-size: 11px;
-      color: #9ca3af;
+      color: var(--muted-grey);
       text-align: center;
       margin-top: 2px;
     }
 
-    /* GEAR MENU BUTTON */
-    .kebab-button {
-      flex: 0 0 auto;
-      border-radius: 999px;
-      border: 1px solid #374151;
-      background: #020617;
-      color: #e5e7eb;
-      font-size: 16px;
-      line-height: 1;
-      padding: 5px 9px 7px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    /* RIGHT PANEL (EVENT LOGS + ACTIVITY) */
+
+    .sidebar-right {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      border-left: 1px solid rgba(55, 65, 81, 0.7);
+      padding-left: 14px;
     }
 
-    .kebab-button:hover {
-      background: #111827;
+    .panel-box {
+      background: radial-gradient(circle at top, #020617, #020b1b);
+      border-radius: 14px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
     }
 
-    /* QUICK APPROVED BUTTON */
-    .approved-button {
-      flex: 0 0 auto;
-      border-radius: 999px;
-      border: 1px solid #374151;
-      background: #020617;
-      color: #e5e7eb;
-      font-size: 14px;
-      line-height: 1;
-      padding: 5px 9px 7px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    .panel-title {
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .event-log-list {
+      margin: 4px 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 11px;
+      color: var(--light-grey);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .event-log-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 3px 0;
+      opacity: 0.9;
+    }
+
+    .event-log-time {
       font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
         "Segoe UI", Roboto, Arial, sans-serif;
       letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .approved-button:hover {
-      background: #111827;
-    }
-
-    .dropdown-menu {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      min-width: 220px;
-      background: #020617;
-      border-radius: 10px;
-      border: 1px solid #374151;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
-      padding: 6px 0;
-      z-index: 20;
-      display: none;
-    }
-
-    .dropdown-item {
-      font-size: 12px;
-      padding: 8px 12px;
-      color: #e5e7eb;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      font-size: 10px;
+      color: var(--gold);
       white-space: nowrap;
     }
 
-    .dropdown-item span.helper-label {
+    .event-log-text {
+      flex: 1;
+      text-align: right;
+    }
+
+    .activity-bars {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 6px;
+      padding-top: 4px;
+    }
+
+    .activity-bar {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
       font-size: 10px;
-      opacity: 0.6;
+      color: var(--light-grey);
     }
 
-    .dropdown-item:hover {
-      background: #111827;
+    .activity-bar-graph {
+      width: 100%;
+      border-radius: 6px 6px 2px 2px;
+      background: rgba(148, 163, 184, 0.3);
+      height: 40px;
+      overflow: hidden;
+      position: relative;
     }
 
-    .dropdown-separator {
-      height: 1px;
-      margin: 4px 0;
-      background: #1f2937;
+    .activity-bar-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-radius: 6px 6px 2px 2px;
+      background: linear-gradient(to top, var(--gold), #f9fafb);
+      height: 60%;
     }
 
-    /* APPROVED OVERLAY (grid) */
+    .activity-bar.current .activity-bar-fill {
+      background: linear-gradient(to top, #22c55e, #bbf7d0);
+    }
+
+    .activity-hour {
+      margin-top: 2px;
+      font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, Arial, sans-serif;
+      letter-spacing: 0.14em;
+    }
+
+    /* SMALL ICON BUTTONS (kept for logic but hidden from UI) */
+
+    .kebab-button,
+    .approved-button {
+      display: none;
+    }
+
+    /* APPROVED OVERLAY (grid) – restyled but same IDs/classes */
+
     .approved-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.96);
+      background: radial-gradient(circle at top, rgba(2, 6, 23, 0.98), rgba(2, 6, 23, 0.98));
       z-index: 30;
       display: none;
       align-items: center;
@@ -406,8 +559,9 @@
       max-height: 90vh;
       display: flex;
       flex-direction: column;
-      padding: 16px 18px 18px;
+      padding: 14px 16px 16px;
       box-shadow: 0 20px 45px rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(212, 175, 55, 0.5);
     }
 
     .approved-header {
@@ -415,33 +569,33 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .approved-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .approved-subtitle {
       font-size: 11px;
-      color: #9ca3af;
-      margin-bottom: 6px;
+      color: var(--muted-grey);
+      margin-bottom: 4px;
     }
 
     .approved-close-btn {
-      border-radius: 999px;
-      border: 1px solid #4b5563;
-      background: #020617;
-      color: #e5e7eb;
-      font-size: 16px;
-      padding: 2px 8px 4px;
+      border: none;
+      background: transparent;
+      color: var(--light-grey);
+      font-size: 20px;
       cursor: pointer;
-      flex-shrink: 0;
+      padding: 0 4px;
     }
 
     .approved-close-btn:hover {
-      background: #111827;
+      color: var(--gold);
     }
 
     .approved-grid {
@@ -456,8 +610,8 @@
 
     .approved-empty {
       font-size: 13px;
-      color: #9ca3af;
-      padding: 20px 4px 10px;
+      color: var(--muted-grey);
+      padding: 16px 4px 8px;
       text-align: center;
     }
 
@@ -484,7 +638,6 @@
       cursor: default;
     }
 
-    /* Hover mini popup with download/delete */
     .approved-thumb-actions {
       position: absolute;
       left: 0;
@@ -546,7 +699,7 @@
       gap: 10px;
       margin-top: 6px;
       font-size: 10px;
-      color: #9ca3af;
+      color: var(--muted-grey);
     }
 
     .approved-footer-controls {
@@ -562,7 +715,8 @@
       padding: 5px 9px;
     }
 
-    /* APPROVED VIEWER (zoomed single photo) */
+    /* APPROVED VIEWER */
+
     .approved-viewer-overlay {
       position: fixed;
       inset: 0;
@@ -586,6 +740,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      border: 1px solid rgba(212, 175, 55, 0.6);
     }
 
     .approved-viewer-toolbar {
@@ -629,8 +784,15 @@
     }
 
     .viewer-icon-btn.close-only {
-      padding: 4px 10px 6px;
-      font-size: 18px;
+      padding: 0 6px;
+      font-size: 20px;
+      border: none;
+      background: transparent;
+    }
+
+    .viewer-icon-btn.close-only:hover {
+      color: var(--gold);
+      background: transparent;
     }
 
     .viewer-icon-btn:hover {
@@ -675,21 +837,132 @@
       letter-spacing: 0.08em;
     }
 
+    .viewer-nav-btn.primary {
+      border-color: var(--success);
+      color: #a7f3d0;
+    }
+
     .viewer-nav-btn:disabled {
       opacity: 0.4;
       cursor: default;
     }
 
-    .viewer-nav-btn.primary {
-      border-color: #10b981;
-      color: #a7f3d0;
+    /* REPORT MODAL (for Event Reports menu) */
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.96);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 35;
+      padding: 16px;
+    }
+
+    .modal-panel {
+      background: #020617;
+      border-radius: 16px;
+      max-width: 640px;
+      width: 100%;
+      padding: 14px 16px 16px;
+      border: 1px solid rgba(212, 175, 55, 0.6);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .modal-close {
+      border: none;
+      background: transparent;
+      color: var(--light-grey);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    .modal-close:hover {
+      color: var(--gold);
+    }
+
+    .modal-body {
+      font-size: 13px;
+      color: var(--muted-grey);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      margin-bottom: 8px;
+    }
+
+    .btn-ghost,
+    .btn-primary {
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid #4b5563;
+      color: var(--light-grey);
+      flex: 0 0 auto;
+    }
+
+    .btn-ghost:hover {
+      background: #111827;
+    }
+
+    .btn-primary {
+      background: var(--gold);
+      border: 1px solid rgba(212, 175, 55, 0.8);
+      color: #111827;
+      flex: 0 0 auto;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.05);
+    }
+
+    .report-preview {
+      margin: 0;
+      margin-top: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #020617;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: var(--light-grey);
+      white-space: pre-wrap;
     }
 
     /* LOCK SCREEN */
+
     .lock-screen {
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+      background: radial-gradient(circle at top, rgba(15,23,42,0.98), rgba(2,6,23,0.98));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -706,7 +979,6 @@
       padding: 0 24px;
     }
 
-    /* TOP IDENTITY ON LOCK */
     .lock-header-id {
       text-align: center;
       margin-bottom: 6px;
@@ -727,7 +999,7 @@
     .lock-location {
       margin-top: 2px;
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--muted-grey);
     }
 
     .lock-card {
@@ -738,6 +1010,7 @@
       max-width: 340px;
       box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
       color: #f9fafb;
+      border: 1px solid rgba(212, 175, 55, 0.5);
     }
 
     .lock-title {
@@ -745,15 +1018,8 @@
       font-weight: 700;
       margin-bottom: 6px;
       text-align: center;
-      color: #f97373; /* red by default */
+      color: var(--danger);
       transition: color 0.2s ease;
-    }
-
-    .lock-subtitle {
-      font-size: 12px;
-      color: #9ca3af;
-      margin-bottom: 10px;
-      text-align: center;
     }
 
     .lock-input {
@@ -763,10 +1029,9 @@
       background: #020617;
       padding: 10px 16px;
       color: #e5e7eb;
-      font-size: 20px;          /* >=16px avoids iOS zoom */
-      letter-spacing: 0.35em;   /* bigger / spaced bullets */
+      font-size: 20px;
+      letter-spacing: 0.35em;
       outline: none;
-      box-sizing: border-box;
     }
 
     .lock-input::placeholder {
@@ -776,7 +1041,7 @@
     }
 
     .lock-input:focus {
-      border-color: #10b981;
+      border-color: var(--success);
       box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.5);
     }
 
@@ -785,7 +1050,7 @@
       width: 100%;
       border-radius: 999px;
       border: none;
-      background: #10b981;
+      background: var(--success);
       color: #022c22;
       font-size: 13px;
       font-weight: 600;
@@ -803,7 +1068,7 @@
     .lock-error {
       margin-top: 8px;
       font-size: 11px;
-      color: #f97373;
+      color: var(--danger);
       min-height: 14px;
       text-align: center;
     }
@@ -811,7 +1076,7 @@
     .lock-meta {
       margin-top: 8px;
       font-size: 10px;
-      color: #9ca3af;
+      color: var(--muted-grey);
       text-align: center;
       line-height: 1.4;
     }
@@ -839,7 +1104,6 @@
       animation: lock-pulse 0.3s ease;
     }
 
-    /* Brand footer under the card, Pixy */
     .lock-brand {
       font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
         Roboto, Arial, sans-serif;
@@ -856,39 +1120,75 @@
       margin-top: 10px;
     }
 
-    /* Desktop tweaks */
-    @media (min-width: 768px) {
+    /* RESPONSIVE */
+
+    @media (max-width: 1024px) {
       body {
-        padding: 40px;
+        padding: 12px;
       }
 
-      .logo-top {
-        height: 56px;
+      .card-main {
+        grid-template-columns: 170px minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        grid-template-areas:
+          "nav center"
+          "nav right";
       }
 
-      .card {
-        padding: 24px 24px 26px;
-        gap: 18px;
+      .sidebar-left { grid-area: nav; }
+      .center-panel { grid-area: center; }
+      .sidebar-right { grid-area: right; }
+    }
+
+    @media (max-width: 768px) {
+      .admin-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
       }
 
-      .title {
-        font-size: 18px;
+      .card-main {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto auto;
+        grid-template-areas:
+          "nav"
+          "center"
+          "right";
       }
 
-      .subtitle {
-        font-size: 12px;
+      .sidebar-left {
+        flex-direction: row;
+        justify-content: space-between;
+        border-right: none;
+        border-bottom: 1px solid rgba(55, 65, 81, 0.7);
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+      }
+
+      .nav-group {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+      }
+
+      .nav-label {
+        display: none;
+      }
+
+      .sidebar-right {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid rgba(55, 65, 81, 0.7);
+        margin-top: 8px;
+        padding-top: 8px;
       }
 
       .photo-frame {
-        min-height: 400px;
+        min-height: 220px;
       }
 
-      .photo-frame img {
-        max-height: 600px;
-      }
-
-      .helper {
-        font-size: 12px;
+      .activity-bars {
+        gap: 4px;
       }
     }
   </style>
@@ -897,13 +1197,11 @@
   <!-- LOCK OVERLAY -->
   <div id="lockScreen" class="lock-screen">
     <div class="lock-wrapper">
-      <!-- TOP IDENTITY -->
       <div class="lock-header-id">
         <div class="lock-app-name">PHOTO APP</div>
         <div class="lock-location">Pantalla Plaza Colón</div>
       </div>
 
-      <!-- CARD -->
       <div class="lock-card" id="lockCard">
         <div id="lockTitle" class="lock-title">Restricted access</div>
 
@@ -925,89 +1223,164 @@
         </div>
       </div>
 
-      <!-- BRAND FOOTER -->
       <div class="lock-brand">LMNR GROUP X MUNICIPIO DE MAYAGUEZ</div>
     </div>
   </div>
 
   <div class="page-wrapper">
-    <!-- HEADER ABOVE CARD -->
-    <div class="page-header">
-      <div class="page-app-name">PHOTO APP</div>
-      <div class="page-location">Pantalla Plaza Colón</div>
-    </div>
+    <!-- TOP HEADER -->
+    <header class="admin-header">
+      <div class="header-left">
+        <img
+          src="Assets/Luminar.Apps-Light.png"
+          alt="Luminar Apps"
+          class="header-logo"
+        />
+        <div class="header-brand-text">LUMINAR.APPS</div>
+      </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div class="header-left">
-          <button id="moreButton" class="kebab-button" type="button">⚙︎</button>
-          <button id="approvedButton" class="approved-button" type="button">▦</button>
+      <div class="header-title">ADMIN PORTAL</div>
 
-          <div id="moreMenu" class="dropdown-menu">
-            <div id="menuViewApproved" class="dropdown-item">
-  <span>View approved photos</span>
-</div>
-<div id="menuGenerateReport" class="dropdown-item">
-  <span>Generate event report</span>
-  <span class="helper-label">(send email)</span>
-</div>
-<div id="menuGenerateReportYesterday" class="dropdown-item">
-  <span>Generate yesterday's report</span>
-  <span class="helper-label">(send email)</span>
-</div>
-<div class="dropdown-separator"></div>
-<div id="menuResetLogs" class="dropdown-item">
-  <span>Reset logs</span>
-  <span class="helper-label">(demo)</span>
-</div>
-<div id="menuClearApproved" class="dropdown-item">
-  <span>Empty approved folder</span>
-</div>
-          </div>
-
-          <div>
-            <div class="title">PHOTO REVIEW</div>
-            <div class="subtitle">Pantalla Plaza Colón</div>
-          </div>
+      <div class="header-right">
+        <div class="app-toggle">
+          <span id="appStatusDot" class="status-dot off"></span>
+          <label class="toggle" id="appToggleWrapper">
+            <input type="checkbox" id="appToggle" />
+            <span class="toggle-slider"></span>
+          </label>
         </div>
+        <span id="statusPill" class="status-pill">SERVER STATUS: LOADING…</span>
+      </div>
+    </header>
 
-        <div class="header-right">
-          <div class="app-toggle">
-            <div class="app-toggle-control">
-              <span id="appStatusDot" class="status-dot off"></span>
-              <label class="toggle" id="appToggleWrapper">
-                <input type="checkbox" id="appToggle" />
-                <span class="toggle-slider"></span>
-              </label>
+    <!-- MAIN CARD -->
+    <div class="card">
+      <div class="card-main">
+        <!-- LEFT NAV -->
+        <aside class="sidebar-left">
+          <div class="nav-group">
+            <div class="nav-label">Dashboard</div>
+            <button class="nav-item active" id="navDashboard">Dashboard</button>
+            <button class="nav-item" id="navApproved">Approved Photos</button>
+            <button class="nav-item" id="navReports">Event Reports</button>
+            <button class="nav-item" id="navResetLogs">Reset Logs</button>
+          </div>
+          <button class="nav-item nav-item-lock" id="lockAdminBtn">Lock Admin</button>
+        </aside>
+
+        <!-- CENTER PANEL (PHOTO REVIEW) -->
+        <section class="center-panel">
+          <div class="photo-meta-row">
+            <div id="photoLabel" class="photo-label">PHOTO</div>
+            <div id="pendingCount" class="pending-count">AWAITING APPROVAL: 0</div>
+          </div>
+
+          <div id="photoFrame" class="photo-frame empty">
+            <div id="emptyText" class="empty-text">
+              Loading next pending photo…
+            </div>
+            <img id="photoImg" alt="Pending photo" style="display:none;" />
+          </div>
+
+          <div class="buttons">
+            <button id="rejectBtn" class="btn-reject" disabled>Reject</button>
+            <button id="approveBtn" class="btn-approve" disabled>Approve</button>
+          </div>
+        </section>
+
+        <!-- RIGHT PANEL (EVENT LOGS + ACTIVITY) -->
+        <aside class="sidebar-right">
+          <div class="panel-box">
+            <div class="panel-title">Event logs:</div>
+            <ul id="eventLogList" class="event-log-list">
+              <!-- Static placeholder entries; backend can replace later -->
+              <li class="event-log-item">
+                <span class="event-log-time">08:19 PM</span>
+                <span class="event-log-text">User submitted a form</span>
+              </li>
+              <li class="event-log-item">
+                <span class="event-log-time">08:18 PM</span>
+                <span class="event-log-text">User uploaded a photo</span>
+              </li>
+              <li class="event-log-item">
+                <span class="event-log-time">08:16 PM</span>
+                <span class="event-log-text">User visited the web app</span>
+              </li>
+              <li class="event-log-item">
+                <span class="event-log-time">08:15 PM</span>
+                <span class="event-log-text">User subscribed to newsletter</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="panel-box">
+            <div class="panel-title">Activity</div>
+            <div id="activityBars" class="activity-bars">
+              <div class="activity-bar">
+                <div class="activity-bar-graph">
+                  <div class="activity-bar-fill" style="height:40%;"></div>
+                </div>
+                <div class="activity-hour">6PM</div>
+              </div>
+              <div class="activity-bar">
+                <div class="activity-bar-graph">
+                  <div class="activity-bar-fill" style="height:65%;"></div>
+                </div>
+                <div class="activity-hour">7PM</div>
+              </div>
+              <div class="activity-bar">
+                <div class="activity-bar-graph">
+                  <div class="activity-bar-fill" style="height:35%;"></div>
+                </div>
+                <div class="activity-hour">8PM</div>
+              </div>
+              <div class="activity-bar">
+                <div class="activity-bar-graph">
+                  <div class="activity-bar-fill" style="height:75%;"></div>
+                </div>
+                <div class="activity-hour">9PM</div>
+              </div>
+              <div class="activity-bar current">
+                <div class="activity-bar-graph">
+                  <div class="activity-bar-fill" style="height:95%;"></div>
+                </div>
+                <div class="activity-hour">10PM</div>
+              </div>
             </div>
           </div>
-
-          <span id="statusPill" class="status-pill">SERVER STATUS: LOADING…</span>
-        </div>
-      </div>
-
-      <div id="photoFrame" class="photo-frame empty">
-        <div id="emptyText" class="empty-text">
-          Loading next pending photo…
-        </div>
-        <img id="photoImg" alt="Pending photo" style="display:none;" />
-      </div>
-
-      <div class="buttons">
-        <button id="rejectBtn" class="btn-reject" disabled>Reject</button>
-        <button id="approveBtn" class="btn-approve" disabled>Approve</button>
+        </aside>
       </div>
     </div>
-
-    <!-- LOGO NOW BELOW CARD -->
-    <img
-      class="logo-top"
-      src="https://raw.githubusercontent.com/LMNRGroup/mayaguez-photoapp/refs/heads/main/Assets/Luminar%20Apps%20Horizontal%20Logo.png"
-      alt="Luminar Apps"
-    />
   </div>
 
-  <!-- OVERLAY: APPROVED PHOTOS GRID -->
+  <!-- HIDDEN BUTTONS (kept for existing JS logic, but not shown in UI) -->
+  <button id="moreButton" class="kebab-button" type="button">⚙︎</button>
+  <button id="approvedButton" class="approved-button" type="button">▦</button>
+
+  <!-- DROPDOWN MENU (logic kept, but mostly triggered from left nav now) -->
+  <div id="moreMenu" class="dropdown-menu" style="display:none;">
+    <div id="menuViewApproved" class="dropdown-item">
+      <span>View approved photos</span>
+    </div>
+    <div id="menuGenerateReport" class="dropdown-item">
+      <span>Generate event report</span>
+      <span class="helper-label">(send email)</span>
+    </div>
+    <div id="menuGenerateReportYesterday" class="dropdown-item">
+      <span>Generate yesterday's report</span>
+      <span class="helper-label">(send email)</span>
+    </div>
+    <div class="dropdown-separator"></div>
+    <div id="menuResetLogs" class="dropdown-item">
+      <span>Reset logs</span>
+      <span class="helper-label">(demo)</span>
+    </div>
+    <div id="menuClearApproved" class="dropdown-item">
+      <span>Empty approved folder</span>
+    </div>
+  </div>
+
+  <!-- APPROVED PHOTOS OVERLAY -->
   <div id="approvedOverlay" class="approved-overlay">
     <div class="approved-panel">
       <div class="approved-header">
@@ -1045,7 +1418,7 @@
     </div>
   </div>
 
-  <!-- OVERLAY: SINGLE APPROVED PHOTO VIEWER -->
+  <!-- SINGLE APPROVED PHOTO VIEWER -->
   <div id="approvedViewer" class="approved-viewer-overlay">
     <div class="approved-viewer-panel">
       <div class="approved-viewer-toolbar">
@@ -1077,6 +1450,29 @@
         <button id="viewerNextBtn" type="button" class="viewer-nav-btn primary">
           Next ›
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EVENT REPORT MODAL -->
+  <div id="reportOverlay" class="modal-overlay">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div class="modal-title">Event reports</div>
+        <button id="reportCloseBtn" class="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <p>
+          View the current session summary or generate a full report that will be
+          delivered to your configured email.
+        </p>
+        <div class="modal-actions">
+          <button id="reportViewBtn" class="btn-ghost">View report (preview)</button>
+          <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
+        </div>
+        <pre id="reportPreview" class="report-preview">
+Report preview will appear here once the backend preview endpoint is configured.
+        </pre>
       </div>
     </div>
   </div>
@@ -1145,6 +1541,17 @@
     const appToggleWrapper = document.getElementById("appToggleWrapper");
     const appStatusDot = document.getElementById("appStatusDot");
 
+    // NEW: photo meta elements
+    const photoLabel = document.getElementById("photoLabel");
+    const pendingCountEl = document.getElementById("pendingCount");
+
+    // LEFT NAV
+    const navDashboard = document.getElementById("navDashboard");
+    const navApproved = document.getElementById("navApproved");
+    const navReports = document.getElementById("navReports");
+    const navResetLogs = document.getElementById("navResetLogs");
+    const lockAdminBtn = document.getElementById("lockAdminBtn");
+
     // Menu + approved overlay
     const moreButton = document.getElementById("moreButton");
     const moreMenu = document.getElementById("moreMenu");
@@ -1170,6 +1577,13 @@
     const viewerCloseBtn = document.getElementById("viewerCloseBtn");
     const viewerPrevBtn = document.getElementById("viewerPrevBtn");
     const viewerNextBtn = document.getElementById("viewerNextBtn");
+
+    // REPORT MODAL ELEMENTS
+    const reportOverlay = document.getElementById("reportOverlay");
+    const reportCloseBtn = document.getElementById("reportCloseBtn");
+    const reportViewBtn = document.getElementById("reportViewBtn");
+    const reportGenerateBtn = document.getElementById("reportGenerateBtn");
+    const reportPreview = document.getElementById("reportPreview");
 
     let currentFileId = null;
     let isBusy = false;
@@ -1244,13 +1658,11 @@
             disableAdminControlsForOffline();
           }
         } else {
-          // Fallback if backend does not yet support /admin/app-status
           updateAppToggleUI(true);
           appToggleInput.checked = true;
         }
       } catch (err) {
         console.error("Error fetching app status", err);
-        // fallback as READY
         updateAppToggleUI(true);
         appToggleInput.checked = true;
       }
@@ -1289,7 +1701,6 @@
         accessError.textContent = "";
       }
 
-      // reset visual state
       lockTitle.textContent = "Restricted access";
       lockTitle.style.color = "#f97373";
       lockCard.classList.remove("success");
@@ -1342,11 +1753,9 @@
         } catch (_) {}
 
         if (res.ok && data.ok && data.token) {
-          // ✅ store session token
           adminToken = data.token;
           localStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
 
-          // green flash before opening admin
           lockTitle.textContent = "Access granted";
           lockTitle.style.color = "#22c55e";
           lockCard.classList.add("success");
@@ -1354,7 +1763,6 @@
 
           setTimeout(async () => {
             hideLock();
-            // restore label for next time
             lockTitle.textContent = "Restricted access";
             lockTitle.style.color = "#f97373";
             lockCard.classList.remove("success");
@@ -1415,6 +1823,8 @@
         emptyText.style.display = "block";
         emptyText.textContent = "Server is offline for this event.";
         photoFrame.classList.add("empty");
+        if (pendingCountEl) pendingCountEl.textContent = "AWAITING APPROVAL: 0";
+        if (photoLabel) photoLabel.textContent = "PHOTO";
         return;
       }
 
@@ -1436,6 +1846,23 @@
 
         const data = await res.json();
 
+        // NEW: handle pending counter & photo number if backend sends them
+        if (pendingCountEl) {
+          const pending = typeof data.pendingCount === "number" ? data.pendingCount : (data.empty ? 0 : null);
+          if (pending !== null) {
+            pendingCountEl.textContent = `AWAITING APPROVAL: ${pending}`;
+          }
+        }
+        if (photoLabel) {
+          if (data.photoNumber != null) {
+            photoLabel.textContent = `PHOTO #${data.photoNumber}`;
+          } else if (data.fileId) {
+            photoLabel.textContent = "PHOTO";
+          } else {
+            photoLabel.textContent = "PHOTO";
+          }
+        }
+
         if (data.empty) {
           currentFileId = null;
           emptyText.textContent = "There are no pending photos at this moment.";
@@ -1449,7 +1876,6 @@
 
         currentFileId = data.fileId;
 
-        // for <img> we use query ?token= because we can't set headers
         const imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
           currentFileId
         )}?token=${encodeURIComponent(adminToken || "")}`;
@@ -1527,7 +1953,7 @@
       const touch = e.changedTouches ? e.changedTouches[0] : e;
       const dx = touch.clientX - startX;
 
-      const threshold = 50; // px
+      const threshold = 50;
       if (dx > threshold) {
         sendAction("/admin/approve");
       } else if (dx < -threshold) {
@@ -1559,6 +1985,17 @@
 
         const data = await res.json();
 
+        // update counters if present
+        if (pendingCountEl) {
+          const pending = typeof data.pendingCount === "number" ? data.pendingCount : (data.empty ? 0 : null);
+          if (pending !== null) {
+            pendingCountEl.textContent = `AWAITING APPROVAL: ${pending}`;
+          }
+        }
+        if (photoLabel && data.photoNumber != null && !data.empty) {
+          photoLabel.textContent = `PHOTO #${data.photoNumber}`;
+        }
+
         if (data.empty) {
           if (currentFileId !== null) {
             await loadNextPhoto();
@@ -1585,7 +2022,7 @@
       autoRefreshId = null;
     }
 
-    // --- MENU LOGIC ---
+    // --- MENU LOGIC (kept mostly for compatibility) ---
     function closeMoreMenu() {
       moreMenu.style.display = "none";
     }
@@ -1609,13 +2046,12 @@
     });
 
     document.addEventListener("click", (e) => {
-      // close menu when clicking outside
       if (!moreMenu.contains(e.target) && e.target !== moreButton) {
         closeMoreMenu();
       }
     });
 
-    // --- APPROVED GRID FUNCTIONS (with paging) ---
+    // --- APPROVED GRID FUNCTIONS ---
     function openApprovedOverlay() {
       closeMoreMenu();
       if (!adminToken) {
@@ -1634,7 +2070,6 @@
       btn.addEventListener("click", closeApprovedOverlay);
     });
 
-    // Open / close viewer
     function updateViewerNavButtons() {
       const total = approvedFilesCache.length;
       if (viewerCurrentIndex < 0 || total === 0) {
@@ -1670,7 +2105,6 @@
     }
 
     approvedViewer.addEventListener("click", (e) => {
-      // only close when clicking the dark overlay, not the panel/image
       if (e.target === approvedViewer) {
         closeApprovedViewer();
       }
@@ -1678,7 +2112,6 @@
 
     viewerCloseBtn.addEventListener("click", closeApprovedViewer);
 
-    // Helper to find the thumb element for a given fileId
     function findThumbByFileId(fileId) {
       const thumbs = approvedGrid.querySelectorAll(".approved-thumb");
       for (const el of thumbs) {
@@ -1777,7 +2210,6 @@
       renderApprovedPage();
     });
 
-    // Load full list once, then page it in the UI
     async function loadApprovedGrid() {
       approvedGrid.innerHTML = "";
       approvedEmpty.style.display = "block";
@@ -1801,8 +2233,6 @@
 
         const data = await res.json();
         const files = data.files || [];
-
-        console.log("Approved files payload:", data);
 
         if (!files.length) {
           approvedFilesCache = [];
@@ -1888,7 +2318,6 @@
           throw new Error(`HTTP ${res.status}`);
         }
 
-        // Remove from local cache
         approvedFilesCache = approvedFilesCache.filter(
           (item) => item.fileId !== fileId
         );
@@ -1915,7 +2344,6 @@
       if (!ok) return;
 
       try {
-        // backend route is /admin/clear-drive
         const res = await fetch(`${BASE_URL}/admin/clear-drive`, {
           method: "POST",
           headers: withAdminHeaders({ "Content-Type": "application/json" }),
@@ -1931,7 +2359,6 @@
           throw new Error(`HTTP ${res.status}`);
         }
 
-        // If overlay is open, clear it visually too
         if (approvedOverlay.style.display === "flex") {
           approvedFilesCache = [];
           approvedGrid.innerHTML = "";
@@ -1947,7 +2374,6 @@
       }
     }
 
-    // --- Download with frame (viewer + thumb actions) ---
     async function downloadApprovedWithFrame(fileId) {
       if (!fileId) return;
       if (!adminToken) {
@@ -1955,7 +2381,6 @@
         return;
       }
 
-      // Raw photo URL from admin endpoint
       const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
         fileId
       )}?token=${encodeURIComponent(adminToken || "")}`;
@@ -1996,20 +2421,17 @@
         let sx, sy, sWidth, sHeight;
 
         if (photoAspect > windowAspect) {
-          // photo wider than window → crop left/right
           sHeight = ph;
           sWidth = sHeight * windowAspect;
           sx = (pw - sWidth) / 2;
           sy = 0;
         } else {
-          // photo taller than window → crop top/bottom
           sWidth = pw;
           sHeight = sWidth / windowAspect;
           sx = 0;
           sy = (ph - sHeight) / 2;
         }
 
-        // Draw photo into the photo-window rectangle
         downloadCtx.drawImage(
           photoImgEl,
           sx,
@@ -2022,7 +2444,6 @@
           WINDOW_HEIGHT
         );
 
-        // Draw frame PNG scaled to 1920x1080 on top
         if (frameImg) {
           downloadCtx.drawImage(frameImg, 0, 0, fw, fh);
         }
@@ -2043,7 +2464,6 @@
             if (blob) {
               triggerDownloadFromBlob(blob);
             } else {
-              // Fallback via dataURL
               const dataUrl = downloadCanvas.toDataURL("image/png");
               const resp = await fetch(dataUrl);
               const fallbackBlob = await resp.blob();
@@ -2051,7 +2471,6 @@
             }
           }, "image/png");
         } else {
-          // Older Safari fallback
           const dataUrl = downloadCanvas.toDataURL("image/png");
           const resp = await fetch(dataUrl);
           const blob = await resp.blob();
@@ -2063,7 +2482,6 @@
       }
     }
 
-    // --- Viewer button handlers ---
     viewerDownloadBtn.addEventListener("click", () => {
       if (!viewerCurrentFileId) return;
       downloadApprovedWithFrame(viewerCurrentFileId);
@@ -2092,20 +2510,20 @@
       if (!item) return;
       openApprovedViewer(item.fileId, item.imgUrl);
     });
-    
-  function getYesterdayDateString() {
-  const now = new Date();
-  now.setDate(now.getDate() - 1);
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
+
+    function getYesterdayDateString() {
+      const now = new Date();
+      now.setDate(now.getDate() - 1);
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
     // --- MENU ITEM HANDLERS ---
     menuViewApproved.addEventListener("click", openApprovedOverlay);
 
-    menuGenerateReport.addEventListener("click", async () => {
-      closeMoreMenu();
+    async function generateReportNow() {
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
         return;
@@ -2124,42 +2542,47 @@
         console.error("Error generating event report", err);
         alert("Could not generate the event report. Please try again.");
       }
-    });
-menuGenerateReportYesterday.addEventListener("click", async () => {
-  closeMoreMenu();
-  if (!adminToken) {
-    showLock("Session expired. Enter the access code.");
-    return;
-  }
-
-  const dateStr = getYesterdayDateString();
-
-  try {
-    const res = await fetch(`${BASE_URL}/session-report-date`, {
-      method: "POST",
-      headers: withAdminHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ date: dateStr }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
     }
 
-    const data = await res.json();
-    // Optional: log text version in the console if you want to see it quickly
-    if (data && data.reportText) {
-      console.log(`Report for ${dateStr}:\n`, data.reportText);
-    }
+    menuGenerateReport.addEventListener("click", async () => {
+      closeMoreMenu();
+      await generateReportNow();
+    });
 
-    alert(`Report for ${dateStr} generated and sent to the configured email.`);
-  } catch (err) {
-    console.error("Error generating yesterday report", err);
-    alert("Could not generate yesterday's report. Please try again.");
-  }
-});
+    menuGenerateReportYesterday.addEventListener("click", async () => {
+      closeMoreMenu();
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      const dateStr = getYesterdayDateString();
+
+      try {
+        const res = await fetch(`${BASE_URL}/session-report-date`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ date: dateStr }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (data && data.reportText) {
+          console.log(`Report for ${dateStr}:\n`, data.reportText);
+        }
+
+        alert(`Report for ${dateStr} generated and sent to the configured email.`);
+      } catch (err) {
+        console.error("Error generating yesterday report", err);
+        alert("Could not generate yesterday's report. Please try again.");
+      }
+    });
+
     menuResetLogs.addEventListener("click", () => {
       closeMoreMenu();
-      // Dummy: only frontend notice
       alert("Logs cleared (demo mode, no changes on server).");
     });
 
@@ -2167,16 +2590,13 @@ menuGenerateReportYesterday.addEventListener("click", async () => {
 
     // --- SHUTDOWN FLOW (toggle) ---
     async function handleToggleChange(e) {
-      // If backend already says offline, don't allow re-enable from UI
       if (!appServerEnabled) {
         appToggleInput.checked = false;
         alert("Server is offline for this event.\nTo start a new session, re-enable it on the server side.");
         return;
       }
 
-      // User tried to turn OFF
       if (!appToggleInput.checked) {
-        // revert until flow completes
         appToggleInput.checked = true;
 
         const confirmShutdown = window.confirm(
@@ -2214,10 +2634,8 @@ menuGenerateReportYesterday.addEventListener("click", async () => {
             return;
           }
 
-          // backend says app is now disabled and returns reportText
           const reportText = data.reportText || "Event report generated.";
 
-          // Download the report as TXT
           const blob = new Blob([reportText], { type: "text/plain" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
@@ -2228,7 +2646,6 @@ menuGenerateReportYesterday.addEventListener("click", async () => {
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
 
-          // Update UI as offline
           updateAppToggleUI(false);
           appToggleInput.checked = false;
           appToggleWrapper.classList.add("disabled");
@@ -2237,6 +2654,7 @@ menuGenerateReportYesterday.addEventListener("click", async () => {
           emptyText.style.display = "block";
           emptyText.textContent = "Server is offline for this event.";
           photoFrame.classList.add("empty");
+          if (pendingCountEl) pendingCountEl.textContent = "AWAITING APPROVAL: 0";
 
           alert("Server has been shut down and the event report was generated.");
         } catch (err) {
@@ -2244,7 +2662,6 @@ menuGenerateReportYesterday.addEventListener("click", async () => {
           alert("Could not shut down the server. Please try again.");
         }
       } else {
-        // User tried to turn ON from UI – not supported in this version
         appToggleInput.checked = appServerEnabled;
         if (!appServerEnabled) {
           alert("Server is offline for this event.\nTo start a new session, re-enable it on the server side.");
@@ -2253,6 +2670,89 @@ menuGenerateReportYesterday.addEventListener("click", async () => {
     }
 
     appToggleInput.addEventListener("change", handleToggleChange);
+
+    // --- LEFT NAV BEHAVIOR ---
+
+    function setActiveNav(button) {
+      [navDashboard, navApproved, navReports, navResetLogs].forEach((btn) => {
+        if (!btn) return;
+        btn.classList.toggle("active", btn === button);
+      });
+    }
+
+    if (navDashboard) {
+      navDashboard.addEventListener("click", () => {
+        setActiveNav(navDashboard);
+        // Dashboard is the default view; nothing extra to show/hide right now
+      });
+    }
+
+    if (navApproved) {
+      navApproved.addEventListener("click", () => {
+        setActiveNav(navApproved);
+        openApprovedOverlay();
+      });
+    }
+
+    if (navReports) {
+      navReports.addEventListener("click", () => {
+        setActiveNav(navReports);
+        if (!adminToken) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+        openReportOverlay();
+      });
+    }
+
+    if (navResetLogs) {
+      navResetLogs.addEventListener("click", () => {
+        setActiveNav(navResetLogs);
+        menuResetLogs.click();
+      });
+    }
+
+    if (lockAdminBtn) {
+      lockAdminBtn.addEventListener("click", () => {
+        clearAdminToken();
+        showLock("Session locked. Enter the access code to continue.");
+      });
+    }
+
+    // --- REPORT MODAL LOGIC ---
+
+    function openReportOverlay() {
+      reportOverlay.style.display = "flex";
+      reportPreview.textContent =
+        "Report preview will appear here once the backend preview endpoint is configured.";
+    }
+
+    function closeReportOverlay() {
+      reportOverlay.style.display = "none";
+    }
+
+    reportCloseBtn.addEventListener("click", closeReportOverlay);
+    reportOverlay.addEventListener("click", (e) => {
+      if (e.target === reportOverlay) {
+        closeReportOverlay();
+      }
+    });
+
+    reportViewBtn.addEventListener("click", async () => {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      // Placeholder: waiting for a dedicated preview endpoint.
+      // This avoids accidentally sending emails when the user only wants a preview.
+      reportPreview.textContent =
+        "Preview mode is UI-only for now.\n\nOnce the backend exposes a preview endpoint (e.g. /session-report-preview), this button can fetch the live report text and render it here without emailing or downloading anything.";
+    });
+
+    reportGenerateBtn.addEventListener("click", async () => {
+      await generateReportNow();
+    });
 
     // --- Try to restore existing session on load ---
     (function bootstrapAdmin() {
@@ -2269,12 +2769,10 @@ menuGenerateReportYesterday.addEventListener("click", async () => {
       adminToken = saved;
       hideLock();
 
-      // Fetch app status, then load photo + auto-refresh
       fetchAppStatus()
         .then(() => loadNextPhoto())
         .then(() => startAutoRefresh())
         .catch(() => {
-          // if it fails (token invalid) -> show lock again
           showLock();
         });
     })();
