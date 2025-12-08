@@ -1411,6 +1411,96 @@ app.get('/admin/approved-list', ensureAdminAuth, async (req, res) => {
   }
 });
 
+// --------- EVENT LOGS (for admin dashboard) ---------
+// Uses the SAME sheet (SESSION_SHEET_ID / A:J) that already stores all events.
+
+app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
+  try {
+    if (!SESSION_SHEET_ID) {
+      console.warn('SESSION_SHEET_ID missing, cannot read event logs.');
+      return res.json({ ok: true, events: [] });
+    }
+
+    const max = Math.min(parseInt(req.query.limit, 10) || 12, 50);
+
+    const apiRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: SESSION_SHEET_ID,
+      range: SESSION_SHEET_RANGE, // "A:J"
+    });
+
+    const rows = apiRes.data.values || [];
+    if (rows.length <= 1) {
+      // Only headers
+      return res.json({ ok: true, events: [] });
+    }
+
+    // Skip header row, then take last N and reverse so newest is on top
+    const dataRows = rows.slice(1);
+    const lastRows = dataRows.slice(-max).reverse();
+
+    const events = lastRows.map((row) => {
+      const tsUtc = row[0] || '';  // timestamp_utc (ISO)
+      const tsPr  = row[1] || '';  // timestamp_pr "DD/MM/YYYY HH:MM:SS"
+      const eventType = row[2] || '';
+      const email     = row[3] || '';
+      const newsletterFlag = row[8] || ''; // "Y" / "N" / ""
+
+      // --- TIME LABEL (we prefer PR time if available) ---
+      let timeText = '';
+      if (tsPr) {
+        // "DD/MM/YYYY HH:MM:SS" -> keep HH:MM
+        const parts = tsPr.split(' ');
+        if (parts.length >= 2) {
+          timeText = parts[1].slice(0, 5); // "HH:MM"
+        } else {
+          timeText = tsPr;
+        }
+      } else if (tsUtc) {
+        const d = new Date(tsUtc);
+        if (!Number.isNaN(d.getTime())) {
+          timeText = d.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+          });
+        } else {
+          timeText = tsUtc;
+        }
+      } else {
+        timeText = '--:--';
+      }
+
+      // --- TEXT LABEL (what right panel shows) ---
+      let text = 'Activity';
+
+      switch (eventType) {
+        case 'visit':
+          text = 'User visited the web app';
+          break;
+        case 'form':
+          if (newsletterFlag === 'Y') {
+            text = 'User submitted a form & subscribed to newsletter';
+          } else {
+            text = 'User submitted a form';
+          }
+          break;
+        case 'upload':
+          text = 'User uploaded a photo';
+          break;
+        default:
+          // If we ever start logging other types, at least show the type
+          text = eventType || 'Activity';
+          break;
+      }
+
+      return { time: timeText, text };
+    });
+
+    return res.json({ ok: true, events });
+  } catch (err) {
+    console.error('Error loading event logs:', err);
+    return res.status(500).json({ ok: false, error: 'event_log_fetch_failed' });
+  }
+});
 // Delete a single approved photo (send to trash)
 app.post('/admin/delete-approved', ensureAdminAuth, async (req, res) => {
   try {
