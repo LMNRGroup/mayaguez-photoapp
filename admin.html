@@ -1582,6 +1582,7 @@ Report preview will appear here once the backend preview endpoint is configured.
     // NEW: photo meta elements
     const photoLabel = document.getElementById("photoLabel");
     const pendingCountEl = document.getElementById("pendingCount");
+    const eventLogList = document.getElementById("eventLogList");
         // Pending counter state (frontend)
     let pendingCountState = 0;
     // Delta we expect after our own actions (approve/reject)
@@ -1619,7 +1620,70 @@ Report preview will appear here once the backend preview endpoint is configured.
 
       updatePendingDisplay();
     }
+        // --- EVENT LOGS (right sidebar) ---
 
+    function renderEventLogs(events) {
+      if (!eventLogList) return;
+
+      eventLogList.innerHTML = "";
+
+      if (!events || !events.length) {
+        const li = document.createElement("li");
+        li.className = "event-log-item";
+
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "event-log-time";
+        timeSpan.textContent = "--:--";
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "event-log-text";
+        textSpan.textContent = "No recent events.";
+
+        li.appendChild(timeSpan);
+        li.appendChild(textSpan);
+        eventLogList.appendChild(li);
+        return;
+      }
+
+      events.forEach((evt) => {
+        const li = document.createElement("li");
+        li.className = "event-log-item";
+
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "event-log-time";
+        timeSpan.textContent = evt.time || "--:--";
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "event-log-text";
+        textSpan.textContent = evt.text || "";
+
+        li.appendChild(timeSpan);
+        li.appendChild(textSpan);
+        eventLogList.appendChild(li);
+      });
+    }
+
+    async function fetchEventLogs() {
+      if (!adminToken) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/event-logs?limit=12`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          // auth will be handled by other flows; don't spam the lock
+          return;
+        }
+
+        const data = await res.json();
+        if (data && Array.isArray(data.events)) {
+          renderEventLogs(data.events);
+        }
+      } catch (err) {
+        console.error("Error fetching event logs", err);
+      }
+    }
     // LEFT NAV
     const navDashboard = document.getElementById("navDashboard");
     const navApproved = document.getElementById("navApproved");
@@ -1884,6 +1948,7 @@ function hideReportLoading() {
 
             await fetchAppStatus();
             await loadNextPhoto();
+            await fetchEventLogs();
             startAutoRefresh();
           }, 850);
         } else if (res.status === 401 && data.remainingAttempts != null) {
@@ -2129,9 +2194,12 @@ function hideReportLoading() {
           return;
         }
 
-        if (currentFileId === null || data.fileId !== currentFileId) {
+                if (currentFileId === null || data.fileId !== currentFileId) {
           await loadNextPhoto();
         }
+
+        // also refresh event logs on the same cadence
+        await fetchEventLogs();
       } catch (err) {
         console.error("Auto-refresh error", err);
       }
@@ -2928,6 +2996,7 @@ reportViewBtn.addEventListener("click", async () => {
 
       fetchAppStatus()
         .then(() => loadNextPhoto())
+        .then(() => fetchEventLogs())
         .then(() => startAutoRefresh())
         .catch(() => {
           showLock();
