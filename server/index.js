@@ -456,6 +456,19 @@ async function getNextPendingPhoto() {
   return files[0]; // { id, name }
 }
 
+// NEW: count pending photos for admin UI "AWAITING APPROVAL"
+async function countPendingPhotos() {
+  const res = await drive.files.list({
+    q: `'${PENDING_FOLDER_ID}' in parents and trashed = false`,
+    fields: 'files(id), nextPageToken',
+    pageSize: 1000,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+  const files = res.data.files || [];
+  return files.length;
+}
+
 // List all files in a Drive folder (non-trashed)
 async function listFilesInFolder(folderId) {
   let pageToken = null;
@@ -1243,17 +1256,29 @@ app.post('/admin/shutdown', ensureAdminAuth, async (req, res) => {
 app.get('/admin/next-photo', ensureAdminAuth, async (req, res) => {
   try {
     if (!appEnabled) {
-      return res.json({ empty: true, reason: 'app_offline' });
+      // app offline – no photo, but we keep response shape compatible
+      return res.json({ empty: true, reason: 'app_offline', pendingCount: 0 });
     }
 
-    const file = await getNextPendingPhoto();
+    // Get oldest pending photo + how many remain
+    const [file, pendingCount] = await Promise.all([
+      getNextPendingPhoto(),
+      countPendingPhotos()
+    ]);
+
     if (!file) {
-      return res.json({ empty: true });
+      return res.json({ empty: true, pendingCount });
     }
+
+    // NEW: photoNumber based on filename ticket (T001-…)
+    const photoNumber = extractTicketNumber(file.name);
+
     res.json({
       empty: false,
       fileId: file.id,
-      name: file.name
+      name: file.name,
+      photoNumber,    // e.g. 1, 2, 3…
+      pendingCount    // total pending in folder
     });
   } catch (err) {
     console.error('Error fetching next pending photo:', err);
@@ -1515,6 +1540,7 @@ app.post('/session-report-now', async (req, res) => {
     res.status(500).json({ ok: false, error: 'report_failed' });
   }
 });
+
 // Generate report for a specific PR date (YYYY-MM-DD)
 app.post('/session-report-date', async (req, res) => {
   try {
