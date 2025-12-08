@@ -1205,13 +1205,15 @@
       <div class="lock-card" id="lockCard">
         <div id="lockTitle" class="lock-title">Restricted access</div>
 
-        <input
+                <input
           id="accessCode"
           class="lock-input"
           type="password"
           placeholder="Access code"
           autocomplete="off"
-          inputmode="numeric"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
         />
 
         <button id="accessSubmit" class="lock-button">ENTER</button>
