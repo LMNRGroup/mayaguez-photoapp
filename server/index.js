@@ -710,6 +710,42 @@ function buildPlainTextSessionReport(longDate, visits, forms, uploads, prime, ne
 
   return report;
 }
+// Live in-app report preview (no email, just returns text)
+app.get('/session-report-preview', ensureAdminAuth, 
+  async (req, res) => {
+  try {
+    const {
+      visits,
+      forms,
+      uploads,
+      eventsForPrimeHour,
+      newsletterEmails = []
+    } = await getTodayStatsFromSheet();
+
+    const prime = computePrimeHour(eventsForPrimeHour);
+    const longDate = formatPRDateLong();
+
+    const reportText = buildPlainTextSessionReport(
+      longDate,
+      visits,
+      forms,
+      uploads,
+      prime,
+      newsletterEmails
+    );
+
+    return res.json({
+      ok: true,
+      reportText
+    });
+  } catch (err) {
+    console.error('Error in /session-report-preview:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'report_preview_failed'
+    });
+  }
+});
 
 // ---------- DAILY REPORT EMAIL (uses Sheet data) ----------
 async function sendSessionReportEmailFromSheet() {
