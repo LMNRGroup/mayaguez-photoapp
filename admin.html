@@ -4,14 +4,23 @@
   <meta charset="UTF-8" />
   <title>Photo Review – Selfie App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <style>
+    <style>
     /* PIXY BRAND FONT */
     @font-face {
       font-family: 'Pixy';
       src: url('Assets/PIXY.woff2') format('woff2'),
            url('Assets/PIXY.woff') format('woff');
       font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    /* FUTURA LIGHT (for nav items + approve/reject buttons) */
+    @font-face {
+      font-family: 'FuturaBT-Light';
+      src: url('Assets/FuturaBT-Light.woff2') format('woff2'),
+           url('Assets/FuturaBT-Light.woff') format('woff');
+      font-weight: 300;
       font-style: normal;
       font-display: swap;
     }
@@ -257,6 +266,16 @@
       position: relative;
     }
 
+    /* Futura ONLY on the four main nav items */
+    #navDashboard,
+    #navApproved,
+    #navReports,
+    #navResetLogs {
+      font-family: 'FuturaBT-Light', system-ui, -apple-system,
+        BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-weight: 300;
+    }
+
     .nav-item::before {
       content: "";
       position: absolute;
@@ -373,10 +392,12 @@
       border: 1px solid rgba(55, 65, 81, 0.9);
       padding: 10px 14px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 400;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 0.08em;
+      font-family: 'FuturaBT-Light', system-ui, -apple-system,
+        BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
 
     .btn-reject {
@@ -947,6 +968,14 @@
       white-space: pre-wrap;
     }
 
+    /* Report loading container for Lottie */
+    .report-loading {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      height: 120px;
+    }
+
     /* LOCK SCREEN */
 
     .lock-screen {
@@ -1112,6 +1141,7 @@
 
     /* RESPONSIVE */
 
+    /* Tablets / small laptops */
     @media (max-width: 1024px) {
       body {
         padding: 12px;
@@ -1129,6 +1159,14 @@
       .center-panel { grid-area: center; }
       .sidebar-right { grid-area: right; }
     }
+
+    /* Phones – stacked vertical layout */
+    @media (max-width: 768px) {
+      .admin-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
 
       .card-main {
         grid-template-columns: minmax(0, 1fr);
@@ -1173,20 +1211,9 @@
       .activity-bars {
         gap: 4px;
       }
-      .report-loading {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  height: 120px;
-}
-        @media (max-width: 768px) {
-      .admin-header {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
     }
   </style>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" integrity="sha512-tB17y8UnF6R45OZyeP+fM4x6hzFH6qC1t1PmiJdWWYV7eonbbyrcF0av8RyzZkjIl95QoUiG+2l3OjVhL7Jqmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
