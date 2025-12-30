@@ -1,807 +1,1260 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>TriviaApp</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¡Encendido de Navidad!</title>
   <style>
-    :root{
-      --navy:#0A192F;
-      --gold:#D4AF37;
-      --dark:#020617;
-      --panel:#020b1b;
-      --light:#F4F4F4;
-      --muted:#9CA3AF;
-      --danger:#F97373;
-      --success:#10B981;
-      --line:rgba(212,175,55,0.35);
-      --line2:rgba(55,65,81,0.75);
-      --shadow:0 18px 45px rgba(0,0,0,0.75);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      color: var(--light);
-      background: var(--navy);
+    /* Custom font-face */
+    @font-face {
+      font-family: 'HelveticaNowTextExtraBold';
+      src: url('Assets/HelveticaNowText-ExtraBold.ttf.woff') format('woff');
+      font-weight: bold;
+      font-style: normal;
     }
 
-    *{ box-sizing:border-box; }
-    html, body { height:100%; }
-    body{
-      margin:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background: radial-gradient(circle at top, #0f172a, var(--navy));
-      overflow:hidden; /* big screen: no scroll */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-image: url('Assets/Encendido_BG.png');
+      background-size: cover;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
     }
 
-    /* 1920x1080 fixed stage */
-    .stage{
-      width:1920px;
-      height:1080px;
-      position:relative;
-      padding:24px;
-      display:flex;
-      flex-direction:column;
-      gap:16px;
+    .container {
+      width: 85vw;
+      max-width: 400px;
+      padding: 20px 15px;
+      margin-top: 20px;
+      background: transparent;
+      position: relative;
+      border-radius: 25px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
     }
 
-    /* Header pill */
-    .header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:10px 18px;
-      border-radius:999px;
-      background: var(--panel);
-      border:1px solid var(--line);
-      box-shadow:0 10px 30px rgba(0,0,0,0.55);
-      gap:12px;
-      flex:0 0 auto;
-    }
-    .header-left, .header-right{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-width:0;
-    }
-    .brand{
-      font-size:14px;
-      letter-spacing:0.22em;
-      text-transform:uppercase;
-      color:var(--gold);
-      white-space:nowrap;
-    }
-    .title{
-      flex:1;
-      text-align:center;
-      font-size:22px;
-      letter-spacing:0.28em;
-      text-transform:uppercase;
-      color:var(--gold);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .pill{
-      font-size:11px;
-      padding:6px 14px;
-      border-radius:999px;
-      border:1px solid rgba(212,175,55,0.6);
-      background: rgba(10,25,47,0.9);
-      color:var(--light);
-      letter-spacing:0.16em;
-      text-transform:uppercase;
-      white-space:nowrap;
-    }
-    .pill.danger{
-      border-color: var(--danger);
-      color:#fecaca;
-    }
-    .pill.success{
-      border-color: rgba(16,185,129,0.9);
-      color:#a7f3d0;
+    /* GOLD OUTLINE AS FRAME, NO FILL */
+    .container::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 25px;
+      padding: 4px;
+      background: linear-gradient(
+        135deg,
+        #b8860b,
+        #ffd700,
+        #fff3b0,
+        #ffd700,
+        #b8860b
+      );
+      -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
     }
 
-    /* Main card */
-    .card{
-      flex:1 1 auto;
-      background: rgba(2,11,27,0.96);
-      border-radius:20px;
-      box-shadow: var(--shadow);
-      border:1px solid rgba(15,23,42,0.9);
-      padding:18px;
-      display:flex;
-      flex-direction:column;
-      gap:14px;
-      min-height:0;
+    @media (max-width: 375px) {
+      .container {
+        width: 90vw;
+        max-width: none;
+        padding: 15px 5px;
+      }
     }
 
-    .toprow{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:6px 4px 2px;
-    }
-    .meta-left{
-      display:flex;
-      align-items:baseline;
-      gap:12px;
-      min-width:0;
-    }
-    .qprogress{
-      font-size:14px;
-      letter-spacing:0.16em;
-      text-transform:uppercase;
-      color:var(--gold);
-      white-space:nowrap;
-    }
-    .score{
-      font-size:14px;
-      letter-spacing:0.12em;
-      text-transform:uppercase;
-      color:var(--light);
-      white-space:nowrap;
-    }
-    .timer{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      white-space:nowrap;
-    }
-    .timer-label{
-      font-size:12px;
-      letter-spacing:0.16em;
-      text-transform:uppercase;
-      color:var(--muted);
-    }
-    .timer-value{
-      font-size:18px;
-      letter-spacing:0.08em;
-      text-transform:uppercase;
-      color:var(--light);
-      padding:6px 12px;
-      border-radius:999px;
-      border:1px solid var(--line2);
-      background: #020617;
-      min-width:84px;
-      text-align:center;
-    }
-    .timer-value.low{
-      border-color: rgba(249,115,115,0.85);
-      color:#fecaca;
+    /* Wrapper that holds camera + controls for responsive layout */
+    .camera-controls-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    .question{
-      flex:0 0 auto;
-      background: radial-gradient(circle at top, #020617, #020b1b);
-      border-radius:16px;
-      border:1px solid rgba(31,41,55,0.9);
-      padding:18px 18px 16px;
-      box-shadow:0 18px 40px rgba(0,0,0,0.55);
-    }
-    .question h2{
-      margin:0 0 10px;
-      font-size:28px;
-      line-height:1.22;
-      letter-spacing:0.02em;
-      color:var(--light);
-      font-weight:650;
-    }
-    .subline{
-      font-size:12px;
-      color:var(--muted);
-      letter-spacing:0.12em;
-      text-transform:uppercase;
+    /* Camera frame: default 2:3 portrait box (live camera) */
+    .camera-area {
+      width: 100%;
+      max-width: 300px;
+      aspect-ratio: 2 / 3;
+      margin: 30px auto 15px;
+      background-color: #000;
+      position: relative;
+      overflow: hidden;
     }
 
-    .answers{
-      flex:1 1 auto;
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:14px;
-      min-height:0;
+    /* When showing the captured preview, force horizontal 3:2 */
+    .camera-area.preview-mode {
+      aspect-ratio: 3 / 2;
+      max-width: 100%;
     }
 
-    .ans{
-      border-radius:18px;
-      border:1px solid rgba(55,65,81,0.9);
-      background:#020617;
-      color:var(--light);
-      padding:18px 18px;
-      display:flex;
-      gap:14px;
-      align-items:flex-start;
-      justify-content:flex-start;
-      box-shadow:0 14px 35px rgba(0,0,0,0.45);
-      position:relative;
-      overflow:hidden;
-    }
-    .ans::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      opacity:0;
-      transition: opacity 0.16s ease;
-      pointer-events:none;
-      background: linear-gradient(to right, rgba(212,175,55,0.14), transparent);
-    }
-    .ans.active::after{ opacity:1; }
-    .badge{
-      flex:0 0 auto;
-      width:44px;
-      height:44px;
-      border-radius:999px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border:1px solid rgba(212,175,55,0.55);
-      color:var(--gold);
-      letter-spacing:0.12em;
-      font-weight:750;
-      background: rgba(10,25,47,0.75);
-    }
-    .ans-text{
-      flex:1 1 auto;
-      font-size:22px;
-      line-height:1.22;
-      letter-spacing:0.01em;
-      color:var(--light);
-      word-break:break-word;
-      overflow-wrap:anywhere;
+    /* Video & canvas fill the frame and are cropped */
+    #video,
+    #canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      display: block;
+      object-fit: cover;
+      background-color: #000;
     }
 
-    /* highlight states after answer */
-    .ans.correct{
-      border-color: rgba(16,185,129,0.95);
-      box-shadow: 0 0 0 1px rgba(16,185,129,0.45), 0 18px 45px rgba(0,0,0,0.6);
-    }
-    .ans.correct .badge{
-      border-color: rgba(16,185,129,0.95);
-      color:#a7f3d0;
-    }
-    .ans.incorrect{
-      border-color: rgba(249,115,115,0.95);
-      box-shadow: 0 0 0 1px rgba(249,115,115,0.35), 0 18px 45px rgba(0,0,0,0.6);
-    }
-    .ans.incorrect .badge{
-      border-color: rgba(249,115,115,0.95);
-      color:#fecaca;
+    /* Front camera “un-mirror” – added/removed from JS */
+    #video.front-unmirror {
+      transform: scaleX(-1);
     }
 
-    /* Splash overlay */
-    .overlay{
-      position:absolute;
-      inset:0;
-      background: radial-gradient(circle at top, rgba(2,6,23,0.96), rgba(2,6,23,0.98));
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:28px;
-      z-index:50;
-    }
-    .overlay.hidden{ display:none; }
-    .overlay-card{
-      width:100%;
-      max-width:920px;
-      background: #020617;
-      border-radius:20px;
-      border:1px solid rgba(212,175,55,0.55);
-      box-shadow:0 22px 55px rgba(0,0,0,0.85);
-      padding:22px 22px 18px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-      text-align:center;
-    }
-    .overlay-title{
-      margin:0;
-      font-size:28px;
-      letter-spacing:0.16em;
-      text-transform:uppercase;
-      color:var(--gold);
-      font-weight:700;
-    }
-    .overlay-sub{
-      margin:0;
-      font-size:13px;
-      color:var(--muted);
-      letter-spacing:0.08em;
-      line-height:1.55;
-    }
-    .code-row{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:8px;
-    }
-    .code{
-      font-size:44px;
-      letter-spacing:0.18em;
-      text-transform:uppercase;
-      color:var(--light);
-      padding:12px 18px;
-      border-radius:18px;
-      border:1px solid rgba(55,65,81,0.9);
-      background: rgba(2,11,27,0.98);
-      min-width:360px;
-      text-align:center;
-    }
-    .hint{
-      font-size:11px;
-      color:var(--muted);
-      letter-spacing:0.14em;
-      text-transform:uppercase;
-    }
-    .overlay-footer{
-      margin-top:6px;
-      font-size:11px;
-      color:var(--muted);
-      letter-spacing:0.12em;
-      text-transform:uppercase;
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 2px solid white;
+      border-radius: 4px;
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      text-transform: uppercase;
     }
 
-    /* End overlay */
-    .end-score{
-      font-size:68px;
-      letter-spacing:0.08em;
-      text-transform:uppercase;
-      color:var(--light);
-      margin: 8px 0 0;
-    }
-    .end-sub{
-      font-size:13px;
-      color:var(--muted);
-      letter-spacing:0.10em;
-      margin: 4px 0 0;
-      text-transform:uppercase;
+    #switchCameraButton {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #292725;
+      color: white;
+      width: 150px;
     }
 
-    /* Tiny top-right hint */
-    .corner-hint{
-      position:absolute;
-      right:26px;
-      bottom:18px;
-      font-size:10px;
-      color:rgba(156,163,175,0.85);
-      letter-spacing:0.12em;
-      text-transform:uppercase;
-      z-index:5;
-      user-select:none;
+    #switchCameraButton img {
+      width: 20px;
+      margin-right: 10px;
+    }
+
+    #captureButton,
+    #uploadButton,
+    #retakeButton {
+      background-color: #3ca360;
+      color: white;
+      width: 150px;
+    }
+
+    #retakeButton {
+      background-color: #e74c3c;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+    }
+
+    /* Upload loading spinner on button */
+    .button-loading {
+      position: relative;
+      opacity: 0.8;
+    }
+
+    .button-loading::after {
+      content: "";
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      margin-top: -7px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #errorLog {
+      color: white;
+      margin-top: 10px;
+      font-size: 11px;
+    }
+
+    .footer-text {
+      font-size: 12px;
+      color: black;
+      text-align: center;
+      margin-top: 5px;
+      font-weight: bold;
+    }
+
+    .app-footer {
+      font-size: 10px;
+      color: white;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .disclaimer {
+      font-size: 10px;
+      color: white;
+      text-align: center;
+      margin-top: 20px;
+      margin-bottom: 0;
+      line-height: 1.4;
+      width: 100%;
+    }
+
+    .disclaimer strong {
+      text-decoration: underline;
+    }
+
+    .button-group {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .btn-slot {
+      position: relative;
+    }
+
+    .btn-slot button {
+      width: 150px;
+    }
+
+    .logo-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    #topLogo {
+      width: 75%;
+      max-width: 250px;
+      height: auto;
+      display: block;
+    }
+
+    @media (max-height: 750px) {
+      #topLogo {
+        width: 75%;
+        max-width: 250px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      button {
+        font-size: 12px;
+        padding: 8px 16px;
+      }
+
+      #switchCameraButton img {
+        width: 16px;
+      }
+    }
+
+    /* Intro overlay */
+    @keyframes intro-shake {
+      0%   { transform: translateX(0); }
+      20%  { transform: translateX(-6px); }
+      40%  { transform: translateX(6px); }
+      60%  { transform: translateX(-4px); }
+      80%  { transform: translateX(4px); }
+      100% { transform: translateX(0); }
+    }
+
+    .intro-box.shake {
+      animation: intro-shake 0.35s ease;
+    }
+
+    #introModal {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      display: flex;
+    }
+
+    .intro-backdrop {
+      background: rgba(0, 0, 0, 0.75);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .intro-box {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 28px 22px;
+      max-width: 340px;
+      width: 85vw;
+      text-align: center;
+      display: flex;
+      position: relative;
+      flex-direction: column;
+      justify-content: flex-start;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .intro-box h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .intro-box p {
+      margin: 0 0 16px;
+      font-size: 13px;
+      color: #444;
+    }
+
+    .intro-close {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-size: 20px;
+      color: #888;
+      cursor: pointer;
+      font-weight: thin;
+    }
+
+    .intro-close:hover {
+      color: #888888;
+    }
+
+    #countrySelect,
+    #regionSelect,
+    #lastNameInput,
+    #emailInput {
+      width: 100%;
+      padding: 8px 10px;
+      margin-bottom: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    #countrySelect,
+    #regionSelect {
+      background: #fff;
+    }
+
+    .intro-buttons {
+      display: flex;
+      justify-content: center;
+    }
+
+    #submitIntroButton {
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 6px;
+      border: none;
+      text-transform: uppercase;
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      background: #3ca360;
+      color: #fff;
+      width: 100%;
+    }
+
+    .intro-error {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #d32f2f;
+    }
+
+    .upload-status {
+      font-size: 11px;
+      color: #ffffff;
+      text-align: center;
+      margin-top: 4px;
+      min-height: 14px;
+    }
+
+    .newsletter-label {
+      font-size: 12px;
+      color: #444;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 6px;
+      text-align: left;
+    }
+
+    .newsletter-label input {
+      margin-top: 2px;
+    }
+
+    .thank-you-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 1000;
+      text-align: center;
+      max-width: 90vw;
+    }
+
+    .thank-you-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .controls-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .orientation-hint {
+      font-size: 11px;
+      color: #f9fafb;
+      text-align: center;
+      margin-top: 6px;
+      opacity: 0.85;
+    }
+
+    @media (orientation: landscape) {
+      .container {
+        max-width: 1000px;
+        margin-top: 40px;
+      }
+
+      .camera-controls-wrapper {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 35px;
+        margin-top: 20px;
+      }
+
+      .camera-area {
+        flex: 0 0 auto;
+        width: 65%;
+        max-width: 700px;
+        aspect-ratio: 3 / 2;
+        margin: 0 auto;
+      }
+
+      .controls-column {
+        flex: 0 0 auto;
+        width: 25%;
+        max-width: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 40px;
+      }
+
+      .button-group {
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+      }
+    }
+
+    /* TICKET OVERLAY (turno de foto) */
+    .ticket-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      display: none;
+    }
+
+    .ticket-backdrop {
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .ticket-card {
+      background: #f5e6c8;
+      border-radius: 18px;
+      padding: 20px 18px 18px;
+      max-width: 320px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      position: relative;
+      text-align: center;
+      border: 2px dashed #b48a3a;
+    }
+
+    .ticket-tag {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #8a5a16;
+      margin-bottom: 6px;
+    }
+
+    .ticket-number {
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      font-size: 40px;
+      letter-spacing: 0.12em;
+      color: #2b1a07;
+      margin: 4px 0 8px;
+    }
+
+    .ticket-text {
+      font-size: 13px;
+      color: #3f2a11;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .ticket-note {
+      font-size: 11px;
+      color: #6b4a1e;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+
+    .ticket-close-button {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      background: #3ca360;
+      color: #ffffff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      cursor: pointer;
+    }
+
+    .ticket-close-button:active {
+      transform: scale(0.98);
     }
   </style>
 </head>
 <body>
-  <div class="stage">
-    <header class="header">
-      <div class="header-left">
-        <div class="brand">LMNR TRIVIA</div>
-      </div>
+  <!-- Intro overlay -->
+  <div id="introModal">
+    <div class="intro-backdrop">
+      <div class="intro-box">
+        <div class="intro-close" id="introClose">×</div>
 
-      <div class="title">TRIVIA APP</div>
+        <h2>¿Desde dónde nos visitas? 😊</h2>
+        <p>Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.</p>
 
-      <div class="header-right">
-        <span id="statusPill" class="pill">STATUS: LOADING…</span>
-      </div>
-    </header>
+        <select id="countrySelect">
+          <option value="">Selecciona tu país</option>
+          <option value="Puerto Rico">Puerto Rico</option>
+          <option value="Estados Unidos">Estados Unidos</option>
+        </select>
 
-    <main class="card">
-      <div class="toprow">
-        <div class="meta-left">
-          <div id="qProgress" class="qprogress">QUESTION 1 / 20</div>
-          <div id="scoreLine" class="score">SCORE: 0</div>
-        </div>
-        <div class="timer">
-          <div class="timer-label">Timer</div>
-          <div id="timerValue" class="timer-value">30s</div>
-        </div>
-      </div>
+        <select id="regionSelect" disabled>
+          <option value="">Selecciona tu municipio/estado</option>
+        </select>
 
-      <section class="question">
-        <div class="subline" id="subline">WAITING FOR CONTROLLER…</div>
-        <h2 id="questionText">Create a session to begin.</h2>
-      </section>
+        <input type="text" id="lastNameInput" placeholder="Apellidos de la familia (Ej. Pérez González)">
+        <input
+          type="email"
+          id="emailInput"
+          placeholder="Correo electrónico"
+          required
+          pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+        />
 
-      <section class="answers" id="answersGrid">
-        <div class="ans" id="ansA">
-          <div class="badge">A</div>
-          <div class="ans-text" id="ansAText">—</div>
-        </div>
-        <div class="ans" id="ansB">
-          <div class="badge">B</div>
-          <div class="ans-text" id="ansBText">—</div>
-        </div>
-        <div class="ans" id="ansC">
-          <div class="badge">C</div>
-          <div class="ans-text" id="ansCText">—</div>
-        </div>
-        <div class="ans" id="ansD">
-          <div class="badge">D</div>
-          <div class="ans-text" id="ansDText">—</div>
-        </div>
-      </section>
-    </main>
+        <label class="newsletter-label">
+          <input type="checkbox" id="newsletterOptIn">
+          <span>
+            Deseo recibir noticias y ofertas de
+            <strong>Municipio de Mayagüez.</strong>
+          </span>
+        </label>
 
-    <div class="corner-hint">Open user.html on phone • enter passkey • type session code</div>
-
-    <!-- Splash / Session overlay -->
-    <div id="splashOverlay" class="overlay">
-      <div class="overlay-card">
-        <h1 class="overlay-title">READY</h1>
-        <p class="overlay-sub">
-          Open <b>user.html</b> on your phone, enter the passkey, and type this session code:
+        <p style="font-size:9px; color:#666; margin:2px 0 12px;">
+          Tu email será utilizado únicamente si autorizas recibir nuestro boletín.
         </p>
 
-        <div class="code-row">
-          <div id="roomCodeEl" class="code">—</div>
+        <div class="intro-buttons">
+          <button id="submitIntroButton">CONTINUAR</button>
         </div>
-        <div class="hint">This code changes every session</div>
+        <div id="introError" class="intro-error"></div>
+      </div>
+    </div>
+  </div>
 
-        <div id="overlayFooter" class="overlay-footer">Creating session…</div>
+  <!-- Main container -->
+  <div class="container">
+    <div class="logo-wrapper">
+      <img id="topLogo" src="Assets/Logo Mayaguez.png" alt="Logo Mayagüez">
+    </div>
+
+    <!-- Camera + controls wrapper for responsive layout -->
+    <div class="camera-controls-wrapper">
+      <div class="camera-area" id="cameraArea">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+      </div>
+
+      <div class="controls-column">
+        <div class="button-group">
+          <div class="btn-slot">
+            <button id="switchCameraButton">
+              <img src="Assets/Camera Switch Icon.png" alt="Switch Icon">VOLTEAR
+            </button>
+            <button id="retakeButton" style="display:none;">RETOMAR</button>
+          </div>
+
+          <div class="btn-slot">
+            <button id="captureButton">¡TOMAR SELFIE!</button>
+            <button id="uploadButton" style="display:none;">SUBIR FOTO</button>
+          </div>
+        </div>
+
+        <div id="uploadStatus" class="upload-status"></div>
+        <div class="orientation-hint">
+          Para mejores resultados, gira tu teléfono a posición horizontal antes de tomar la foto.
+        </div>
+        <div id="errorLog"></div>
       </div>
     </div>
 
-    <!-- End overlay -->
-    <div id="endOverlay" class="overlay hidden">
-      <div class="overlay-card">
-        <h1 class="overlay-title">FINISHED</h1>
-        <div id="endScore" class="end-score">SCORE: 0 / 20</div>
-        <div class="end-sub">Returning to splash for next player…</div>
+    <div class="footer-text">Municipio de Mayagüez.</div>
+
+    <div class="disclaimer">
+      Al tomar una foto, aceptas que será mostrada públicamente en la pantalla durante el evento.
+      <strong>Sube solo contenido apropiado para un ambiente familiar.</strong>
+      Las imágenes subidas podrán ser utilizadas en las redes sociales del Municipio de Mayagüez.
+    </div>
+  </div>
+
+  <div class="footer-text app-footer">
+    Luminar Apps<br>© 2025 LMNR Group LLC. All rights reserved.
+  </div>
+
+  <div id="thankYouToast" class="thank-you-toast"></div>
+
+  <!-- Ticket overlay (turno de foto) -->
+  <div id="ticketOverlay" class="ticket-overlay">
+    <div class="ticket-backdrop">
+      <div class="ticket-card">
+        <div class="ticket-tag">FOTO RECIBIDA</div>
+        <div id="ticketNumber" class="ticket-number">#000</div>
+        <div id="ticketText" class="ticket-text">
+          Tu número de turno es el que ves en este boleto.
+        </div>
+        <div class="ticket-note">
+          Tu foto será mostrada en la pantalla principal en los próximos minutos.
+          Conserva este número para verificar tu turno.
+        </div>
+        <div class="ticket-disclaimer" style="font-size:11px; color:#6b4a1e; margin-top:6px; line-height:1.4;">
+          Nota: Tu foto será mostrada en la pantalla principal <strong>una vez sea aprobada por el equipo del evento</strong>.  
+          Algunas fotos podrían no ser utilizadas.
+        </div>
+        <button id="ticketClose" class="ticket-close-button">
+          LISTO
+        </button>
       </div>
     </div>
   </div>
 
   <script>
-    /**
-     * Big Screen logic
-     * - Creates room/session in KV via /api/create-room
-     * - Displays roomCode on splash
-     * - Waits for controller to join (via /api/poll-answer returning controllerConnected or via /api/host-state + /api/poll-answer)
-     * - Runs timer locally
-     * - Polls /api/poll-answer for answers
-     * - Highlights chosen answer, updates score, advances
-     * - After Q20 -> show final -> reset room -> return to splash
-     */
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureButton = document.getElementById('captureButton');
+    const uploadButton = document.getElementById('uploadButton');
+    const retakeButton = document.getElementById('retakeButton');
+    const switchCameraButton = document.getElementById('switchCameraButton');
+    const errorLog = document.getElementById('errorLog');
+    const introModal = document.getElementById('introModal');
+    const introClose = document.getElementById('introClose');
+    const countrySelect = document.getElementById('countrySelect');
+    const regionSelect = document.getElementById('regionSelect');
+    const lastNameInput = document.getElementById('lastNameInput');
+    const emailInput = document.getElementById('emailInput');
+    const submitIntroButton = document.getElementById('submitIntroButton');
+    const introError = document.getElementById('introError');
+    const introBox = document.querySelector('.intro-box');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const thankYouToast = document.getElementById('thankYouToast');
+    const cameraArea = document.getElementById('cameraArea');
 
-    // ====== Embedded questions (20) ======
-    // Replace these with your real 20 questions anytime.
-    const QUESTIONS = [
-      { q: "Which color is used as the main accent in this UI style?", a:"Gold", b:"Purple", c:"Orange", d:"Pink", correct:"A" },
-      { q: "What is 5 + 7?", a:"10", b:"12", c:"13", d:"14", correct:"B" },
-      { q: "Which one is a web browser?", a:"Photoshop", b:"Illustrator", c:"Chrome", d:"Figma", correct:"C" },
-      { q: "Which planet is known as the Red Planet?", a:"Venus", b:"Mars", c:"Jupiter", d:"Mercury", correct:"B" },
-      { q: "What does CPU stand for?", a:"Central Processing Unit", b:"Computer Power Utility", c:"Control Panel User", d:"Core Processing Umbrella", correct:"A" },
-      { q: "How many seconds are in one minute?", a:"30", b:"45", c:"60", d:"90", correct:"C" },
-      { q: "Which is a primary color?", a:"Green", b:"Purple", c:"Orange", d:"Blue", correct:"D" },
-      { q: "What is the capital of Puerto Rico?", a:"Ponce", b:"San Juan", c:"Mayagüez", d:"Arecibo", correct:"B" },
-      { q: "Which is a JavaScript framework?", a:"Next.js", b:"Excel", c:"Word", d:"PowerPoint", correct:"A" },
-      { q: "What is 9 × 3?", a:"18", b:"21", c:"27", d:"30", correct:"C" },
-      { q: "Which animal barks?", a:"Cat", b:"Dog", c:"Cow", d:"Fish", correct:"B" },
-      { q: "What does HTML stand for?", a:"HyperText Markup Language", b:"HighText Machine Language", c:"Hyper Tool Multi Language", d:"Home Text Markup Link", correct:"A" },
-      { q: "What is the opposite of 'hot'?", a:"Warm", b:"Boiling", c:"Cold", d:"Spicy", correct:"C" },
-      { q: "Which is larger: KB or MB?", a:"KB", b:"MB", c:"Same", d:"Neither", correct:"B" },
-      { q: "How many days are in a week?", a:"5", b:"6", c:"7", d:"8", correct:"C" },
-      { q: "Which one is a fruit?", a:"Carrot", b:"Potato", c:"Apple", d:"Lettuce", correct:"C" },
-      { q: "What is 100 / 4?", a:"20", b:"25", c:"30", d:"40", correct:"B" },
-      { q: "Which is an ocean?", a:"Sahara", b:"Amazon", c:"Pacific", d:"Himalaya", correct:"C" },
-      { q: "Which device is used to take photos?", a:"Camera", b:"Toaster", c:"Blender", d:"Printer", correct:"A" },
-      { q: "End question: select D", a:"A", b:"B", c:"C", d:"D", correct:"D" },
+    const ticketOverlay = document.getElementById('ticketOverlay');
+    const ticketNumberEl = document.getElementById('ticketNumber');
+    const ticketTextEl = document.getElementById('ticketText');
+    const ticketCloseBtn = document.getElementById('ticketClose');
+
+    let currentFacingMode = 'user';           // Start with front camera
+    let currentStream = null;                 // Active MediaStream
+    const BACKEND_URL = 'https://mayaguez-photoapp.vercel.app';
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent); // <<< NEW
+
+    let photoCounter = 1;
+    let lastCaptureWasPortrait = false;
+    let hasShownPortraitWarning = false;
+
+    // Preload flag images
+    const flagImages = {
+      PR: new Image(),
+      US: new Image()
+    };
+    flagImages.PR.src = 'Assets/pr_flag.png';
+    flagImages.US.src = 'Assets/us_flag.png';
+
+    // --- REGION DATA ---
+
+    const PR_MUNICIPALITIES = [
+      "Adjuntas","Aguada","Aguadilla","Aguas Buenas","Aibonito","Añasco","Arecibo",
+      "Arroyo","Barceloneta","Barranquitas","Bayamón","Cabo Rojo","Caguas","Camuy",
+      "Canóvanas","Carolina","Cataño","Cayey","Ceiba","Ciales","Cidra","Coamo",
+      "Comerío","Corozal","Culebra","Dorado","Fajardo","Florida","Guánica","Guayama",
+      "Guayanilla","Guaynabo","Gurabo","Hatillo","Hormigueros","Humacao","Isabela",
+      "Jayuya","Juana Díaz","Juncos","Lajas","Lares","Las Marías","Las Piedras",
+      "Loíza","Luquillo","Manatí","Maricao","Maunabo","Mayagüez","Moca","Morovis",
+      "Naguabo","Naranjito","Orocovis","Patillas","Peñuelas","Ponce","Quebradillas",
+      "Rincón","Río Grande","Sabana Grande","Salinas","San Germán","San Juan",
+      "San Lorenzo","San Sebastián","Santa Isabel","Toa Alta","Toa Baja","Trujillo Alto",
+      "Utuado","Vega Alta","Vega Baja","Vieques","Villalba","Yabucoa","Yauco"
     ];
 
-    // ====== Config ======
-    const QUESTION_SECONDS = 30;
-    const POLL_MS = 650;
-    const REVEAL_MS = 250; // tiny flash before advancing
+    const US_STATES = [
+      "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+      "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+      "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+      "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada",
+      "New Hampshire","New Jersey","New Mexico","New York","North Carolina",
+      "North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
+      "South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont",
+      "Virginia","Washington","West Virginia","Wisconsin","Wyoming"
+    ];
 
-    // ====== Elements ======
-    const statusPill = document.getElementById("statusPill");
-    const splashOverlay = document.getElementById("splashOverlay");
-    const endOverlay = document.getElementById("endOverlay");
-    const roomCodeEl = document.getElementById("roomCodeEl");
-    const overlayFooter = document.getElementById("overlayFooter");
+    function populateRegionOptions(country, preselected) {
+      regionSelect.innerHTML = '';
+      let list = [];
 
-    const qProgress = document.getElementById("qProgress");
-    const scoreLine = document.getElementById("scoreLine");
-    const timerValue = document.getElementById("timerValue");
-    const subline = document.getElementById("subline");
-    const questionText = document.getElementById("questionText");
+      if (country === 'Puerto Rico') {
+        list = PR_MUNICIPALITIES;
+      } else if (country === 'Estados Unidos') {
+        list = US_STATES;
+      }
 
-    const ansA = document.getElementById("ansA");
-    const ansB = document.getElementById("ansB");
-    const ansC = document.getElementById("ansC");
-    const ansD = document.getElementById("ansD");
-    const ansAText = document.getElementById("ansAText");
-    const ansBText = document.getElementById("ansBText");
-    const ansCText = document.getElementById("ansCText");
-    const ansDText = document.getElementById("ansDText");
-    const endScore = document.getElementById("endScore");
+      if (!country || list.length === 0) {
+        regionSelect.disabled = true;
+        regionSelect.innerHTML = '<option value="">Selecciona tu municipio/estado</option>';
+        return;
+      }
 
-    const answerEls = { A: ansA, B: ansB, C: ansC, D: ansD };
+      regionSelect.disabled = false;
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = country === 'Puerto Rico'
+        ? 'Selecciona tu municipio'
+        : 'Selecciona tu estado';
+      regionSelect.appendChild(placeholder);
 
-    // ====== State ======
-    let roomCode = null;
-    let hostToken = null;
+      list.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item;
+        regionSelect.appendChild(opt);
+      });
 
-    let qIndex = 0;
-    let score = 0;
-    let questionEndsAt = 0;
-    let timerTickId = null;
-
-    let lastEventId = 0; // for poll-answer dedupe
-    let pollId = null;
-
-    let controllerConnected = false;
-    let isRunning = false;
-    let isAdvancing = false;
-
-    // ====== Helpers ======
-    function setStatus(text, type=null){
-      statusPill.textContent = text;
-      statusPill.classList.remove("danger","success");
-      if(type === "danger") statusPill.classList.add("danger");
-      if(type === "success") statusPill.classList.add("success");
+      if (preselected && list.includes(preselected)) {
+        regionSelect.value = preselected;
+      }
     }
 
-    function resetAnswerClasses(){
-      [ansA, ansB, ansC, ansD].forEach(el=>{
-        el.classList.remove("correct","incorrect","active");
+    countrySelect.addEventListener('change', () => {
+      populateRegionOptions(countrySelect.value, null);
+    });
+
+    function getPRDate() {
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      return new Date(utc - 4 * 60 * 60000);
+    }
+
+    function buildPhotoFileName() {
+      const prNow = getPRDate();
+
+      const dd = String(prNow.getDate()).padStart(2, '0');
+      const mm = String(prNow.getMonth() + 1).padStart(2, '0');
+      const yy = String(prNow.getFullYear()).slice(-2);
+      const HH = String(prNow.getHours()).padStart(2, '0');
+      const MM = String(prNow.getMinutes()).padStart(2, '0');
+      const SS = String(prNow.getSeconds()).padStart(2, '0');
+
+      const num = String(photoCounter).padStart(2, '0');
+      photoCounter++;
+
+      return `${num}_${dd}_${mm}_${yy}-${HH}_${MM}_${SS}.jpeg`;
+    }
+
+    function showThankYou(message) {
+      if (!thankYouToast) return;
+      thankYouToast.textContent = message;
+      thankYouToast.classList.add('show');
+      setTimeout(() => {
+        thankYouToast.classList.remove('show');
+      }, 2500);
+    }
+
+    // --- Ticket helpers ---
+
+    function formatTicketLabel(ticketFromServer) {
+      if (ticketFromServer == null) return '';
+
+      // If server sends "T001", "T12", etc → turn into "#001"
+      if (typeof ticketFromServer === 'string') {
+        const m = ticketFromServer.match(/T?(\d{1,})/i);
+        if (m) {
+          return '#' + m[1].padStart(3, '0');
+        }
+        // Fallback: show raw string
+        return ticketFromServer;
+      }
+
+      const n = Number(ticketFromServer);
+      if (!Number.isFinite(n)) return String(ticketFromServer);
+      return '#' + String(n).padStart(3, '0');
+    }
+
+    function showTicketOverlay(ticketNumber) {
+      if (!ticketOverlay) return;
+      const label = formatTicketLabel(ticketNumber);
+
+      if (ticketNumberEl && label) {
+        ticketNumberEl.textContent = label;
+      }
+
+      if (ticketTextEl) {
+        ticketTextEl.textContent = 'Tu número de turno es el que ves en este boleto.';
+      }
+
+      ticketOverlay.style.display = 'flex';
+    }
+
+    function hideTicketOverlay() {
+      if (!ticketOverlay) return;
+      ticketOverlay.style.display = 'none';
+    }
+
+    if (ticketCloseBtn) {
+      ticketCloseBtn.addEventListener('click', hideTicketOverlay);
+    }
+
+    if (ticketOverlay) {
+      ticketOverlay.addEventListener('click', (e) => {
+        if (e.target === ticketOverlay || e.target.classList.contains('ticket-backdrop')) {
+          hideTicketOverlay();
+        }
       });
     }
 
-    function renderQuestion(){
-      const total = QUESTIONS.length;
-      const q = QUESTIONS[qIndex];
-
-      qProgress.textContent = `QUESTION ${qIndex + 1} / ${total}`;
-      scoreLine.textContent = `SCORE: ${score}`;
-      subline.textContent = controllerConnected ? "ANSWER ON YOUR PHONE" : "WAITING FOR CONTROLLER…";
-      questionText.textContent = q.q;
-
-      ansAText.textContent = q.a;
-      ansBText.textContent = q.b;
-      ansCText.textContent = q.c;
-      ansDText.textContent = q.d;
-
-      resetAnswerClasses();
-    }
-
-    function startTimer(){
-      clearInterval(timerTickId);
-      questionEndsAt = Date.now() + QUESTION_SECONDS * 1000;
-      tickTimer();
-      timerTickId = setInterval(tickTimer, 250);
-    }
-
-    function tickTimer(){
-      const msLeft = Math.max(0, questionEndsAt - Date.now());
-      const sLeft = Math.ceil(msLeft / 1000);
-      timerValue.textContent = `${sLeft}s`;
-      timerValue.classList.toggle("low", sLeft <= 7);
-
-      if(msLeft <= 0){
-        clearInterval(timerTickId);
-        timerTickId = null;
-        // timeout => incorrect +0, auto-advance
-        if(isRunning && !isAdvancing){
-          handleAnswer({ choice: null, timeout: true });
+    async function setupCamera(facingMode = 'user') {
+      try {
+        // ANDROID/OTHERS: stop previous stream before opening new one.
+        // iOS: KEEP previous stream (Safari can be picky with repeated stops).
+        if (currentStream && !isIOS) {
+          currentStream.getTracks().forEach(track => track.stop());
+          currentStream = null;
         }
-      }
-    }
 
-    async function api(url, opts={}){
-      const res = await fetch(url, {
-        ...opts,
-        headers: {
-          "Content-Type":"application/json",
-          ...(opts.headers || {})
+        const constraints = isIOS
+          ? { video: { facingMode } }
+          : {
+              video: {
+                facingMode: { ideal: facingMode },
+                width: { ideal: 1080 },
+                height: { ideal: 1440 }
+              }
+            };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        currentStream = stream;
+
+        video.srcObject = stream;
+        await video.play();
+
+        // ✅ Always mirror preview for front camera
+        if (facingMode === 'user') {
+          video.classList.add('front-unmirror'); // CSS: transform: scaleX(-1);
+        } else {
+          video.classList.remove('front-unmirror');
         }
-      });
-      const text = await res.text();
-      let data = {};
-      try { data = text ? JSON.parse(text) : {}; } catch(_) {}
-      if(!res.ok){
-        const msg = data && data.error ? data.error : `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      return data;
-    }
 
-    async function createRoom(){
-      setStatus("STATUS: CREATING SESSION…");
-      overlayFooter.textContent = "Creating session…";
-      roomCodeEl.textContent = "—";
-      splashOverlay.classList.remove("hidden");
-      endOverlay.classList.add("hidden");
-
-      const data = await api("/api/create-room", { method:"POST" });
-      roomCode = data.roomCode;
-      hostToken = data.hostToken;
-
-      qIndex = 0;
-      score = 0;
-      lastEventId = 0;
-      controllerConnected = false;
-      isRunning = false;
-      isAdvancing = false;
-
-      roomCodeEl.textContent = roomCode;
-      overlayFooter.textContent = "Waiting for phone to join…";
-      setStatus("STATUS: WAITING FOR PHONE…", "danger");
-
-      // write initial host state snapshot (optional but good for resume)
-      await pushHostState({ phase:"splash" });
-    }
-
-    async function pushHostState(extra={}){
-      if(!roomCode || !hostToken) return;
-      const payload = {
-        roomCode,
-        hostToken,
-        state: {
-          qIndex,
-          score,
-          total: QUESTIONS.length,
-          questionEndsAt,
-          isRunning,
-          controllerConnected,
-          ...extra
-        }
-      };
-      try{
-        await api("/api/host-state", { method:"POST", body: JSON.stringify(payload) });
-      }catch(e){
-        // keep silent; UI should not crash if host-state fails temporarily
-        console.warn("host-state failed:", e.message);
+        console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
+      } catch (error) {
+        console.error('Camera error:', error);
+        errorLog.textContent = `Camera error: ${error.message}`;
       }
     }
 
-    function startGame(){
-      splashOverlay.classList.add("hidden");
-      isRunning = true;
-      isAdvancing = false;
-      renderQuestion();
-      startTimer();
-      setStatus("STATUS: LIVE", "success");
-      pushHostState({ phase:"live" });
+    function switchCamera() {
+      currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+      setupCamera(currentFacingMode);
     }
 
-    async function endGame(){
-      isRunning = false;
-      clearInterval(timerTickId);
-      timerTickId = null;
+    function drawLocationOverlay(ctx, width, height) {
+      const country = localStorage.getItem('lumi_country') || '';
+      const region = localStorage.getItem('lumi_region') || '';
 
-      endScore.textContent = `SCORE: ${score} / ${QUESTIONS.length}`;
-      endOverlay.classList.remove("hidden");
-      setStatus("STATUS: FINISHED", "success");
-      await pushHostState({ phase:"finished" });
+      if (!country && !region) return;
 
-      // short pause then reset
-      setTimeout(async ()=>{
-        try{
-          await api("/api/host-state", {
-            method:"POST",
-            body: JSON.stringify({
-              roomCode,
-              hostToken,
-              state: { qIndex: 0, score: 0, total: QUESTIONS.length, isRunning:false, controllerConnected:false, phase:"reset" }
-            })
-          });
-        }catch(_){}
-        // Create a fresh room for next player (simplest lock reset)
-        await createRoom();
-      }, 1800);
-    }
-
-    async function handleAnswer({ choice, timeout=false }){
-      if(isAdvancing) return;
-      isAdvancing = true;
-
-      clearInterval(timerTickId);
-      timerTickId = null;
-
-      const q = QUESTIONS[qIndex];
-      const correct = q.correct;
-
-      resetAnswerClasses();
-
-      if(choice){
-        answerEls[choice]?.classList.add("active");
-      }
-
-      // Determine correctness
-      const isCorrect = choice && (choice === correct);
-
-      // highlight chosen answer red/green, and (optionally) also show correct
-      if(choice){
-        answerEls[choice]?.classList.add(isCorrect ? "correct" : "incorrect");
+      let label = '';
+      if (country && region) {
+        label = `${region}, ${country}`;
       } else {
-        // timeout: no choice — briefly flash correct answer as active/correct (optional)
-        answerEls[correct]?.classList.add("active","correct");
+        label = country || region;
       }
 
-      if(isCorrect) score += 1;
+      if (!label) return;
 
-      scoreLine.textContent = `SCORE: ${score}`;
+      const padding = 24;
+      const flagWidth = 60;
+      const flagHeight = 40;
+      const gapBetween = 12;
 
-      await pushHostState({
-        phase: "reveal",
-        lastChoice: choice || null,
-        lastWasCorrect: !!isCorrect,
-        lastWasTimeout: !!timeout,
-      });
+      let flagImg = null;
+      if (country === 'Puerto Rico') flagImg = flagImages.PR;
+      if (country === 'Estados Unidos') flagImg = flagImages.US;
 
-      // advance quickly
-      setTimeout(async ()=>{
-        qIndex += 1;
+      ctx.save();
 
-        if(qIndex >= QUESTIONS.length){
-          await endGame();
+      ctx.font = 'bold 24px Arial';
+      ctx.textBaseline = 'middle';
+      const textMetrics = ctx.measureText(label);
+      const textWidth = textMetrics.width;
+
+      const sidePadding = 12;
+      const topPadding = 8;
+      const boxHeight = flagHeight + topPadding * 2;
+      const contentWidth = flagWidth + gapBetween + textWidth;
+      const boxWidth = contentWidth + sidePadding * 2;
+
+      const boxX = width - padding - boxWidth;
+      const boxY = padding;
+
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+      const flagX = boxX + sidePadding;
+      const flagY = boxY + topPadding;
+
+      if (flagImg && flagImg.complete) {
+        ctx.drawImage(flagImg, flagX, flagY, flagWidth, flagHeight);
+      }
+
+      ctx.fillStyle = '#ffffff';
+      const textX = flagX + flagWidth + gapBetween;
+      const textY = boxY + boxHeight / 2;
+
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+
+      ctx.fillText(label, textX, textY);
+      ctx.restore();
+    }
+
+   // Capture selfie
+captureButton.addEventListener('click', () => {
+  const targetWidth  = 1500;
+  const targetHeight = 1000;
+
+  canvas.width  = targetWidth;
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+
+  if (!vw || !vh) {
+    errorLog.textContent = 'Error: Camera not ready';
+    return;
+  }
+
+  lastCaptureWasPortrait = vh > vw;
+
+  const videoAspect  = vw / vh;
+  const canvasAspect = targetWidth / targetHeight;
+
+  let sx, sy, sWidth, sHeight;
+
+  if (videoAspect > canvasAspect) {
+    sHeight = vh;
+    sWidth  = sHeight * canvasAspect;
+    sx      = (vw - sWidth) / 2;
+    sy      = 0;
+  } else {
+    sWidth  = vw;
+    sHeight = sWidth / canvasAspect;
+    sx      = 0;
+    sy      = (vh - sHeight) / 2;
+  }
+
+  ctx.save();
+
+  // ✅ Mirror the captured image for ALL front cameras (iOS + Android)
+  if (currentFacingMode === 'user') {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+
+  ctx.drawImage(
+    video,
+    sx, sy, sWidth, sHeight,
+    0, 0, canvas.width, canvas.height
+  );
+
+  ctx.restore();
+
+  drawLocationOverlay(ctx, canvas.width, canvas.height);
+
+  video.style.display = 'none';
+  canvas.style.display = 'block';
+  cameraArea.classList.add('preview-mode');
+
+  switchCameraButton.style.display = 'none';
+  retakeButton.style.display = 'inline-block';
+
+  captureButton.style.display = 'none';
+  uploadButton.style.display = 'inline-block';
+});
+
+    // Retake
+    retakeButton.addEventListener('click', () => {
+      video.style.display = 'block';
+      canvas.style.display = 'none';
+      cameraArea.classList.remove('preview-mode');
+
+      switchCameraButton.style.display = 'inline-flex';
+      retakeButton.style.display = 'none';
+
+      uploadButton.style.display = 'none';
+      captureButton.style.display = 'inline-block';
+
+      uploadButton.disabled = false;
+      uploadButton.textContent = 'SUBIR FOTO';
+      uploadButton.classList.remove('button-loading');
+      uploadStatus.textContent = '';
+      errorLog.textContent = '';
+      hideTicketOverlay();
+    });
+
+    // Upload
+    uploadButton.addEventListener('click', async () => {
+      if (uploadButton.disabled) return;
+
+      if (lastCaptureWasPortrait && !hasShownPortraitWarning) {
+        const proceed = window.confirm(
+          'Tu foto se ve vertical y podría salir recortada en la pantalla.\n\n' +
+          '¿Quieres subirla así de todos modos?\n\nPulsa "Aceptar" para subirla así, o "Cancelar" para volver y retomar la foto.'
+        );
+        if (!proceed) {
+          uploadStatus.textContent =
+            'Te recomendamos girar tu teléfono a horizontal y volver a tomar la foto.';
           return;
         }
+        hasShownPortraitWarning = true;
+      }
 
-        isAdvancing = false;
-        renderQuestion();
-        startTimer();
-        await pushHostState({ phase:"live" });
-      }, REVEAL_MS);
+      uploadButton.disabled = true;
+      uploadButton.textContent = 'SUBIENDO...';
+      uploadButton.classList.add('button-loading');
+      uploadStatus.textContent = 'Subiendo foto, por favor espera...';
+      errorLog.textContent = '';
+
+      canvas.toBlob(async (blob) => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': blob.type,
+              'X-File-Name': buildPhotoFileName(),
+              'x-session-id': getSessionId()
+            },
+            body: blob
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('Upload successful:', result);
+
+          uploadStatus.textContent = '¡Foto subida correctamente!';
+          uploadButton.textContent = 'SUBIDA';
+          uploadButton.classList.remove('button-loading');
+
+          const ticketNumber =
+            result.ticketLabel ??
+            result.ticketIndex ??
+            result.ticketNumber ??
+            result.ticket ??
+            result.photoIndex ??
+            null;
+
+          if (ticketNumber !== null && ticketNumber !== undefined) {
+            showTicketOverlay(ticketNumber);
+            showThankYou('¡Gracias! Guarda tu número de turno.');
+          } else {
+            showThankYou('¡Gracias! Tu foto ha sido enviada.');
+          }
+        } catch (error) {
+          console.error('Upload error:', error);
+          errorLog.textContent = `Error al subir la foto: ${error.message}`;
+
+          uploadButton.disabled = false;
+          uploadButton.textContent = 'SUBIR FOTO';
+          uploadButton.classList.remove('button-loading');
+          uploadStatus.textContent = 'Hubo un error. Intenta nuevamente.';
+        }
+      }, 'image/jpeg');
+    });
+
+    switchCameraButton.addEventListener('click', switchCamera);
+
+    // Intro / registration
+    function startCameraAfterIntro() {
+      introModal.style.display = 'none';
+      setupCamera(currentFacingMode);
     }
 
-    async function pollAnswers(){
-      if(!roomCode || !hostToken) return;
+    introClose.addEventListener('click', () => {
+      startCameraAfterIntro();
+      showThankYou('Puedes tomar tu selfie cuando estés listo.');
+    });
 
-      try{
-        const data = await api("/api/poll-answer", {
-          method:"POST",
-          body: JSON.stringify({ roomCode, hostToken, since: lastEventId })
+    submitIntroButton.addEventListener('click', async () => {
+      if (submitIntroButton.disabled) return;
+
+      const country = countrySelect.value;
+      const region = regionSelect.value;
+      const lastName = lastNameInput.value.trim();
+      const email = emailInput.value.trim();
+      const newsletter = document.getElementById('newsletterOptIn').checked;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailRegex.test(email)) {
+        introError.textContent = 'Por favor escribe un correo electrónico válido.';
+        introBox.classList.remove('shake');
+        void introBox.offsetWidth;
+        introBox.classList.add('shake');
+        return;
+      }
+
+      if (!country || !region || !lastName || !email) {
+        introError.textContent = 'Por favor completa todos los campos para continuar.';
+        introBox.classList.remove('shake');
+        void introBox.offsetWidth;
+        introBox.classList.add('shake');
+        return;
+      }
+
+      introError.textContent = '';
+
+      const originalText = submitIntroButton.textContent;
+      submitIntroButton.disabled = true;
+      submitIntroButton.textContent = 'ENVIANDO...';
+      submitIntroButton.classList.add('button-loading');
+
+      localStorage.setItem('lumi_country', country);
+      localStorage.setItem('lumi_region', region);
+      localStorage.setItem('lumi_lastname', lastName);
+      localStorage.setItem('lumi_email', email);
+      localStorage.setItem('lumi_newsletter', newsletter ? '1' : '0');
+
+      try {
+        await fetch(`${BACKEND_URL}/visit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-session-id': getSessionId()
+          },
+          body: JSON.stringify({
+            country: `${region}, ${country}`,
+            lastName,
+            email,
+            newsletter,
+            timestamp: new Date().toISOString()
+          })
         });
 
-        // controller connection signal
-        if(data.controllerConnected && !controllerConnected){
-          controllerConnected = true;
-          overlayFooter.textContent = "Phone connected. Starting…";
-          setStatus("STATUS: PHONE CONNECTED", "success");
-          await pushHostState({ controllerConnected:true });
+        startCameraAfterIntro();
+        showThankYou('¡Gracias por registrarte! Ahora toma tu selfie.');
+      } catch (err) {
+        console.error('Error sending visit info:', err);
+        introError.textContent = 'Hubo un error al enviar tus datos. Intenta de nuevo.';
 
-          // start immediately
-          setTimeout(()=> startGame(), 350);
-        }
-
-        // new answer event
-        if(data.event && data.event.id){
-          if(data.event.id > lastEventId){
-            lastEventId = data.event.id;
-          }
-          if(isRunning && !isAdvancing){
-            const choice = data.event.choice; // "A"|"B"|"C"|"D"
-            handleAnswer({ choice, timeout:false });
-          }
-        }
-
-      }catch(e){
-        // network blip: keep polling
-        console.warn("poll failed:", e.message);
-        setStatus("STATUS: NETWORK…", "danger");
+        submitIntroButton.disabled = false;
+        submitIntroButton.textContent = originalText;
+        submitIntroButton.classList.remove('button-loading');
       }
+    });
+
+    // SESSION ID HELPERS
+
+    function getSessionId() {
+      let id = localStorage.getItem('lumi_session_id');
+      if (!id) {
+        id = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('lumi_session_id', id);
+      }
+      return id;
     }
 
-    function startPolling(){
-      if(pollId) clearInterval(pollId);
-      pollId = setInterval(pollAnswers, POLL_MS);
+    function pingSession() {
+      fetch(`${BACKEND_URL}/ping`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-id': getSessionId()
+        },
+        body: JSON.stringify({})
+      }).catch(console.error);
     }
 
-    // ====== Boot ======
-    (async function boot(){
-      try{
-        await createRoom();
-        startPolling();
-        setStatus("STATUS: READY", "danger");
-      }catch(e){
-        console.error(e);
-        overlayFooter.textContent = "Failed to create session. Check Vercel KV + API routes.";
-        setStatus("STATUS: ERROR", "danger");
+    function prefillIntroFromStorage() {
+      const storedCountry = localStorage.getItem('lumi_country') || '';
+      const storedRegion = localStorage.getItem('lumi_region') || '';
+      const storedLast = localStorage.getItem('lumi_lastname') || '';
+      const storedEmail = localStorage.getItem('lumi_email') || '';
+      const storedNewsletter = localStorage.getItem('lumi_newsletter') === '1';
+
+      if (storedCountry) {
+        countrySelect.value = storedCountry;
+        populateRegionOptions(storedCountry, storedRegion);
       }
-    })();
+
+      if (storedLast) lastNameInput.value = storedLast;
+      if (storedEmail) emailInput.value = storedEmail;
+      document.getElementById('newsletterOptIn').checked = storedNewsletter;
+    }
+
+    window.addEventListener('load', () => {
+      prefillIntroFromStorage();
+      introModal.style.display = 'flex';
+      pingSession();
+    });
   </script>
 </body>
 </html>
