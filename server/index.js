@@ -237,6 +237,20 @@ function formatHourRange(hour) {
   return `${h}:00–${h}:59`;
 }
 
+// Normalize newsletter input to "Y" / "N" / ""
+function getNewsletterFlag(value) {
+  if (value === null || value === undefined) return '';
+
+  const val = String(value).toLowerCase();
+  if (val === 'true' || val === '1' || val === 'sí' || val === 'si' || val === 'y') {
+    return 'Y';
+  }
+  if (val === 'false' || val === '0' || val === 'no' || val === 'n') {
+    return 'N';
+  }
+  return '';
+}
+
 // Today range (in PR) but expressed in UTC, for filtering logs
 function getTodayPRRangeUtc() {
   const nowPR = getPRDate();
@@ -532,15 +546,7 @@ async function logEventToSheet(
   const prStr = formatPRDateTimeShort(dPR);
 
   // Normalize newsletter to "Y" / "N" / ""
-  let newsletterStr = '';
-  if (newsletter !== null && newsletter !== undefined) {
-    const val = String(newsletter).toLowerCase();
-    if (val === 'true' || val === '1' || val === 'sí' || val === 'si' || val === 'y') {
-      newsletterStr = 'Y';
-    } else if (val === 'false' || val === '0' || val === 'no' || val === 'n') {
-      newsletterStr = 'N';
-    }
-  }
+  const newsletterStr = getNewsletterFlag(newsletter);
 
   const values = [[
     utcStr,          // A timestamp_utc
@@ -973,6 +979,8 @@ app.post('/visit', async (req, res) => {
     const { country, lastName, email, newsletter, timestamp } = req.body || {};
 
     const timestampUtc = timestamp || new Date().toISOString();
+    const newsletterFlag = getNewsletterFlag(newsletter);
+    const newsletterLabel = newsletterFlag === 'Y' ? 'Sí' : 'No';
 
     // Split "region, country" if it comes combined
     let countryClean = '';
@@ -1022,7 +1030,7 @@ app.post('/visit', async (req, res) => {
       `La familia nos visita desde: ${country || 'No provisto'}\n` +
       `Apellidos de la familia: ${lastName || 'No provisto'}\n` +
       `Correo electrónico de la familia: ${email || 'No provisto'}\n` +
-      `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletter ? 'Sí' : 'No'}\n\n` +
+      `Acepta recibir noticias y ofertas de MUNICIPIO DE MAYAGÜEZ.: ${newsletterLabel}\n\n` +
       `Fecha y hora (UTC): ${timestampUtc}`;
 
     const html = `<!DOCTYPE html>
@@ -1078,7 +1086,7 @@ app.post('/visit', async (req, res) => {
                 </p>
 
                 <p style="margin:0 0 6px 0;">
-                  <strong>Acepta recibir noticias y ofertas:</strong> ${newsletter ? 'Sí' : 'No'}
+                  <strong>Acepta recibir noticias y ofertas:</strong> ${newsletterLabel}
                 </p>
 
                 <p style="margin:10px 0 0 0;font-size:11px;color:#666666;">
