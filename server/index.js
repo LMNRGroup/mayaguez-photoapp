@@ -1749,15 +1749,14 @@ app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
   try {
     const { enabled, accessCode } = req.body || {};
 
-    if (!ADMIN_ACCESS_CODE) {
-      return res.status(500).json({ error: 'admin_code_not_configured' });
-    }
-
     if (typeof enabled !== 'boolean') {
       return res.status(400).json({ error: 'missing_enabled_flag' });
     }
 
     if (!enabled) {
+      if (!ADMIN_ACCESS_CODE) {
+        return res.status(500).json({ error: 'admin_code_not_configured' });
+      }
       if (!accessCode || typeof accessCode !== 'string') {
         return res.status(400).json({ error: 'missing_access_code' });
       }
