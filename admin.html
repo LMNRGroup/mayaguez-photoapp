@@ -214,6 +214,15 @@
     background: var(--success);
   }
 
+  .toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+    background: var(--success);
+  }
+
+  .toggle input:checked + .toggle-slider {
+    background: #022c22;
+  }
+
   .toggle.disabled {
     opacity: 0.4;
     cursor: default;
@@ -507,51 +516,72 @@
 
   .activity-bars {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 6px;
+    flex-direction: column;
+    gap: 8px;
     margin-top: 6px;
     padding-top: 4px;
   }
 
-  .activity-bar {
-    flex: 1;
+  .activity-chart {
+    position: relative;
+    height: 180px;
+    background: #020617;
+    border-radius: 12px;
+    border: 1px solid #1f2937;
+    padding: 8px 8px 12px 36px;
+  }
+
+  .activity-chart svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .activity-axis {
+    font-size: 9px;
+    color: var(--muted-grey);
+  }
+
+  .activity-axis.y {
+    position: absolute;
+    top: 8px;
+    left: 6px;
+    bottom: 24px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    color: var(--light-grey);
+    justify-content: space-between;
+    align-items: flex-start;
   }
 
-  .activity-bar-graph {
-    width: 100%;
-    border-radius: 6px 6px 2px 2px;
-    background: rgba(148, 163, 184, 0.3);
-    height: 40px;
-    overflow: hidden;
-    position: relative;
+  .activity-axis.x {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    gap: 2px;
+    padding-left: 36px;
   }
 
-  .activity-bar-fill {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-radius: 6px 6px 2px 2px;
-    background: linear-gradient(to top, var(--gold), #f9fafb);
-    height: 60%;
+  .activity-axis.x span {
+    text-align: center;
+    white-space: nowrap;
   }
 
-  .activity-bar.current .activity-bar-fill {
-    background: linear-gradient(to top, #22c55e, #bbf7d0);
+  .activity-line {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 2;
   }
 
-  .activity-hour {
-    margin-top: 2px;
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
-    letter-spacing: 0.14em;
+  .activity-line-fill {
+    fill: rgba(212, 175, 55, 0.15);
+  }
+
+  .activity-point {
+    fill: var(--gold);
+  }
+
+  .activity-grid-line {
+    stroke: rgba(148, 163, 184, 0.2);
+    stroke-dasharray: 3 3;
   }
 
   /* SMALL ICON BUTTONS (kept for logic but hidden from UI) */
@@ -877,10 +907,11 @@
     inset: 0;
     background: rgba(15, 23, 42, 0.96);
     display: none;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     z-index: 35;
-    padding: 16px;
+    padding: 24px 16px;
+    overflow-y: auto;
   }
 
   .modal-panel {
@@ -938,6 +969,20 @@
 
   .settings-panel {
     max-width: 760px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    font-family: 'FuturaBT-Light', system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-weight: 300;
+  }
+
+  .settings-panel .modal-title,
+  .settings-panel .settings-section-title,
+  .settings-panel .settings-help,
+  .settings-panel .settings-status {
+    font-family: 'FuturaBT-Light', system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-weight: 300;
   }
 
   .settings-section {
@@ -972,6 +1017,9 @@
   .settings-label {
     font-size: 12px;
     color: var(--light-grey);
+    font-family: 'FuturaBT-Light', system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-weight: 300;
   }
 
   .settings-input {
@@ -982,6 +1030,9 @@
     padding: 8px 10px;
     color: var(--light-grey);
     font-size: 12px;
+    font-family: 'FuturaBT-Light', system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-weight: 300;
   }
 
   .settings-actions {
@@ -1010,6 +1061,20 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     cursor: pointer;
+    font-family: 'FuturaBT-Light', system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-weight: 300;
+  }
+
+  @media (max-width: 720px) {
+    .settings-panel {
+      max-width: 100%;
+    }
+
+    .settings-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 
   .btn-ghost {
@@ -1521,38 +1586,13 @@
           </div>
 
           <div class="panel-box">
-            <div class="panel-title">Activity</div>
+          <div class="panel-title">Activity</div>
             <div id="activityBars" class="activity-bars">
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:40%;"></div>
-                </div>
-                <div class="activity-hour">6PM</div>
+              <div class="activity-chart">
+                <div id="activityYAxis" class="activity-axis y"></div>
+                <svg id="activityChart" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
               </div>
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:65%;"></div>
-                </div>
-                <div class="activity-hour">7PM</div>
-              </div>
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:35%;"></div>
-                </div>
-                <div class="activity-hour">8PM</div>
-              </div>
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:75%;"></div>
-                </div>
-                <div class="activity-hour">9PM</div>
-              </div>
-              <div class="activity-bar current">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:95%;"></div>
-                </div>
-                <div class="activity-hour">10PM</div>
-              </div>
+              <div id="activityXAxis" class="activity-axis x"></div>
             </div>
           </div>
         </aside>
@@ -1580,10 +1620,10 @@
     <div class="dropdown-separator"></div>
     <div id="menuResetLogs" class="dropdown-item">
       <span>Reset logs</span>
-      <span class="helper-label">(demo)</span>
+      <span class="helper-label">(clear event logs)</span>
     </div>
     <div id="menuClearApproved" class="dropdown-item">
-      <span>Empty approved folder</span>
+      <span>Clear drive (pending + approved)</span>
     </div>
   </div>
 
@@ -1871,7 +1911,11 @@ function hideGlobalLoader() {
     const photoLabel = document.getElementById("photoLabel");
     const pendingCountEl = document.getElementById("pendingCount");
     const eventLogList = document.getElementById("eventLogList");
-        // Pending counter state (frontend)
+    const activityBars = document.getElementById("activityBars");
+    const activityChart = document.getElementById("activityChart");
+    const activityXAxis = document.getElementById("activityXAxis");
+    const activityYAxis = document.getElementById("activityYAxis");
+    // Pending counter state (frontend)
     let pendingCountState = 0;
     // Delta we expect after our own actions (approve/reject)
     let pendingCountDelta = 0;
@@ -1970,6 +2014,100 @@ function hideGlobalLoader() {
         }
       } catch (err) {
         console.error("Error fetching event logs", err);
+      }
+    }
+
+    function formatHourLabel(hour) {
+      const normalized = ((hour % 24) + 24) % 24;
+      const period = normalized >= 12 ? "PM" : "AM";
+      const hour12 = normalized % 12 || 12;
+      return `${hour12}${period}`;
+    }
+
+    function getYAxisStep(maxCount) {
+      if (maxCount <= 10) return 1;
+      if (maxCount <= 100) return 10;
+      if (maxCount <= 500) return 50;
+      const rough = Math.ceil(maxCount / 9 / 50) * 50;
+      return rough || 50;
+    }
+
+    function renderActivityBars(counts, currentHour) {
+      if (!activityBars || !activityChart || !activityXAxis || !activityYAxis) return;
+      if (!Array.isArray(counts) || counts.length !== 24) return;
+
+      const maxCount = Math.max(...counts, 0);
+      const step = getYAxisStep(maxCount);
+      const maxTick = step * 9;
+      const svgWidth = 300;
+      const svgHeight = 140;
+      const paddingTop = 8;
+      const paddingBottom = 8;
+      const paddingLeft = 8;
+      const paddingRight = 8;
+      const usableHeight = svgHeight - paddingTop - paddingBottom;
+      const usableWidth = svgWidth - paddingLeft - paddingRight;
+
+      activityYAxis.innerHTML = "";
+      for (let i = 9; i >= 0; i -= 1) {
+        const label = document.createElement("span");
+        label.textContent = `${i * step}`;
+        activityYAxis.appendChild(label);
+      }
+
+      activityXAxis.innerHTML = "";
+      counts.forEach((_, hour) => {
+        const label = document.createElement("span");
+        label.textContent = formatHourLabel(hour);
+        activityXAxis.appendChild(label);
+      });
+
+      const points = counts.map((count, index) => {
+        const x = paddingLeft + (usableWidth * index) / 23;
+        const ratio = maxTick ? Math.min(count / maxTick, 1) : 0;
+        const y = paddingTop + usableHeight - ratio * usableHeight;
+        return { x, y, count };
+      });
+
+      const linePoints = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
+      const fillPoints = `${paddingLeft},${paddingTop + usableHeight} ${linePoints} ${paddingLeft + usableWidth},${paddingTop + usableHeight}`;
+
+      const currentX = paddingLeft + (usableWidth * currentHour) / 23;
+
+      activityChart.innerHTML = `
+        <line class="activity-grid-line" x1="${paddingLeft}" x2="${paddingLeft + usableWidth}" y1="${paddingTop + usableHeight}" y2="${paddingTop + usableHeight}" />
+        ${Array.from({ length: 9 }, (_, i) => {
+          const y = paddingTop + usableHeight - ((i + 1) / 9) * usableHeight;
+          return `<line class="activity-grid-line" x1="${paddingLeft}" x2="${paddingLeft + usableWidth}" y1="${y}" y2="${y}" />`;
+        }).join("")}
+        <polygon class="activity-line-fill" points="${fillPoints}" />
+        <polyline class="activity-line" points="${linePoints}" />
+        ${points.map((pt) => `<circle class="activity-point" cx="${pt.x}" cy="${pt.y}" r="2" />`).join("")}
+        <line class="activity-grid-line" x1="${currentX}" x2="${currentX}" y1="${paddingTop}" y2="${paddingTop + usableHeight}" />
+      `;
+    }
+
+    async function fetchActivityStats() {
+      if (!adminToken) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/activity-stats`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          return;
+        }
+
+        const data = await res.json();
+        if (data && Array.isArray(data.counts)) {
+          const currentHour = Number.isInteger(data.currentHour)
+            ? data.currentHour
+            : new Date().getHours();
+          renderActivityBars(data.counts, currentHour);
+        }
+      } catch (err) {
+        console.error("Error fetching activity stats", err);
       }
     }
     // LEFT NAV
@@ -2257,6 +2395,7 @@ function hideReportLoading() {
             await fetchAppStatus();
             await loadNextPhoto();
             await fetchEventLogs();
+            await fetchActivityStats();
             startAutoRefresh();
           }, 850);
         } else if (res.status === 401 && data.remainingAttempts != null) {
@@ -2508,6 +2647,7 @@ function hideReportLoading() {
 
         // also refresh event logs on the same cadence
         await fetchEventLogs();
+        await fetchActivityStats();
       } catch (err) {
         console.error("Auto-refresh error", err);
       }
@@ -2840,8 +2980,8 @@ function hideReportLoading() {
       }
 
       const ok = window.confirm(
-        "Empty ALL approved photos?\n\n" +
-          "This will permanently delete the images from the approved folder."
+        "Clear ALL photos from Pending + Approved?\n\n" +
+          "This will permanently delete all images from both folders."
       );
       if (!ok) return;
 
@@ -2869,10 +3009,49 @@ function hideReportLoading() {
           approvedFooterText.textContent = "0 photos";
         }
 
-        alert("Approved folder cleared.");
+        alert("Pending + approved folders cleared.");
       } catch (err) {
         console.error("Error clearing approved folder", err);
         alert("Could not clear the folder. Please try again.");
+      }
+    }
+
+    async function resetLogs() {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      const ok = window.confirm(
+        "Clear all event logs?\n\nThis keeps the header row but erases all event entries."
+      );
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/reset-logs`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({}),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        if (eventLogList) {
+          eventLogList.innerHTML = "";
+        }
+        renderActivityBars(new Array(24).fill(0), new Date().getHours());
+
+        alert("Event logs cleared.");
+      } catch (err) {
+        console.error("Error clearing logs", err);
+        alert("Could not clear the logs. Please try again.");
       }
     }
 
@@ -3081,16 +3260,15 @@ function hideReportLoading() {
 
     menuResetLogs.addEventListener("click", () => {
       closeMoreMenu();
-      alert("Logs cleared (demo mode, no changes on server).");
+      resetLogs();
     });
 
     menuClearApproved.addEventListener("click", clearApprovedFolder);
 
     // --- SHUTDOWN FLOW (toggle) ---
     async function handleToggleChange(e) {
-      if (!appServerEnabled) {
-        appToggleInput.checked = false;
-        alert("Server is offline for this event.\nTo start a new session, re-enable it on the server side.");
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
         return;
       }
 
@@ -3100,17 +3278,19 @@ function hideReportLoading() {
         const confirmShutdown = window.confirm(
           "Would you like to shut down the server and generate the event report?"
         );
-        if (!confirmShutdown) return;
+        if (!confirmShutdown) {
+          appToggleInput.checked = true;
+          return;
+        }
 
         const code = window.prompt("Enter the access code to confirm:");
-        if (!code) return;
-
-        if (!adminToken) {
-          showLock("Session expired. Enter the access code.");
+        if (!code) {
+          appToggleInput.checked = true;
           return;
         }
 
         try {
+          showGlobalLoader();
           const res = await fetch(`${BASE_URL}/admin/shutdown`, {
             method: "POST",
             headers: withAdminHeaders({ "Content-Type": "application/json" }),
@@ -3146,13 +3326,12 @@ function hideReportLoading() {
 
           updateAppToggleUI(false);
           appToggleInput.checked = false;
-          appToggleWrapper.classList.add("disabled");
           disableAdminControlsForOffline();
           photoImg.style.display = "none";
           emptyText.style.display = "block";
           emptyText.textContent = "Server is offline for this event.";
           photoFrame.classList.add("empty");
-          
+
           if (pendingCountEl) {
             pendingCountState = 0;
             pendingCountDelta = 0;
@@ -3163,11 +3342,76 @@ function hideReportLoading() {
         } catch (err) {
           console.error("Error calling /admin/shutdown", err);
           alert("Could not shut down the server. Please try again.");
+        } finally {
+          hideGlobalLoader();
+          await fetchAppStatus();
         }
       } else {
-        appToggleInput.checked = appServerEnabled;
-        if (!appServerEnabled) {
-          alert("Server is offline for this event.\nTo start a new session, re-enable it on the server side.");
+        const confirmStart = window.confirm(
+          "Start a new session?\n\nThis will clear event logs and delete all pending + approved photos."
+        );
+        if (!confirmStart) {
+          appToggleInput.checked = false;
+          return;
+        }
+
+        const code = window.prompt("Enter the access code to confirm:");
+        if (!code) {
+          appToggleInput.checked = false;
+          return;
+        }
+
+        try {
+          showGlobalLoader();
+          const res = await fetch(`${BASE_URL}/admin/app-status`, {
+            method: "POST",
+            headers: withAdminHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ enabled: true, accessCode: code }),
+          });
+
+          let data = {};
+          try {
+            data = await res.json();
+          } catch (_) {}
+
+          if (res.status === 401 && data.error === "invalid_access_code") {
+            alert("Access code is incorrect.");
+            appToggleInput.checked = false;
+            return;
+          }
+
+          if (!res.ok || !data.ok) {
+            alert("Could not start the server. Please try again.");
+            appToggleInput.checked = false;
+            return;
+          }
+
+          updateAppToggleUI(true);
+          appToggleInput.checked = true;
+          appToggleWrapper.classList.remove("disabled");
+          emptyText.style.display = "block";
+          emptyText.textContent = "No pending photos.";
+          photoFrame.classList.add("empty");
+
+          if (pendingCountEl) {
+            pendingCountState = 0;
+            pendingCountDelta = 0;
+            updatePendingDisplay();
+          }
+
+          await fetchEventLogs();
+          await fetchActivityStats();
+          await loadNextPhoto();
+          startAutoRefresh();
+
+          alert("Server is online and ready for a new session.");
+        } catch (err) {
+          console.error("Error enabling server", err);
+          alert("Could not start the server. Please try again.");
+          appToggleInput.checked = false;
+        } finally {
+          hideGlobalLoader();
+          await fetchAppStatus();
         }
       }
     }
@@ -3452,6 +3696,7 @@ reportViewBtn.addEventListener("click", async () => {
       fetchAppStatus()
         .then(() => loadNextPhoto())
         .then(() => fetchEventLogs())
+        .then(() => fetchActivityStats())
         .then(() => startAutoRefresh())
         .catch(() => {
           showLock();

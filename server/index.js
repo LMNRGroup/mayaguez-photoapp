@@ -24,7 +24,9 @@ const SESSION_SHEET_ID =
   process.env.SESSION_SHEET_ID ||
   '1bPctG2H31Ix2N8jVNgFTgiB3FVWyr6BudXNY8YOD4GE';
 
-const SETTINGS_SHEET_ID = process.env.SETTINGS_SHEET_ID || SESSION_SHEET_ID;
+const SETTINGS_SHEET_ID =
+  process.env.SETTINGS_SHEET_ID ||
+  '1vAcoPK5Xm588PQULy2eOlNTknihofKuiijlfLidKhbI';
 const SETTINGS_SHEET_NAME = process.env.SETTINGS_SHEET_NAME || 'Settings';
 
 // Range with columns:
@@ -32,6 +34,18 @@ const SETTINGS_SHEET_NAME = process.env.SETTINGS_SHEET_NAME || 'Settings';
 // country, region, last_name, newsletter, ticket
 const SESSION_SHEET_RANGE = 'A:J';
 const SETTINGS_SHEET_RANGE = `${SETTINGS_SHEET_NAME}!A:B`;
+const SESSION_SHEET_HEADERS = [
+  'timestamp_utc',
+  'timestamp_pr',
+  'event_type',
+  'email',
+  'session_id',
+  'country',
+  'region',
+  'last_name',
+  'newsletter',
+  'ticket'
+];
 
 // ---------- ADMIN SECURITY ----------
 const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE; // e.g. "MAYAGUEZ2025!"
@@ -185,6 +199,22 @@ let appSettings = JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS));
 let settingsSheetReady = false;
 let settingsLoadedFromSheet = false;
 
+const SETTINGS_FIELDS = [
+  { key: 'Ticket Overlay Enabled', type: 'boolean', path: ['ticketEnabled'] },
+  { key: 'Intro Title', type: 'string', path: ['intro', 'title'] },
+  { key: 'Intro Subtitle', type: 'string', path: ['intro', 'subtitle'] },
+  { key: 'Location Enabled', type: 'boolean', path: ['form', 'locationEnabled'] },
+  { key: 'Last Name Enabled', type: 'boolean', path: ['form', 'lastName', 'enabled'] },
+  { key: 'Last Name Label', type: 'string', path: ['form', 'lastName', 'label'] },
+  { key: 'Last Name Placeholder', type: 'string', path: ['form', 'lastName', 'placeholder'] },
+  { key: 'Email Enabled', type: 'boolean', path: ['form', 'email', 'enabled'] },
+  { key: 'Email Label', type: 'string', path: ['form', 'email', 'label'] },
+  { key: 'Email Placeholder', type: 'string', path: ['form', 'email', 'placeholder'] },
+  { key: 'Email Opt-in Enabled', type: 'boolean', path: ['form', 'newsletter', 'enabled'] },
+  { key: 'Email Opt-in Label', type: 'string', path: ['form', 'newsletter', 'label'] },
+  { key: 'Email Opt-in Helper', type: 'string', path: ['form', 'newsletter', 'helper'] },
+];
+
 function coerceBoolean(value, fallback) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
@@ -198,6 +228,43 @@ function coerceBoolean(value, fallback) {
 function coerceString(value, fallback) {
   if (typeof value === 'string') return value.trim();
   return fallback;
+}
+
+function normalizeBooleanLabel(value) {
+  return value ? 'Enabled' : 'Disabled';
+}
+
+function parseBooleanLabel(value, fallback) {
+  if (typeof value === 'boolean') return value;
+  if (value == null) return fallback;
+  const lower = String(value).trim().toLowerCase();
+  if (['enabled', 'on', 'true', '1', 'yes', 'y'].includes(lower)) return true;
+  if (['disabled', 'off', 'false', '0', 'no', 'n'].includes(lower)) return false;
+  return fallback;
+}
+
+function normalizeStatusLabel(enabled) {
+  return enabled ? 'On' : 'Off';
+}
+
+function parseStatusLabel(value, fallback) {
+  return parseBooleanLabel(value, fallback);
+}
+
+function getNestedValue(obj, path) {
+  return path.reduce((acc, key) => (acc && acc[key] != null ? acc[key] : undefined), obj);
+}
+
+function setNestedValue(obj, path, value) {
+  let cursor = obj;
+  for (let i = 0; i < path.length - 1; i++) {
+    const key = path[i];
+    if (!cursor[key] || typeof cursor[key] !== 'object') {
+      cursor[key] = {};
+    }
+    cursor = cursor[key];
+  }
+  cursor[path[path.length - 1]] = value;
 }
 
 function mergeAppSettings(patch = {}) {
@@ -313,32 +380,72 @@ async function readSettingsFromSheet() {
     });
 
     const rows = resp.data.values || [];
-    const row = rows.find((entry) => entry && entry[0] === 'appSettings');
-    if (!row || !row[1]) return null;
+    if (!rows.length) return null;
 
-    const parsed = JSON.parse(row[1]);
-    return parsed;
+    const settingsPatch = {};
+    let serverStatus = null;
+
+    for (const entry of rows) {
+      if (!entry || !entry[0]) continue;
+      const key = String(entry[0]).trim();
+      const value = entry[1];
+
+      if (key === 'appSettings' && value) {
+        try {
+          const parsed = JSON.parse(value);
+          return { settingsPatch: parsed, serverStatus };
+        } catch (err) {
+          console.warn('Unable to parse legacy appSettings row:', err.message || err);
+        }
+      }
+
+      if (key === 'Server Status') {
+        serverStatus = parseStatusLabel(value, serverStatus);
+        continue;
+      }
+
+      const field = SETTINGS_FIELDS.find((item) => item.key === key);
+      if (!field) continue;
+
+      if (field.type === 'boolean') {
+        const fallbackValue = Boolean(getNestedValue(appSettings, field.path));
+        setNestedValue(settingsPatch, field.path, parseBooleanLabel(value, fallbackValue));
+      } else if (field.type === 'string') {
+        if (typeof value === 'string') {
+          setNestedValue(settingsPatch, field.path, value.trim());
+        }
+      }
+    }
+
+    return { settingsPatch, serverStatus };
   } catch (err) {
     console.warn('Unable to read settings from sheet:', err.message || err);
     return null;
   }
 }
 
-async function writeSettingsToSheet(settings) {
+async function writeSettingsToSheet(settings, enabledStatus) {
   if (!SETTINGS_SHEET_ID) return false;
 
   try {
     const ready = await ensureSettingsSheet();
     if (!ready) return false;
 
-    const values = [
-      ['key', 'value'],
-      ['appSettings', JSON.stringify(settings)]
-    ];
+    const values = [['key', 'value']];
+    values.push(['Server Status', normalizeStatusLabel(enabledStatus)]);
+
+    SETTINGS_FIELDS.forEach((field) => {
+      const rawValue = getNestedValue(settings, field.path);
+      if (field.type === 'boolean') {
+        values.push([field.key, normalizeBooleanLabel(Boolean(rawValue))]);
+      } else {
+        values.push([field.key, rawValue != null ? String(rawValue) : '']);
+      }
+    });
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SETTINGS_SHEET_ID,
-      range: `${SETTINGS_SHEET_NAME}!A1:B2`,
+      range: `${SETTINGS_SHEET_NAME}!A1:B${values.length}`,
       valueInputOption: 'RAW',
       requestBody: { values }
     });
@@ -352,9 +459,12 @@ async function writeSettingsToSheet(settings) {
 
 async function hydrateSettingsFromSheet() {
   if (settingsLoadedFromSheet) return;
-  const sheetSettings = await readSettingsFromSheet();
-  if (sheetSettings) {
-    appSettings = mergeAppSettings(sheetSettings);
+  const sheetPayload = await readSettingsFromSheet();
+  if (sheetPayload && sheetPayload.settingsPatch) {
+    appSettings = mergeAppSettings(sheetPayload.settingsPatch);
+  }
+  if (sheetPayload && typeof sheetPayload.serverStatus === 'boolean') {
+    appEnabled = sheetPayload.serverStatus;
   }
   settingsLoadedFromSheet = true;
 }
@@ -501,10 +611,20 @@ function normalizeIp(ip) {
   return ip;
 }
 
+function safeDecodeHeader(value) {
+  if (!value) return '';
+  const raw = String(value).trim();
+  try {
+    return decodeURIComponent(raw);
+  } catch (err) {
+    return raw;
+  }
+}
+
 function getClientLocation(req) {
-  const city = (req.headers['x-vercel-ip-city'] || '').toString().trim();
-  const region = (req.headers['x-vercel-ip-country-region'] || '').toString().trim();
-  const countryRaw = (req.headers['x-vercel-ip-country'] || '').toString().trim();
+  const city = safeDecodeHeader(req.headers['x-vercel-ip-city']);
+  const region = safeDecodeHeader(req.headers['x-vercel-ip-country-region']);
+  const countryRaw = safeDecodeHeader(req.headers['x-vercel-ip-country']);
 
   let country = countryRaw;
   const countryUpper = countryRaw.toUpperCase();
@@ -838,6 +958,104 @@ async function logEventToSheet(
     newsletter: newsletterStr,
     ticket,
   });
+}
+
+async function resetSessionLogs() {
+  if (!SESSION_SHEET_ID) {
+    console.warn('SESSION_SHEET_ID missing, cannot reset logs.');
+    return false;
+  }
+
+  try {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SESSION_SHEET_ID,
+      range: 'A1:J1',
+      valueInputOption: 'RAW',
+      requestBody: { values: [SESSION_SHEET_HEADERS] }
+    });
+
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: SESSION_SHEET_ID,
+      range: 'A2:J'
+    });
+
+    return true;
+  } catch (err) {
+    console.error('Error resetting session logs:', err.message || err);
+    return false;
+  }
+}
+
+async function clearDriveFolders() {
+  const result = {
+    trashedCount: 0,
+    errors: []
+  };
+
+  let pendingFiles = [];
+  let approvedFiles = [];
+
+  try {
+    pendingFiles = await listFilesInFolder(PENDING_FOLDER_ID);
+  } catch (err) {
+    console.error('Error listing pending files during clear-drive:', err);
+    result.errors.push('pending_list_failed');
+  }
+
+  try {
+    approvedFiles = await listFilesInFolder(APPROVED_FOLDER_ID);
+  } catch (err) {
+    console.error('Error listing approved files during clear-drive:', err);
+    result.errors.push('approved_list_failed');
+  }
+
+  const allFiles = [...pendingFiles, ...approvedFiles];
+
+  for (const file of allFiles) {
+    try {
+      await drive.files.update({
+        fileId: file.id,
+        requestBody: { trashed: true },
+        fields: 'id, trashed',
+        supportsAllDrives: true,
+      });
+      result.trashedCount += 1;
+    } catch (innerErr) {
+      console.error('Error trashing file during clear-drive:', file.id, innerErr);
+      result.errors.push(`trash_failed:${file.id}`);
+    }
+  }
+
+  return result;
+}
+
+async function performSessionCleanup() {
+  const cleanup = {
+    logsCleared: false,
+    trashedCount: 0,
+    errors: []
+  };
+
+  try {
+    cleanup.logsCleared = await resetSessionLogs();
+    if (!cleanup.logsCleared) {
+      cleanup.errors.push('reset_logs_failed');
+    }
+  } catch (err) {
+    console.error('Error during reset logs cleanup:', err);
+    cleanup.errors.push('reset_logs_failed');
+  }
+
+  try {
+    const driveResult = await clearDriveFolders();
+    cleanup.trashedCount = driveResult.trashedCount;
+    cleanup.errors.push(...driveResult.errors);
+  } catch (err) {
+    console.error('Error during drive cleanup:', err);
+    cleanup.errors.push('clear_drive_failed');
+  }
+
+  return cleanup;
 }
 
 // Read TODAY logs (in PR) from the Sheet and compute stats
@@ -1174,12 +1392,15 @@ async function sendSessionReportEmailFromSheet() {
 // Public app settings for the main web app
 app.get('/app-settings', (req, res) => {
   hydrateSettingsFromSheet()
-    .then(() => res.json({ ok: true, settings: appSettings }))
-    .catch(() => res.json({ ok: true, settings: appSettings }));
+    .then(() => res.json({ ok: true, enabled: appEnabled, settings: appSettings }))
+    .catch(() => res.json({ ok: true, enabled: appEnabled, settings: appSettings }));
 });
 
 // Simple visit endpoint: FE can call this on page load
 app.post('/ping', async (req, res) => {
+  if (!appEnabled) {
+    return res.status(503).json({ ok: false, error: 'app_offline' });
+  }
   try {
     const sessionId = buildSessionIdentifier(req);
     await logEventToSheet('visit', { sessionId });
@@ -1239,6 +1460,9 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
 
 // Visit logging (form submissions)
 app.post('/visit', async (req, res) => {
+  if (!appEnabled) {
+    return res.status(503).json({ ok: false, error: 'app_offline' });
+  }
   try {
     const { country, lastName, email, newsletter, timestamp } = req.body || {};
 
@@ -1477,7 +1701,48 @@ app.post('/admin/unblock', (req, res) => {
 // --------- ADMIN APP STATUS (for toggle) ----------
 
 app.get('/admin/app-status', ensureAdminAuth, (req, res) => {
-  return res.json({ ok: true, enabled: appEnabled });
+  hydrateSettingsFromSheet()
+    .then(() => res.json({ ok: true, enabled: appEnabled }))
+    .catch(() => res.json({ ok: true, enabled: appEnabled }));
+});
+
+app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
+  try {
+    const { enabled, accessCode } = req.body || {};
+
+    if (!ADMIN_ACCESS_CODE) {
+      return res.status(500).json({ error: 'admin_code_not_configured' });
+    }
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'missing_enabled_flag' });
+    }
+
+    if (!accessCode || typeof accessCode !== 'string') {
+      return res.status(400).json({ error: 'missing_access_code' });
+    }
+
+    if (accessCode !== ADMIN_ACCESS_CODE && accessCode !== ADMIN_UNLOCK_KEY) {
+      return res.status(401).json({ error: 'invalid_access_code' });
+    }
+
+    if (enabled) {
+      appEnabled = true;
+      await performSessionCleanup();
+    } else {
+      appEnabled = false;
+    }
+
+    const persisted = await writeSettingsToSheet(appSettings, appEnabled);
+    if (!persisted) {
+      return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
+    }
+
+    return res.json({ ok: true, enabled: appEnabled });
+  } catch (err) {
+    console.error('Error updating app status:', err);
+    return res.status(500).json({ ok: false, error: 'app_status_failed' });
+  }
 });
 
 // Admin: get current app settings
@@ -1491,7 +1756,7 @@ app.get('/admin/settings', ensureAdminAuth, (req, res) => {
 app.post('/admin/settings', ensureAdminAuth, async (req, res) => {
   try {
     appSettings = mergeAppSettings(req.body || {});
-    const persisted = await writeSettingsToSheet(appSettings);
+    const persisted = await writeSettingsToSheet(appSettings, appEnabled);
     if (!persisted) {
       return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
     }
@@ -1569,11 +1834,22 @@ app.post('/admin/shutdown', ensureAdminAuth, async (req, res) => {
       console.log('Mail transporter not configured; shutdown report email skipped.');
     }
 
+    const persisted = await writeSettingsToSheet(appSettings, appEnabled);
+    if (!persisted) {
+      console.warn('Shutdown: failed to persist settings sheet status.');
+    }
+
+    const cleanup = await performSessionCleanup();
+    if (cleanup.errors.length) {
+      console.warn('Shutdown cleanup encountered errors:', cleanup.errors);
+    }
+
     // Return report text to the admin UI so it can be downloaded as .txt
     return res.json({
       ok: true,
       enabled: false,
-      reportText
+      reportText,
+      cleanup
     });
   } catch (err) {
     console.error('Error in /admin/shutdown:', err);
@@ -1796,6 +2072,28 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
     return res.status(500).json({ ok: false, error: 'event_log_fetch_failed' });
   }
 });
+
+app.get('/admin/activity-stats', ensureAdminAuth, async (req, res) => {
+  try {
+    const { eventsForPrimeHour } = await getTodayStatsFromSheet();
+    const counts = Array.from({ length: 24 }, () => 0);
+
+    for (const ev of eventsForPrimeHour) {
+      const ts = new Date(ev.ts);
+      if (Number.isNaN(ts.getTime())) continue;
+      const prDate = toPR(ts);
+      const hour = prDate.getHours();
+      counts[hour] += 1;
+    }
+
+    const currentHour = toPR(new Date()).getHours();
+
+    return res.json({ ok: true, counts, currentHour });
+  } catch (err) {
+    console.error('Error loading activity stats:', err);
+    return res.status(500).json({ ok: false, error: 'activity_stats_failed' });
+  }
+});
 // Delete a single approved photo (send to trash)
 app.post('/admin/delete-approved', ensureAdminAuth, async (req, res) => {
   try {
@@ -1822,41 +2120,24 @@ app.post('/admin/delete-approved', ensureAdminAuth, async (req, res) => {
 // ⚠️ CAREFUL: this is meant for after the event.
 app.post('/admin/clear-drive', ensureAdminAuth, async (req, res) => {
   try {
-    const pendingFiles = await listFilesInFolder(PENDING_FOLDER_ID);
-    const approvedFiles = await listFilesInFolder(APPROVED_FOLDER_ID);
-
-    const allFiles = [...pendingFiles, ...approvedFiles];
-
-    for (const file of allFiles) {
-      try {
-        await drive.files.update({
-          fileId: file.id,
-          requestBody: { trashed: true },
-          fields: 'id, trashed',
-          supportsAllDrives: true,
-        });
-      } catch (innerErr) {
-        console.error('Error trashing file during clear-drive:', file.id, innerErr);
-      }
-    }
-
-    res.json({
-      ok: true,
-      trashedCount: allFiles.length,
-    });
+    const result = await clearDriveFolders();
+    res.json({ ok: true, trashedCount: result.trashedCount, errors: result.errors });
   } catch (err) {
     console.error('Error clearing Drive folders:', err);
     res.status(500).json({ ok: false, error: 'clear_drive_failed' });
   }
 });
 
-// Reset logs (dummy): does NOT touch Sheets yet, just responds OK
+// Reset logs (real): clears event logs but keeps header row
 app.post('/admin/reset-logs', ensureAdminAuth, async (req, res) => {
   try {
-    console.log('Admin requested reset-logs (dummy endpoint, no-op).');
-    res.json({ ok: true, message: 'reset-logs dummy endpoint reached (no changes applied).' });
+    const ok = await resetSessionLogs();
+    if (!ok) {
+      return res.status(500).json({ ok: false, error: 'reset_logs_failed' });
+    }
+    res.json({ ok: true, message: 'reset_logs_completed' });
   } catch (err) {
-    console.error('Error in reset-logs (dummy):', err);
+    console.error('Error in reset-logs:', err);
     res.status(500).json({ ok: false, error: 'reset_logs_failed' });
   }
 });
