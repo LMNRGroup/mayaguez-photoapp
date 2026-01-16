@@ -2059,6 +2059,8 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
       const tsPr  = row[1] || '';  // timestamp_pr "DD/MM/YYYY HH:MM:SS"
       const eventType = row[2] || '';
       const email     = row[3] || '';
+      const country = row[5] || '';
+      const region = row[6] || '';
       const newsletterFlag = row[8] || ''; // "Y" / "N" / ""
 
       // --- TIME LABEL (we prefer PR time if available) ---
@@ -2089,9 +2091,11 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
       let text = 'Activity';
 
       switch (eventType) {
-        case 'visit':
-          text = 'User visited the web app';
+        case 'visit': {
+          const location = [region, country].filter(Boolean).join(', ');
+          text = location ? `New visit from ${location}` : 'New visit';
           break;
+        }
         case 'form':
           if (newsletterFlag === 'Y') {
             text = 'User submitted a form & subscribed to newsletter';

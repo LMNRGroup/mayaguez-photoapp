@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>¡Encendido de Navidad!</title>
+  <title>¡Mayagüez en Fitur!</title>
   <style>
     /* Custom font-face */
     @font-face {
@@ -31,13 +31,14 @@
       max-width: 400px;
       padding: 20px 15px;
       margin-top: 20px;
-      background: rgba(3, 7, 18, 0.55);
+      background: rgba(255, 255, 255, 0.78);
       backdrop-filter: blur(6px);
       position: relative;
       border-radius: 25px;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
+      color: #0f172a;
     }
 
     /* GOLD OUTLINE AS FRAME, NO FILL */
@@ -123,20 +124,20 @@
       font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.25);
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.15);
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
     button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 14px 24px rgba(15, 23, 42, 0.35);
+      box-shadow: 0 14px 24px rgba(15, 23, 42, 0.2);
     }
 
     #switchCameraButton {
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: rgba(15, 23, 42, 0.9);
+      background-color: #0f172a;
       color: #f8fafc;
       width: 150px;
     }
@@ -149,19 +150,19 @@
     #captureButton,
     #uploadButton,
     #retakeButton {
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: #0f172a;
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: #ffffff;
       width: 150px;
     }
 
     #retakeButton {
-      background: linear-gradient(135deg, #fb7185, #ef4444);
-      color: #0f172a;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      color: #ffffff;
     }
 
     button:disabled {
       background-color: rgba(148, 163, 184, 0.8);
-      color: #0f172a;
+      color: #1f2937;
       box-shadow: none;
       transform: none;
     }
@@ -191,14 +192,14 @@
     }
 
     #errorLog {
-      color: #f8fafc;
+      color: #0f172a;
       margin-top: 10px;
       font-size: 11px;
     }
 
     .footer-text {
       font-size: 12px;
-      color: #f8fafc;
+      color: #0f172a;
       text-align: center;
       margin-top: 5px;
       font-weight: bold;
@@ -206,14 +207,14 @@
 
     .app-footer {
       font-size: 10px;
-      color: #e2e8f0;
+      color: #f8fafc;
       margin-bottom: 10px;
       text-align: center;
     }
 
     .disclaimer {
       font-size: 10px;
-      color: #e2e8f0;
+      color: #1f2937;
       text-align: center;
       margin-top: 20px;
       margin-bottom: 0;
@@ -271,6 +272,10 @@
 
       #switchCameraButton img {
         width: 16px;
+      }
+
+      .camera-area {
+        margin-top: 18px;
       }
     }
 
@@ -371,9 +376,14 @@
     }
 
     .landing-logo {
-      width: 180px;
-      max-width: 80%;
+      width: 200px;
+      max-width: 85%;
       height: auto;
+    }
+
+    .landing-logo.secondary {
+      width: 120px;
+      max-width: 55%;
     }
 
     .landing-button {
@@ -460,7 +470,7 @@
 
     .upload-status {
       font-size: 11px;
-      color: #f8fafc;
+      color: #0f172a;
       text-align: center;
       margin-top: 4px;
       min-height: 14px;
@@ -511,7 +521,7 @@
 
     .orientation-hint {
       font-size: 11px;
-      color: #e2e8f0;
+      color: #475569;
       text-align: center;
       margin-top: 6px;
       opacity: 0.85;
@@ -733,9 +743,10 @@
   </div>
   <div id="landingModal" class="landing-modal">
     <div class="landing-card">
-      <img src="Assets/Fitur_Logo.png" alt="Fitur" class="landing-logo" />
+      <img src="Assets/Somos Mayaguez Logo.png" alt="Somos Mayagüez" class="landing-logo" />
       <button class="landing-button" id="landingPhotoAppBtn">Mayagüez Photo App</button>
       <button class="landing-button secondary" id="landingWebsiteBtn">Visit Our Website</button>
+      <img src="Assets/Fitur_Logo.png" alt="Fitur" class="landing-logo secondary" />
     </div>
   </div>
   <div id="languageModal" class="language-modal">
@@ -752,7 +763,7 @@
     <div class="intro-backdrop">
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
-        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo" />
+        <img src="Assets/Somos Mayaguez Logo.png" alt="Somos Mayagüez" class="intro-logo" />
 
         <h2 id="introTitle">¿Desde dónde nos visitas? 😊</h2>
         <p id="introSubtitle">
@@ -971,7 +982,7 @@
 
     const COPY = {
       es: {
-        pageTitle: '¡Encendido de Navidad!',
+        pageTitle: '¡Mayagüez en Fitur!',
         offlineTitle: 'Servicio no disponible',
         offlineMessage:
           'Lo lamentamos, el servicio no está disponible en estos momentos. Favor intentarlo luego.',
@@ -1039,7 +1050,7 @@
         ticketClose: 'LISTO'
       },
       en: {
-        pageTitle: 'Christmas Lighting Celebration!',
+        pageTitle: '¡Mayagüez en Fitur!',
         offlineTitle: 'Service unavailable',
         offlineMessage:
           'We’re sorry, the service is not available right now. Please try again later.',
