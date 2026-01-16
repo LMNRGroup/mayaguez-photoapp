@@ -1557,38 +1557,7 @@
 
           <div class="panel-box">
             <div class="panel-title">Activity</div>
-            <div id="activityBars" class="activity-bars">
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:40%;"></div>
-                </div>
-                <div class="activity-hour">6PM</div>
-              </div>
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:65%;"></div>
-                </div>
-                <div class="activity-hour">7PM</div>
-              </div>
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:35%;"></div>
-                </div>
-                <div class="activity-hour">8PM</div>
-              </div>
-              <div class="activity-bar">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:75%;"></div>
-                </div>
-                <div class="activity-hour">9PM</div>
-              </div>
-              <div class="activity-bar current">
-                <div class="activity-bar-graph">
-                  <div class="activity-bar-fill" style="height:95%;"></div>
-                </div>
-                <div class="activity-hour">10PM</div>
-              </div>
-            </div>
+            <div id="activityBars" class="activity-bars"></div>
           </div>
         </aside>
       </div>
@@ -1615,10 +1584,10 @@
     <div class="dropdown-separator"></div>
     <div id="menuResetLogs" class="dropdown-item">
       <span>Reset logs</span>
-      <span class="helper-label">(demo)</span>
+      <span class="helper-label">(clear event logs)</span>
     </div>
     <div id="menuClearApproved" class="dropdown-item">
-      <span>Empty approved folder</span>
+      <span>Clear drive (pending + approved)</span>
     </div>
   </div>
 
@@ -1906,7 +1875,8 @@ function hideGlobalLoader() {
     const photoLabel = document.getElementById("photoLabel");
     const pendingCountEl = document.getElementById("pendingCount");
     const eventLogList = document.getElementById("eventLogList");
-        // Pending counter state (frontend)
+    const activityBars = document.getElementById("activityBars");
+    // Pending counter state (frontend)
     let pendingCountState = 0;
     // Delta we expect after our own actions (approve/reject)
     let pendingCountDelta = 0;
@@ -2005,6 +1975,68 @@ function hideGlobalLoader() {
         }
       } catch (err) {
         console.error("Error fetching event logs", err);
+      }
+    }
+
+    function formatHourLabel(hour) {
+      const normalized = ((hour % 24) + 24) % 24;
+      const period = normalized >= 12 ? "PM" : "AM";
+      const hour12 = normalized % 12 || 12;
+      return `${hour12}${period}`;
+    }
+
+    function renderActivityBars(counts, currentHour) {
+      if (!activityBars) return;
+      const maxCount = Math.max(...counts, 1);
+      activityBars.innerHTML = "";
+
+      counts.forEach((count, hour) => {
+        const bar = document.createElement("div");
+        bar.className = "activity-bar";
+        if (hour === currentHour) {
+          bar.classList.add("current");
+        }
+
+        const graph = document.createElement("div");
+        graph.className = "activity-bar-graph";
+
+        const fill = document.createElement("div");
+        fill.className = "activity-bar-fill";
+        const height = Math.max(8, Math.round((count / maxCount) * 100));
+        fill.style.height = `${height}%`;
+
+        const hourLabel = document.createElement("div");
+        hourLabel.className = "activity-hour";
+        hourLabel.textContent = formatHourLabel(hour);
+
+        graph.appendChild(fill);
+        bar.appendChild(graph);
+        bar.appendChild(hourLabel);
+        activityBars.appendChild(bar);
+      });
+    }
+
+    async function fetchActivityStats() {
+      if (!adminToken) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/activity-stats`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          return;
+        }
+
+        const data = await res.json();
+        if (data && Array.isArray(data.counts)) {
+          const currentHour = Number.isInteger(data.currentHour)
+            ? data.currentHour
+            : new Date().getHours();
+          renderActivityBars(data.counts, currentHour);
+        }
+      } catch (err) {
+        console.error("Error fetching activity stats", err);
       }
     }
     // LEFT NAV
@@ -2292,6 +2324,7 @@ function hideReportLoading() {
             await fetchAppStatus();
             await loadNextPhoto();
             await fetchEventLogs();
+            await fetchActivityStats();
             startAutoRefresh();
           }, 850);
         } else if (res.status === 401 && data.remainingAttempts != null) {
@@ -2543,6 +2576,7 @@ function hideReportLoading() {
 
         // also refresh event logs on the same cadence
         await fetchEventLogs();
+        await fetchActivityStats();
       } catch (err) {
         console.error("Auto-refresh error", err);
       }
@@ -2875,8 +2909,8 @@ function hideReportLoading() {
       }
 
       const ok = window.confirm(
-        "Empty ALL approved photos?\n\n" +
-          "This will permanently delete the images from the approved folder."
+        "Clear ALL photos from Pending + Approved?\n\n" +
+          "This will permanently delete all images from both folders."
       );
       if (!ok) return;
 
@@ -2904,10 +2938,49 @@ function hideReportLoading() {
           approvedFooterText.textContent = "0 photos";
         }
 
-        alert("Approved folder cleared.");
+        alert("Pending + approved folders cleared.");
       } catch (err) {
         console.error("Error clearing approved folder", err);
         alert("Could not clear the folder. Please try again.");
+      }
+    }
+
+    async function resetLogs() {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      const ok = window.confirm(
+        "Clear all event logs?\n\nThis keeps the header row but erases all event entries."
+      );
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/reset-logs`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({}),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        if (eventLogList) {
+          eventLogList.innerHTML = "";
+        }
+        renderActivityBars(new Array(24).fill(0), new Date().getHours());
+
+        alert("Event logs cleared.");
+      } catch (err) {
+        console.error("Error clearing logs", err);
+        alert("Could not clear the logs. Please try again.");
       }
     }
 
@@ -3116,16 +3189,15 @@ function hideReportLoading() {
 
     menuResetLogs.addEventListener("click", () => {
       closeMoreMenu();
-      alert("Logs cleared (demo mode, no changes on server).");
+      resetLogs();
     });
 
     menuClearApproved.addEventListener("click", clearApprovedFolder);
 
     // --- SHUTDOWN FLOW (toggle) ---
     async function handleToggleChange(e) {
-      if (!appServerEnabled) {
-        appToggleInput.checked = false;
-        alert("Server is offline for this event.\nTo start a new session, re-enable it on the server side.");
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
         return;
       }
 
@@ -3139,11 +3211,6 @@ function hideReportLoading() {
 
         const code = window.prompt("Enter the access code to confirm:");
         if (!code) return;
-
-        if (!adminToken) {
-          showLock("Session expired. Enter the access code.");
-          return;
-        }
 
         try {
           const res = await fetch(`${BASE_URL}/admin/shutdown`, {
@@ -3181,13 +3248,12 @@ function hideReportLoading() {
 
           updateAppToggleUI(false);
           appToggleInput.checked = false;
-          appToggleWrapper.classList.add("disabled");
           disableAdminControlsForOffline();
           photoImg.style.display = "none";
           emptyText.style.display = "block";
           emptyText.textContent = "Server is offline for this event.";
           photoFrame.classList.add("empty");
-          
+
           if (pendingCountEl) {
             pendingCountState = 0;
             pendingCountDelta = 0;
@@ -3200,9 +3266,67 @@ function hideReportLoading() {
           alert("Could not shut down the server. Please try again.");
         }
       } else {
-        appToggleInput.checked = appServerEnabled;
-        if (!appServerEnabled) {
-          alert("Server is offline for this event.\nTo start a new session, re-enable it on the server side.");
+        const confirmStart = window.confirm(
+          "Start a new session?\n\nThis will clear event logs and delete all pending + approved photos."
+        );
+        if (!confirmStart) {
+          appToggleInput.checked = false;
+          return;
+        }
+
+        const code = window.prompt("Enter the access code to confirm:");
+        if (!code) {
+          appToggleInput.checked = false;
+          return;
+        }
+
+        try {
+          const res = await fetch(`${BASE_URL}/admin/app-status`, {
+            method: "POST",
+            headers: withAdminHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ enabled: true, accessCode: code }),
+          });
+
+          let data = {};
+          try {
+            data = await res.json();
+          } catch (_) {}
+
+          if (res.status === 401 && data.error === "invalid_access_code") {
+            alert("Access code is incorrect.");
+            appToggleInput.checked = false;
+            return;
+          }
+
+          if (!res.ok || !data.ok) {
+            alert("Could not start the server. Please try again.");
+            appToggleInput.checked = false;
+            return;
+          }
+
+          updateAppToggleUI(true);
+          appToggleInput.checked = true;
+          appToggleWrapper.classList.remove("disabled");
+          emptyText.style.display = "block";
+          emptyText.textContent = "No pending photos.";
+          photoFrame.classList.add("empty");
+
+          if (pendingCountEl) {
+            pendingCountState = 0;
+            pendingCountDelta = 0;
+            updatePendingDisplay();
+          }
+
+          await fetchEventLogs();
+          await fetchActivityStats();
+          await loadNextPhoto();
+          startAutoRefresh();
+
+          alert("Server is online and ready for a new session.");
+        } catch (err) {
+          console.error("Error enabling server", err);
+          alert("Could not start the server. Please try again.");
+          appToggleInput.checked = false;
         }
       }
     }
@@ -3487,6 +3611,7 @@ reportViewBtn.addEventListener("click", async () => {
       fetchAppStatus()
         .then(() => loadNextPhoto())
         .then(() => fetchEventLogs())
+        .then(() => fetchActivityStats())
         .then(() => startAutoRefresh())
         .catch(() => {
           showLock();
