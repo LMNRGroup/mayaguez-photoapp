@@ -302,6 +302,13 @@
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
 
+    .intro-logo {
+      width: 120px;
+      max-width: 50%;
+      margin: 0 auto 12px auto;
+      display: block;
+    }
+
     .intro-box h2 {
       margin: 0 0 8px;
       font-size: 18px;
@@ -325,6 +332,51 @@
 
     .intro-close:hover {
       color: #888888;
+    }
+
+    .landing-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      padding: 24px;
+    }
+
+    .landing-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: min(360px, 90vw);
+      text-align: center;
+    }
+
+    .landing-logo {
+      width: 180px;
+      max-width: 80%;
+      height: auto;
+    }
+
+    .landing-button {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .landing-button.secondary {
+      background: #f3f4f6;
+      color: #111827;
     }
 
     #countrySelect,
@@ -663,6 +715,13 @@
       </p>
     </div>
   </div>
+  <div id="landingModal" class="landing-modal">
+    <div class="landing-card">
+      <img src="Assets/Fitur_Logo.png" alt="Fitur" class="landing-logo" />
+      <button class="landing-button" id="landingPhotoAppBtn">Mayagüez Photo App</button>
+      <button class="landing-button secondary" id="landingWebsiteBtn">Visit Our Website</button>
+    </div>
+  </div>
   <div id="languageModal" class="language-modal">
     <div class="language-card">
       <h2>Selecciona idioma / Select language</h2>
@@ -677,6 +736,7 @@
     <div class="intro-backdrop">
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
+        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo" />
 
         <h2 id="introTitle">¿Desde dónde nos visitas? 😊</h2>
         <p id="introSubtitle">
@@ -686,8 +746,6 @@
         <div id="locationFields">
           <select id="countrySelect">
             <option value="">Selecciona tu país</option>
-            <option value="Puerto Rico">Puerto Rico</option>
-            <option value="Estados Unidos">Estados Unidos</option>
           </select>
 
           <select id="regionSelect" disabled>
@@ -842,6 +900,9 @@
     const ticketTextEl = document.getElementById('ticketText');
     const ticketCloseBtn = document.getElementById('ticketClose');
     const offlineOverlay = document.getElementById('offlineOverlay');
+    const landingModal = document.getElementById('landingModal');
+    const landingPhotoAppBtn = document.getElementById('landingPhotoAppBtn');
+    const landingWebsiteBtn = document.getElementById('landingWebsiteBtn');
     const offlineTitle = document.getElementById('offlineTitle');
     const offlineMessage = document.getElementById('offlineMessage');
     const languageModal = document.getElementById('languageModal');
@@ -877,6 +938,9 @@
       if (offlineOverlay) {
         offlineOverlay.setAttribute('aria-hidden', enabled ? 'true' : 'false');
       }
+      if (!enabled && landingModal) {
+        landingModal.style.display = 'none';
+      }
       if (!enabled && introModal) {
         introModal.style.display = 'none';
       }
@@ -901,6 +965,7 @@
         countryPlaceholder: 'Selecciona tu país',
         countryPR: 'Puerto Rico',
         countryUS: 'Estados Unidos',
+        countrySpain: 'España',
         regionPlaceholder: 'Selecciona tu municipio/estado',
         regionPlaceholderPR: 'Selecciona tu municipio',
         regionPlaceholderUS: 'Selecciona tu estado',
@@ -968,6 +1033,7 @@
         countryPlaceholder: 'Select your country',
         countryPR: 'Puerto Rico',
         countryUS: 'United States',
+        countrySpain: 'Spain',
         regionPlaceholder: 'Select your city/state',
         regionPlaceholderPR: 'Select your city',
         regionPlaceholderUS: 'Select your state',
@@ -1079,16 +1145,10 @@
       if (ticketCloseBtn) ticketCloseBtn.textContent = t('ticketClose');
 
       if (countrySelect) {
-        countrySelect.options[0].textContent = t('countryPlaceholder');
-        if (countrySelect.options[1]) {
-          countrySelect.options[1].textContent = t('countryPR');
-        }
-        if (countrySelect.options[2]) {
-          countrySelect.options[2].textContent = t('countryUS');
-        }
+        populateCountryOptions(countrySelect.value);
       }
-      if (regionSelect && regionSelect.options[0]) {
-        regionSelect.options[0].textContent = t('regionPlaceholder');
+      if (regionSelect) {
+        populateRegionOptions(countrySelect.value, regionSelect.value);
       }
     }
     const DEFAULT_APP_SETTINGS = {
@@ -1140,6 +1200,18 @@
     function hideLanguageModal() {
       if (languageModal) {
         languageModal.style.display = 'none';
+      }
+    }
+
+    function showLandingModal() {
+      if (landingModal) {
+        landingModal.style.display = 'flex';
+      }
+    }
+
+    function hideLandingModal() {
+      if (landingModal) {
+        landingModal.style.display = 'none';
       }
     }
 
@@ -1198,13 +1270,83 @@
       "Virginia","Washington","West Virginia","Wisconsin","Wyoming"
     ];
 
+    const PINNED_COUNTRIES = ['Puerto Rico', 'United States', 'Spain'];
+    const ALL_COUNTRIES = [
+      'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda','Argentina',
+      'Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain','Bangladesh','Barbados',
+      'Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina','Botswana',
+      'Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon',
+      'Canada','Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo',
+      'Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Djibouti','Dominica',
+      'Dominican Republic','Ecuador','Egypt','El Salvador','Equatorial Guinea','Eritrea','Estonia',
+      'Eswatini','Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana',
+      'Greece','Grenada','Guatemala','Guinea','Guinea-Bissau','Guyana','Haiti','Honduras','Hungary',
+      'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan',
+      'Jordan','Kazakhstan','Kenya','Kiribati','Kosovo','Kuwait','Kyrgyzstan','Laos','Latvia',
+      'Lebanon','Lesotho','Liberia','Libya','Liechtenstein','Lithuania','Luxembourg','Madagascar',
+      'Malawi','Malaysia','Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius',
+      'Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique',
+      'Myanmar','Namibia','Nauru','Nepal','Netherlands','New Zealand','Nicaragua','Niger',
+      'Nigeria','North Korea','North Macedonia','Norway','Oman','Pakistan','Palau','Panama',
+      'Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania',
+      'Russia','Rwanda','Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines',
+      'Samoa','San Marino','Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles',
+      'Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia','South Africa',
+      'South Korea','South Sudan','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria',
+      'Taiwan','Tajikistan','Tanzania','Thailand','Timor-Leste','Togo','Tonga','Trinidad and Tobago',
+      'Tunisia','Turkey','Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates',
+      'United Kingdom','United States','Uruguay','Uzbekistan','Vanuatu','Vatican City','Venezuela',
+      'Vietnam','Yemen','Zambia','Zimbabwe'
+    ];
+
+    function getCountryLabel(country) {
+      if (country === 'Puerto Rico') return t('countryPR');
+      if (country === 'United States') return t('countryUS');
+      if (country === 'Spain') return t('countrySpain');
+      return country;
+    }
+
+    function populateCountryOptions(selected) {
+      if (!countrySelect) return;
+      const selectedValue = selected || '';
+      countrySelect.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = t('countryPlaceholder');
+      countrySelect.appendChild(placeholder);
+
+      const pinned = PINNED_COUNTRIES.map((country) => ({
+        value: country,
+        label: getCountryLabel(country)
+      }));
+
+      const rest = ALL_COUNTRIES.filter(
+        (country) => !PINNED_COUNTRIES.includes(country)
+      ).map((country) => ({
+        value: country,
+        label: getCountryLabel(country)
+      }));
+
+      [...pinned, ...rest].forEach((entry) => {
+        const opt = document.createElement('option');
+        opt.value = entry.value;
+        opt.textContent = entry.label;
+        countrySelect.appendChild(opt);
+      });
+
+      if (selectedValue) {
+        countrySelect.value = selectedValue;
+      }
+    }
+
     function populateRegionOptions(country, preselected) {
       regionSelect.innerHTML = '';
       let list = [];
 
       if (country === 'Puerto Rico') {
         list = PR_MUNICIPALITIES;
-      } else if (country === 'Estados Unidos') {
+      } else if (country === 'Estados Unidos' || country === 'United States') {
         list = US_STATES;
       }
 
@@ -1332,6 +1474,21 @@
         finalizeIntroFlow();
       });
     });
+
+    if (landingPhotoAppBtn) {
+      landingPhotoAppBtn.addEventListener('click', () => {
+        hideLandingModal();
+        const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'es';
+        applyLanguage(storedLanguage);
+        showLanguageModal();
+      });
+    }
+
+    if (landingWebsiteBtn) {
+      landingWebsiteBtn.addEventListener('click', () => {
+        window.location.href = 'https://www.somosmayaguez.com/';
+      });
+    }
 
     function getPRDate() {
       const now = new Date();
@@ -1710,7 +1867,8 @@ captureButton.addEventListener('click', () => {
       const newsletterEnabled = appSettings.form.newsletter.enabled;
 
       const country = locationEnabled ? countrySelect.value : '';
-      const region = locationEnabled ? regionSelect.value : '';
+      const needsRegion = locationEnabled && !regionSelect.disabled;
+      const region = needsRegion ? regionSelect.value : '';
       const lastName = lastNameEnabled ? lastNameInput.value.trim() : '';
       const email = emailEnabled ? emailInput.value.trim() : '';
       const newsletterInput = document.getElementById('newsletterOptIn');
@@ -1726,7 +1884,7 @@ captureButton.addEventListener('click', () => {
       }
 
       if (
-        (locationEnabled && (!country || !region)) ||
+        (locationEnabled && (!country || (needsRegion && !region))) ||
         (lastNameEnabled && !lastName) ||
         (emailEnabled && !email)
       ) {
@@ -1778,7 +1936,9 @@ captureButton.addEventListener('click', () => {
             'x-session-id': getSessionId()
           },
           body: JSON.stringify({
-            country: locationEnabled ? `${region}, ${country}` : '',
+            country: locationEnabled
+              ? (region ? `${region}, ${country}` : country)
+              : '',
             lastName: lastNameEnabled ? lastName : '',
             email: emailEnabled ? email : '',
             newsletter: newsletterEnabled ? newsletter : '',
@@ -1825,15 +1985,23 @@ captureButton.addEventListener('click', () => {
     }
 
     function prefillIntroFromStorage() {
-      const storedCountry = localStorage.getItem('lumi_country') || '';
+      const storedCountryRaw = localStorage.getItem('lumi_country') || '';
       const storedRegion = localStorage.getItem('lumi_region') || '';
       const storedLast = localStorage.getItem('lumi_lastname') || '';
       const storedEmail = localStorage.getItem('lumi_email') || '';
       const storedNewsletter = localStorage.getItem('lumi_newsletter') === '1';
+      let storedCountry = storedCountryRaw;
+
+      if (storedCountryRaw === 'Estados Unidos') storedCountry = 'United States';
+      if (storedCountryRaw === 'España') storedCountry = 'Spain';
+
+      populateCountryOptions(storedCountry);
 
       if (appSettings.form.locationEnabled && storedCountry) {
         countrySelect.value = storedCountry;
         populateRegionOptions(storedCountry, storedRegion);
+      } else {
+        populateRegionOptions('', '');
       }
 
       if (appSettings.form.lastName.enabled && storedLast) {
@@ -1853,12 +2021,10 @@ captureButton.addEventListener('click', () => {
     window.addEventListener('load', async () => {
       await loadAppSettings();
       prefillIntroFromStorage();
-      const hasLanguage = initializeLanguage();
-      if (!hasLanguage && appIsEnabled) {
-        showLanguageModal();
-      } else {
-        finalizeIntroFlow();
+      if (!appIsEnabled) {
+        return;
       }
+      showLandingModal();
       pingSession();
     });
   </script>

@@ -2035,7 +2035,14 @@ function hideGlobalLoader() {
       if (!activityBars || !activityChart || !activityXAxis || !activityYAxis) return;
       if (!Array.isArray(counts) || counts.length !== 24) return;
 
-      const maxCount = Math.max(...counts, 0);
+      const displayHours = 6;
+      const hours = [];
+      for (let offset = displayHours - 1; offset >= 0; offset -= 1) {
+        hours.push((currentHour - offset + 24) % 24);
+      }
+      const displayCounts = hours.map((hour) => counts[hour] || 0);
+
+      const maxCount = Math.max(...displayCounts, 0);
       const step = getYAxisStep(maxCount);
       const maxTick = step * 9;
       const svgWidth = 300;
@@ -2055,14 +2062,16 @@ function hideGlobalLoader() {
       }
 
       activityXAxis.innerHTML = "";
-      counts.forEach((_, hour) => {
+      activityXAxis.style.gridTemplateColumns = `repeat(${hours.length}, minmax(0, 1fr))`;
+      hours.forEach((hour) => {
         const label = document.createElement("span");
         label.textContent = formatHourLabel(hour);
         activityXAxis.appendChild(label);
       });
 
-      const points = counts.map((count, index) => {
-        const x = paddingLeft + (usableWidth * index) / 23;
+      const points = displayCounts.map((count, index) => {
+        const denominator = displayCounts.length - 1 || 1;
+        const x = paddingLeft + (usableWidth * index) / denominator;
         const ratio = maxTick ? Math.min(count / maxTick, 1) : 0;
         const y = paddingTop + usableHeight - ratio * usableHeight;
         return { x, y, count };
@@ -2071,7 +2080,7 @@ function hideGlobalLoader() {
       const linePoints = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
       const fillPoints = `${paddingLeft},${paddingTop + usableHeight} ${linePoints} ${paddingLeft + usableWidth},${paddingTop + usableHeight}`;
 
-      const currentX = paddingLeft + (usableWidth * currentHour) / 23;
+      const currentX = paddingLeft + usableWidth;
 
       activityChart.innerHTML = `
         <line class="activity-grid-line" x1="${paddingLeft}" x2="${paddingLeft + usableWidth}" y1="${paddingTop + usableHeight}" y2="${paddingTop + usableHeight}" />
