@@ -328,21 +328,10 @@
       max-width: 50%;
       margin: 0 auto 12px auto;
       display: block;
+      opacity: 0.9;
     }
 
-    .intro-logo--primary {
-      width: 160px;
-      max-width: 70%;
-      margin-bottom: 8px;
-    }
-
-    .intro-logo--secondary {
-      width: 110px;
-      max-width: 45%;
-      margin-top: 4px;
-    }
-
-    .intro-logo.bounce {
+    .landing-logo.bounce {
       animation: intro-bounce 1.4s ease;
     }
 
@@ -771,7 +760,12 @@
   </div>
   <div id="landingModal" class="landing-modal">
     <div class="landing-card">
-      <img src="Assets/Somos Mayaguez Logo.png" alt="Somos Mayagüez" class="landing-logo" />
+      <img
+        src="Assets/Somos Mayaguez Logo.png"
+        alt="Somos Mayagüez"
+        class="landing-logo"
+        id="landingLogoPrimary"
+      />
       <button class="landing-button" id="landingPhotoAppBtn">Mayagüez Photo App</button>
       <button class="landing-button secondary" id="landingWebsiteBtn">Visit Our Website</button>
       <img src="Assets/Fitur_Logo.png" alt="Fitur" class="landing-logo secondary" />
@@ -791,13 +785,7 @@
     <div class="intro-backdrop">
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
-        <img
-          src="Assets/Somos Mayaguez Logo.png"
-          alt="Somos Mayagüez"
-          class="intro-logo intro-logo--primary"
-          id="introLogoPrimary"
-        />
-        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo intro-logo--secondary" />
+        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo" />
 
         <h2 id="introTitle">¿Desde dónde nos visitas?</h2>
         <p id="introSubtitle">
@@ -852,7 +840,7 @@
   <!-- Main container -->
   <div class="container">
     <div class="logo-wrapper">
-      <img id="topLogo" src="Assets/Somos Mayaguez Logo.png" alt="Somos Mayagüez">
+      <img id="topLogo" src="Assets/Fitur_Logo.png" alt="Fitur">
     </div>
 
     <!-- Camera + controls wrapper for responsive layout -->
@@ -936,7 +924,7 @@
     const introClose = document.getElementById('introClose');
     const introTitle = document.getElementById('introTitle');
     const introSubtitle = document.getElementById('introSubtitle');
-    const introLogoPrimary = document.getElementById('introLogoPrimary');
+    const landingLogoPrimary = document.getElementById('landingLogoPrimary');
     const countrySelect = document.getElementById('countrySelect');
     const regionSelect = document.getElementById('regionSelect');
     const locationFields = document.getElementById('locationFields');
@@ -1268,6 +1256,7 @@
     function showLandingModal() {
       if (landingModal) {
         landingModal.style.display = 'flex';
+        scheduleIntroLogoBounce();
       }
     }
 
@@ -1291,7 +1280,6 @@
       const hasSubmitted = localStorage.getItem(FORM_SUBMITTED_KEY) === currentServerSessionId;
       if (shouldShowIntro && !hasSubmitted) {
         introModal.style.display = 'flex';
-        scheduleIntroLogoBounce();
       } else {
         introModal.style.display = 'none';
         setupCamera(currentFacingMode);
@@ -1299,12 +1287,12 @@
     }
 
     function scheduleIntroLogoBounce() {
-      if (!introLogoPrimary) return;
+      if (!landingLogoPrimary) return;
       const delay = 2000 + Math.random() * 3000;
       setTimeout(() => {
-        introLogoPrimary.classList.remove('bounce');
-        void introLogoPrimary.offsetWidth;
-        introLogoPrimary.classList.add('bounce');
+        landingLogoPrimary.classList.remove('bounce');
+        void landingLogoPrimary.offsetWidth;
+        landingLogoPrimary.classList.add('bounce');
         scheduleIntroLogoBounce();
       }, delay);
     }
