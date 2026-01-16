@@ -565,9 +565,54 @@
     .ticket-close-button:active {
       transform: scale(0.98);
     }
+
+    .app-offline-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 16, 30, 0.92);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #f8fafc;
+      padding: 24px;
+      z-index: 9999;
+    }
+
+    .app-offline-overlay h2 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .app-offline-overlay p {
+      font-size: 14px;
+      max-width: 520px;
+      line-height: 1.5;
+    }
+
+    body.app-offline .app-offline-overlay {
+      display: flex;
+    }
+
+    body.app-offline .container,
+    body.app-offline #introModal,
+    body.app-offline #ticketOverlay {
+      pointer-events: none;
+      filter: grayscale(0.6);
+    }
   </style>
 </head>
 <body>
+  <div id="offlineOverlay" class="app-offline-overlay">
+    <div>
+      <h2>Servicio no disponible</h2>
+      <p>
+        Lo lamentamos, el servicio no está disponible en estos momentos. Favor intentarlo luego.
+      </p>
+    </div>
+  </div>
   <!-- Intro overlay -->
   <div id="introModal">
     <div class="intro-backdrop">
@@ -737,6 +782,7 @@
     const ticketNumberEl = document.getElementById('ticketNumber');
     const ticketTextEl = document.getElementById('ticketText');
     const ticketCloseBtn = document.getElementById('ticketClose');
+    const offlineOverlay = document.getElementById('offlineOverlay');
 
     let currentFacingMode = 'user';           // Start with front camera
     let currentStream = null;                 // Active MediaStream
@@ -748,6 +794,15 @@
     let lastCaptureWasPortrait = false;
     let hasShownPortraitWarning = false;
     let shouldShowIntro = true;
+    let appIsEnabled = true;
+
+    function setAppAvailability(enabled) {
+      appIsEnabled = enabled;
+      document.body.classList.toggle('app-offline', !enabled);
+      if (offlineOverlay) {
+        offlineOverlay.setAttribute('aria-hidden', enabled ? 'true' : 'false');
+      }
+    }
 
     const DEFAULT_APP_SETTINGS = {
       ticketEnabled: true,
@@ -935,6 +990,11 @@
           throw new Error(`Settings HTTP ${res.status}`);
         }
         const data = await res.json();
+        if (data && typeof data.enabled === 'boolean') {
+          setAppAvailability(data.enabled);
+        } else {
+          setAppAvailability(true);
+        }
         if (data && data.settings) {
           applySettings(data.settings);
           return;
@@ -942,6 +1002,7 @@
       } catch (err) {
         console.warn('Could not load app settings, using defaults.', err);
       }
+      setAppAvailability(true);
       applySettings(DEFAULT_APP_SETTINGS);
     }
 
@@ -1230,6 +1291,11 @@ captureButton.addEventListener('click', () => {
     // Upload
     uploadButton.addEventListener('click', async () => {
       if (uploadButton.disabled) return;
+      if (!appIsEnabled) {
+        uploadStatus.textContent =
+          'Servicio no disponible en estos momentos. Intenta nuevamente más tarde.';
+        return;
+      }
 
       if (lastCaptureWasPortrait && !hasShownPortraitWarning) {
         const proceed = window.confirm(
@@ -1314,6 +1380,11 @@ captureButton.addEventListener('click', () => {
 
     submitIntroButton.addEventListener('click', async () => {
       if (submitIntroButton.disabled) return;
+      if (!appIsEnabled) {
+        introError.textContent =
+          'El servicio no está disponible en estos momentos. Intenta nuevamente más tarde.';
+        return;
+      }
 
       const locationEnabled = appSettings.form.locationEnabled;
       const lastNameEnabled = appSettings.form.lastName.enabled;
@@ -1421,6 +1492,7 @@ captureButton.addEventListener('click', () => {
     }
 
     function pingSession() {
+      if (!appIsEnabled) return;
       fetch(`${BACKEND_URL}/ping`, {
         method: 'POST',
         headers: {
