@@ -1775,7 +1775,12 @@ app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
 
     const persisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
     if (!persisted) {
-      return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
+      console.warn('Unable to persist settings during app-status update.');
+      return res.json({
+        ok: true,
+        enabled: appEnabled,
+        warning: 'settings_persist_failed'
+      });
     }
 
     return res.json({ ok: true, enabled: appEnabled });
