@@ -602,19 +602,78 @@
       pointer-events: none;
       filter: grayscale(0.6);
     }
+
+    .language-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 20, 0.9);
+      padding: 24px;
+    }
+
+    .language-card {
+      background: #ffffff;
+      color: #111827;
+      border-radius: 14px;
+      padding: 24px 20px;
+      width: min(360px, 90vw);
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .language-card h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+    }
+
+    .language-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .language-button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #0f172a;
+      color: #f8fafc;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+    }
+
+    .language-button.secondary {
+      background: #f3f4f6;
+      color: #111827;
+    }
   </style>
 </head>
 <body>
   <div id="offlineOverlay" class="app-offline-overlay">
     <div>
-      <h2>Servicio no disponible</h2>
-      <p>
+      <h2 id="offlineTitle">Servicio no disponible</h2>
+      <p id="offlineMessage">
         Lo lamentamos, el servicio no está disponible en estos momentos. Favor intentarlo luego.
       </p>
     </div>
   </div>
+  <div id="languageModal" class="language-modal">
+    <div class="language-card">
+      <h2>Selecciona idioma / Select language</h2>
+      <div class="language-actions">
+        <button class="language-button" data-language="es">Español</button>
+        <button class="language-button secondary" data-language="en">English</button>
+      </div>
+    </div>
+  </div>
   <!-- Intro overlay -->
-  <div id="introModal">
+  <div id="introModal" style="display:none;">
     <div class="intro-backdrop">
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
@@ -700,23 +759,23 @@
         </div>
 
         <div id="uploadStatus" class="upload-status"></div>
-        <div class="orientation-hint">
+        <div id="orientationHint" class="orientation-hint">
           Para mejores resultados, gira tu teléfono a posición horizontal antes de tomar la foto.
         </div>
         <div id="errorLog"></div>
       </div>
     </div>
 
-    <div class="footer-text">Municipio de Mayagüez.</div>
+    <div class="footer-text" id="footerText">Municipio de Mayagüez.</div>
 
-    <div class="disclaimer">
+    <div class="disclaimer" id="disclaimerText">
       Al tomar una foto, aceptas que será mostrada públicamente en la pantalla durante el evento.
       <strong>Sube solo contenido apropiado para un ambiente familiar.</strong>
       Las imágenes subidas podrán ser utilizadas en las redes sociales del Municipio de Mayagüez.
     </div>
   </div>
 
-  <div class="footer-text app-footer">
+  <div class="footer-text app-footer" id="appFooter">
     Luminar Apps<br>© 2025 LMNR Group LLC. All rights reserved.
   </div>
 
@@ -726,16 +785,16 @@
   <div id="ticketOverlay" class="ticket-overlay">
     <div class="ticket-backdrop">
       <div class="ticket-card">
-        <div class="ticket-tag">FOTO RECIBIDA</div>
+        <div class="ticket-tag" id="ticketTag">FOTO RECIBIDA</div>
         <div id="ticketNumber" class="ticket-number">#000</div>
         <div id="ticketText" class="ticket-text">
           Tu número de turno es el que ves en este boleto.
         </div>
-        <div class="ticket-note">
+        <div class="ticket-note" id="ticketNote">
           Tu foto será mostrada en la pantalla principal en los próximos minutos.
           Conserva este número para verificar tu turno.
         </div>
-        <div class="ticket-disclaimer" style="font-size:11px; color:#6b4a1e; margin-top:6px; line-height:1.4;">
+        <div class="ticket-disclaimer" id="ticketDisclaimer" style="font-size:11px; color:#6b4a1e; margin-top:6px; line-height:1.4;">
           Nota: Tu foto será mostrada en la pantalla principal <strong>una vez sea aprobada por el equipo del evento</strong>.  
           Algunas fotos podrían no ser utilizadas.
         </div>
@@ -783,6 +842,16 @@
     const ticketTextEl = document.getElementById('ticketText');
     const ticketCloseBtn = document.getElementById('ticketClose');
     const offlineOverlay = document.getElementById('offlineOverlay');
+    const offlineTitle = document.getElementById('offlineTitle');
+    const offlineMessage = document.getElementById('offlineMessage');
+    const languageModal = document.getElementById('languageModal');
+    const orientationHint = document.getElementById('orientationHint');
+    const footerText = document.getElementById('footerText');
+    const disclaimerText = document.getElementById('disclaimerText');
+    const appFooter = document.getElementById('appFooter');
+    const ticketTag = document.getElementById('ticketTag');
+    const ticketNote = document.getElementById('ticketNote');
+    const ticketDisclaimer = document.getElementById('ticketDisclaimer');
 
     let currentFacingMode = 'user';           // Start with front camera
     let currentStream = null;                 // Active MediaStream
@@ -795,6 +864,12 @@
     let hasShownPortraitWarning = false;
     let shouldShowIntro = true;
     let appIsEnabled = true;
+    let currentLanguage = 'es';
+    let currentServerSessionId = null;
+
+    const LANGUAGE_STORAGE_KEY = 'lumi_language';
+    const FORM_SUBMITTED_KEY = 'lumi_form_submitted';
+    const SERVER_SESSION_KEY = 'lumi_server_session_id';
 
     function setAppAvailability(enabled) {
       appIsEnabled = enabled;
@@ -802,8 +877,220 @@
       if (offlineOverlay) {
         offlineOverlay.setAttribute('aria-hidden', enabled ? 'true' : 'false');
       }
+      if (!enabled && introModal) {
+        introModal.style.display = 'none';
+      }
+      if (!enabled && languageModal) {
+        languageModal.style.display = 'none';
+      }
+      if (!enabled && currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
     }
 
+    const COPY = {
+      es: {
+        pageTitle: '¡Encendido de Navidad!',
+        offlineTitle: 'Servicio no disponible',
+        offlineMessage:
+          'Lo lamentamos, el servicio no está disponible en estos momentos. Favor intentarlo luego.',
+        introTitle: '¿Desde dónde nos visitas? 😊',
+        introSubtitle:
+          'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.',
+        countryPlaceholder: 'Selecciona tu país',
+        countryPR: 'Puerto Rico',
+        countryUS: 'Estados Unidos',
+        regionPlaceholder: 'Selecciona tu municipio/estado',
+        regionPlaceholderPR: 'Selecciona tu municipio',
+        regionPlaceholderUS: 'Selecciona tu estado',
+        lastNameLabel: 'Apellidos de la familia',
+        lastNamePlaceholder: 'Apellidos de la familia (Ej. Pérez González)',
+        emailLabel: 'Correo electrónico',
+        emailPlaceholder: 'Correo electrónico',
+        newsletterLabel: 'Deseo recibir noticias y ofertas de Municipio de Mayagüez.',
+        newsletterHelper: 'Tu email será utilizado únicamente si autorizas recibir nuestro boletín.',
+        submitIntro: 'CONTINUAR',
+        submitIntroSending: 'ENVIANDO...',
+        switchCamera: 'VOLTEAR',
+        capture: '¡TOMAR SELFIE!',
+        upload: 'SUBIR FOTO',
+        uploadingButton: 'SUBIENDO...',
+        retake: 'RETOMAR',
+        uploadSending: 'Subiendo foto, por favor espera...',
+        uploadSuccess: '¡Foto subida correctamente!',
+        uploadDone: 'SUBIDA',
+        uploadError: 'Hubo un error. Intenta nuevamente.',
+        uploadErrorDetail: 'Error al subir la foto: ',
+        uploadOffline:
+          'Servicio no disponible en estos momentos. Intenta nuevamente más tarde.',
+        cameraError: 'Error de cámara: ',
+        cameraNotReady: 'Error: Cámara no lista',
+        orientationHint:
+          'Para mejores resultados, gira tu teléfono a posición horizontal antes de tomar la foto.',
+        footerText: 'Municipio de Mayagüez.',
+        disclaimer:
+          'Al tomar una foto, aceptas que será mostrada públicamente en la pantalla durante el evento. ' +
+          '<strong>Sube solo contenido apropiado para un ambiente familiar.</strong> ' +
+          'Las imágenes subidas podrán ser utilizadas en las redes sociales del Municipio de Mayagüez.',
+        appFooter: 'Luminar Apps<br>© 2025 LMNR Group LLC. Todos los derechos reservados.',
+        thankYouIntro: '¡Gracias por registrarte! Ahora toma tu selfie.',
+        thankYouCloseIntro: 'Puedes tomar tu selfie cuando estés listo.',
+        thankYouTicket: '¡Gracias! Guarda tu número de turno.',
+        thankYouNoTicket: '¡Gracias! Tu foto ha sido enviada.',
+        portraitConfirm:
+          'Tu foto se ve vertical y podría salir recortada en la pantalla.\n\n' +
+          '¿Quieres subirla así de todos modos?\n\n' +
+          'Pulsa "Aceptar" para subirla así, o "Cancelar" para volver y retomar la foto.',
+        portraitCancel:
+          'Te recomendamos girar tu teléfono a horizontal y volver a tomar la foto.',
+        introOfflineError:
+          'El servicio no está disponible en estos momentos. Intenta nuevamente más tarde.',
+        introEmailError: 'Por favor escribe un correo electrónico válido.',
+        introFieldError: 'Por favor completa todos los campos para continuar.',
+        introSubmitError: 'Hubo un error al enviar tus datos. Intenta de nuevo.',
+        ticketTag: 'FOTO RECIBIDA',
+        ticketText: 'Tu número de turno es el que ves en este boleto.',
+        ticketNote:
+          'Tu foto será mostrada en la pantalla principal en los próximos minutos. Conserva este número para verificar tu turno.',
+        ticketDisclaimer:
+          'Nota: Tu foto será mostrada en la pantalla principal <strong>una vez sea aprobada por el equipo del evento</strong>. Algunas fotos podrían no ser utilizadas.',
+        ticketClose: 'LISTO'
+      },
+      en: {
+        pageTitle: 'Christmas Lighting Celebration!',
+        offlineTitle: 'Service unavailable',
+        offlineMessage:
+          'We’re sorry, the service is not available right now. Please try again later.',
+        introTitle: 'Where are you visiting us from? 😊',
+        introSubtitle:
+          'Choose your country and city/state, enter your family name, and continue to your selfie.',
+        countryPlaceholder: 'Select your country',
+        countryPR: 'Puerto Rico',
+        countryUS: 'United States',
+        regionPlaceholder: 'Select your city/state',
+        regionPlaceholderPR: 'Select your city',
+        regionPlaceholderUS: 'Select your state',
+        lastNameLabel: 'Family last name',
+        lastNamePlaceholder: 'Family last name (Ex. Smith Johnson)',
+        emailLabel: 'Email address',
+        emailPlaceholder: 'Email address',
+        newsletterLabel: 'I want to receive news and offers from the Municipality of Mayagüez.',
+        newsletterHelper: 'Your email will only be used if you choose to receive our newsletter.',
+        submitIntro: 'CONTINUE',
+        submitIntroSending: 'SENDING...',
+        switchCamera: 'SWITCH',
+        capture: 'TAKE SELFIE!',
+        upload: 'UPLOAD PHOTO',
+        uploadingButton: 'UPLOADING...',
+        retake: 'RETAKE',
+        uploadSending: 'Uploading photo, please wait...',
+        uploadSuccess: 'Photo uploaded successfully!',
+        uploadDone: 'UPLOADED',
+        uploadError: 'There was an error. Please try again.',
+        uploadErrorDetail: 'Error uploading photo: ',
+        uploadOffline: 'Service is unavailable right now. Please try again later.',
+        cameraError: 'Camera error: ',
+        cameraNotReady: 'Error: Camera not ready',
+        orientationHint:
+          'For best results, rotate your phone to landscape before taking the photo.',
+        footerText: 'Municipality of Mayagüez.',
+        disclaimer:
+          'By taking a photo, you agree it may be shown publicly on the event screen. ' +
+          '<strong>Please upload only family-friendly content.</strong> ' +
+          'Uploaded images may be used on the Municipality of Mayagüez social media.',
+        appFooter: 'Luminar Apps<br>© 2025 LMNR Group LLC. All rights reserved.',
+        thankYouIntro: 'Thanks for registering! Now take your selfie.',
+        thankYouCloseIntro: 'You can take your selfie whenever you are ready.',
+        thankYouTicket: 'Thank you! Save your ticket number.',
+        thankYouNoTicket: 'Thank you! Your photo has been sent.',
+        portraitConfirm:
+          'Your photo looks vertical and may be cropped on the screen.\n\n' +
+          'Would you like to upload it anyway?\n\n' +
+          'Press "OK" to upload, or "Cancel" to go back and retake.',
+        portraitCancel:
+          'We recommend rotating your phone to landscape and retaking the photo.',
+        introOfflineError:
+          'Service is unavailable right now. Please try again later.',
+        introEmailError: 'Please enter a valid email address.',
+        introFieldError: 'Please complete all fields to continue.',
+        introSubmitError: 'There was an error sending your data. Please try again.',
+        ticketTag: 'PHOTO RECEIVED',
+        ticketText: 'Your ticket number is shown on this ticket.',
+        ticketNote:
+          'Your photo will appear on the main screen in the next few minutes. Keep this number to track your turn.',
+        ticketDisclaimer:
+          'Note: Your photo will appear on the main screen <strong>once approved by the event team</strong>. Some photos may not be used.',
+        ticketClose: 'DONE'
+      }
+    };
+
+    function t(key) {
+      return COPY[currentLanguage]?.[key] || COPY.es[key] || '';
+    }
+
+    function applyLanguage(lang) {
+      currentLanguage = lang;
+      document.documentElement.lang = lang;
+      document.title = t('pageTitle');
+
+      const useSettings = currentLanguage === 'es' ? appSettings : null;
+      const introTitleText = useSettings?.intro?.title || t('introTitle');
+      const introSubtitleText = useSettings?.intro?.subtitle || t('introSubtitle');
+      const lastNameLabelText = useSettings?.form?.lastName?.label || t('lastNameLabel');
+      const lastNamePlaceholderText =
+        useSettings?.form?.lastName?.placeholder || t('lastNamePlaceholder');
+      const emailLabelText = useSettings?.form?.email?.label || t('emailLabel');
+      const emailPlaceholderText =
+        useSettings?.form?.email?.placeholder || t('emailPlaceholder');
+      const newsletterLabelTextValue =
+        useSettings?.form?.newsletter?.label || t('newsletterLabel');
+      const newsletterHelperTextValue =
+        useSettings?.form?.newsletter?.helper || t('newsletterHelper');
+
+      if (offlineTitle) offlineTitle.textContent = t('offlineTitle');
+      if (offlineMessage) offlineMessage.textContent = t('offlineMessage');
+      if (introTitle) introTitle.textContent = introTitleText;
+      if (introSubtitle) introSubtitle.textContent = introSubtitleText;
+      if (lastNameLabel) lastNameLabel.textContent = lastNameLabelText;
+      if (lastNameInput) lastNameInput.placeholder = lastNamePlaceholderText;
+      if (emailLabel) emailLabel.textContent = emailLabelText;
+      if (emailInput) emailInput.placeholder = emailPlaceholderText;
+      if (newsletterLabelText) newsletterLabelText.textContent = newsletterLabelTextValue;
+      if (newsletterHelper) newsletterHelper.textContent = newsletterHelperTextValue;
+      if (submitIntroButton) submitIntroButton.textContent = t('submitIntro');
+      if (switchCameraButton) {
+        switchCameraButton.innerHTML =
+          `<img src="Assets/Camera Switch Icon.png" alt="Switch Icon">${t('switchCamera')}`;
+      }
+      if (captureButton) captureButton.textContent = t('capture');
+      if (uploadButton) {
+        uploadButton.textContent = t('upload');
+      }
+      if (retakeButton) retakeButton.textContent = t('retake');
+      if (orientationHint) orientationHint.textContent = t('orientationHint');
+      if (footerText) footerText.textContent = t('footerText');
+      if (disclaimerText) disclaimerText.innerHTML = t('disclaimer');
+      if (appFooter) appFooter.innerHTML = t('appFooter');
+      if (ticketTag) ticketTag.textContent = t('ticketTag');
+      if (ticketTextEl) ticketTextEl.textContent = t('ticketText');
+      if (ticketNote) ticketNote.textContent = t('ticketNote');
+      if (ticketDisclaimer) ticketDisclaimer.innerHTML = t('ticketDisclaimer');
+      if (ticketCloseBtn) ticketCloseBtn.textContent = t('ticketClose');
+
+      if (countrySelect) {
+        countrySelect.options[0].textContent = t('countryPlaceholder');
+        if (countrySelect.options[1]) {
+          countrySelect.options[1].textContent = t('countryPR');
+        }
+        if (countrySelect.options[2]) {
+          countrySelect.options[2].textContent = t('countryUS');
+        }
+      }
+      if (regionSelect && regionSelect.options[0]) {
+        regionSelect.options[0].textContent = t('regionPlaceholder');
+      }
+    }
     const DEFAULT_APP_SETTINGS = {
       ticketEnabled: true,
       intro: {
@@ -831,6 +1118,50 @@
     };
 
     let appSettings = JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS));
+
+    function syncServerSession(sessionId) {
+      if (!sessionId) return;
+      const storedSession = localStorage.getItem(SERVER_SESSION_KEY);
+      if (storedSession && storedSession !== sessionId) {
+        localStorage.removeItem(LANGUAGE_STORAGE_KEY);
+        localStorage.removeItem(FORM_SUBMITTED_KEY);
+        localStorage.removeItem('lumi_session_id');
+      }
+      localStorage.setItem(SERVER_SESSION_KEY, sessionId);
+      currentServerSessionId = sessionId;
+    }
+
+    function showLanguageModal() {
+      if (languageModal) {
+        languageModal.style.display = 'flex';
+      }
+    }
+
+    function hideLanguageModal() {
+      if (languageModal) {
+        languageModal.style.display = 'none';
+      }
+    }
+
+    function initializeLanguage() {
+      const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+      if (storedLanguage) {
+        applyLanguage(storedLanguage);
+        return true;
+      }
+      return false;
+    }
+
+    function finalizeIntroFlow() {
+      if (!appIsEnabled) return;
+      const hasSubmitted = localStorage.getItem(FORM_SUBMITTED_KEY) === currentServerSessionId;
+      if (shouldShowIntro && !hasSubmitted) {
+        introModal.style.display = 'flex';
+      } else {
+        introModal.style.display = 'none';
+        setupCamera(currentFacingMode);
+      }
+    }
 
     // Preload flag images
     const flagImages = {
@@ -879,7 +1210,7 @@
 
       if (!country || list.length === 0) {
         regionSelect.disabled = true;
-        regionSelect.innerHTML = '<option value="">Selecciona tu municipio/estado</option>';
+        regionSelect.innerHTML = `<option value="">${t('regionPlaceholder')}</option>`;
         return;
       }
 
@@ -887,8 +1218,8 @@
       const placeholder = document.createElement('option');
       placeholder.value = '';
       placeholder.textContent = country === 'Puerto Rico'
-        ? 'Selecciona tu municipio'
-        : 'Selecciona tu estado';
+        ? t('regionPlaceholderPR')
+        : t('regionPlaceholderUS');
       regionSelect.appendChild(placeholder);
 
       list.forEach(item => {
@@ -929,13 +1260,6 @@
         }
       }));
 
-      if (introTitle) {
-        introTitle.textContent = appSettings.intro.title || DEFAULT_APP_SETTINGS.intro.title;
-      }
-      if (introSubtitle) {
-        introSubtitle.textContent = appSettings.intro.subtitle || DEFAULT_APP_SETTINGS.intro.subtitle;
-      }
-
       if (locationFields) {
         locationFields.style.display = appSettings.form.locationEnabled ? 'block' : 'none';
       }
@@ -943,36 +1267,16 @@
       if (lastNameField) {
         lastNameField.style.display = appSettings.form.lastName.enabled ? 'block' : 'none';
       }
-      if (lastNameLabel) {
-        lastNameLabel.textContent = appSettings.form.lastName.label || DEFAULT_APP_SETTINGS.form.lastName.label;
-      }
-      if (lastNameInput) {
-        lastNameInput.placeholder =
-          appSettings.form.lastName.placeholder || DEFAULT_APP_SETTINGS.form.lastName.placeholder;
-      }
 
       if (emailField) {
         emailField.style.display = appSettings.form.email.enabled ? 'block' : 'none';
       }
-      if (emailLabel) {
-        emailLabel.textContent = appSettings.form.email.label || DEFAULT_APP_SETTINGS.form.email.label;
-      }
       if (emailInput) {
-        emailInput.placeholder =
-          appSettings.form.email.placeholder || DEFAULT_APP_SETTINGS.form.email.placeholder;
         emailInput.required = appSettings.form.email.enabled;
       }
 
       if (newsletterField) {
         newsletterField.style.display = appSettings.form.newsletter.enabled ? 'block' : 'none';
-      }
-      if (newsletterLabelText) {
-        newsletterLabelText.textContent =
-          appSettings.form.newsletter.label || DEFAULT_APP_SETTINGS.form.newsletter.label;
-      }
-      if (newsletterHelper) {
-        newsletterHelper.textContent =
-          appSettings.form.newsletter.helper || DEFAULT_APP_SETTINGS.form.newsletter.helper;
       }
 
       shouldShowIntro = Boolean(
@@ -981,6 +1285,8 @@
         appSettings.form.email.enabled ||
         appSettings.form.newsletter.enabled
       );
+
+      applyLanguage(currentLanguage);
     }
 
     async function loadAppSettings() {
@@ -995,6 +1301,9 @@
         } else {
           setAppAvailability(true);
         }
+        if (data && data.sessionId) {
+          syncServerSession(data.sessionId);
+        }
         if (data && data.settings) {
           applySettings(data.settings);
           return;
@@ -1003,11 +1312,25 @@
         console.warn('Could not load app settings, using defaults.', err);
       }
       setAppAvailability(true);
+      if (!currentServerSessionId) {
+        syncServerSession(localStorage.getItem(SERVER_SESSION_KEY) || 'default');
+      }
       applySettings(DEFAULT_APP_SETTINGS);
     }
 
     countrySelect.addEventListener('change', () => {
       populateRegionOptions(countrySelect.value, null);
+    });
+
+    document.querySelectorAll('[data-language]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lang = btn.getAttribute('data-language');
+        if (!lang) return;
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+        applyLanguage(lang);
+        hideLanguageModal();
+        finalizeIntroFlow();
+      });
     });
 
     function getPRDate() {
@@ -1070,7 +1393,7 @@
       }
 
       if (ticketTextEl) {
-        ticketTextEl.textContent = 'Tu número de turno es el que ves en este boleto.';
+        ticketTextEl.textContent = t('ticketText');
       }
 
       ticketOverlay.style.display = 'flex';
@@ -1128,7 +1451,7 @@
         console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
       } catch (error) {
         console.error('Camera error:', error);
-        errorLog.textContent = `Camera error: ${error.message}`;
+        errorLog.textContent = `${t('cameraError')}${error.message}`;
       }
     }
 
@@ -1216,7 +1539,7 @@ captureButton.addEventListener('click', () => {
   const vh = video.videoHeight;
 
   if (!vw || !vh) {
-    errorLog.textContent = 'Error: Camera not ready';
+    errorLog.textContent = t('cameraNotReady');
     return;
   }
 
@@ -1281,7 +1604,7 @@ captureButton.addEventListener('click', () => {
       captureButton.style.display = 'inline-block';
 
       uploadButton.disabled = false;
-      uploadButton.textContent = 'SUBIR FOTO';
+      uploadButton.textContent = t('upload');
       uploadButton.classList.remove('button-loading');
       uploadStatus.textContent = '';
       errorLog.textContent = '';
@@ -1292,28 +1615,23 @@ captureButton.addEventListener('click', () => {
     uploadButton.addEventListener('click', async () => {
       if (uploadButton.disabled) return;
       if (!appIsEnabled) {
-        uploadStatus.textContent =
-          'Servicio no disponible en estos momentos. Intenta nuevamente más tarde.';
+        uploadStatus.textContent = t('uploadOffline');
         return;
       }
 
       if (lastCaptureWasPortrait && !hasShownPortraitWarning) {
-        const proceed = window.confirm(
-          'Tu foto se ve vertical y podría salir recortada en la pantalla.\n\n' +
-          '¿Quieres subirla así de todos modos?\n\nPulsa "Aceptar" para subirla así, o "Cancelar" para volver y retomar la foto.'
-        );
+        const proceed = window.confirm(t('portraitConfirm'));
         if (!proceed) {
-          uploadStatus.textContent =
-            'Te recomendamos girar tu teléfono a horizontal y volver a tomar la foto.';
+          uploadStatus.textContent = t('portraitCancel');
           return;
         }
         hasShownPortraitWarning = true;
       }
 
       uploadButton.disabled = true;
-      uploadButton.textContent = 'SUBIENDO...';
+      uploadButton.textContent = t('uploadingButton');
       uploadButton.classList.add('button-loading');
-      uploadStatus.textContent = 'Subiendo foto, por favor espera...';
+      uploadStatus.textContent = t('uploadSending');
       errorLog.textContent = '';
 
       canvas.toBlob(async (blob) => {
@@ -1335,8 +1653,8 @@ captureButton.addEventListener('click', () => {
           const result = await response.json();
           console.log('Upload successful:', result);
 
-          uploadStatus.textContent = '¡Foto subida correctamente!';
-          uploadButton.textContent = 'SUBIDA';
+          uploadStatus.textContent = t('uploadSuccess');
+          uploadButton.textContent = t('uploadDone');
           uploadButton.classList.remove('button-loading');
 
           const ticketNumber =
@@ -1349,18 +1667,18 @@ captureButton.addEventListener('click', () => {
 
           if (appSettings.ticketEnabled && ticketNumber !== null && ticketNumber !== undefined) {
             showTicketOverlay(ticketNumber);
-            showThankYou('¡Gracias! Guarda tu número de turno.');
+            showThankYou(t('thankYouTicket'));
           } else {
-            showThankYou('¡Gracias! Tu foto ha sido enviada.');
+            showThankYou(t('thankYouNoTicket'));
           }
         } catch (error) {
           console.error('Upload error:', error);
-          errorLog.textContent = `Error al subir la foto: ${error.message}`;
+          errorLog.textContent = `${t('uploadErrorDetail')}${error.message}`;
 
           uploadButton.disabled = false;
-          uploadButton.textContent = 'SUBIR FOTO';
+          uploadButton.textContent = t('upload');
           uploadButton.classList.remove('button-loading');
-          uploadStatus.textContent = 'Hubo un error. Intenta nuevamente.';
+          uploadStatus.textContent = t('uploadError');
         }
       }, 'image/jpeg');
     });
@@ -1369,20 +1687,20 @@ captureButton.addEventListener('click', () => {
 
     // Intro / registration
     function startCameraAfterIntro() {
+      if (!appIsEnabled) return;
       introModal.style.display = 'none';
       setupCamera(currentFacingMode);
     }
 
     introClose.addEventListener('click', () => {
       startCameraAfterIntro();
-      showThankYou('Puedes tomar tu selfie cuando estés listo.');
+      showThankYou(t('thankYouCloseIntro'));
     });
 
     submitIntroButton.addEventListener('click', async () => {
       if (submitIntroButton.disabled) return;
       if (!appIsEnabled) {
-        introError.textContent =
-          'El servicio no está disponible en estos momentos. Intenta nuevamente más tarde.';
+        introError.textContent = t('introOfflineError');
         return;
       }
 
@@ -1400,7 +1718,7 @@ captureButton.addEventListener('click', () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       if (emailEnabled && !emailRegex.test(email)) {
-        introError.textContent = 'Por favor escribe un correo electrónico válido.';
+        introError.textContent = t('introEmailError');
         introBox.classList.remove('shake');
         void introBox.offsetWidth;
         introBox.classList.add('shake');
@@ -1412,7 +1730,7 @@ captureButton.addEventListener('click', () => {
         (lastNameEnabled && !lastName) ||
         (emailEnabled && !email)
       ) {
-        introError.textContent = 'Por favor completa todos los campos para continuar.';
+        introError.textContent = t('introFieldError');
         introBox.classList.remove('shake');
         void introBox.offsetWidth;
         introBox.classList.add('shake');
@@ -1423,7 +1741,7 @@ captureButton.addEventListener('click', () => {
 
       const originalText = submitIntroButton.textContent;
       submitIntroButton.disabled = true;
-      submitIntroButton.textContent = 'ENVIANDO...';
+      submitIntroButton.textContent = t('submitIntroSending');
       submitIntroButton.classList.add('button-loading');
 
       if (locationEnabled) {
@@ -1469,13 +1787,16 @@ captureButton.addEventListener('click', () => {
         });
 
         startCameraAfterIntro();
-        showThankYou('¡Gracias por registrarte! Ahora toma tu selfie.');
+        showThankYou(t('thankYouIntro'));
+        if (currentServerSessionId) {
+          localStorage.setItem(FORM_SUBMITTED_KEY, currentServerSessionId);
+        }
       } catch (err) {
         console.error('Error sending visit info:', err);
-        introError.textContent = 'Hubo un error al enviar tus datos. Intenta de nuevo.';
+        introError.textContent = t('introSubmitError');
 
         submitIntroButton.disabled = false;
-        submitIntroButton.textContent = originalText;
+        submitIntroButton.textContent = originalText || t('submitIntro');
         submitIntroButton.classList.remove('button-loading');
       }
     });
@@ -1532,11 +1853,11 @@ captureButton.addEventListener('click', () => {
     window.addEventListener('load', async () => {
       await loadAppSettings();
       prefillIntroFromStorage();
-      if (shouldShowIntro) {
-        introModal.style.display = 'flex';
+      const hasLanguage = initializeLanguage();
+      if (!hasLanguage && appIsEnabled) {
+        showLanguageModal();
       } else {
-        introModal.style.display = 'none';
-        setupCamera(currentFacingMode);
+        finalizeIntroFlow();
       }
       pingSession();
     });

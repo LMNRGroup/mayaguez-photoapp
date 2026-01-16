@@ -3347,15 +3347,9 @@ function hideReportLoading() {
         }
       } else {
         const confirmStart = window.confirm(
-          "Start a new session?\n\nThis will clear event logs and delete all pending + approved photos."
+          "Start a new session and bring the server online?"
         );
         if (!confirmStart) {
-          appToggleInput.checked = false;
-          return;
-        }
-
-        const code = window.prompt("Enter the access code to confirm:");
-        if (!code) {
           appToggleInput.checked = false;
           return;
         }
@@ -3365,19 +3359,13 @@ function hideReportLoading() {
           const res = await fetch(`${BASE_URL}/admin/app-status`, {
             method: "POST",
             headers: withAdminHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify({ enabled: true, accessCode: code }),
+            body: JSON.stringify({ enabled: true }),
           });
 
           let data = {};
           try {
             data = await res.json();
           } catch (_) {}
-
-          if (res.status === 401 && data.error === "invalid_access_code") {
-            alert("Access code is incorrect.");
-            appToggleInput.checked = false;
-            return;
-          }
 
           if (!res.ok || !data.ok) {
             alert("Could not start the server. Please try again.");
