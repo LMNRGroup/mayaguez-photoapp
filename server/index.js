@@ -1754,11 +1754,12 @@ app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
     }
 
     if (!enabled) {
-      if (!ADMIN_ACCESS_CODE) {
-        return res.status(500).json({ error: 'admin_code_not_configured' });
-      }
       if (!accessCode || typeof accessCode !== 'string') {
         return res.status(400).json({ error: 'missing_access_code' });
+      }
+
+      if (!ADMIN_ACCESS_CODE && !ADMIN_UNLOCK_KEY) {
+        return res.status(500).json({ error: 'admin_code_not_configured' });
       }
 
       if (accessCode !== ADMIN_ACCESS_CODE && accessCode !== ADMIN_UNLOCK_KEY) {
@@ -1818,12 +1819,12 @@ app.post('/admin/shutdown', ensureAdminAuth, async (req, res) => {
   try {
     const { accessCode } = req.body || {};
 
-    if (!ADMIN_ACCESS_CODE) {
-      return res.status(500).json({ error: 'admin_code_not_configured' });
-    }
-
     if (!accessCode || typeof accessCode !== 'string') {
       return res.status(400).json({ error: 'missing_access_code' });
+    }
+
+    if (!ADMIN_ACCESS_CODE && !ADMIN_UNLOCK_KEY) {
+      return res.status(500).json({ error: 'admin_code_not_configured' });
     }
 
     // Require re-entering the admin code (or unlock key if you want)

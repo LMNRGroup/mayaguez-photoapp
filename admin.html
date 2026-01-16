@@ -3307,7 +3307,10 @@ function hideReportLoading() {
           }
 
           if (!res.ok || !data.ok) {
-            alert("Could not shut down the server. Please try again.");
+            const message = data.error
+              ? `Could not shut down the server (${data.error}). Please try again.`
+              : "Could not shut down the server. Please try again.";
+            alert(message);
             return;
           }
 
