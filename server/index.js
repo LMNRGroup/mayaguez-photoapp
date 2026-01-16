@@ -34,6 +34,7 @@ const SETTINGS_SHEET_NAME = process.env.SETTINGS_SHEET_NAME || 'Settings';
 // country, region, last_name, newsletter, ticket
 const SESSION_SHEET_RANGE = 'A:J';
 const SETTINGS_SHEET_RANGE = `${SETTINGS_SHEET_NAME}!A:B`;
+const SETTINGS_SERVER_SESSION_KEY = 'Server Session';
 const SESSION_SHEET_HEADERS = [
   'timestamp_utc',
   'timestamp_pr',
@@ -167,6 +168,7 @@ app.use(express.json());
 
 // ---------- App enabled flag (for /admin/shutdown) ----------
 let appEnabled = true; // admin toggle will set this to false after event
+let appSessionId = null;
 
 // ---------- APP SETTINGS (admin-configurable) ----------
 const DEFAULT_APP_SETTINGS = {
@@ -249,6 +251,10 @@ function normalizeStatusLabel(enabled) {
 
 function parseStatusLabel(value, fallback) {
   return parseBooleanLabel(value, fallback);
+}
+
+function generateServerSessionId() {
+  return crypto.randomBytes(12).toString('hex');
 }
 
 function getNestedValue(obj, path) {
@@ -384,6 +390,7 @@ async function readSettingsFromSheet() {
 
     const settingsPatch = {};
     let serverStatus = null;
+    let serverSessionId = null;
 
     for (const entry of rows) {
       if (!entry || !entry[0]) continue;
@@ -393,7 +400,10 @@ async function readSettingsFromSheet() {
       if (key === 'appSettings' && value) {
         try {
           const parsed = JSON.parse(value);
-          return { settingsPatch: parsed, serverStatus };
+          if (parsed && typeof parsed === 'object') {
+            Object.assign(settingsPatch, parsed);
+          }
+          continue;
         } catch (err) {
           console.warn('Unable to parse legacy appSettings row:', err.message || err);
         }
@@ -401,6 +411,12 @@ async function readSettingsFromSheet() {
 
       if (key === 'Server Status') {
         serverStatus = parseStatusLabel(value, serverStatus);
+        continue;
+      }
+      if (key === SETTINGS_SERVER_SESSION_KEY) {
+        if (value != null && String(value).trim()) {
+          serverSessionId = String(value).trim();
+        }
         continue;
       }
 
@@ -417,14 +433,14 @@ async function readSettingsFromSheet() {
       }
     }
 
-    return { settingsPatch, serverStatus };
+    return { settingsPatch, serverStatus, serverSessionId };
   } catch (err) {
     console.warn('Unable to read settings from sheet:', err.message || err);
     return null;
   }
 }
 
-async function writeSettingsToSheet(settings, enabledStatus) {
+async function writeSettingsToSheet(settings, enabledStatus, serverSessionId) {
   if (!SETTINGS_SHEET_ID) return false;
 
   try {
@@ -433,6 +449,9 @@ async function writeSettingsToSheet(settings, enabledStatus) {
 
     const values = [['key', 'value']];
     values.push(['Server Status', normalizeStatusLabel(enabledStatus)]);
+    if (serverSessionId) {
+      values.push([SETTINGS_SERVER_SESSION_KEY, String(serverSessionId)]);
+    }
 
     SETTINGS_FIELDS.forEach((field) => {
       const rawValue = getNestedValue(settings, field.path);
@@ -465,6 +484,12 @@ async function hydrateSettingsFromSheet() {
   }
   if (sheetPayload && typeof sheetPayload.serverStatus === 'boolean') {
     appEnabled = sheetPayload.serverStatus;
+  }
+  if (sheetPayload && sheetPayload.serverSessionId) {
+    appSessionId = sheetPayload.serverSessionId;
+  }
+  if (!appSessionId) {
+    appSessionId = generateServerSessionId();
   }
   settingsLoadedFromSheet = true;
 }
@@ -1392,8 +1417,22 @@ async function sendSessionReportEmailFromSheet() {
 // Public app settings for the main web app
 app.get('/app-settings', (req, res) => {
   hydrateSettingsFromSheet()
-    .then(() => res.json({ ok: true, enabled: appEnabled, settings: appSettings }))
-    .catch(() => res.json({ ok: true, enabled: appEnabled, settings: appSettings }));
+    .then(() =>
+      res.json({
+        ok: true,
+        enabled: appEnabled,
+        settings: appSettings,
+        sessionId: appSessionId
+      })
+    )
+    .catch(() =>
+      res.json({
+        ok: true,
+        enabled: appEnabled,
+        settings: appSettings,
+        sessionId: appSessionId
+      })
+    );
 });
 
 // Simple visit endpoint: FE can call this on page load
@@ -1718,22 +1757,23 @@ app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
       return res.status(400).json({ error: 'missing_enabled_flag' });
     }
 
-    if (!accessCode || typeof accessCode !== 'string') {
-      return res.status(400).json({ error: 'missing_access_code' });
-    }
+    if (!enabled) {
+      if (!accessCode || typeof accessCode !== 'string') {
+        return res.status(400).json({ error: 'missing_access_code' });
+      }
 
-    if (accessCode !== ADMIN_ACCESS_CODE && accessCode !== ADMIN_UNLOCK_KEY) {
-      return res.status(401).json({ error: 'invalid_access_code' });
-    }
-
-    if (enabled) {
-      appEnabled = true;
-      await performSessionCleanup();
-    } else {
+      if (accessCode !== ADMIN_ACCESS_CODE && accessCode !== ADMIN_UNLOCK_KEY) {
+        return res.status(401).json({ error: 'invalid_access_code' });
+      }
       appEnabled = false;
+    } else {
+      if (!appEnabled) {
+        appSessionId = generateServerSessionId();
+      }
+      appEnabled = true;
     }
 
-    const persisted = await writeSettingsToSheet(appSettings, appEnabled);
+    const persisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
     if (!persisted) {
       return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
     }
@@ -1756,7 +1796,7 @@ app.get('/admin/settings', ensureAdminAuth, (req, res) => {
 app.post('/admin/settings', ensureAdminAuth, async (req, res) => {
   try {
     appSettings = mergeAppSettings(req.body || {});
-    const persisted = await writeSettingsToSheet(appSettings, appEnabled);
+    const persisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
     if (!persisted) {
       return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
     }
@@ -1834,14 +1874,14 @@ app.post('/admin/shutdown', ensureAdminAuth, async (req, res) => {
       console.log('Mail transporter not configured; shutdown report email skipped.');
     }
 
-    const persisted = await writeSettingsToSheet(appSettings, appEnabled);
-    if (!persisted) {
-      console.warn('Shutdown: failed to persist settings sheet status.');
-    }
-
     const cleanup = await performSessionCleanup();
     if (cleanup.errors.length) {
       console.warn('Shutdown cleanup encountered errors:', cleanup.errors);
+    }
+
+    const persisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
+    if (!persisted) {
+      console.warn('Shutdown: failed to persist settings sheet status.');
     }
 
     // Return report text to the admin UI so it can be downloaded as .txt
