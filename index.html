@@ -345,6 +345,27 @@
       background: #fff;
     }
 
+    #lastNameInput,
+    #emailInput {
+      margin-bottom: 0;
+    }
+
+    .intro-field {
+      margin-bottom: 14px;
+    }
+
+    .intro-label {
+      display: block;
+      font-size: 12px;
+      color: #444;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    #locationFields {
+      margin-bottom: 14px;
+    }
+
     .intro-buttons {
       display: flex;
       justify-content: center;
@@ -553,39 +574,49 @@
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
 
-        <h2>¿Desde dónde nos visitas? 😊</h2>
-        <p>Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.</p>
-
-        <select id="countrySelect">
-          <option value="">Selecciona tu país</option>
-          <option value="Puerto Rico">Puerto Rico</option>
-          <option value="Estados Unidos">Estados Unidos</option>
-        </select>
-
-        <select id="regionSelect" disabled>
-          <option value="">Selecciona tu municipio/estado</option>
-        </select>
-
-        <input type="text" id="lastNameInput" placeholder="Apellidos de la familia (Ej. Pérez González)">
-        <input
-          type="email"
-          id="emailInput"
-          placeholder="Correo electrónico"
-          required
-          pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
-        />
-
-        <label class="newsletter-label">
-          <input type="checkbox" id="newsletterOptIn">
-          <span>
-            Deseo recibir noticias y ofertas de
-            <strong>Municipio de Mayagüez.</strong>
-          </span>
-        </label>
-
-        <p style="font-size:9px; color:#666; margin:2px 0 12px;">
-          Tu email será utilizado únicamente si autorizas recibir nuestro boletín.
+        <h2 id="introTitle">¿Desde dónde nos visitas? 😊</h2>
+        <p id="introSubtitle">
+          Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.
         </p>
+
+        <div id="locationFields">
+          <select id="countrySelect">
+            <option value="">Selecciona tu país</option>
+            <option value="Puerto Rico">Puerto Rico</option>
+            <option value="Estados Unidos">Estados Unidos</option>
+          </select>
+
+          <select id="regionSelect" disabled>
+            <option value="">Selecciona tu municipio/estado</option>
+          </select>
+        </div>
+
+        <div class="intro-field" id="lastNameField">
+          <label for="lastNameInput" class="intro-label" id="lastNameLabel">Apellidos de la familia</label>
+          <input type="text" id="lastNameInput" placeholder="Apellidos de la familia (Ej. Pérez González)">
+        </div>
+
+        <div class="intro-field" id="emailField">
+          <label for="emailInput" class="intro-label" id="emailLabel">Correo electrónico</label>
+          <input
+            type="email"
+            id="emailInput"
+            placeholder="Correo electrónico"
+            required
+            pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+          />
+        </div>
+
+        <div class="intro-field" id="newsletterField">
+          <label class="newsletter-label" id="newsletterLabel">
+            <input type="checkbox" id="newsletterOptIn">
+            <span id="newsletterLabelText">Deseo recibir noticias y ofertas de Municipio de Mayagüez.</span>
+          </label>
+
+          <p id="newsletterHelper" style="font-size:9px; color:#666; margin:2px 0 12px;">
+            Tu email será utilizado únicamente si autorizas recibir nuestro boletín.
+          </p>
+        </div>
 
         <div class="intro-buttons">
           <button id="submitIntroButton">CONTINUAR</button>
@@ -680,10 +711,21 @@
     const errorLog = document.getElementById('errorLog');
     const introModal = document.getElementById('introModal');
     const introClose = document.getElementById('introClose');
+    const introTitle = document.getElementById('introTitle');
+    const introSubtitle = document.getElementById('introSubtitle');
     const countrySelect = document.getElementById('countrySelect');
     const regionSelect = document.getElementById('regionSelect');
+    const locationFields = document.getElementById('locationFields');
+    const lastNameField = document.getElementById('lastNameField');
     const lastNameInput = document.getElementById('lastNameInput');
+    const lastNameLabel = document.getElementById('lastNameLabel');
+    const emailField = document.getElementById('emailField');
     const emailInput = document.getElementById('emailInput');
+    const emailLabel = document.getElementById('emailLabel');
+    const newsletterField = document.getElementById('newsletterField');
+    const newsletterLabel = document.getElementById('newsletterLabel');
+    const newsletterLabelText = document.getElementById('newsletterLabelText');
+    const newsletterHelper = document.getElementById('newsletterHelper');
     const submitIntroButton = document.getElementById('submitIntroButton');
     const introError = document.getElementById('introError');
     const introBox = document.querySelector('.intro-box');
@@ -705,6 +747,35 @@
     let photoCounter = 1;
     let lastCaptureWasPortrait = false;
     let hasShownPortraitWarning = false;
+    let shouldShowIntro = true;
+
+    const DEFAULT_APP_SETTINGS = {
+      ticketEnabled: true,
+      intro: {
+        title: '¿Desde dónde nos visitas? 😊',
+        subtitle: 'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.'
+      },
+      form: {
+        locationEnabled: true,
+        lastName: {
+          enabled: true,
+          label: 'Apellidos de la familia',
+          placeholder: 'Apellidos de la familia (Ej. Pérez González)'
+        },
+        email: {
+          enabled: true,
+          label: 'Correo electrónico',
+          placeholder: 'Correo electrónico'
+        },
+        newsletter: {
+          enabled: true,
+          label: 'Deseo recibir noticias y ofertas de Municipio de Mayagüez.',
+          helper: 'Tu email será utilizado únicamente si autorizas recibir nuestro boletín.'
+        }
+      }
+    };
+
+    let appSettings = JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS));
 
     // Preload flag images
     const flagImages = {
@@ -775,6 +846,103 @@
       if (preselected && list.includes(preselected)) {
         regionSelect.value = preselected;
       }
+    }
+
+    function applySettings(settings) {
+      appSettings = JSON.parse(JSON.stringify({
+        ...DEFAULT_APP_SETTINGS,
+        ...settings,
+        intro: {
+          ...DEFAULT_APP_SETTINGS.intro,
+          ...(settings?.intro || {})
+        },
+        form: {
+          ...DEFAULT_APP_SETTINGS.form,
+          ...(settings?.form || {}),
+          lastName: {
+            ...DEFAULT_APP_SETTINGS.form.lastName,
+            ...(settings?.form?.lastName || {})
+          },
+          email: {
+            ...DEFAULT_APP_SETTINGS.form.email,
+            ...(settings?.form?.email || {})
+          },
+          newsletter: {
+            ...DEFAULT_APP_SETTINGS.form.newsletter,
+            ...(settings?.form?.newsletter || {})
+          }
+        }
+      }));
+
+      if (introTitle) {
+        introTitle.textContent = appSettings.intro.title || DEFAULT_APP_SETTINGS.intro.title;
+      }
+      if (introSubtitle) {
+        introSubtitle.textContent = appSettings.intro.subtitle || DEFAULT_APP_SETTINGS.intro.subtitle;
+      }
+
+      if (locationFields) {
+        locationFields.style.display = appSettings.form.locationEnabled ? 'block' : 'none';
+      }
+
+      if (lastNameField) {
+        lastNameField.style.display = appSettings.form.lastName.enabled ? 'block' : 'none';
+      }
+      if (lastNameLabel) {
+        lastNameLabel.textContent = appSettings.form.lastName.label || DEFAULT_APP_SETTINGS.form.lastName.label;
+      }
+      if (lastNameInput) {
+        lastNameInput.placeholder =
+          appSettings.form.lastName.placeholder || DEFAULT_APP_SETTINGS.form.lastName.placeholder;
+      }
+
+      if (emailField) {
+        emailField.style.display = appSettings.form.email.enabled ? 'block' : 'none';
+      }
+      if (emailLabel) {
+        emailLabel.textContent = appSettings.form.email.label || DEFAULT_APP_SETTINGS.form.email.label;
+      }
+      if (emailInput) {
+        emailInput.placeholder =
+          appSettings.form.email.placeholder || DEFAULT_APP_SETTINGS.form.email.placeholder;
+        emailInput.required = appSettings.form.email.enabled;
+      }
+
+      if (newsletterField) {
+        newsletterField.style.display = appSettings.form.newsletter.enabled ? 'block' : 'none';
+      }
+      if (newsletterLabelText) {
+        newsletterLabelText.textContent =
+          appSettings.form.newsletter.label || DEFAULT_APP_SETTINGS.form.newsletter.label;
+      }
+      if (newsletterHelper) {
+        newsletterHelper.textContent =
+          appSettings.form.newsletter.helper || DEFAULT_APP_SETTINGS.form.newsletter.helper;
+      }
+
+      shouldShowIntro = Boolean(
+        appSettings.form.locationEnabled ||
+        appSettings.form.lastName.enabled ||
+        appSettings.form.email.enabled ||
+        appSettings.form.newsletter.enabled
+      );
+    }
+
+    async function loadAppSettings() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/app-settings`, { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`Settings HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (data && data.settings) {
+          applySettings(data.settings);
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not load app settings, using defaults.', err);
+      }
+      applySettings(DEFAULT_APP_SETTINGS);
     }
 
     countrySelect.addEventListener('change', () => {
@@ -1113,7 +1281,7 @@ captureButton.addEventListener('click', () => {
             result.photoIndex ??
             null;
 
-          if (ticketNumber !== null && ticketNumber !== undefined) {
+          if (appSettings.ticketEnabled && ticketNumber !== null && ticketNumber !== undefined) {
             showTicketOverlay(ticketNumber);
             showThankYou('¡Gracias! Guarda tu número de turno.');
           } else {
@@ -1147,14 +1315,20 @@ captureButton.addEventListener('click', () => {
     submitIntroButton.addEventListener('click', async () => {
       if (submitIntroButton.disabled) return;
 
-      const country = countrySelect.value;
-      const region = regionSelect.value;
-      const lastName = lastNameInput.value.trim();
-      const email = emailInput.value.trim();
-      const newsletter = document.getElementById('newsletterOptIn').checked;
+      const locationEnabled = appSettings.form.locationEnabled;
+      const lastNameEnabled = appSettings.form.lastName.enabled;
+      const emailEnabled = appSettings.form.email.enabled;
+      const newsletterEnabled = appSettings.form.newsletter.enabled;
+
+      const country = locationEnabled ? countrySelect.value : '';
+      const region = locationEnabled ? regionSelect.value : '';
+      const lastName = lastNameEnabled ? lastNameInput.value.trim() : '';
+      const email = emailEnabled ? emailInput.value.trim() : '';
+      const newsletterInput = document.getElementById('newsletterOptIn');
+      const newsletter = newsletterEnabled && newsletterInput ? newsletterInput.checked : false;
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-      if (!emailRegex.test(email)) {
+      if (emailEnabled && !emailRegex.test(email)) {
         introError.textContent = 'Por favor escribe un correo electrónico válido.';
         introBox.classList.remove('shake');
         void introBox.offsetWidth;
@@ -1162,7 +1336,11 @@ captureButton.addEventListener('click', () => {
         return;
       }
 
-      if (!country || !region || !lastName || !email) {
+      if (
+        (locationEnabled && (!country || !region)) ||
+        (lastNameEnabled && !lastName) ||
+        (emailEnabled && !email)
+      ) {
         introError.textContent = 'Por favor completa todos los campos para continuar.';
         introBox.classList.remove('shake');
         void introBox.offsetWidth;
@@ -1177,11 +1355,31 @@ captureButton.addEventListener('click', () => {
       submitIntroButton.textContent = 'ENVIANDO...';
       submitIntroButton.classList.add('button-loading');
 
-      localStorage.setItem('lumi_country', country);
-      localStorage.setItem('lumi_region', region);
-      localStorage.setItem('lumi_lastname', lastName);
-      localStorage.setItem('lumi_email', email);
-      localStorage.setItem('lumi_newsletter', newsletter ? '1' : '0');
+      if (locationEnabled) {
+        localStorage.setItem('lumi_country', country);
+        localStorage.setItem('lumi_region', region);
+      } else {
+        localStorage.removeItem('lumi_country');
+        localStorage.removeItem('lumi_region');
+      }
+
+      if (lastNameEnabled) {
+        localStorage.setItem('lumi_lastname', lastName);
+      } else {
+        localStorage.removeItem('lumi_lastname');
+      }
+
+      if (emailEnabled) {
+        localStorage.setItem('lumi_email', email);
+      } else {
+        localStorage.removeItem('lumi_email');
+      }
+
+      if (newsletterEnabled) {
+        localStorage.setItem('lumi_newsletter', newsletter ? '1' : '0');
+      } else {
+        localStorage.removeItem('lumi_newsletter');
+      }
 
       try {
         await fetch(`${BACKEND_URL}/visit`, {
@@ -1191,10 +1389,10 @@ captureButton.addEventListener('click', () => {
             'x-session-id': getSessionId()
           },
           body: JSON.stringify({
-            country: `${region}, ${country}`,
-            lastName,
-            email,
-            newsletter,
+            country: locationEnabled ? `${region}, ${country}` : '',
+            lastName: lastNameEnabled ? lastName : '',
+            email: emailEnabled ? email : '',
+            newsletter: newsletterEnabled ? newsletter : '',
             timestamp: new Date().toISOString()
           })
         });
@@ -1240,19 +1438,34 @@ captureButton.addEventListener('click', () => {
       const storedEmail = localStorage.getItem('lumi_email') || '';
       const storedNewsletter = localStorage.getItem('lumi_newsletter') === '1';
 
-      if (storedCountry) {
+      if (appSettings.form.locationEnabled && storedCountry) {
         countrySelect.value = storedCountry;
         populateRegionOptions(storedCountry, storedRegion);
       }
 
-      if (storedLast) lastNameInput.value = storedLast;
-      if (storedEmail) emailInput.value = storedEmail;
-      document.getElementById('newsletterOptIn').checked = storedNewsletter;
+      if (appSettings.form.lastName.enabled && storedLast) {
+        lastNameInput.value = storedLast;
+      }
+      if (appSettings.form.email.enabled && storedEmail) {
+        emailInput.value = storedEmail;
+      }
+      if (appSettings.form.newsletter.enabled) {
+        const newsletterInput = document.getElementById('newsletterOptIn');
+        if (newsletterInput) {
+          newsletterInput.checked = storedNewsletter;
+        }
+      }
     }
 
-    window.addEventListener('load', () => {
+    window.addEventListener('load', async () => {
+      await loadAppSettings();
       prefillIntroFromStorage();
-      introModal.style.display = 'flex';
+      if (shouldShowIntro) {
+        introModal.style.display = 'flex';
+      } else {
+        introModal.style.display = 'none';
+        setupCamera(currentFacingMode);
+      }
       pingSession();
     });
   </script>
