@@ -987,8 +987,28 @@ async function resetSessionLogs() {
 }
 
 async function clearDriveFolders() {
-  const pendingFiles = await listFilesInFolder(PENDING_FOLDER_ID);
-  const approvedFiles = await listFilesInFolder(APPROVED_FOLDER_ID);
+  const result = {
+    trashedCount: 0,
+    errors: []
+  };
+
+  let pendingFiles = [];
+  let approvedFiles = [];
+
+  try {
+    pendingFiles = await listFilesInFolder(PENDING_FOLDER_ID);
+  } catch (err) {
+    console.error('Error listing pending files during clear-drive:', err);
+    result.errors.push('pending_list_failed');
+  }
+
+  try {
+    approvedFiles = await listFilesInFolder(APPROVED_FOLDER_ID);
+  } catch (err) {
+    console.error('Error listing approved files during clear-drive:', err);
+    result.errors.push('approved_list_failed');
+  }
+
   const allFiles = [...pendingFiles, ...approvedFiles];
 
   for (const file of allFiles) {
@@ -999,12 +1019,43 @@ async function clearDriveFolders() {
         fields: 'id, trashed',
         supportsAllDrives: true,
       });
+      result.trashedCount += 1;
     } catch (innerErr) {
       console.error('Error trashing file during clear-drive:', file.id, innerErr);
+      result.errors.push(`trash_failed:${file.id}`);
     }
   }
 
-  return allFiles.length;
+  return result;
+}
+
+async function performSessionCleanup() {
+  const cleanup = {
+    logsCleared: false,
+    trashedCount: 0,
+    errors: []
+  };
+
+  try {
+    cleanup.logsCleared = await resetSessionLogs();
+    if (!cleanup.logsCleared) {
+      cleanup.errors.push('reset_logs_failed');
+    }
+  } catch (err) {
+    console.error('Error during reset logs cleanup:', err);
+    cleanup.errors.push('reset_logs_failed');
+  }
+
+  try {
+    const driveResult = await clearDriveFolders();
+    cleanup.trashedCount = driveResult.trashedCount;
+    cleanup.errors.push(...driveResult.errors);
+  } catch (err) {
+    console.error('Error during drive cleanup:', err);
+    cleanup.errors.push('clear_drive_failed');
+  }
+
+  return cleanup;
 }
 
 // Read TODAY logs (in PR) from the Sheet and compute stats
@@ -1677,8 +1728,7 @@ app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
 
     if (enabled) {
       appEnabled = true;
-      await resetSessionLogs();
-      await clearDriveFolders();
+      await performSessionCleanup();
     } else {
       appEnabled = false;
     }
@@ -1789,14 +1839,17 @@ app.post('/admin/shutdown', ensureAdminAuth, async (req, res) => {
       console.warn('Shutdown: failed to persist settings sheet status.');
     }
 
-    await resetSessionLogs();
-    await clearDriveFolders();
+    const cleanup = await performSessionCleanup();
+    if (cleanup.errors.length) {
+      console.warn('Shutdown cleanup encountered errors:', cleanup.errors);
+    }
 
     // Return report text to the admin UI so it can be downloaded as .txt
     return res.json({
       ok: true,
       enabled: false,
-      reportText
+      reportText,
+      cleanup
     });
   } catch (err) {
     console.error('Error in /admin/shutdown:', err);
@@ -2067,8 +2120,8 @@ app.post('/admin/delete-approved', ensureAdminAuth, async (req, res) => {
 // ⚠️ CAREFUL: this is meant for after the event.
 app.post('/admin/clear-drive', ensureAdminAuth, async (req, res) => {
   try {
-    const trashedCount = await clearDriveFolders();
-    res.json({ ok: true, trashedCount });
+    const result = await clearDriveFolders();
+    res.json({ ok: true, trashedCount: result.trashedCount, errors: result.errors });
   } catch (err) {
     console.error('Error clearing Drive folders:', err);
     res.status(500).json({ ok: false, error: 'clear_drive_failed' });

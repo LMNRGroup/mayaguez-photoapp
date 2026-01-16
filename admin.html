@@ -516,51 +516,72 @@
 
   .activity-bars {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 6px;
+    flex-direction: column;
+    gap: 8px;
     margin-top: 6px;
     padding-top: 4px;
   }
 
-  .activity-bar {
-    flex: 1;
+  .activity-chart {
+    position: relative;
+    height: 180px;
+    background: #020617;
+    border-radius: 12px;
+    border: 1px solid #1f2937;
+    padding: 8px 8px 12px 36px;
+  }
+
+  .activity-chart svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .activity-axis {
+    font-size: 9px;
+    color: var(--muted-grey);
+  }
+
+  .activity-axis.y {
+    position: absolute;
+    top: 8px;
+    left: 6px;
+    bottom: 24px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    color: var(--light-grey);
+    justify-content: space-between;
+    align-items: flex-start;
   }
 
-  .activity-bar-graph {
-    width: 100%;
-    border-radius: 6px 6px 2px 2px;
-    background: rgba(148, 163, 184, 0.3);
-    height: 40px;
-    overflow: hidden;
-    position: relative;
+  .activity-axis.x {
+    display: grid;
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    gap: 2px;
+    padding-left: 36px;
   }
 
-  .activity-bar-fill {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-radius: 6px 6px 2px 2px;
-    background: linear-gradient(to top, var(--gold), #f9fafb);
-    height: 60%;
+  .activity-axis.x span {
+    text-align: center;
+    white-space: nowrap;
   }
 
-  .activity-bar.current .activity-bar-fill {
-    background: linear-gradient(to top, #22c55e, #bbf7d0);
+  .activity-line {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 2;
   }
 
-  .activity-hour {
-    margin-top: 2px;
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
-    letter-spacing: 0.14em;
+  .activity-line-fill {
+    fill: rgba(212, 175, 55, 0.15);
+  }
+
+  .activity-point {
+    fill: var(--gold);
+  }
+
+  .activity-grid-line {
+    stroke: rgba(148, 163, 184, 0.2);
+    stroke-dasharray: 3 3;
   }
 
   /* SMALL ICON BUTTONS (kept for logic but hidden from UI) */
@@ -950,6 +971,15 @@
     max-width: 760px;
     max-height: calc(100vh - 48px);
     overflow-y: auto;
+    font-family: 'FuturaBT-Light', system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-weight: 300;
+  }
+
+  .settings-panel .modal-title,
+  .settings-panel .settings-section-title,
+  .settings-panel .settings-help,
+  .settings-panel .settings-status {
     font-family: 'FuturaBT-Light', system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     font-weight: 300;
@@ -1556,8 +1586,14 @@
           </div>
 
           <div class="panel-box">
-            <div class="panel-title">Activity</div>
-            <div id="activityBars" class="activity-bars"></div>
+          <div class="panel-title">Activity</div>
+            <div id="activityBars" class="activity-bars">
+              <div class="activity-chart">
+                <div id="activityYAxis" class="activity-axis y"></div>
+                <svg id="activityChart" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
+              </div>
+              <div id="activityXAxis" class="activity-axis x"></div>
+            </div>
           </div>
         </aside>
       </div>
@@ -1876,6 +1912,9 @@ function hideGlobalLoader() {
     const pendingCountEl = document.getElementById("pendingCount");
     const eventLogList = document.getElementById("eventLogList");
     const activityBars = document.getElementById("activityBars");
+    const activityChart = document.getElementById("activityChart");
+    const activityXAxis = document.getElementById("activityXAxis");
+    const activityYAxis = document.getElementById("activityYAxis");
     // Pending counter state (frontend)
     let pendingCountState = 0;
     // Delta we expect after our own actions (approve/reject)
@@ -1984,36 +2023,67 @@ function hideGlobalLoader() {
       const hour12 = normalized % 12 || 12;
       return `${hour12}${period}`;
     }
+    function getYAxisStep(maxCount) {
+      if (maxCount <= 10) return 1;
+      if (maxCount <= 100) return 10;
+      if (maxCount <= 500) return 50;
+      const rough = Math.ceil(maxCount / 9 / 50) * 50;
+      return rough || 50;
+    }
 
     function renderActivityBars(counts, currentHour) {
-      if (!activityBars) return;
-      const maxCount = Math.max(...counts, 1);
-      activityBars.innerHTML = "";
+      if (!activityBars || !activityChart || !activityXAxis || !activityYAxis) return;
+      if (!Array.isArray(counts) || counts.length !== 24) return;
 
-      counts.forEach((count, hour) => {
-        const bar = document.createElement("div");
-        bar.className = "activity-bar";
-        if (hour === currentHour) {
-          bar.classList.add("current");
-        }
+      const maxCount = Math.max(...counts, 0);
+      const step = getYAxisStep(maxCount);
+      const maxTick = step * 9;
+      const svgWidth = 300;
+      const svgHeight = 140;
+      const paddingTop = 8;
+      const paddingBottom = 8;
+      const paddingLeft = 8;
+      const paddingRight = 8;
+      const usableHeight = svgHeight - paddingTop - paddingBottom;
+      const usableWidth = svgWidth - paddingLeft - paddingRight;
 
-        const graph = document.createElement("div");
-        graph.className = "activity-bar-graph";
+      activityYAxis.innerHTML = "";
+      for (let i = 9; i >= 0; i -= 1) {
+        const label = document.createElement("span");
+        label.textContent = `${i * step}`;
+        activityYAxis.appendChild(label);
+      }
 
-        const fill = document.createElement("div");
-        fill.className = "activity-bar-fill";
-        const height = Math.max(8, Math.round((count / maxCount) * 100));
-        fill.style.height = `${height}%`;
-
-        const hourLabel = document.createElement("div");
-        hourLabel.className = "activity-hour";
-        hourLabel.textContent = formatHourLabel(hour);
-
-        graph.appendChild(fill);
-        bar.appendChild(graph);
-        bar.appendChild(hourLabel);
-        activityBars.appendChild(bar);
+      activityXAxis.innerHTML = "";
+      counts.forEach((_, hour) => {
+        const label = document.createElement("span");
+        label.textContent = formatHourLabel(hour);
+        activityXAxis.appendChild(label);
       });
+
+      const points = counts.map((count, index) => {
+        const x = paddingLeft + (usableWidth * index) / 23;
+        const ratio = maxTick ? Math.min(count / maxTick, 1) : 0;
+        const y = paddingTop + usableHeight - ratio * usableHeight;
+        return { x, y, count };
+      });
+
+      const linePoints = points.map((pt) => `${pt.x},${pt.y}`).join(" ");
+      const fillPoints = `${paddingLeft},${paddingTop + usableHeight} ${linePoints} ${paddingLeft + usableWidth},${paddingTop + usableHeight}`;
+
+      const currentX = paddingLeft + (usableWidth * currentHour) / 23;
+
+      activityChart.innerHTML = `
+        <line class="activity-grid-line" x1="${paddingLeft}" x2="${paddingLeft + usableWidth}" y1="${paddingTop + usableHeight}" y2="${paddingTop + usableHeight}" />
+        ${Array.from({ length: 9 }, (_, i) => {
+          const y = paddingTop + usableHeight - ((i + 1) / 9) * usableHeight;
+          return `<line class="activity-grid-line" x1="${paddingLeft}" x2="${paddingLeft + usableWidth}" y1="${y}" y2="${y}" />`;
+        }).join("")}
+        <polygon class="activity-line-fill" points="${fillPoints}" />
+        <polyline class="activity-line" points="${linePoints}" />
+        ${points.map((pt) => `<circle class="activity-point" cx="${pt.x}" cy="${pt.y}" r="2" />`).join("")}
+        <line class="activity-grid-line" x1="${currentX}" x2="${currentX}" y1="${paddingTop}" y2="${paddingTop + usableHeight}" />
+      `;
     }
 
     async function fetchActivityStats() {
@@ -3207,12 +3277,19 @@ function hideReportLoading() {
         const confirmShutdown = window.confirm(
           "Would you like to shut down the server and generate the event report?"
         );
-        if (!confirmShutdown) return;
+        if (!confirmShutdown) {
+          appToggleInput.checked = true;
+          return;
+        }
 
         const code = window.prompt("Enter the access code to confirm:");
-        if (!code) return;
+        if (!code) {
+          appToggleInput.checked = true;
+          return;
+        }
 
         try {
+          showGlobalLoader();
           const res = await fetch(`${BASE_URL}/admin/shutdown`, {
             method: "POST",
             headers: withAdminHeaders({ "Content-Type": "application/json" }),
@@ -3264,6 +3341,9 @@ function hideReportLoading() {
         } catch (err) {
           console.error("Error calling /admin/shutdown", err);
           alert("Could not shut down the server. Please try again.");
+        } finally {
+          hideGlobalLoader();
+          await fetchAppStatus();
         }
       } else {
         const confirmStart = window.confirm(
@@ -3281,6 +3361,7 @@ function hideReportLoading() {
         }
 
         try {
+          showGlobalLoader();
           const res = await fetch(`${BASE_URL}/admin/app-status`, {
             method: "POST",
             headers: withAdminHeaders({ "Content-Type": "application/json" }),
@@ -3327,6 +3408,9 @@ function hideReportLoading() {
           console.error("Error enabling server", err);
           alert("Could not start the server. Please try again.");
           appToggleInput.checked = false;
+        } finally {
+          hideGlobalLoader();
+          await fetchAppStatus();
         }
       }
     }
