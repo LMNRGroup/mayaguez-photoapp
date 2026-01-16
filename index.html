@@ -17,13 +17,13 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+      background: url('Assets/PhotoApp_BG.png') center/cover no-repeat fixed;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
       min-height: 100vh;
-      color: #111827;
+      color: #f8fafc;
     }
 
     .container {
@@ -31,7 +31,8 @@
       max-width: 400px;
       padding: 20px 15px;
       margin-top: 20px;
-      background: transparent;
+      background: rgba(3, 7, 18, 0.55);
+      backdrop-filter: blur(6px);
       position: relative;
       border-radius: 25px;
       display: flex;
@@ -117,18 +118,26 @@
       margin: 5px;
       font-size: 14px;
       cursor: pointer;
-      border: 2px solid white;
-      border-radius: 4px;
+      border: none;
+      border-radius: 999px;
       font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
       text-transform: uppercase;
+      letter-spacing: 0.06em;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.25);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 24px rgba(15, 23, 42, 0.35);
     }
 
     #switchCameraButton {
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: #292725;
-      color: white;
+      background-color: rgba(15, 23, 42, 0.9);
+      color: #f8fafc;
       width: 150px;
     }
 
@@ -140,17 +149,21 @@
     #captureButton,
     #uploadButton,
     #retakeButton {
-      background-color: #3ca360;
-      color: white;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #0f172a;
       width: 150px;
     }
 
     #retakeButton {
-      background-color: #e74c3c;
+      background: linear-gradient(135deg, #fb7185, #ef4444);
+      color: #0f172a;
     }
 
     button:disabled {
-      background-color: #cccccc;
+      background-color: rgba(148, 163, 184, 0.8);
+      color: #0f172a;
+      box-shadow: none;
+      transform: none;
     }
 
     /* Upload loading spinner on button */
@@ -178,14 +191,14 @@
     }
 
     #errorLog {
-      color: #111827;
+      color: #f8fafc;
       margin-top: 10px;
       font-size: 11px;
     }
 
     .footer-text {
       font-size: 12px;
-      color: #111827;
+      color: #f8fafc;
       text-align: center;
       margin-top: 5px;
       font-weight: bold;
@@ -193,14 +206,14 @@
 
     .app-footer {
       font-size: 10px;
-      color: #4b5563;
+      color: #e2e8f0;
       margin-bottom: 10px;
       text-align: center;
     }
 
     .disclaimer {
       font-size: 10px;
-      color: #374151;
+      color: #e2e8f0;
       text-align: center;
       margin-top: 20px;
       margin-bottom: 0;
@@ -234,16 +247,19 @@
     }
 
     #topLogo {
-      width: 75%;
-      max-width: 250px;
+      width: 70%;
+      max-width: 260px;
+      max-height: 140px;
       height: auto;
       display: block;
+      object-fit: contain;
     }
 
     @media (max-height: 750px) {
       #topLogo {
-        width: 75%;
-        max-width: 250px;
+        width: 72%;
+        max-width: 240px;
+        max-height: 120px;
       }
     }
 
@@ -444,7 +460,7 @@
 
     .upload-status {
       font-size: 11px;
-      color: #111827;
+      color: #f8fafc;
       text-align: center;
       margin-top: 4px;
       min-height: 14px;
@@ -495,7 +511,7 @@
 
     .orientation-hint {
       font-size: 11px;
-      color: #6b7280;
+      color: #e2e8f0;
       text-align: center;
       margin-top: 6px;
       opacity: 0.85;
@@ -791,7 +807,7 @@
   <!-- Main container -->
   <div class="container">
     <div class="logo-wrapper">
-      <img id="topLogo" src="Assets/Logo Mayaguez.png" alt="Logo Mayagüez">
+      <img id="topLogo" src="Assets/Somos Mayaguez Logo.png" alt="Somos Mayagüez">
     </div>
 
     <!-- Camera + controls wrapper for responsive layout -->
