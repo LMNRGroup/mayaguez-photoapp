@@ -3347,70 +3347,128 @@ function hideReportLoading() {
         }
       } else {
         const confirmStart = window.confirm(
-          "Start a new session?\n\nThis will clear event logs and delete all pending + approved photos."
+          "Start a new session and bring the server online?"
         );
         if (!confirmStart) {
           appToggleInput.checked = false;
           return;
         }
 
-        const code = window.prompt("Enter the access code to confirm:");
-        if (!code) {
-          appToggleInput.checked = false;
-          return;
+        async function clearDriveForStart() {
+          if (!adminToken) {
+            showLock("Session expired. Enter the access code.");
+            return false;
+          }
+
+          const ok = window.confirm(
+            "Clear ALL photos from Pending + Approved before starting?\n\n" +
+              "This will send every file to trash so the session can start clean."
+          );
+          if (!ok) return false;
+
+          try {
+            const res = await fetch(`${BASE_URL}/admin/clear-drive`, {
+              method: "POST",
+              headers: withAdminHeaders({ "Content-Type": "application/json" }),
+              body: JSON.stringify({}),
+            });
+
+            if (res.status === 401 || res.status === 403) {
+              showLock("Session expired. Enter the access code.");
+              return false;
+            }
+
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}`);
+            }
+
+            return true;
+          } catch (err) {
+            console.error("Error clearing drive before start", err);
+            alert("Could not clear the pending + approved folders. Please try again.");
+            return false;
+          }
+        }
+
+        async function attemptStartServer(allowRetry = true) {
+          showGlobalLoader();
+          try {
+            const res = await fetch(`${BASE_URL}/admin/app-status`, {
+              method: "POST",
+              headers: withAdminHeaders({ "Content-Type": "application/json" }),
+              body: JSON.stringify({ enabled: true }),
+            });
+
+            let data = {};
+            try {
+              data = await res.json();
+            } catch (_) {}
+
+            if (res.status === 401 || res.status === 403) {
+              showLock("Session expired. Enter the access code.");
+              appToggleInput.checked = false;
+              return;
+            }
+
+            if (!res.ok || !data.ok) {
+              const message = data.error
+                ? `Could not start the server (${data.error}). Please try again.`
+                : "Could not start the server. Please try again.";
+              alert(message);
+              appToggleInput.checked = false;
+
+              if (allowRetry) {
+                const cleared = await clearDriveForStart();
+                if (cleared) {
+                  await attemptStartServer(false);
+                }
+              }
+              return;
+            }
+
+            updateAppToggleUI(true);
+            appToggleInput.checked = true;
+            appToggleWrapper.classList.remove("disabled");
+            emptyText.style.display = "block";
+            emptyText.textContent = "No pending photos.";
+            photoFrame.classList.add("empty");
+
+            if (pendingCountEl) {
+              pendingCountState = 0;
+              pendingCountDelta = 0;
+              updatePendingDisplay();
+            }
+
+            await fetchEventLogs();
+            await fetchActivityStats();
+            await loadNextPhoto();
+            startAutoRefresh();
+
+            if (data.warning === "settings_persist_failed") {
+              alert(
+                "Server is online, but the status could not be saved to the Settings sheet. " +
+                  "Please confirm Sheets permissions and try again."
+              );
+            } else {
+              alert("Server is online and ready for a new session.");
+            }
+          } catch (err) {
+            console.error("Error enabling server", err);
+            alert("Could not start the server. Please try again.");
+            appToggleInput.checked = false;
+          } finally {
+            hideGlobalLoader();
+            await fetchAppStatus();
+          }
         }
 
         try {
-          showGlobalLoader();
-          const res = await fetch(`${BASE_URL}/admin/app-status`, {
-            method: "POST",
-            headers: withAdminHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify({ enabled: true, accessCode: code }),
-          });
-
-          let data = {};
-          try {
-            data = await res.json();
-          } catch (_) {}
-
-          if (res.status === 401 && data.error === "invalid_access_code") {
-            alert("Access code is incorrect.");
-            appToggleInput.checked = false;
-            return;
-          }
-
-          if (!res.ok || !data.ok) {
-            alert("Could not start the server. Please try again.");
-            appToggleInput.checked = false;
-            return;
-          }
-
-          updateAppToggleUI(true);
-          appToggleInput.checked = true;
-          appToggleWrapper.classList.remove("disabled");
-          emptyText.style.display = "block";
-          emptyText.textContent = "No pending photos.";
-          photoFrame.classList.add("empty");
-
-          if (pendingCountEl) {
-            pendingCountState = 0;
-            pendingCountDelta = 0;
-            updatePendingDisplay();
-          }
-
-          await fetchEventLogs();
-          await fetchActivityStats();
-          await loadNextPhoto();
-          startAutoRefresh();
-
-          alert("Server is online and ready for a new session.");
+          await attemptStartServer();
         } catch (err) {
           console.error("Error enabling server", err);
           alert("Could not start the server. Please try again.");
           appToggleInput.checked = false;
-        } finally {
           hideGlobalLoader();
-          await fetchAppStatus();
         }
       }
     }
