@@ -24,7 +24,9 @@ const SESSION_SHEET_ID =
   process.env.SESSION_SHEET_ID ||
   '1bPctG2H31Ix2N8jVNgFTgiB3FVWyr6BudXNY8YOD4GE';
 
-const SETTINGS_SHEET_ID = process.env.SETTINGS_SHEET_ID || SESSION_SHEET_ID;
+const SETTINGS_SHEET_ID =
+  process.env.SETTINGS_SHEET_ID ||
+  '1vAcoPK5Xm588PQULy2eOlNTknihofKuiijlfLidKhbI';
 const SETTINGS_SHEET_NAME = process.env.SETTINGS_SHEET_NAME || 'Settings';
 
 // Range with columns:
