@@ -333,6 +333,7 @@
     .intro-box h2 {
       margin: 0 0 8px;
       font-size: 18px;
+      color: #0f172a;
     }
 
     .intro-box p {
@@ -384,6 +385,7 @@
     .landing-logo.secondary {
       width: 120px;
       max-width: 55%;
+      margin-top: 40px;
     }
 
     .landing-button {
@@ -396,7 +398,7 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
       cursor: pointer;
-      background: #111827;
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
       color: #ffffff;
     }
 
@@ -457,7 +459,7 @@
       border: none;
       text-transform: uppercase;
       font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
-      background: #3ca360;
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
       color: #fff;
       width: 100%;
     }
@@ -719,7 +721,7 @@
       padding: 10px 16px;
       font-size: 14px;
       cursor: pointer;
-      background: #0f172a;
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
       color: #f8fafc;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -763,7 +765,7 @@
     <div class="intro-backdrop">
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
-        <img src="Assets/Somos Mayaguez Logo.png" alt="Somos Mayagüez" class="intro-logo" />
+        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo" />
 
         <h2 id="introTitle">¿Desde dónde nos visitas? 😊</h2>
         <p id="introSubtitle">
@@ -986,7 +988,7 @@
         offlineTitle: 'Servicio no disponible',
         offlineMessage:
           'Lo lamentamos, el servicio no está disponible en estos momentos. Favor intentarlo luego.',
-        introTitle: '¿Desde dónde nos visitas? 😊',
+        introTitle: '¿Desde dónde nos visitas?',
         introSubtitle:
           'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.',
         countryPlaceholder: 'Selecciona tu país',
@@ -1054,7 +1056,7 @@
         offlineTitle: 'Service unavailable',
         offlineMessage:
           'We’re sorry, the service is not available right now. Please try again later.',
-        introTitle: 'Where are you visiting us from? 😊',
+        introTitle: 'Where are you visiting us from?',
         introSubtitle:
           'Choose your country and city/state, enter your family name, and continue to your selfie.',
         countryPlaceholder: 'Select your country',
@@ -1269,6 +1271,9 @@
     };
     flagImages.PR.src = 'Assets/pr_flag.png';
     flagImages.US.src = 'Assets/us_flag.png';
+
+    const fiturLogoImage = new Image();
+    fiturLogoImage.src = 'Assets/Fitur_Logo.png';
 
     // --- REGION DATA ---
 
@@ -1708,6 +1713,25 @@
       ctx.restore();
     }
 
+    function drawFiturSticker(ctx, width, height) {
+      const stickerWidth = 180;
+      const aspect = fiturLogoImage.width && fiturLogoImage.height
+        ? fiturLogoImage.height / fiturLogoImage.width
+        : 0.35;
+      const stickerHeight = stickerWidth * aspect;
+      const padding = 24;
+
+      const x = padding;
+      const y = height - padding - stickerHeight;
+
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      if (fiturLogoImage.complete && fiturLogoImage.naturalWidth) {
+        ctx.drawImage(fiturLogoImage, x, y, stickerWidth, stickerHeight);
+      }
+      ctx.restore();
+    }
+
    // Capture selfie
 captureButton.addEventListener('click', () => {
   const targetWidth  = 1500;
@@ -1763,6 +1787,7 @@ captureButton.addEventListener('click', () => {
   ctx.restore();
 
   drawLocationOverlay(ctx, canvas.width, canvas.height);
+  drawFiturSticker(ctx, canvas.width, canvas.height);
 
   video.style.display = 'none';
   canvas.style.display = 'block';
