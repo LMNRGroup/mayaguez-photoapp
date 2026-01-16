@@ -330,6 +330,32 @@
       display: block;
     }
 
+    .intro-logo--primary {
+      width: 160px;
+      max-width: 70%;
+      margin-bottom: 8px;
+    }
+
+    .intro-logo--secondary {
+      width: 110px;
+      max-width: 45%;
+      margin-top: 4px;
+    }
+
+    .intro-logo.bounce {
+      animation: intro-bounce 1.4s ease;
+    }
+
+    @keyframes intro-bounce {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
     .intro-box h2 {
       margin: 0 0 8px;
       font-size: 18px;
@@ -765,9 +791,15 @@
     <div class="intro-backdrop">
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
-        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo" />
+        <img
+          src="Assets/Somos Mayaguez Logo.png"
+          alt="Somos Mayagüez"
+          class="intro-logo intro-logo--primary"
+          id="introLogoPrimary"
+        />
+        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo intro-logo--secondary" />
 
-        <h2 id="introTitle">¿Desde dónde nos visitas? 😊</h2>
+        <h2 id="introTitle">¿Desde dónde nos visitas?</h2>
         <p id="introSubtitle">
           Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.
         </p>
@@ -904,6 +936,7 @@
     const introClose = document.getElementById('introClose');
     const introTitle = document.getElementById('introTitle');
     const introSubtitle = document.getElementById('introSubtitle');
+    const introLogoPrimary = document.getElementById('introLogoPrimary');
     const countrySelect = document.getElementById('countrySelect');
     const regionSelect = document.getElementById('regionSelect');
     const locationFields = document.getElementById('locationFields');
@@ -1258,10 +1291,22 @@
       const hasSubmitted = localStorage.getItem(FORM_SUBMITTED_KEY) === currentServerSessionId;
       if (shouldShowIntro && !hasSubmitted) {
         introModal.style.display = 'flex';
+        scheduleIntroLogoBounce();
       } else {
         introModal.style.display = 'none';
         setupCamera(currentFacingMode);
       }
+    }
+
+    function scheduleIntroLogoBounce() {
+      if (!introLogoPrimary) return;
+      const delay = 2000 + Math.random() * 3000;
+      setTimeout(() => {
+        introLogoPrimary.classList.remove('bounce');
+        void introLogoPrimary.offsetWidth;
+        introLogoPrimary.classList.add('bounce');
+        scheduleIntroLogoBounce();
+      }, delay);
     }
 
     // Preload flag images
