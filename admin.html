@@ -934,6 +934,74 @@
     margin-bottom: 8px;
   }
 
+  /* SETTINGS MODAL */
+
+  .settings-panel {
+    max-width: 760px;
+  }
+
+  .settings-section {
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(2, 8, 23, 0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .settings-section-title {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .settings-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .settings-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .settings-label {
+    font-size: 12px;
+    color: var(--light-grey);
+  }
+
+  .settings-input {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--light-grey);
+    font-size: 12px;
+  }
+
+  .settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 6px;
+  }
+
+  .settings-status {
+    min-height: 16px;
+    font-size: 12px;
+    color: var(--muted-grey);
+  }
+
+  .settings-help {
+    font-size: 11px;
+    color: var(--muted-grey);
+  }
+
   .btn-ghost,
   .btn-primary {
     border-radius: 999px;
@@ -1401,6 +1469,7 @@
             <button class="nav-item active" id="navDashboard">DASHBOARD</button>
             <button class="nav-item" id="navApproved">APPROVED PHOTOS</button>
             <button class="nav-item" id="navReports">EVENT REPORTS</button>
+            <button class="nav-item" id="navSettings">APP SETTINGS</button>
             <button class="nav-item" id="navResetLogs">RESET LOGS</button>
           </div>
           <button class="nav-item nav-item-lock" id="lockAdminBtn">Lock Admin</button>
@@ -1619,6 +1688,96 @@ Report preview will appear here once the backend preview endpoint is configured.
   </div>
 </div>
 
+  <!-- APP SETTINGS MODAL -->
+  <div id="settingsOverlay" class="modal-overlay">
+    <div class="modal-panel settings-panel">
+      <div class="modal-header">
+        <div class="modal-title">App settings</div>
+        <button id="settingsCloseBtn" class="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="settings-help">
+          Customize the public form and ticket experience without editing code.
+        </p>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Ticket overlay</div>
+          <div class="settings-row">
+            <span class="settings-label">Show ticket number after upload</span>
+            <label class="toggle">
+              <input type="checkbox" id="settingsTicketEnabled" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Intro copy</div>
+          <div class="settings-grid">
+            <label class="settings-label" for="settingsIntroTitle">Intro title</label>
+            <input id="settingsIntroTitle" class="settings-input" type="text" />
+            <label class="settings-label" for="settingsIntroSubtitle">Intro subtitle</label>
+            <input id="settingsIntroSubtitle" class="settings-input" type="text" />
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Form fields</div>
+          <div class="settings-grid">
+            <div class="settings-row">
+              <span class="settings-label">Enable location (country/region)</span>
+              <label class="toggle">
+                <input type="checkbox" id="settingsLocationEnabled" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="settings-row">
+              <span class="settings-label">Enable last name</span>
+              <label class="toggle">
+                <input type="checkbox" id="settingsLastNameEnabled" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <label class="settings-label" for="settingsLastNameLabel">Last name label</label>
+            <input id="settingsLastNameLabel" class="settings-input" type="text" />
+            <label class="settings-label" for="settingsLastNamePlaceholder">Last name placeholder</label>
+            <input id="settingsLastNamePlaceholder" class="settings-input" type="text" />
+
+            <div class="settings-row">
+              <span class="settings-label">Enable email</span>
+              <label class="toggle">
+                <input type="checkbox" id="settingsEmailEnabled" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <label class="settings-label" for="settingsEmailLabel">Email label</label>
+            <input id="settingsEmailLabel" class="settings-input" type="text" />
+            <label class="settings-label" for="settingsEmailPlaceholder">Email placeholder</label>
+            <input id="settingsEmailPlaceholder" class="settings-input" type="text" />
+
+            <div class="settings-row">
+              <span class="settings-label">Enable newsletter opt-in</span>
+              <label class="toggle">
+                <input type="checkbox" id="settingsNewsletterEnabled" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <label class="settings-label" for="settingsNewsletterLabel">Newsletter label</label>
+            <input id="settingsNewsletterLabel" class="settings-input" type="text" />
+            <label class="settings-label" for="settingsNewsletterHelper">Newsletter helper text</label>
+            <input id="settingsNewsletterHelper" class="settings-input" type="text" />
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <span id="settingsStatus" class="settings-status"></span>
+          <button id="settingsSaveBtn" class="btn-primary">Save settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Backend origin – this is where your Node/Express lives
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
@@ -1817,6 +1976,7 @@ function hideGlobalLoader() {
     const navDashboard = document.getElementById("navDashboard");
     const navApproved = document.getElementById("navApproved");
     const navReports = document.getElementById("navReports");
+    const navSettings = document.getElementById("navSettings");
     const navResetLogs = document.getElementById("navResetLogs");
     const lockAdminBtn = document.getElementById("lockAdminBtn");
 
@@ -1853,6 +2013,25 @@ function hideGlobalLoader() {
     const reportGenerateBtn = document.getElementById("reportGenerateBtn");
     const reportPreview = document.getElementById("reportPreview");
     const reportLoading = document.getElementById("reportLoading");
+
+    // SETTINGS MODAL ELEMENTS
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    const settingsCloseBtn = document.getElementById("settingsCloseBtn");
+    const settingsSaveBtn = document.getElementById("settingsSaveBtn");
+    const settingsStatus = document.getElementById("settingsStatus");
+    const settingsTicketEnabled = document.getElementById("settingsTicketEnabled");
+    const settingsIntroTitle = document.getElementById("settingsIntroTitle");
+    const settingsIntroSubtitle = document.getElementById("settingsIntroSubtitle");
+    const settingsLocationEnabled = document.getElementById("settingsLocationEnabled");
+    const settingsLastNameEnabled = document.getElementById("settingsLastNameEnabled");
+    const settingsLastNameLabel = document.getElementById("settingsLastNameLabel");
+    const settingsLastNamePlaceholder = document.getElementById("settingsLastNamePlaceholder");
+    const settingsEmailEnabled = document.getElementById("settingsEmailEnabled");
+    const settingsEmailLabel = document.getElementById("settingsEmailLabel");
+    const settingsEmailPlaceholder = document.getElementById("settingsEmailPlaceholder");
+    const settingsNewsletterEnabled = document.getElementById("settingsNewsletterEnabled");
+    const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
+    const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
 
 // Lottie loader for the report modal
 let reportLottie = null;
@@ -2998,7 +3177,7 @@ function hideReportLoading() {
     // --- LEFT NAV BEHAVIOR ---
 
     function setActiveNav(button) {
-      [navDashboard, navApproved, navReports, navResetLogs].forEach((btn) => {
+      [navDashboard, navApproved, navReports, navSettings, navResetLogs].forEach((btn) => {
         if (!btn) return;
         btn.classList.toggle("active", btn === button);
       });
@@ -3026,6 +3205,13 @@ function hideReportLoading() {
           return;
         }
         openReportOverlay();
+      });
+    }
+
+    if (navSettings) {
+      navSettings.addEventListener("click", () => {
+        setActiveNav(navSettings);
+        openSettingsOverlay();
       });
     }
 
@@ -3109,6 +3295,146 @@ reportViewBtn.addEventListener("click", async () => {
     });
 
     // --- Try to restore existing session on load ---
+
+    function setSettingsStatus(message, tone = "muted") {
+      if (!settingsStatus) return;
+      settingsStatus.textContent = message || "";
+      if (tone === "success") {
+        settingsStatus.style.color = "#86efac";
+      } else if (tone === "error") {
+        settingsStatus.style.color = "#fca5a5";
+      } else {
+        settingsStatus.style.color = "var(--muted-grey)";
+      }
+    }
+
+    function fillSettingsForm(settings) {
+      if (!settings) return;
+      settingsTicketEnabled.checked = Boolean(settings.ticketEnabled);
+      settingsIntroTitle.value = settings.intro?.title || "";
+      settingsIntroSubtitle.value = settings.intro?.subtitle || "";
+      settingsLocationEnabled.checked = Boolean(settings.form?.locationEnabled);
+      settingsLastNameEnabled.checked = Boolean(settings.form?.lastName?.enabled);
+      settingsLastNameLabel.value = settings.form?.lastName?.label || "";
+      settingsLastNamePlaceholder.value = settings.form?.lastName?.placeholder || "";
+      settingsEmailEnabled.checked = Boolean(settings.form?.email?.enabled);
+      settingsEmailLabel.value = settings.form?.email?.label || "";
+      settingsEmailPlaceholder.value = settings.form?.email?.placeholder || "";
+      settingsNewsletterEnabled.checked = Boolean(settings.form?.newsletter?.enabled);
+      settingsNewsletterLabel.value = settings.form?.newsletter?.label || "";
+      settingsNewsletterHelper.value = settings.form?.newsletter?.helper || "";
+    }
+
+    function collectSettingsPayload() {
+      return {
+        ticketEnabled: settingsTicketEnabled.checked,
+        intro: {
+          title: settingsIntroTitle.value.trim(),
+          subtitle: settingsIntroSubtitle.value.trim(),
+        },
+        form: {
+          locationEnabled: settingsLocationEnabled.checked,
+          lastName: {
+            enabled: settingsLastNameEnabled.checked,
+            label: settingsLastNameLabel.value.trim(),
+            placeholder: settingsLastNamePlaceholder.value.trim(),
+          },
+          email: {
+            enabled: settingsEmailEnabled.checked,
+            label: settingsEmailLabel.value.trim(),
+            placeholder: settingsEmailPlaceholder.value.trim(),
+          },
+          newsletter: {
+            enabled: settingsNewsletterEnabled.checked,
+            label: settingsNewsletterLabel.value.trim(),
+            helper: settingsNewsletterHelper.value.trim(),
+          },
+        },
+      };
+    }
+
+    async function openSettingsOverlay() {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      settingsOverlay.style.display = "flex";
+      setSettingsStatus("Loading settings…");
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/settings`, {
+          headers: withAdminHeaders(),
+        });
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+        const data = await res.json();
+        if (data && data.settings) {
+          fillSettingsForm(data.settings);
+          setSettingsStatus("");
+        } else {
+          setSettingsStatus("No settings were returned from the server.", "error");
+        }
+      } catch (err) {
+        console.error("Error loading settings", err);
+        setSettingsStatus("Failed to load settings.", "error");
+      }
+    }
+
+    function closeSettingsOverlay() {
+      settingsOverlay.style.display = "none";
+      setSettingsStatus("");
+    }
+
+    if (settingsCloseBtn) {
+      settingsCloseBtn.addEventListener("click", closeSettingsOverlay);
+    }
+
+    if (settingsOverlay) {
+      settingsOverlay.addEventListener("click", (e) => {
+        if (e.target === settingsOverlay) {
+          closeSettingsOverlay();
+        }
+      });
+    }
+
+    if (settingsSaveBtn) {
+      settingsSaveBtn.addEventListener("click", async () => {
+        if (!adminToken) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        setSettingsStatus("Saving settings…");
+
+        try {
+          const payload = collectSettingsPayload();
+          const res = await fetch(`${BASE_URL}/admin/settings`, {
+            method: "POST",
+            headers: withAdminHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+
+          if (res.status === 401 || res.status === 403) {
+            showLock("Session expired. Enter the access code.");
+            return;
+          }
+
+          const data = await res.json();
+          if (data && data.ok) {
+            fillSettingsForm(data.settings);
+            setSettingsStatus("Settings saved.", "success");
+          } else {
+            setSettingsStatus("Could not save settings.", "error");
+          }
+        } catch (err) {
+          console.error("Error saving settings", err);
+          setSettingsStatus("Error saving settings.", "error");
+        }
+      });
+    }
     (function bootstrapAdmin() {
       preloadFrameImage().catch(() => {
         console.warn("Frame image preload failed (will retry on demand).");

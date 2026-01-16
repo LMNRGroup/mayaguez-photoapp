@@ -24,10 +24,14 @@ const SESSION_SHEET_ID =
   process.env.SESSION_SHEET_ID ||
   '1bPctG2H31Ix2N8jVNgFTgiB3FVWyr6BudXNY8YOD4GE';
 
+const SETTINGS_SHEET_ID = process.env.SETTINGS_SHEET_ID || SESSION_SHEET_ID;
+const SETTINGS_SHEET_NAME = process.env.SETTINGS_SHEET_NAME || 'Settings';
+
 // Range with columns:
 // timestamp_utc, timestamp_pr, event_type, email, session_id,
 // country, region, last_name, newsletter, ticket
 const SESSION_SHEET_RANGE = 'A:J';
+const SETTINGS_SHEET_RANGE = `${SETTINGS_SHEET_NAME}!A:B`;
 
 // ---------- ADMIN SECURITY ----------
 const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE; // e.g. "MAYAGUEZ2025!"
@@ -150,6 +154,211 @@ app.use(express.json());
 // ---------- App enabled flag (for /admin/shutdown) ----------
 let appEnabled = true; // admin toggle will set this to false after event
 
+// ---------- APP SETTINGS (admin-configurable) ----------
+const DEFAULT_APP_SETTINGS = {
+  ticketEnabled: true,
+  intro: {
+    title: '¿Desde dónde nos visitas? 😊',
+    subtitle: 'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.'
+  },
+  form: {
+    locationEnabled: true,
+    lastName: {
+      enabled: true,
+      label: 'Apellidos de la familia',
+      placeholder: 'Apellidos de la familia (Ej. Pérez González)'
+    },
+    email: {
+      enabled: true,
+      label: 'Correo electrónico',
+      placeholder: 'Correo electrónico'
+    },
+    newsletter: {
+      enabled: true,
+      label: 'Deseo recibir noticias y ofertas de Municipio de Mayagüez.',
+      helper: 'Tu email será utilizado únicamente si autorizas recibir nuestro boletín.'
+    }
+  }
+};
+
+let appSettings = JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS));
+let settingsSheetReady = false;
+let settingsLoadedFromSheet = false;
+
+function coerceBoolean(value, fallback) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const lower = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y'].includes(lower)) return true;
+    if (['false', '0', 'no', 'n'].includes(lower)) return false;
+  }
+  return fallback;
+}
+
+function coerceString(value, fallback) {
+  if (typeof value === 'string') return value.trim();
+  return fallback;
+}
+
+function mergeAppSettings(patch = {}) {
+  const next = JSON.parse(JSON.stringify(appSettings));
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'ticketEnabled')) {
+    next.ticketEnabled = coerceBoolean(patch.ticketEnabled, next.ticketEnabled);
+  }
+
+  if (patch.intro && typeof patch.intro === 'object') {
+    next.intro.title = coerceString(patch.intro.title, next.intro.title);
+    next.intro.subtitle = coerceString(patch.intro.subtitle, next.intro.subtitle);
+  }
+
+  if (patch.form && typeof patch.form === 'object') {
+    if (Object.prototype.hasOwnProperty.call(patch.form, 'locationEnabled')) {
+      next.form.locationEnabled = coerceBoolean(patch.form.locationEnabled, next.form.locationEnabled);
+    }
+
+    if (patch.form.lastName && typeof patch.form.lastName === 'object') {
+      next.form.lastName.enabled = coerceBoolean(
+        patch.form.lastName.enabled,
+        next.form.lastName.enabled
+      );
+      next.form.lastName.label = coerceString(
+        patch.form.lastName.label,
+        next.form.lastName.label
+      );
+      next.form.lastName.placeholder = coerceString(
+        patch.form.lastName.placeholder,
+        next.form.lastName.placeholder
+      );
+    }
+
+    if (patch.form.email && typeof patch.form.email === 'object') {
+      next.form.email.enabled = coerceBoolean(patch.form.email.enabled, next.form.email.enabled);
+      next.form.email.label = coerceString(patch.form.email.label, next.form.email.label);
+      next.form.email.placeholder = coerceString(
+        patch.form.email.placeholder,
+        next.form.email.placeholder
+      );
+    }
+
+    if (patch.form.newsletter && typeof patch.form.newsletter === 'object') {
+      next.form.newsletter.enabled = coerceBoolean(
+        patch.form.newsletter.enabled,
+        next.form.newsletter.enabled
+      );
+      next.form.newsletter.label = coerceString(
+        patch.form.newsletter.label,
+        next.form.newsletter.label
+      );
+      next.form.newsletter.helper = coerceString(
+        patch.form.newsletter.helper,
+        next.form.newsletter.helper
+      );
+    }
+  }
+
+  return next;
+}
+
+async function ensureSettingsSheet() {
+  if (settingsSheetReady) return true;
+  if (!SETTINGS_SHEET_ID) return false;
+
+  try {
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: SETTINGS_SHEET_ID,
+      fields: 'sheets(properties(title))'
+    });
+
+    const sheetsList = meta.data.sheets || [];
+    const hasSettingsSheet = sheetsList.some(
+      (sheet) => sheet.properties && sheet.properties.title === SETTINGS_SHEET_NAME
+    );
+
+    if (!hasSettingsSheet) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SETTINGS_SHEET_ID,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: SETTINGS_SHEET_NAME
+                }
+              }
+            }
+          ]
+        }
+      });
+    }
+
+    settingsSheetReady = true;
+    return true;
+  } catch (err) {
+    console.warn('Unable to ensure settings sheet exists:', err.message || err);
+    return false;
+  }
+}
+
+async function readSettingsFromSheet() {
+  if (!SETTINGS_SHEET_ID) return null;
+
+  try {
+    const ready = await ensureSettingsSheet();
+    if (!ready) return null;
+
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: SETTINGS_SHEET_ID,
+      range: SETTINGS_SHEET_RANGE
+    });
+
+    const rows = resp.data.values || [];
+    const row = rows.find((entry) => entry && entry[0] === 'appSettings');
+    if (!row || !row[1]) return null;
+
+    const parsed = JSON.parse(row[1]);
+    return parsed;
+  } catch (err) {
+    console.warn('Unable to read settings from sheet:', err.message || err);
+    return null;
+  }
+}
+
+async function writeSettingsToSheet(settings) {
+  if (!SETTINGS_SHEET_ID) return false;
+
+  try {
+    const ready = await ensureSettingsSheet();
+    if (!ready) return false;
+
+    const values = [
+      ['key', 'value'],
+      ['appSettings', JSON.stringify(settings)]
+    ];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SETTINGS_SHEET_ID,
+      range: `${SETTINGS_SHEET_NAME}!A1:B2`,
+      valueInputOption: 'RAW',
+      requestBody: { values }
+    });
+
+    return true;
+  } catch (err) {
+    console.warn('Unable to persist settings to sheet:', err.message || err);
+    return false;
+  }
+}
+
+async function hydrateSettingsFromSheet() {
+  if (settingsLoadedFromSheet) return;
+  const sheetSettings = await readSettingsFromSheet();
+  if (sheetSettings) {
+    appSettings = mergeAppSettings(sheetSettings);
+  }
+  settingsLoadedFromSheet = true;
+}
+
 // ---------- Google Auth (Service Account) ----------
 const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
 
@@ -167,6 +376,10 @@ const jwtClient = new google.auth.JWT(
 // Clients
 const drive = google.drive({ version: 'v3', auth: jwtClient });
 const sheets = google.sheets({ version: 'v4', auth: jwtClient });
+
+hydrateSettingsFromSheet().catch((err) => {
+  console.warn('Unable to hydrate settings on startup:', err.message || err);
+});
 
 // Extract ticket number from a filename "T"
 function extractTicketNumber(filename) {
@@ -278,6 +491,50 @@ function getClientIp(req) {
     return xfwd.split(',')[0].trim();
   }
   return req.socket?.remoteAddress || 'unknown';
+}
+
+function normalizeIp(ip) {
+  if (!ip) return 'unknown';
+  if (ip.startsWith('::ffff:')) {
+    return ip.slice(7);
+  }
+  return ip;
+}
+
+function getClientLocation(req) {
+  const city = (req.headers['x-vercel-ip-city'] || '').toString().trim();
+  const region = (req.headers['x-vercel-ip-country-region'] || '').toString().trim();
+  const countryRaw = (req.headers['x-vercel-ip-country'] || '').toString().trim();
+
+  let country = countryRaw;
+  const countryUpper = countryRaw.toUpperCase();
+  const countryLabels = {
+    PR: 'Puerto Rico',
+    US: 'United States',
+  };
+  if (countryUpper && countryLabels[countryUpper]) {
+    country = countryLabels[countryUpper];
+  }
+
+  return { city, region, country };
+}
+
+function buildSessionIdentifier(req) {
+  const ip = normalizeIp(getClientIp(req));
+  const { city, region, country } = getClientLocation(req);
+  const locationParts = [city, region, country].filter(Boolean);
+  const locationLabel = locationParts.join(', ');
+
+  if (locationLabel && ip !== 'unknown') {
+    return `IP ${ip} ${locationLabel}`;
+  }
+
+  if (ip && ip !== 'unknown') {
+    return `IP ${ip}`;
+  }
+
+  const fallback = req.headers['x-session-id'];
+  return fallback ? String(fallback) : '';
 }
 
 function isBlocked(ip) {
@@ -914,10 +1171,17 @@ async function sendSessionReportEmailFromSheet() {
 
 // ---------- ROUTES ----------
 
+// Public app settings for the main web app
+app.get('/app-settings', (req, res) => {
+  hydrateSettingsFromSheet()
+    .then(() => res.json({ ok: true, settings: appSettings }))
+    .catch(() => res.json({ ok: true, settings: appSettings }));
+});
+
 // Simple visit endpoint: FE can call this on page load
 app.post('/ping', async (req, res) => {
   try {
-    const sessionId = req.headers['x-session-id'] || '';
+    const sessionId = buildSessionIdentifier(req);
     await logEventToSheet('visit', { sessionId });
   } catch (e) {
     console.error('Error logging visit to sheet:', e);
@@ -950,7 +1214,7 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
 
     // Log to Sheet
     try {
-      const sessionId = req.headers['x-session-id'] || '';
+      const sessionId = buildSessionIdentifier(req);
       await logEventToSheet('upload', {
         sessionId,
         ticket: ticketLabel // e.g. "T015"
@@ -1002,7 +1266,7 @@ app.post('/visit', async (req, res) => {
 
     // Log to Sheet as "form"
     try {
-      const sessionId = req.headers['x-session-id'] || '';
+      const sessionId = buildSessionIdentifier(req);
       await logEventToSheet('form', {
         email,
         sessionId,
@@ -1214,6 +1478,29 @@ app.post('/admin/unblock', (req, res) => {
 
 app.get('/admin/app-status', ensureAdminAuth, (req, res) => {
   return res.json({ ok: true, enabled: appEnabled });
+});
+
+// Admin: get current app settings
+app.get('/admin/settings', ensureAdminAuth, (req, res) => {
+  hydrateSettingsFromSheet()
+    .then(() => res.json({ ok: true, settings: appSettings }))
+    .catch(() => res.json({ ok: true, settings: appSettings }));
+});
+
+// Admin: update app settings
+app.post('/admin/settings', ensureAdminAuth, async (req, res) => {
+  try {
+    appSettings = mergeAppSettings(req.body || {});
+    const persisted = await writeSettingsToSheet(appSettings);
+    if (!persisted) {
+      return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
+    }
+    settingsLoadedFromSheet = true;
+    return res.json({ ok: true, settings: appSettings });
+  } catch (err) {
+    console.error('Error updating app settings:', err);
+    return res.status(400).json({ ok: false, error: 'invalid_settings' });
+  }
 });
 
 // --------- ADMIN SHUTDOWN (toggle OFF) ----------
