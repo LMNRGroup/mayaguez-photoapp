@@ -17,8 +17,7 @@
 
   /* PIXY FONT ON "Lock Admin" */
   #lockAdminBtn {
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif !important;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--destructive);
@@ -39,20 +38,31 @@
   }
 
   :root {
-    /* QR Code Studio HSL Theme Tokens - DARK MODE (default) */
-    --background: hsl(222, 47%, 11%);
-    --foreground: hsl(220, 33%, 97%);
-    --primary: hsl(268, 85%, 55%);
-    --accent: hsl(197, 90%, 45%);
-    --secondary: hsl(220, 20%, 20%);
-    --muted: hsl(220, 16%, 18%);
-    --muted-foreground: hsl(215, 16%, 65%);
-    --border: hsl(220, 16%, 30%);
-    --input: hsl(220, 16%, 30%);
-    --destructive: hsl(0, 84%, 60%);
-    --glass: hsla(222, 47%, 11%, 0.8);
-    --gradient-start: hsl(197, 90%, 45%);
-    --gradient-end: hsl(268, 85%, 55%);
+    /* QR Code Studio HSL Theme Tokens - DARK MODE (default) - EXACT from style guide */
+    --background: hsl(225, 10%, 8%);
+    --foreground: hsl(210, 40%, 98%);
+    --primary: hsl(268, 85%, 70%);
+    --primary-foreground: hsl(225, 10%, 8%);
+    --secondary: hsl(225, 12%, 16%);
+    --secondary-foreground: hsl(210, 40%, 98%);
+    --accent: hsl(197, 90%, 60%);
+    --accent-foreground: hsl(225, 10%, 8%);
+    --muted: hsl(225, 10%, 16%);
+    --muted-foreground: hsl(215, 20%, 72%);
+    --border: hsl(225, 12%, 24%);
+    --input: hsl(225, 12%, 24%);
+    --ring: hsl(268, 85%, 70%);
+    --destructive: hsl(0, 62%, 30%);
+    --destructive-foreground: hsl(210, 40%, 98%);
+    --card: hsl(225, 12%, 12%);
+    --card-foreground: hsl(210, 40%, 98%);
+    --glass: hsl(225, 12%, 12% / 0.75);
+    --glass-border: hsl(225, 12%, 22% / 0.6);
+    --gradient-start: hsl(197, 90%, 60%);
+    --gradient-end: hsl(268, 85%, 70%);
+    
+    /* Border radius system */
+    --radius: 0.75rem; /* 12px */
     
     /* Amber/Gold accents for premium emphasis */
     --amber-200: #fde68a;
@@ -68,32 +78,43 @@
   }
 
   :root[data-theme="light"] {
-    /* QR Code Studio HSL Theme Tokens - LIGHT MODE */
+    /* QR Code Studio HSL Theme Tokens - LIGHT MODE - EXACT from style guide */
     --background: hsl(220, 33%, 97%);
     --foreground: hsl(222, 47%, 11%);
     --primary: hsl(268, 85%, 55%);
-    --accent: hsl(197, 90%, 45%);
+    --primary-foreground: hsl(0, 0%, 100%);
     --secondary: hsl(220, 20%, 94%);
+    --secondary-foreground: hsl(222, 47%, 11%);
+    --accent: hsl(197, 90%, 45%);
+    --accent-foreground: hsl(0, 0%, 100%);
     --muted: hsl(220, 16%, 92%);
     --muted-foreground: hsl(215, 16%, 45%);
     --border: hsl(220, 16%, 86%);
     --input: hsl(220, 16%, 86%);
+    --ring: hsl(268, 85%, 55%);
     --destructive: hsl(0, 84%, 60%);
-    --glass: hsla(0, 0%, 100%, 0.7);
+    --destructive-foreground: hsl(0, 0%, 100%);
+    --card: hsl(0, 0%, 100%);
+    --card-foreground: hsl(222, 47%, 11%);
+    --glass: hsl(0, 0%, 100% / 0.7);
+    --glass-border: hsl(220, 16%, 86% / 0.7);
+    --gradient-start: hsl(197, 90%, 45%);
+    --gradient-end: hsl(268, 85%, 55%);
   }
 
   * {
     box-sizing: border-box;
   }
 
-  /* Glass panel utility */
+  /* Glass panel utility - EXACT from style guide */
   .glass-panel {
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    opacity: 0.95;
   }
 
   /* Gradient text utility (sparingly used) */
@@ -111,20 +132,21 @@
     display: flex;
     align-items: stretch;
     justify-content: center;
-    padding: 24px;
+    padding: 2rem;
     background: var(--background);
     color: var(--foreground);
     overflow-x: hidden;
     max-width: 100vw;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .page-wrapper {
     width: 100%;
-    max-width: 1360px;
+    max-width: 1280px;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 1.5rem;
   }
 
   /* TOP HEADER BAR (logo + title + server status) */
@@ -132,21 +154,24 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
-    border-radius: 16px;
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
-    gap: 12px;
+    padding: 0.75rem 1.25rem;
+    border-radius: calc(var(--radius) + 4px);
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    gap: 1rem;
     min-width: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
 
   .header-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.625rem;
     min-width: 0;
   }
 
@@ -159,9 +184,8 @@
   .header-title {
     flex: 1;
     text-align: center;
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
-    font-size: 22px;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.25rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--foreground);
@@ -175,19 +199,18 @@
   .header-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.625rem;
     min-width: 0;
   }
 
   .status-pill {
-    font-size: 11px;
-    padding: 6px 14px;
+    font-size: 0.6875rem;
+    padding: 0.375rem 0.875rem;
     border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--secondary);
     color: var(--foreground);
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -207,9 +230,9 @@
   }
 
   .theme-toggle-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--secondary);
     color: var(--foreground);
@@ -217,7 +240,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
     transition: all 0.2s ease;
     flex-shrink: 0;
     padding: 0;
@@ -234,9 +256,20 @@
     transform: scale(0.95);
   }
 
-  .theme-toggle-btn .moon-icon {
+  .theme-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all 0.2s ease;
+  }
+
+  .theme-toggle-btn .icon-moon,
+  .theme-toggle-btn .icon-sun {
     display: block;
-    line-height: 1;
   }
 
   .app-toggle {
@@ -329,24 +362,29 @@
   /* LAYOUT CARD (NAV + PHOTO + LOGS) */
 
   .card {
-    margin-top: 8px;
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
-    padding: 18px 18px 16px;
+    margin-top: 0.5rem;
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: calc(var(--radius) + 4px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
-    color: var(--foreground);
-    border: 1px solid var(--border);
+    color: var(--card-foreground);
+    border: 1px solid var(--glass-border);
     min-width: 0;
+    transition: all 0.2s ease;
+  }
+
+  .card:hover {
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15);
   }
 
   .card-main {
     display: grid;
     grid-template-columns: 190px minmax(0, 1fr) 250px;
-    gap: 18px;
+    gap: 1.5rem;
     align-items: stretch;
     min-width: 0;
   }
@@ -355,7 +393,7 @@
 
   .sidebar-left {
     border-right: 1px solid var(--border);
-    padding-right: 14px;
+    padding-right: 0.875rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -365,17 +403,16 @@
   .nav-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.625rem;
   }
 
   .nav-label {
-    font-size: 12px;
+    font-size: 0.75rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     color: var(--muted-foreground);
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
     font-weight: 600;
   }
 
@@ -384,13 +421,14 @@
     border: none;
     background: transparent;
     color: var(--foreground);
-    font-size: 14px;
-    padding: 8px 0;
+    font-size: 0.875rem;
+    padding: 0.5rem 0;
     cursor: pointer;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     position: relative;
     font-weight: 500;
     transition: color 0.2s ease;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   /* Futura ONLY on the main nav items */
@@ -399,8 +437,7 @@
   #navReports,
   #navSettings,
   #navResetLogs {
-    font-family: 'FuturaBT-Light', system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     font-weight: 300;
   }
 
@@ -430,8 +467,8 @@
   }
 
   .nav-item-lock {
-    margin-top: 24px;
-    font-size: 14px;
+    margin-top: 1.5rem;
+    font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.3em;
     color: var(--destructive);
@@ -447,22 +484,21 @@
   .center-panel {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.625rem;
   }
 
   .photo-meta-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    font-size: 12px;
+    font-size: 0.75rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     color: var(--muted-foreground);
     font-weight: 600;
     min-width: 0;
-    gap: 12px;
+    gap: 0.75rem;
   }
 
   .photo-label {
@@ -471,7 +507,7 @@
   }
 
   .pending-count {
-    font-size: 14px;
+    font-size: 0.875rem;
     letter-spacing: 0.3em;
     color: var(--foreground);
     font-weight: 600;
@@ -482,7 +518,7 @@
   .photo-frame {
     position: relative;
     background: var(--secondary);
-    border-radius: 12px;
+    border-radius: var(--radius);
     overflow: hidden;
     min-height: 260px;
     display: flex;
@@ -500,24 +536,25 @@
 
   .photo-frame img {
     max-width: 100%;
-    max-height: 520px;
+    max-height: 32.5rem;
     display: block;
     object-fit: contain;
-    transition: transform 0.18s ease, opacity 0.18s ease;
+    transition: transform 0.2s ease, opacity 0.2s ease;
     min-width: 0;
   }
 
   .empty-text {
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--muted-foreground);
     text-align: center;
-    padding: 24px 16px;
+    padding: 1.5rem 1rem;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .buttons {
     display: flex;
-    gap: 10px;
-    margin-top: 10px;
+    gap: 0.625rem;
+    margin-top: 0.625rem;
   }
 
   button {
@@ -527,16 +564,16 @@
   .btn-reject,
   .btn-approve {
     flex: 1;
-    border-radius: 12px;
+    height: 2.5rem;
+    border-radius: calc(var(--radius) - 2px);
     border: 1px solid var(--border);
-    padding: 10px 16px;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.3em;
-    font-family: 'FuturaBT-Light', system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     transition: all 0.2s ease;
     min-width: 0;
   }
@@ -561,6 +598,7 @@
   .btn-approve:hover {
     background: hsl(197, 90%, 40%);
     border-color: hsl(197, 90%, 40%);
+    filter: brightness(0.95);
   }
 
   button:disabled {
@@ -569,10 +607,11 @@
   }
 
   .helper {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--muted-foreground);
     text-align: center;
-    margin-top: 2px;
+    margin-top: 0.125rem;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   /* RIGHT PANEL (EVENT LOGS + ACTIVITY) */
@@ -580,28 +619,27 @@
   .sidebar-right {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 1.5rem;
     border-left: 1px solid var(--border);
-    padding-left: 14px;
+    padding-left: 1rem;
     min-width: 0;
   }
 
   .panel-box {
-    background: var(--secondary);
-    border-radius: 12px;
+    background: var(--card);
+    border-radius: var(--radius);
     border: 1px solid var(--border);
-    padding: 12px 14px;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0.5rem;
     min-height: 0;
     min-width: 0;
   }
 
   .panel-title {
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
-    font-size: 12px;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 0.75rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--muted-foreground);
@@ -609,31 +647,31 @@
   }
 
   .event-log-list {
-    margin: 4px 0 0;
+    margin: 0.25rem 0 0;
     padding: 0;
     list-style: none;
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--foreground);
     max-height: 200px;
     overflow-y: auto;
     overflow-x: hidden;
     min-width: 0;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .event-log-item {
     display: flex;
     justify-content: space-between;
-    gap: 6px;
-    padding: 4px 0;
+    gap: 0.375rem;
+    padding: 0.25rem 0;
     opacity: 0.9;
     min-width: 0;
   }
 
   .event-log-time {
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: 0.3em;
-    font-size: 10px;
+    font-size: 0.625rem;
     color: var(--muted-foreground);
     white-space: nowrap;
     flex-shrink: 0;
@@ -658,11 +696,11 @@
 
   .activity-chart {
     position: relative;
-    height: 180px;
-    background: var(--secondary);
-    border-radius: 12px;
+    height: 11.25rem;
+    background: var(--card);
+    border-radius: var(--radius);
     border: 1px solid var(--border);
-    padding: 8px 8px 12px 36px;
+    padding: 0.5rem 0.5rem 0.75rem 2.25rem;
     min-width: 0;
   }
 
@@ -674,15 +712,16 @@
   }
 
   .activity-axis {
-    font-size: 9px;
+    font-size: 0.5625rem;
     color: var(--muted-foreground);
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .activity-axis.y {
     position: absolute;
-    top: 8px;
-    left: 6px;
-    bottom: 24px;
+    top: 0.5rem;
+    left: 0.375rem;
+    bottom: 1.5rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -692,8 +731,8 @@
   .activity-axis.x {
     display: grid;
     grid-template-columns: repeat(24, minmax(0, 1fr));
-    gap: 2px;
-    padding-left: 36px;
+    gap: 0.125rem;
+    padding-left: 2.25rem;
   }
 
   .activity-axis.x span {
@@ -732,32 +771,33 @@
   .approved-overlay {
     position: fixed;
     inset: 0;
-    background: hsla(220, 33%, 97%, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--background);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 30;
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 1.5rem;
     overflow-y: auto;
     overflow-x: hidden;
   }
 
   .approved-panel {
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 16px;
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: calc(var(--radius) + 4px);
     width: 100%;
     max-width: 900px;
-    max-height: 90vh;
+    max-height: calc(100dvh - 3rem);
     display: flex;
     flex-direction: column;
-    padding: 16px 18px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--border);
+    padding: 1.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--glass-border);
     min-width: 0;
+    color: var(--card-foreground);
   }
 
   .approved-header {
@@ -769,17 +809,19 @@
   }
 
   .approved-title {
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 600;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    color: var(--foreground);
+    color: var(--card-foreground);
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .approved-subtitle {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--muted-foreground);
-    margin-bottom: 4px;
+    margin-bottom: 0.25rem;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .approved-close-btn {
@@ -809,19 +851,20 @@
   }
 
   .approved-empty {
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--muted-foreground);
-    padding: 16px 4px 8px;
+    padding: 1rem 0.25rem 0.5rem;
     text-align: center;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .approved-thumb {
     position: relative;
-    border-radius: 12px;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
     padding: 0;
     overflow: hidden;
-    background: var(--secondary);
+    background: var(--card);
     cursor: pointer;
     flex: 0 0 auto;
     min-width: 0;
@@ -868,22 +911,23 @@
   }
 
   .thumb-action-btn {
-    border-radius: 8px;
+    border-radius: calc(var(--radius) - 4px);
     border: 1px solid var(--border);
-    background: var(--glass);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: var(--foreground);
-    font-size: 9px;
-    padding: 4px 8px;
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    color: var(--card-foreground);
+    font-size: 0.5625rem;
+    padding: 0.25rem 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 0.1875rem;
     cursor: pointer;
     font-weight: 500;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .thumb-action-btn span.icon {
@@ -900,24 +944,25 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    margin-top: 6px;
-    font-size: 10px;
+    gap: 0.625rem;
+    margin-top: 0.375rem;
+    font-size: 0.625rem;
     color: var(--muted-foreground);
     min-width: 0;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .approved-footer-controls {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
   }
 
   .approved-footer button {
     flex: 0 0 auto;
-    min-width: 64px;
-    font-size: 10px;
-    padding: 5px 9px;
+    min-width: 4rem;
+    font-size: 0.625rem;
+    padding: 0.3125rem 0.5625rem;
   }
 
   /* APPROVED VIEWER */
@@ -925,33 +970,33 @@
   .approved-viewer-overlay {
     position: fixed;
     inset: 0;
-    background: hsla(220, 33%, 97%, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--background);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 40;
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 1rem;
     overflow-y: auto;
     overflow-x: hidden;
   }
 
   .approved-viewer-panel {
     position: relative;
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 16px;
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: calc(var(--radius) + 4px);
     width: 100%;
     max-width: 900px;
-    max-height: 90vh;
-    padding: 12px 14px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
+    max-height: calc(100dvh - 2rem);
+    padding: 1rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    border: 1px solid var(--border);
+    gap: 0.5rem;
+    border: 1px solid var(--glass-border);
     min-width: 0;
   }
 
@@ -970,21 +1015,23 @@
   }
 
   .viewer-icon-btn {
-    border-radius: 12px;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--secondary);
     color: var(--foreground);
-    font-size: 12px;
-    padding: 8px 12px;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 0.25rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     flex: 0 0 auto;
     font-weight: 500;
     transition: all 0.2s ease;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    height: 2.5rem;
   }
 
   .viewer-icon-btn span.icon {
@@ -1025,11 +1072,11 @@
 
   .approved-viewer-img {
     max-width: 100%;
-    max-height: 80vh;
+    max-height: calc(100dvh - 12rem);
     object-fit: contain;
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
-    background: var(--secondary);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: var(--card);
     min-width: 0;
   }
 
@@ -1042,10 +1089,10 @@
 
   .viewer-nav-btn {
     flex: 0 0 auto;
-    min-width: 70px;
-    font-size: 11px;
-    padding: 8px 14px;
-    border-radius: 12px;
+    min-width: 4.375rem;
+    font-size: 0.6875rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--secondary);
     color: var(--foreground);
@@ -1054,6 +1101,8 @@
     letter-spacing: 0.3em;
     font-weight: 500;
     transition: all 0.2s ease;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    height: 2.5rem;
   }
 
   .viewer-nav-btn.primary {
@@ -1065,6 +1114,7 @@
   .viewer-nav-btn.primary:hover {
     background: hsl(197, 90%, 40%);
     border-color: hsl(197, 90%, 40%);
+    filter: brightness(0.95);
   }
 
   .viewer-nav-btn:disabled {
@@ -1077,33 +1127,33 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: hsla(220, 33%, 97%, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--background);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: none;
     align-items: flex-start;
     justify-content: center;
     z-index: 35;
-    padding: 24px 16px;
+    padding: 1.5rem 1rem;
     overflow-y: auto;
     overflow-x: hidden;
   }
 
   .modal-panel {
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 16px;
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: calc(var(--radius) + 4px);
     max-width: 640px;
     width: 100%;
-    padding: 16px 18px;
-    border: 1px solid var(--border);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 1rem;
     min-width: 0;
-    margin-top: 24px;
+    margin-top: 1.5rem;
   }
 
   .modal-header {
@@ -1114,11 +1164,12 @@
   }
 
   .modal-title {
-    font-size: 14px;
+    font-size: 0.875rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    color: var(--foreground);
+    color: var(--card-foreground);
     font-weight: 600;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .modal-close {
@@ -1136,9 +1187,10 @@
   }
 
   .modal-body {
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--muted-foreground);
     line-height: 1.6;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .modal-actions {
@@ -1152,10 +1204,9 @@
 
   .settings-panel {
     max-width: 760px;
-    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 3rem);
     overflow-y: auto;
-    font-family: 'FuturaBT-Light', system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     font-weight: 300;
   }
 
@@ -1163,23 +1214,22 @@
   .settings-panel .settings-section-title,
   .settings-panel .settings-help,
   .settings-panel .settings-status {
-    font-family: 'FuturaBT-Light', system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     font-weight: 300;
   }
 
   .settings-section {
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px;
-    background: var(--secondary);
+    border-radius: var(--radius);
+    padding: 1rem;
+    background: var(--card);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0.75rem;
   }
 
   .settings-section-title {
-    font-size: 11px;
+    font-size: 0.6875rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--muted-foreground);
@@ -1199,10 +1249,9 @@
   }
 
   .settings-label {
-    font-size: 11px;
-    color: var(--foreground);
-    font-family: 'FuturaBT-Light', system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 0.6875rem;
+    color: var(--card-foreground);
+    font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     font-weight: 300;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -1210,22 +1259,32 @@
 
   .settings-input {
     width: 100%;
-    background: var(--secondary);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
+    height: 2.5rem;
+    background: var(--background);
+    border: 1px solid var(--input);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.5rem 0.75rem;
     color: var(--foreground);
-    font-size: 13px;
-    font-family: 'FuturaBT-Light', system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 0.875rem;
+    font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     font-weight: 300;
-    transition: border-color 0.2s ease;
+    transition: all 0.2s ease;
     min-width: 0;
   }
 
   .settings-input:focus {
     outline: none;
-    border-color: var(--primary);
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px hsla(var(--ring) / 0.2);
+  }
+
+  select.settings-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.5rem;
   }
 
   .settings-actions {
@@ -1236,28 +1295,29 @@
   }
 
   .settings-status {
-    min-height: 16px;
-    font-size: 12px;
+    min-height: 1rem;
+    font-size: 0.75rem;
     color: var(--muted-foreground);
   }
 
   .settings-help {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--muted-foreground);
     line-height: 1.5;
   }
 
   .btn-ghost,
   .btn-primary {
-    border-radius: 999px;
-    padding: 8px 14px;
-    font-size: 12px;
+    height: 2.5rem;
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.5rem 0.875rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.3em;
     cursor: pointer;
-    font-family: 'FuturaBT-Light', system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-    font-weight: 300;
+    font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 500;
+    transition: all 0.2s ease;
   }
 
   @media (max-width: 720px) {
@@ -1288,7 +1348,7 @@
   .btn-primary {
     background: var(--primary);
     border: 1px solid var(--primary);
-    color: white;
+    color: var(--primary-foreground);
     flex: 0 0 auto;
     transition: all 0.2s ease;
   }
@@ -1296,23 +1356,25 @@
   .btn-primary:hover {
     background: hsl(268, 85%, 50%);
     border-color: hsl(268, 85%, 50%);
+    filter: brightness(0.95);
   }
 
   .report-preview {
     margin: 0;
-    margin-top: 4px;
+    margin-top: 0.25rem;
     max-height: 200px;
     overflow-y: auto;
     overflow-x: hidden;
-    background: var(--secondary);
-    border-radius: 12px;
+    background: var(--card);
+    border-radius: var(--radius);
     border: 1px solid var(--border);
-    padding: 12px 14px;
-    font-size: 11px;
-    color: var(--foreground);
+    padding: 0.75rem;
+    font-size: 0.6875rem;
+    color: var(--card-foreground);
     white-space: pre-wrap;
     min-width: 0;
     font-family: monospace;
+    line-height: 1.6;
   }
 
   /* Report loading container for Lottie */
@@ -1329,8 +1391,8 @@
     position: fixed;
     inset: 0;
     background: var(--background);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1355,9 +1417,8 @@
   }
 
   .lock-app-name {
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, Arial, sans-serif;
-    font-size: 32px;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 2rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--foreground);
@@ -1369,77 +1430,83 @@
   }
 
   .lock-location {
-    margin-top: 4px;
-    font-size: 12px;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
     color: var(--muted-foreground);
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-card {
-    background: var(--glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 16px;
-    padding: 24px 24px 20px;
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: calc(var(--radius) + 4px);
+    padding: 1.5rem;
     width: 100%;
     max-width: 340px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.1);
-    color: var(--foreground);
-    border: 1px solid var(--border);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    color: var(--card-foreground);
+    border: 1px solid var(--glass-border);
     min-width: 0;
   }
 
   .lock-title {
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
     text-align: center;
     color: var(--destructive);
     transition: color 0.2s ease;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-input {
     width: 100%;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--secondary);
-    padding: 12px 16px;
+    height: 2.5rem;
+    border-radius: calc(var(--radius) - 2px);
+    border: 1px solid var(--input);
+    background: var(--background);
+    padding: 0.5rem 1rem;
     color: var(--foreground);
-    font-size: 18px;
+    font-size: 1.125rem;
     letter-spacing: 0.3em;
     outline: none;
-    transition: border-color 0.2s ease;
+    transition: all 0.2s ease;
     min-width: 0;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-input::placeholder {
-    font-size: 13px;
+    font-size: 0.875rem;
     letter-spacing: 0.1em;
     color: var(--muted-foreground);
   }
 
   .lock-input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px hsla(268, 85%, 55%, 0.2);
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px hsla(var(--ring) / 0.2);
   }
 
   .lock-button {
-    margin-top: 12px;
+    margin-top: 0.75rem;
     width: 100%;
-    border-radius: 12px;
+    height: 2.5rem;
+    border-radius: calc(var(--radius) - 2px);
     border: none;
     background: var(--accent);
-    color: white;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 12px 16px;
+    color: var(--accent-foreground);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.3em;
     transition: all 0.2s ease;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-button:hover {
@@ -1452,19 +1519,21 @@
   }
 
   .lock-error {
-    margin-top: 8px;
-    font-size: 11px;
+    margin-top: 0.5rem;
+    font-size: 0.6875rem;
     color: var(--destructive);
-    min-height: 14px;
+    min-height: 0.875rem;
     text-align: center;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-meta {
-    margin-top: 8px;
-    font-size: 10px;
+    margin-top: 0.5rem;
+    font-size: 0.625rem;
     color: var(--muted-foreground);
     text-align: center;
     line-height: 1.5;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
   @keyframes lock-shake {
@@ -1491,9 +1560,8 @@
   }
 
   .lock-brand {
-    font-family: 'Pixy', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, Arial, sans-serif;
-    font-size: 10px;
+    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 0.625rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--muted-foreground);
@@ -1503,7 +1571,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
-    margin-top: 12px;
+    margin-top: 0.75rem;
     font-weight: 500;
     min-width: 0;
   }
@@ -1513,7 +1581,7 @@
   /* Tablets / small laptops */
   @media (max-width: 1024px) {
     body {
-      padding: 12px;
+      padding: 0.75rem;
       max-width: 100vw;
       overflow-x: hidden;
     }
@@ -1544,13 +1612,13 @@
   /* Phones – stacked vertical layout, mobile-friendly nav + header */
   @media (max-width: 768px) {
     body {
-      padding: 12px 10px;
+      padding: 0.75rem 0.625rem;
       max-width: 100vw;
       overflow-x: hidden;
     }
 
     .page-wrapper {
-      gap: 12px;
+      gap: 0.75rem;
       min-width: 0;
       max-width: 100%;
     }
@@ -1559,9 +1627,9 @@
       flex-direction: column;
       align-items: stretch;
       text-align: center;
-      border-radius: 16px;
-      padding: 12px 14px;
-      gap: 10px;
+      border-radius: calc(var(--radius) + 4px);
+      padding: 0.75rem 0.875rem;
+      gap: 0.625rem;
       min-width: 0;
     }
 
@@ -1574,11 +1642,11 @@
 
     .header-left {
       justify-content: center;
-      gap: 8px;
+      gap: 0.5rem;
     }
 
     .header-title {
-      font-size: 14px;
+      font-size: 0.875rem;
       letter-spacing: 0.2em;
       white-space: normal;
       line-height: 1.3;
@@ -1589,20 +1657,20 @@
     .header-right {
       justify-content: center;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 0.5rem;
     }
 
     .status-pill {
-      font-size: 9px;
-      padding: 5px 10px;
+      font-size: 0.5625rem;
+      padding: 0.3125rem 0.625rem;
       min-width: 0;
       word-wrap: break-word;
       overflow-wrap: break-word;
     }
 
     .card {
-      padding: 14px 12px;
-      border-radius: 16px;
+      padding: 0.875rem 0.75rem;
+      border-radius: calc(var(--radius) + 4px);
       min-width: 0;
     }
 
@@ -1613,7 +1681,7 @@
         "nav"
         "center"
         "right";
-      gap: 12px;
+      gap: 0.75rem;
       min-width: 0;
     }
 
@@ -1621,11 +1689,11 @@
       grid-area: nav;
       border-right: none;
       border-bottom: 1px solid var(--border);
-      padding: 6px 0 12px;
+      padding: 0.375rem 0 0.75rem;
       margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 0.5rem;
       min-width: 0;
     }
 
@@ -1640,12 +1708,12 @@
     }
 
     .nav-item {
-      padding: 10px 14px;
+      padding: 0.625rem 0.875rem;
       text-align: center;
-      border-radius: 12px;
-      background: var(--secondary);
+      border-radius: var(--radius);
+      background: var(--card);
       border: 1px solid var(--border);
-      font-size: 13px;
+      font-size: 0.8125rem;
       width: 100%;
       min-width: 0;
     }
@@ -1655,7 +1723,7 @@
     }
 
     .nav-item.active {
-      background: var(--secondary);
+      background: var(--card);
       color: var(--primary);
       border-color: var(--primary);
     }
@@ -1674,12 +1742,12 @@
     .photo-meta-row {
       flex-direction: column;
       align-items: flex-start;
-      gap: 4px;
-      font-size: 12px;
+      gap: 0.25rem;
+      font-size: 0.75rem;
     }
 
     .pending-count {
-      font-size: 14px;
+      font-size: 0.875rem;
     }
 
     .photo-frame {
@@ -1691,7 +1759,7 @@
       border-left: none;
       padding-left: 0;
       border-top: 1px solid var(--border);
-      padding-top: 12px;
+      padding-top: 0.75rem;
       margin-top: 0;
       min-width: 0;
     }
@@ -1701,15 +1769,15 @@
     }
 
     .event-log-list {
-      max-height: 160px;
+      max-height: 10rem;
     }
 
     .activity-bars {
-      gap: 4px;
+      gap: 0.25rem;
     }
 
-    .activity-bar-graph {
-      height: 34px;
+    .activity-chart {
+      height: 8.5rem;
     }
   }
 </style>
@@ -1766,7 +1834,20 @@
 
       <div class="header-right">
         <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle dark/light mode" aria-label="Toggle theme">
-          <span class="moon-icon">🌙</span>
+          <svg class="icon-moon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
         </button>
         <div class="app-toggle">
           <span id="appStatusDot" class="status-dot off"></span>
@@ -2007,6 +2088,18 @@ Report preview will appear here once the backend preview endpoint is configured.
         </div>
 
         <div class="settings-section">
+          <div class="settings-section-title">Gallery display</div>
+          <div class="settings-grid">
+            <label class="settings-label" for="settingsGalleryDisplayLimit">Photos to display in gallery</label>
+            <select id="settingsGalleryDisplayLimit" class="settings-input">
+              <option value="all">All photos</option>
+              <option value="last25">Last 25 photos</option>
+              <option value="last10">Last 10 photos</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-section">
           <div class="settings-section-title">Intro copy</div>
           <div class="settings-grid">
             <label class="settings-label" for="settingsIntroTitle">Intro title</label>
@@ -2158,19 +2251,26 @@ function hideGlobalLoader() {
     const approveBtn = document.getElementById("approveBtn");
     const rejectBtn = document.getElementById("rejectBtn");
 
-    // DARK MODE TOGGLE (Moon Icon Button)
+    // DARK MODE TOGGLE (Moon/Sun Icon Button)
     const themeToggleBtn = document.getElementById("themeToggleBtn");
-    const moonIcon = themeToggleBtn?.querySelector(".moon-icon");
+    const moonIcon = themeToggleBtn?.querySelector(".icon-moon");
+    const sunIcon = themeToggleBtn?.querySelector(".icon-sun");
     
     // Initialize theme from localStorage or default to dark
     const savedTheme = localStorage.getItem("adminTheme") || "dark";
     document.documentElement.setAttribute("data-theme", savedTheme);
-    updateMoonIcon(savedTheme);
+    updateThemeIcons(savedTheme);
     
-    function updateMoonIcon(theme) {
-      if (!moonIcon) return;
-      // Moon icon for dark mode, sun icon for light mode
-      moonIcon.textContent = theme === "dark" ? "🌙" : "☀️";
+    function updateThemeIcons(theme) {
+      if (!moonIcon || !sunIcon) return;
+      // Show moon icon in dark mode, sun icon in light mode
+      if (theme === "dark") {
+        moonIcon.style.display = "block";
+        sunIcon.style.display = "none";
+      } else {
+        moonIcon.style.display = "none";
+        sunIcon.style.display = "block";
+      }
     }
     
     function toggleTheme() {
@@ -2178,7 +2278,7 @@ function hideGlobalLoader() {
       const newTheme = currentTheme === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", newTheme);
       localStorage.setItem("adminTheme", newTheme);
-      updateMoonIcon(newTheme);
+      updateThemeIcons(newTheme);
     }
     
     if (themeToggleBtn) {
@@ -2448,6 +2548,7 @@ function hideGlobalLoader() {
     const settingsSaveBtn = document.getElementById("settingsSaveBtn");
     const settingsStatus = document.getElementById("settingsStatus");
     const settingsTicketEnabled = document.getElementById("settingsTicketEnabled");
+    const settingsGalleryDisplayLimit = document.getElementById("settingsGalleryDisplayLimit");
     const settingsIntroTitle = document.getElementById("settingsIntroTitle");
     const settingsIntroSubtitle = document.getElementById("settingsIntroSubtitle");
     const settingsLocationEnabled = document.getElementById("settingsLocationEnabled");
@@ -3906,6 +4007,7 @@ reportViewBtn.addEventListener("click", async () => {
     function fillSettingsForm(settings) {
       if (!settings) return;
       settingsTicketEnabled.checked = Boolean(settings.ticketEnabled);
+      settingsGalleryDisplayLimit.value = settings.galleryDisplayLimit || "all";
       settingsIntroTitle.value = settings.intro?.title || "";
       settingsIntroSubtitle.value = settings.intro?.subtitle || "";
       settingsLocationEnabled.checked = Boolean(settings.form?.locationEnabled);
@@ -3923,6 +4025,7 @@ reportViewBtn.addEventListener("click", async () => {
     function collectSettingsPayload() {
       return {
         ticketEnabled: settingsTicketEnabled.checked,
+        galleryDisplayLimit: settingsGalleryDisplayLimit.value || "all",
         intro: {
           title: settingsIntroTitle.value.trim(),
           subtitle: settingsIntroSubtitle.value.trim(),

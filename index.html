@@ -1196,6 +1196,10 @@
 
       if (countrySelect) {
         populateCountryOptions(countrySelect.value);
+        // Preload flag for country if one is selected
+        if (countrySelect.value) {
+          preloadFlagForCountry(countrySelect.value);
+        }
       }
       if (regionSelect) {
         populateRegionOptions(countrySelect.value, regionSelect.value);
@@ -1297,13 +1301,96 @@
       }, delay);
     }
 
-    // Preload flag images
-    const flagImages = {
-      PR: new Image(),
-      US: new Image()
+    // Flag image cache for dynamic loading
+    const flagImageCache = new Map();
+    
+    // Country name to ISO 3166-1 alpha-2 code mapping
+    const COUNTRY_TO_CODE = {
+      'Afghanistan': 'af', 'Albania': 'al', 'Algeria': 'dz', 'Andorra': 'ad', 'Angola': 'ao',
+      'Antigua and Barbuda': 'ag', 'Argentina': 'ar', 'Armenia': 'am', 'Australia': 'au', 'Austria': 'at',
+      'Azerbaijan': 'az', 'Bahamas': 'bs', 'Bahrain': 'bh', 'Bangladesh': 'bd', 'Barbados': 'bb',
+      'Belarus': 'by', 'Belgium': 'be', 'Belize': 'bz', 'Benin': 'bj', 'Bhutan': 'bt',
+      'Bolivia': 'bo', 'Bosnia and Herzegovina': 'ba', 'Botswana': 'bw', 'Brazil': 'br', 'Brunei': 'bn',
+      'Bulgaria': 'bg', 'Burkina Faso': 'bf', 'Burundi': 'bi', 'Cabo Verde': 'cv', 'Cambodia': 'kh',
+      'Cameroon': 'cm', 'Canada': 'ca', 'Central African Republic': 'cf', 'Chad': 'td', 'Chile': 'cl',
+      'China': 'cn', 'Colombia': 'co', 'Comoros': 'km', 'Congo': 'cg', 'Costa Rica': 'cr',
+      'Croatia': 'hr', 'Cuba': 'cu', 'Cyprus': 'cy', 'Czech Republic': 'cz', 'Denmark': 'dk',
+      'Djibouti': 'dj', 'Dominica': 'dm', 'Dominican Republic': 'do', 'Ecuador': 'ec', 'Egypt': 'eg',
+      'El Salvador': 'sv', 'Equatorial Guinea': 'gq', 'Eritrea': 'er', 'Estonia': 'ee',
+      'Eswatini': 'sz', 'Ethiopia': 'et', 'Fiji': 'fj', 'Finland': 'fi', 'France': 'fr',
+      'Gabon': 'ga', 'Gambia': 'gm', 'Georgia': 'ge', 'Germany': 'de', 'Ghana': 'gh',
+      'Greece': 'gr', 'Grenada': 'gd', 'Guatemala': 'gt', 'Guinea': 'gn', 'Guinea-Bissau': 'gw',
+      'Guyana': 'gy', 'Haiti': 'ht', 'Honduras': 'hn', 'Hungary': 'hu', 'Iceland': 'is',
+      'India': 'in', 'Indonesia': 'id', 'Iran': 'ir', 'Iraq': 'iq', 'Ireland': 'ie', 'Israel': 'il',
+      'Italy': 'it', 'Jamaica': 'jm', 'Japan': 'jp', 'Jordan': 'jo', 'Kazakhstan': 'kz', 'Kenya': 'ke',
+      'Kiribati': 'ki', 'Kosovo': 'xk', 'Kuwait': 'kw', 'Kyrgyzstan': 'kg', 'Laos': 'la',
+      'Latvia': 'lv', 'Lebanon': 'lb', 'Lesotho': 'ls', 'Liberia': 'lr', 'Libya': 'ly',
+      'Liechtenstein': 'li', 'Lithuania': 'lt', 'Luxembourg': 'lu', 'Madagascar': 'mg', 'Malawi': 'mw',
+      'Malaysia': 'my', 'Maldives': 'mv', 'Mali': 'ml', 'Malta': 'mt', 'Marshall Islands': 'mh',
+      'Mauritania': 'mr', 'Mauritius': 'mu', 'Mexico': 'mx', 'Micronesia': 'fm', 'Moldova': 'md',
+      'Monaco': 'mc', 'Mongolia': 'mn', 'Montenegro': 'me', 'Morocco': 'ma', 'Mozambique': 'mz',
+      'Myanmar': 'mm', 'Namibia': 'na', 'Nauru': 'nr', 'Nepal': 'np', 'Netherlands': 'nl',
+      'New Zealand': 'nz', 'Nicaragua': 'ni', 'Niger': 'ne', 'Nigeria': 'ng', 'North Korea': 'kp',
+      'North Macedonia': 'mk', 'Norway': 'no', 'Oman': 'om', 'Pakistan': 'pk', 'Palau': 'pw',
+      'Palestine': 'ps', 'Panama': 'pa', 'Papua New Guinea': 'pg', 'Paraguay': 'py', 'Peru': 'pe',
+      'Philippines': 'ph', 'Poland': 'pl', 'Portugal': 'pt', 'Qatar': 'qa', 'Romania': 'ro',
+      'Russia': 'ru', 'Rwanda': 'rw', 'Saint Kitts and Nevis': 'kn', 'Saint Lucia': 'lc',
+      'Saint Vincent and the Grenadines': 'vc', 'Samoa': 'ws', 'San Marino': 'sm',
+      'Sao Tome and Principe': 'st', 'Saudi Arabia': 'sa', 'Senegal': 'sn', 'Serbia': 'rs',
+      'Seychelles': 'sc', 'Sierra Leone': 'sl', 'Singapore': 'sg', 'Slovakia': 'sk', 'Slovenia': 'si',
+      'Solomon Islands': 'sb', 'Somalia': 'so', 'South Africa': 'za', 'South Korea': 'kr',
+      'South Sudan': 'ss', 'Spain': 'es', 'Sri Lanka': 'lk', 'Sudan': 'sd', 'Suriname': 'sr',
+      'Sweden': 'se', 'Switzerland': 'ch', 'Syria': 'sy', 'Taiwan': 'tw', 'Tajikistan': 'tj',
+      'Tanzania': 'tz', 'Thailand': 'th', 'Timor-Leste': 'tl', 'Togo': 'tg', 'Tonga': 'to',
+      'Trinidad and Tobago': 'tt', 'Tunisia': 'tn', 'Turkey': 'tr', 'Turkmenistan': 'tm',
+      'Tuvalu': 'tv', 'Uganda': 'ug', 'Ukraine': 'ua', 'United Arab Emirates': 'ae',
+      'United Kingdom': 'gb', 'United States': 'us', 'Uruguay': 'uy', 'Uzbekistan': 'uz',
+      'Vanuatu': 'vu', 'Vatican City': 'va', 'Venezuela': 've', 'Vietnam': 'vn', 'Yemen': 'ye',
+      'Zambia': 'zm', 'Zimbabwe': 'zw',
+      // Spanish names
+      'Puerto Rico': 'pr', 'Estados Unidos': 'us', 'España': 'es', 'Reino Unido': 'gb',
+      'México': 'mx', 'República Dominicana': 'do', 'Colombia': 'co', 'Argentina': 'ar',
+      'Chile': 'cl', 'Perú': 'pe', 'Venezuela': 've', 'Ecuador': 'ec', 'Guatemala': 'gt',
+      'Cuba': 'cu', 'Haití': 'ht', 'Bolivia': 'bo', 'Honduras': 'hn', 'Paraguay': 'py',
+      'Nicaragua': 'ni', 'El Salvador': 'sv', 'Costa Rica': 'cr', 'Panamá': 'pa', 'Uruguay': 'uy'
     };
-    flagImages.PR.src = 'Assets/pr_flag.png';
-    flagImages.US.src = 'Assets/us_flag.png';
+
+    // Load flag image dynamically and preload it
+    function loadFlagImage(countryName) {
+      if (!countryName) return null;
+      
+      // Check cache first
+      if (flagImageCache.has(countryName)) {
+        const cached = flagImageCache.get(countryName);
+        // Return cached image if it's already loaded or still loading
+        return cached;
+      }
+
+      // Get country code
+      const countryCode = COUNTRY_TO_CODE[countryName] || null;
+      if (!countryCode) {
+        console.warn(`No flag code found for country: ${countryName}`);
+        return null;
+      }
+
+      // Create new image and load from flagcdn.com
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // Enable CORS for canvas
+      
+      // Use flagcdn.com API - returns high quality flag images (160px width)
+      img.src = `https://flagcdn.com/w160/${countryCode}.png`;
+      
+      // Cache the image (even if not loaded yet)
+      flagImageCache.set(countryName, img);
+      
+      return img;
+    }
+
+    // Preload flag for a country (call this when country is selected)
+    function preloadFlagForCountry(countryName) {
+      if (!countryName) return;
+      loadFlagImage(countryName);
+    }
 
     const fiturLogoImage = new Image();
     fiturLogoImage.src = 'Assets/Fitur_Logo.png';
@@ -1526,7 +1613,12 @@
     }
 
     countrySelect.addEventListener('change', () => {
-      populateRegionOptions(countrySelect.value, null);
+      const selectedCountry = countrySelect.value;
+      populateRegionOptions(selectedCountry, null);
+      // Preload flag for selected country so it's ready when photo is captured
+      if (selectedCountry) {
+        preloadFlagForCountry(selectedCountry);
+      }
     });
 
     document.querySelectorAll('[data-language]').forEach((btn) => {
@@ -1702,9 +1794,8 @@
       const flagHeight = 40;
       const gapBetween = 12;
 
-      let flagImg = null;
-      if (country === 'Puerto Rico') flagImg = flagImages.PR;
-      if (country === 'Estados Unidos') flagImg = flagImages.US;
+      // Load flag dynamically for any country
+      const flagImg = country ? loadFlagImage(country) : null;
 
       ctx.save();
 
@@ -1729,8 +1820,16 @@
       const flagX = boxX + sidePadding;
       const flagY = boxY + topPadding;
 
-      if (flagImg && flagImg.complete) {
-        ctx.drawImage(flagImg, flagX, flagY, flagWidth, flagHeight);
+      // Draw flag if loaded and ready
+      if (flagImg) {
+        if (flagImg.complete && flagImg.naturalWidth > 0) {
+          // Flag is loaded, draw it
+          ctx.drawImage(flagImg, flagX, flagY, flagWidth, flagHeight);
+        } else if (flagImg.complete && flagImg.naturalWidth === 0) {
+          // Flag failed to load, skip drawing flag but still show text
+          console.warn(`Flag failed to load for country: ${country}`);
+        }
+        // If flag is still loading, we'll draw without it (it should be preloaded when country is selected)
       }
 
       ctx.fillStyle = '#ffffff';
@@ -2085,6 +2184,8 @@ captureButton.addEventListener('click', () => {
       if (appSettings.form.locationEnabled && storedCountry) {
         countrySelect.value = storedCountry;
         populateRegionOptions(storedCountry, storedRegion);
+        // Preload flag for stored country
+        preloadFlagForCountry(storedCountry);
       } else {
         populateRegionOptions('', '');
       }

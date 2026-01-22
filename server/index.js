@@ -173,6 +173,7 @@ let appSessionId = null;
 // ---------- APP SETTINGS (admin-configurable) ----------
 const DEFAULT_APP_SETTINGS = {
   ticketEnabled: true,
+  galleryDisplayLimit: 'all', // 'all', 'last10', 'last25'
   intro: {
     title: '¿Desde dónde nos visitas? 😊',
     subtitle: 'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.'
@@ -203,6 +204,7 @@ let settingsLoadedFromSheet = false;
 
 const SETTINGS_FIELDS = [
   { key: 'Ticket Overlay Enabled', type: 'boolean', path: ['ticketEnabled'] },
+  { key: 'Gallery Display Limit', type: 'string', path: ['galleryDisplayLimit'] },
   { key: 'Intro Title', type: 'string', path: ['intro', 'title'] },
   { key: 'Intro Subtitle', type: 'string', path: ['intro', 'subtitle'] },
   { key: 'Location Enabled', type: 'boolean', path: ['form', 'locationEnabled'] },
@@ -278,6 +280,15 @@ function mergeAppSettings(patch = {}) {
 
   if (Object.prototype.hasOwnProperty.call(patch, 'ticketEnabled')) {
     next.ticketEnabled = coerceBoolean(patch.ticketEnabled, next.ticketEnabled);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'galleryDisplayLimit')) {
+    const limit = String(patch.galleryDisplayLimit || 'all').trim().toLowerCase();
+    if (['all', 'last10', 'last25'].includes(limit)) {
+      next.galleryDisplayLimit = limit;
+    } else {
+      next.galleryDisplayLimit = 'all';
+    }
   }
 
   if (patch.intro && typeof patch.intro === 'object') {
@@ -2193,9 +2204,12 @@ app.post('/admin/reset-logs', ensureAdminAuth, async (req, res) => {
 
 // --------- PUBLIC GALLERY API (for Yodeck / gallery.html) ----------
 
-// List approved photos (virtual rotation, max 12)
+// List approved photos (respects galleryDisplayLimit setting)
 app.get('/gallery/approved', async (req, res) => {
   try {
+    // Ensure settings are hydrated
+    await hydrateSettingsFromSheet();
+
     const response = await drive.files.list({
       q: `'${APPROVED_FOLDER_ID}' in parents and trashed = false`,
       fields: 'files(id, name, createdTime)',
@@ -2206,22 +2220,22 @@ app.get('/gallery/approved', async (req, res) => {
     });
 
     const all = response.data.files || [];
-    const ROTATION_MAX = 12;
+    const displayLimit = appSettings.galleryDisplayLimit || 'all';
 
     let selected;
 
-    if (all.length <= ROTATION_MAX) {
-      // 12 or fewer → keep chronological order
+    if (displayLimit === 'all') {
+      // Show all photos
       selected = all;
+    } else if (displayLimit === 'last10') {
+      // Show last 10 photos (most recent)
+      selected = all.slice(-10);
+    } else if (displayLimit === 'last25') {
+      // Show last 25 photos (most recent)
+      selected = all.slice(-25);
     } else {
-      // More than 12 → ring-buffer behavior:
-      // index i goes into slot (i % ROTATION_MAX)
-      const ring = new Array(ROTATION_MAX);
-      for (let i = 0; i < all.length; i++) {
-        const slot = i % ROTATION_MAX;
-        ring[slot] = all[i];
-      }
-      selected = ring;
+      // Fallback to all if invalid setting
+      selected = all;
     }
 
     const files = selected.map((f) => ({
