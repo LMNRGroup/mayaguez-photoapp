@@ -479,7 +479,10 @@
     gap: 0.625rem;
     position: relative;
     min-height: 0;
-    overflow-y: auto;
+    overflow: visible; /* Allow content to be visible */
+    height: calc(100dvh - 14rem); /* Fixed height: viewport minus header (~4rem) and card padding/margins (~10rem) */
+    min-height: 500px; /* Minimum height for smaller screens */
+    max-height: calc(100dvh - 14rem); /* Prevent panel from growing beyond viewport */
   }
 
   .center-view {
@@ -487,6 +490,9 @@
     flex-direction: column;
     gap: 1rem;
     min-height: 0;
+    height: 100%; /* Fill parent container */
+    overflow-y: auto; /* Allow scrolling within view if content exceeds */
+    overflow-x: hidden; /* Prevent horizontal scroll */
   }
 
   .center-view.active {
@@ -537,13 +543,15 @@
     flex-direction: column;
     gap: 1rem;
     min-height: 0;
-    overflow: hidden;
+    height: 100%; /* Ensure it fills parent */
+    overflow: visible; /* Allow content to be visible */
   }
 
   #viewApproved .approved-grid {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
   }
 
   #viewApproved .approved-empty {
@@ -2518,6 +2526,31 @@
       height: 8.5rem;
     }
   }
+
+  /* ADMIN FOOTER */
+  .admin-footer {
+    width: 100%;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    background: transparent;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  .admin-footer-text {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0.1em;
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .admin-footer {
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+  }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" integrity="sha512-tB17y8UnF6R45OZyeP+fM4x6hzFH6qC1t1PmiJdWWYV7eonbbyrcF0av8RyzZkjIl95QoUiG+2l3OjVhL7Jqmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
@@ -2905,6 +2938,11 @@ Report preview will appear here once the backend preview endpoint is configured.
       </div>
     </div>
   </div>
+
+  <!-- FOOTER -->
+  <footer class="admin-footer">
+    <p class="admin-footer-text">© 2026 Luminar Apps. Puerto Rico.</p>
+  </footer>
 
   <!-- HIDDEN BUTTONS (kept for existing JS logic, but not shown in UI) -->
   <button id="moreButton" class="kebab-button" type="button">⚙︎</button>
@@ -4380,22 +4418,21 @@ function hideReportLoading() {
               "";
           }
 
-          // Use thumbnail for grid (faster loading), full image only when needed
-          const thumbnailUrl = fileId 
-            ? `${BASE_URL}/admin/photo/${encodeURIComponent(fileId)}/thumbnail?token=${encodeURIComponent(adminToken || "")}`
-            : "";
-          const fullImageUrl = fileId
-            ? `${BASE_URL}/admin/photo/${encodeURIComponent(fileId)}?token=${encodeURIComponent(adminToken || "")}`
-            : imgUrl;
+          // Use full image URL for grid (revert to working flow)
+          if (!imgUrl && fileId) {
+            imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
+              fileId
+            )}?token=${encodeURIComponent(adminToken || "")}`;
+          }
 
-          if (!thumbnailUrl && !fullImageUrl) return;
+          if (!imgUrl) return;
           if (!fileId) fileId = imgUrl;
           if (!fileName) fileName = fileId;
 
           approvedFilesCache.push({ 
             fileId, 
-            imgUrl: thumbnailUrl || fullImageUrl, // Use thumbnail for grid
-            fullImageUrl, // Store full image URL for downloads/overlay
+            imgUrl, // Use full image for grid (reliable)
+            fullImageUrl: imgUrl, // Same URL for downloads/overlay
             fileName,
             createdTime: f.createdTime || null
           });
