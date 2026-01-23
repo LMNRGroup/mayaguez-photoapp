@@ -586,7 +586,7 @@ async function readTemplatesFromSheet() {
       try {
         const data = JSON.parse(jsonStr);
         templates.push({
-          id: i, // Row number as ID
+          id: i + 1, // Row number as ID (i=1 means row 2, so ID = 2)
           name,
           data,
           createdAt,

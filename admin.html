@@ -5554,6 +5554,129 @@ function hideReportLoading() {
       });
     }
 
+    // Reset template editor to default state
+    function resetTemplateEditor() {
+      // Clear all logos
+      if (templateLogosContainer) {
+        templateLogosContainer.innerHTML = "";
+      }
+      selectedLogo = null;
+      currentTemplateId = null;
+      
+      // Reset background to default
+      if (templateBackgroundImg) {
+        templateBackgroundImg.src = backgroundAssets[0].value;
+      }
+      if (templateBackgroundSelect) {
+        templateBackgroundSelect.value = backgroundAssets[0].value;
+      }
+      
+      // Hide delete button
+      if (templateDeleteBtn) {
+        templateDeleteBtn.style.display = "none";
+      }
+    }
+
+    // Load template from backend
+    async function loadTemplate(templateId) {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates/${templateId}`, {
+          headers: withAdminHeaders()
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        if (!res.ok) {
+          alert("Failed to load template. Please try again.");
+          return;
+        }
+
+        const data = await res.json();
+        if (!data || !data.template || !data.template.data) {
+          alert("Invalid template data.");
+          return;
+        }
+
+        const template = data.template;
+        const templateData = template.data;
+
+        // Reset editor first
+        resetTemplateEditor();
+
+        // Set current template ID for editing
+        currentTemplateId = templateId;
+        if (templateDeleteBtn) {
+          templateDeleteBtn.style.display = "inline-flex";
+        }
+
+        // Load background
+        if (templateData.background) {
+          let bgSrc = null;
+          if (templateData.background.type === "uploaded") {
+            // Load from Drive
+            bgSrc = `${BASE_URL}/admin/templates/asset/${templateData.background.value}`;
+          } else {
+            // Preloaded asset
+            bgSrc = templateData.background.value;
+          }
+
+          if (bgSrc && templateBackgroundImg) {
+            templateBackgroundImg.src = bgSrc;
+            // Only set select value for preloaded assets
+            if (templateBackgroundSelect && templateData.background.type === "preloaded") {
+              templateBackgroundSelect.value = templateData.background.value;
+            }
+          }
+        }
+
+        // Load logos
+        if (templateData.logos && Array.isArray(templateData.logos)) {
+          for (const logoData of templateData.logos) {
+            let logoSrc = null;
+            
+            if (logoData.type === "uploaded") {
+              // Load from Drive
+              logoSrc = `${BASE_URL}/admin/templates/asset/${logoData.value}`;
+            } else {
+              // Preloaded asset
+              logoSrc = logoData.value;
+            }
+
+            if (logoSrc) {
+              // Use the stored position and size
+              await addLogoToCanvasWithPosition(
+                logoSrc,
+                logoData.x || null,
+                logoData.y || null,
+                logoData.width || null,
+                logoData.height || null
+              );
+            }
+          }
+        }
+
+        // Deselect any logo after loading
+        if (selectedLogo) {
+          selectedLogo.classList.remove("selected");
+          const actions = selectedLogo.querySelector(".template-logo-actions");
+          if (actions) actions.style.display = "none";
+          selectedLogo = null;
+        }
+
+      } catch (err) {
+        console.error("Error loading template:", err);
+        alert("Failed to load template. Please try again.");
+      }
+    }
+
     // Load Template Overlay
     async function showLoadTemplateOverlay() {
       const overlay = document.createElement("div");
