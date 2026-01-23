@@ -3045,6 +3045,16 @@ Report preview will appear here once the backend preview endpoint is configured.
           </div>
 
           <div class="photo-info-section">
+            <div class="photo-info-label">PHOTO NUMBER</div>
+            <div id="photoInfoNumber" class="photo-info-value">—</div>
+          </div>
+
+          <div class="photo-info-section">
+            <div class="photo-info-label">CREATED</div>
+            <div id="photoInfoCreated" class="photo-info-value">—</div>
+          </div>
+
+          <div class="photo-info-section">
             <div class="photo-info-label">USER EMAIL</div>
             <div id="photoInfoEmail" class="photo-info-value">—</div>
           </div>
@@ -4246,23 +4256,25 @@ function hideReportLoading() {
       return null;
     }
 
-    function buildApprovedThumb(fileId, imgUrl) {
+    function buildApprovedThumb(fileId, imgUrl, createdTime = null) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "approved-thumb";
       btn.dataset.id = fileId;
 
       const img = document.createElement("img");
-      img.src = imgUrl;
+      img.src = imgUrl; // This is now the thumbnail URL
       img.alt = "Approved photo";
+      img.loading = "lazy"; // Lazy load thumbnails
 
       btn.appendChild(img);
 
       btn.addEventListener("click", () => {
-        // Get filename from cache to extract ticket number
+        // Get full item data from cache
         const item = approvedFilesCache.find(f => f.fileId === fileId);
         const fileName = item?.fileName || fileId;
-        openPhotoInfoOverlay(fileId, fileName);
+        const itemCreatedTime = item?.createdTime || createdTime;
+        openPhotoInfoOverlay(fileId, fileName, true);
       });
 
       return btn;
@@ -4290,7 +4302,7 @@ function hideReportLoading() {
       slice.forEach((item) => {
         const { fileId, imgUrl } = item;
         if (!imgUrl) return;
-        const thumb = buildApprovedThumb(fileId, imgUrl);
+        const thumb = buildApprovedThumb(fileId, imgUrl, item.createdTime);
         approvedGrid.appendChild(thumb);
       });
 
@@ -4368,17 +4380,25 @@ function hideReportLoading() {
               "";
           }
 
-          if (!imgUrl && fileId) {
-            imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
-              fileId
-            )}?token=${encodeURIComponent(adminToken || "")}`;
-          }
+          // Use thumbnail for grid (faster loading), full image only when needed
+          const thumbnailUrl = fileId 
+            ? `${BASE_URL}/admin/photo/${encodeURIComponent(fileId)}/thumbnail?token=${encodeURIComponent(adminToken || "")}`
+            : "";
+          const fullImageUrl = fileId
+            ? `${BASE_URL}/admin/photo/${encodeURIComponent(fileId)}?token=${encodeURIComponent(adminToken || "")}`
+            : imgUrl;
 
-          if (!imgUrl) return;
+          if (!thumbnailUrl && !fullImageUrl) return;
           if (!fileId) fileId = imgUrl;
           if (!fileName) fileName = fileId;
 
-          approvedFilesCache.push({ fileId, imgUrl, fileName });
+          approvedFilesCache.push({ 
+            fileId, 
+            imgUrl: thumbnailUrl || fullImageUrl, // Use thumbnail for grid
+            fullImageUrl, // Store full image URL for downloads/overlay
+            fileName,
+            createdTime: f.createdTime || null
+          });
         });
 
         approvedPageIndex = 0;
@@ -4689,6 +4709,31 @@ function hideReportLoading() {
     
     let photoInfoCurrentIndex = -1;
 
+    // Format date to MM/DD/YY TIME PR format
+    function formatPRDateTime(dateString) {
+      if (!dateString) return "—";
+      
+      try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return "—";
+        
+        // Convert to PR time (GMT-4)
+        const utcMs = date.getTime() + date.getTimezoneOffset() * 60000;
+        const prDate = new Date(utcMs - 4 * 60 * 60 * 1000);
+        
+        const pad = (n) => String(n).padStart(2, "0");
+        const mm = pad(prDate.getMonth() + 1);
+        const dd = pad(prDate.getDate());
+        const yy = String(prDate.getFullYear()).slice(-2);
+        const HH = pad(prDate.getHours());
+        const MM = pad(prDate.getMinutes());
+        
+        return `${mm}/${dd}/${yy} ${HH}:${MM} PR`;
+      } catch (err) {
+        return "—";
+      }
+    }
+
     // Extract ticket number from filename
     function extractTicketFromFileName(fileName) {
       if (!fileName || typeof fileName !== "string") return null;
@@ -4745,13 +4790,30 @@ function hideReportLoading() {
         );
       }
 
-      // Load photo preview
-      const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
-        fileId
-      )}?token=${encodeURIComponent(adminToken || "")}`;
-      photoInfoPreviewImg.src = photoUrl;
+      // Get item from cache to access fullImageUrl and createdTime
+      const item = approvedFilesCache.find(f => f.fileId === fileId);
+      const itemCreatedTime = item?.createdTime || null;
+      
+      // Load full resolution photo for overlay preview
+      const fullImageUrl = item?.fullImageUrl || `${BASE_URL}/admin/photo/${encodeURIComponent(fileId)}?token=${encodeURIComponent(adminToken || "")}`;
+      photoInfoPreviewImg.src = fullImageUrl;
 
       const ticketNumber = extractTicketFromFileName(fileName);
+      
+      // Display photo number and creation date
+      if (photoInfoNumber) {
+        if (ticketNumber) {
+          const num = ticketNumber.replace(/^T0*/, ""); // Remove T and leading zeros
+          photoInfoNumber.textContent = `#${num}`;
+        } else {
+          photoInfoNumber.textContent = "—";
+        }
+      }
+      
+      if (photoInfoCreated) {
+        photoInfoCreated.textContent = formatPRDateTime(itemCreatedTime);
+      }
+      
       if (!ticketNumber) {
         // Still show overlay but with no match
         currentPhotoInfo = { fileId, ticketNumber: null, userInfo: null };

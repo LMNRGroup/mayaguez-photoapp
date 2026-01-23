@@ -1082,7 +1082,7 @@ async function listFilesInFolder(folderId) {
     const res = await drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
       fields: 'files(id, name, createdTime), nextPageToken',
-      orderBy: 'createdTime asc',
+      orderBy: 'createdTime desc', // Newest first
       pageSize: 100,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
@@ -2127,6 +2127,49 @@ app.get('/admin/next-photo', ensureAdminAuth, async (req, res) => {
 });
 
 // Serve the actual image bytes so admin.html can <img src="...">
+// Get photo thumbnail (smaller, faster loading for grid)
+app.get('/admin/photo/:id/thumbnail', ensureAdminAuth, async (req, res) => {
+  const fileId = req.params.id;
+
+  try {
+    // Get thumbnail link from Drive metadata
+    const fileMeta = await drive.files.get({
+      fileId,
+      fields: 'thumbnailLink, webContentLink'
+    });
+
+    // If Drive provides a thumbnail, redirect to it
+    if (fileMeta.data.thumbnailLink) {
+      return res.redirect(fileMeta.data.thumbnailLink);
+    }
+
+    // Fallback: serve full image if no thumbnail available
+    const driveRes = await drive.files.get(
+      {
+        fileId,
+        alt: 'media'
+      },
+      { responseType: 'stream' }
+    );
+
+    res.setHeader('Content-Type', 'image/jpeg');
+    driveRes.data
+      .on('error', (err) => {
+        console.error('Error streaming photo thumbnail:', err);
+        if (!res.headersSent) {
+          res.status(500).end('Error streaming file');
+        }
+      })
+      .pipe(res);
+  } catch (err) {
+    console.error('Error getting photo thumbnail from Drive:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'failed_photo_thumbnail' });
+    }
+  }
+});
+
+// Get full resolution photo (for downloads and overlay preview)
 app.get('/admin/photo/:id', ensureAdminAuth, async (req, res) => {
   const fileId = req.params.id;
 
