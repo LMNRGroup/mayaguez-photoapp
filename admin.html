@@ -2838,19 +2838,30 @@ View report to see the most recent interactions
 
               <div class="settings-section">
                 <div class="settings-section-header">
-                  <div class="settings-section-title">GALLERY DISPLAY</div>
+                  <div class="settings-section-title">PLAYLIST</div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </div>
                 <div class="settings-section-content">
                   <div class="settings-grid">
-                    <label class="settings-label" for="settingsGalleryDisplayLimit">Photos to display in gallery</label>
+                    <label class="settings-label" for="settingsGalleryDisplayLimit">Photos to display in Playlist</label>
                     <select id="settingsGalleryDisplayLimit" class="settings-input">
-                      <option value="all">All photos</option>
-                      <option value="last25">Last 25 photos</option>
-                      <option value="last10">Last 10 photos</option>
+                      <option value="all">All Photos</option>
+                      <option value="last25">Last 25 Photos</option>
+                      <option value="last10">Last 10 Photos</option>
+                      <option value="custom">Custom</option>
                     </select>
+                    <label class="settings-label" for="settingsGalleryDisplayCustom" id="settingsGalleryDisplayCustomLabel" style="display: none;">Number of photos</label>
+                    <input 
+                      type="number" 
+                      id="settingsGalleryDisplayCustom" 
+                      class="settings-input" 
+                      min="1" 
+                      max="1000" 
+                      placeholder="Enter number of photos"
+                      style="display: none;"
+                    />
                   </div>
                 </div>
               </div>
@@ -3797,6 +3808,8 @@ function hideGlobalLoader() {
     const settingsStatus = document.getElementById("settingsStatus");
     const settingsTicketEnabled = document.getElementById("settingsTicketEnabled");
     const settingsGalleryDisplayLimit = document.getElementById("settingsGalleryDisplayLimit");
+    const settingsGalleryDisplayCustom = document.getElementById("settingsGalleryDisplayCustom");
+    const settingsGalleryDisplayCustomLabel = document.getElementById("settingsGalleryDisplayCustomLabel");
     const settingsIntroTitle = document.getElementById("settingsIntroTitle");
     const settingsIntroSubtitle = document.getElementById("settingsIntroSubtitle");
     const settingsLocationEnabled = document.getElementById("settingsLocationEnabled");
@@ -6743,7 +6756,30 @@ reportViewBtn.addEventListener("click", async () => {
     function fillSettingsForm(settings) {
       if (!settings) return;
       settingsTicketEnabled.checked = Boolean(settings.ticketEnabled);
-      settingsGalleryDisplayLimit.value = settings.galleryDisplayLimit || "all";
+      
+      // Handle gallery display limit (support custom:20 format)
+      const galleryLimit = settings.galleryDisplayLimit || "all";
+      if (galleryLimit.startsWith("custom:")) {
+        const customNum = galleryLimit.replace("custom:", "");
+        settingsGalleryDisplayLimit.value = "custom";
+        if (settingsGalleryDisplayCustom) {
+          settingsGalleryDisplayCustom.value = customNum;
+          settingsGalleryDisplayCustom.style.display = "block";
+        }
+        if (settingsGalleryDisplayCustomLabel) {
+          settingsGalleryDisplayCustomLabel.style.display = "block";
+        }
+      } else {
+        settingsGalleryDisplayLimit.value = galleryLimit;
+        if (settingsGalleryDisplayCustom) {
+          settingsGalleryDisplayCustom.value = "";
+          settingsGalleryDisplayCustom.style.display = "none";
+        }
+        if (settingsGalleryDisplayCustomLabel) {
+          settingsGalleryDisplayCustomLabel.style.display = "none";
+        }
+      }
+      
       settingsIntroTitle.value = settings.intro?.title || "";
       settingsIntroSubtitle.value = settings.intro?.subtitle || "";
       settingsLocationEnabled.checked = Boolean(settings.form?.locationEnabled);
@@ -6759,9 +6795,20 @@ reportViewBtn.addEventListener("click", async () => {
     }
 
     function collectSettingsPayload() {
+      // Handle gallery display limit (format custom as "custom:20")
+      let galleryDisplayLimit = settingsGalleryDisplayLimit.value || "all";
+      if (galleryDisplayLimit === "custom" && settingsGalleryDisplayCustom) {
+        const customNum = parseInt(settingsGalleryDisplayCustom.value, 10);
+        if (customNum > 0) {
+          galleryDisplayLimit = `custom:${customNum}`;
+        } else {
+          galleryDisplayLimit = "all"; // Fallback if invalid custom number
+        }
+      }
+      
       return {
         ticketEnabled: settingsTicketEnabled.checked,
-        galleryDisplayLimit: settingsGalleryDisplayLimit.value || "all",
+        galleryDisplayLimit: galleryDisplayLimit,
         intro: {
           title: settingsIntroTitle.value.trim(),
           subtitle: settingsIntroSubtitle.value.trim(),
@@ -6848,6 +6895,22 @@ reportViewBtn.addEventListener("click", async () => {
       settingsOverlay.addEventListener("click", (e) => {
         if (e.target === settingsOverlay) {
           closeSettingsOverlay();
+        }
+      });
+    }
+
+    // Handle gallery display limit select change (show/hide custom input)
+    if (settingsGalleryDisplayLimit && settingsGalleryDisplayCustom && settingsGalleryDisplayCustomLabel) {
+      settingsGalleryDisplayLimit.addEventListener("change", () => {
+        const isCustom = settingsGalleryDisplayLimit.value === "custom";
+        if (isCustom) {
+          settingsGalleryDisplayCustom.style.display = "block";
+          settingsGalleryDisplayCustomLabel.style.display = "block";
+          settingsGalleryDisplayCustom.focus();
+        } else {
+          settingsGalleryDisplayCustom.style.display = "none";
+          settingsGalleryDisplayCustomLabel.style.display = "none";
+          settingsGalleryDisplayCustom.value = "";
         }
       });
     }

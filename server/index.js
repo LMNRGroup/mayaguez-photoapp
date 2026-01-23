@@ -293,8 +293,16 @@ function mergeAppSettings(patch = {}) {
 
   if (Object.prototype.hasOwnProperty.call(patch, 'galleryDisplayLimit')) {
     const limit = String(patch.galleryDisplayLimit || 'all').trim().toLowerCase();
+    // Support: 'all', 'last10', 'last25', or 'custom:20' format
     if (['all', 'last10', 'last25'].includes(limit)) {
       next.galleryDisplayLimit = limit;
+    } else if (limit.startsWith('custom:')) {
+      const customNum = parseInt(limit.replace('custom:', ''), 10);
+      if (customNum > 0 && customNum <= 1000) {
+        next.galleryDisplayLimit = limit; // Keep as 'custom:20'
+      } else {
+        next.galleryDisplayLimit = 'all'; // Invalid custom number, fallback
+      }
     } else {
       next.galleryDisplayLimit = 'all';
     }
@@ -2529,6 +2537,15 @@ app.get('/gallery/approved', async (req, res) => {
     } else if (displayLimit === 'last25') {
       // Show last 25 photos (most recent)
       selected = all.slice(-25);
+    } else if (displayLimit.startsWith('custom:')) {
+      // Show custom number of photos (most recent)
+      const customNum = parseInt(displayLimit.replace('custom:', ''), 10);
+      if (customNum > 0 && customNum <= 1000) {
+        selected = all.slice(-customNum);
+      } else {
+        // Invalid custom number, fallback to all
+        selected = all;
+      }
     } else {
       // Fallback to all if invalid setting
       selected = all;
