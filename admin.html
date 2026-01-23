@@ -571,17 +571,20 @@
   #viewReports .report-preview {
     flex: 1;
     min-height: 200px;
-    max-height: 500px;
+    max-height: calc(100dvh - 20rem);
     overflow-y: auto;
-    background: var(--secondary);
+    overflow-x: hidden;
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: calc(var(--radius) - 2px);
-    padding: 1rem;
-    font-size: 0.75rem;
-    font-family: "Courier New", monospace;
-    color: var(--foreground);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    font-size: 0.875rem; /* text-sm - 14px */
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    color: var(--card-foreground);
     white-space: pre-wrap;
     word-wrap: break-word;
+    line-height: 1.7; /* Comfortable reading line height */
+    letter-spacing: 0.01em; /* Slight letter spacing for readability */
   }
 
   /* Templates view styling */
@@ -1376,34 +1379,45 @@
 
   .approved-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 1rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
+    padding: 1rem;
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
     min-width: 0;
+    align-items: start; /* Prevent stretching */
+  }
+
+  @media (min-width: 768px) {
+    .approved-grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1.25rem;
+      padding: 1.25rem;
+    }
   }
 
   @media (min-width: 1200px) {
     .approved-grid {
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1.25rem;
+      gap: 1.5rem;
+      padding: 1.5rem;
     }
   }
 
   @media (min-width: 1600px) {
     .approved-grid {
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 1.5rem;
+      gap: 2rem;
+      padding: 2rem;
     }
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 767px) {
     .approved-grid {
       grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
       gap: 0.75rem;
+      padding: 0.75rem;
     }
   }
 
@@ -1423,11 +1437,12 @@
     overflow: hidden;
     background: var(--card);
     cursor: pointer;
-    flex: 0 0 auto;
-    min-width: 0;
     transition: all 0.2s ease;
     aspect-ratio: 1 / 1; /* Force square aspect ratio */
     width: 100%; /* Fill grid cell */
+    max-width: 100%; /* Prevent overflow */
+    height: auto; /* Let aspect-ratio control height */
+    display: block; /* Ensure proper block display */
   }
 
   .approved-thumb:hover {
@@ -2129,19 +2144,20 @@
   .report-preview {
     margin: 0;
     margin-top: 0.25rem;
-    max-height: 200px;
+    max-height: calc(100dvh - 20rem);
     overflow-y: auto;
     overflow-x: hidden;
     background: var(--card);
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    padding: 0.75rem;
-    font-size: 0.6875rem;
+    padding: 1.5rem;
+    font-size: 0.875rem; /* text-sm - 14px */
     color: var(--card-foreground);
     white-space: pre-wrap;
     min-width: 0;
-    font-family: monospace;
-    line-height: 1.6;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.7; /* Comfortable reading line height */
+    letter-spacing: 0.01em; /* Slight letter spacing for readability */
   }
 
   /* Report loading container for Lottie */
