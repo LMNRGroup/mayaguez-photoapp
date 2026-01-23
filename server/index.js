@@ -2290,9 +2290,20 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
       const tsPr  = row[1] || '';  // timestamp_pr "DD/MM/YYYY HH:MM:SS"
       const eventType = row[2] || '';
       const email     = row[3] || '';
+      const sessionId = row[4] || ''; // session_id (e.g., "IP 172.225.248.16 San Juan, Puerto Rico")
       const country = row[5] || '';
       const region = row[6] || '';
       const newsletterFlag = row[8] || ''; // "Y" / "N" / ""
+
+      // Extract location from session_id if country is not available
+      // Format: "IP 172.225.248.16 San Juan, Puerto Rico"
+      let locationFromSession = '';
+      if (!country && sessionId) {
+        const ipMatch = sessionId.match(/^IP\s+[\d.]+\s+(.+)$/);
+        if (ipMatch && ipMatch[1]) {
+          locationFromSession = ipMatch[1].trim(); // "San Juan, Puerto Rico"
+        }
+      }
 
       // --- TIME LABEL (we prefer PR time if available) ---
       let timeText = '';
@@ -2323,8 +2334,10 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
 
       switch (eventType) {
         case 'visit': {
-          if (country) {
-            text = `New visit from ${country.toUpperCase()}`;
+          // Use country if available, otherwise extract from session_id
+          const location = country || locationFromSession;
+          if (location) {
+            text = `New visit from ${location.toUpperCase()}`;
           } else {
             text = 'New visit';
           }

@@ -1376,14 +1376,35 @@
 
   .approved-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 8px;
-    padding-top: 4px;
-    padding-bottom: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
     min-width: 0;
+  }
+
+  @media (min-width: 1200px) {
+    .approved-grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1.25rem;
+    }
+  }
+
+  @media (min-width: 1600px) {
+    .approved-grid {
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1.5rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .approved-grid {
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 0.75rem;
+    }
   }
 
   .approved-empty {
@@ -2714,14 +2735,14 @@
             </div>
 
             <div class="view-actions">
-              <button id="reportViewBtn" class="btn-ghost">View report (preview)</button>
+              <button id="reportViewBtn" class="btn-ghost">View report</button>
               <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
             </div>
 
             <div id="reportLoading" class="report-loading" style="display:none;"></div>
 
             <pre id="reportPreview" class="report-preview">
-Report preview will appear here once the backend preview endpoint is configured.
+View report to see the most recent interactions
             </pre>
           </div>
 
@@ -3149,7 +3170,7 @@ Report preview will appear here once the backend preview endpoint is configured.
         delivered to your configured email.
       </p>
       <div class="modal-actions">
-        <button id="reportViewBtn" class="btn-ghost">View report (preview)</button>
+        <button id="reportViewBtn" class="btn-ghost">View report</button>
         <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
       </div>
 
@@ -3157,7 +3178,7 @@ Report preview will appear here once the backend preview endpoint is configured.
       <div id="reportLoading" class="report-loading" style="display:none;"></div>
 
       <pre id="reportPreview" class="report-preview">
-Report preview will appear here once the backend preview endpoint is configured.
+View report to see the most recent interactions
       </pre>
     </div>
   </div>
@@ -6352,14 +6373,14 @@ function openReportOverlay() {
   if (typeof switchView === 'function') {
     switchView("reports");
     if (reportPreview) {
-      reportPreview.textContent = "Tap \"View report (preview)\" to load the current summary.";
+      reportPreview.textContent = "Tap \"View report\" to load the current summary.";
     }
     hideReportLoading();
   } else {
     // Fallback to modal if switchView not available yet
   reportOverlay.style.display = "flex";
     if (reportPreview) {
-      reportPreview.textContent = "Tap \"View report (preview)\" to load the current summary.";
+      reportPreview.textContent = "Tap \"View report\" to load the current summary.";
     }
     hideReportLoading();
   }
