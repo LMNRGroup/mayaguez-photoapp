@@ -533,8 +533,33 @@
     flex-direction: column;
     gap: 0.75rem;
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
+    flex: 1;
     padding: 0.5rem 0;
+    /* Ensure scrolling works properly */
+    -webkit-overflow-scrolling: touch;
+    /* Ensure content doesn't get cut off */
+    max-height: 100%;
+  }
+
+  /* Ensure viewSettings has proper flex layout */
+  #viewSettings {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #viewSettings .view-header {
+    flex-shrink: 0;
+  }
+
+  #viewSettings .settings-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   /* Approved photos view styling */
@@ -1997,8 +2022,9 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--card);
-    overflow: hidden;
+    overflow: visible; /* Allow dropdowns to be visible */
     transition: all 0.2s ease;
+    position: relative;
   }
 
   .settings-section:hover {
@@ -2050,11 +2076,28 @@
     overflow: hidden;
     transition: max-height 0.3s ease, padding 0.3s ease;
     padding: 0 1.25rem;
+    position: relative;
   }
 
   .settings-section.expanded .settings-section-content {
-    max-height: 2000px;
+    /* Use a large but reasonable max-height, allow scrolling if needed */
+    max-height: min(80vh, 600px); /* Cap at 600px but allow up to 80vh */
     padding: 0 1.25rem 1.25rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Ensure smooth scrolling */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure select dropdowns are properly positioned and visible */
+  .settings-section.expanded .settings-grid {
+    position: relative;
+  }
+
+  .settings-section.expanded select.settings-input {
+    position: relative;
+    /* Native browser dropdowns render in a separate layer, but ensure proper stacking */
+    z-index: 10;
   }
 
   .settings-grid {
@@ -2108,6 +2151,23 @@
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
     padding-right: 2.5rem;
+    /* Ensure dropdown options are always visible */
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Ensure select dropdown options maintain consistent spacing and are visible */
+  select.settings-input option {
+    padding: 0.5rem 0.75rem;
+    line-height: 1.5;
+    min-height: 2.5rem;
+    display: block;
+  }
+
+  /* When select is focused/open, ensure dropdown is visible */
+  select.settings-input:focus {
+    z-index: 1000;
+    position: relative;
   }
 
   .settings-actions {
