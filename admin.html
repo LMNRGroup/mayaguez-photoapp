@@ -531,7 +531,7 @@
   .settings-content {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.75rem;
     overflow-y: auto;
     min-height: 0;
     padding: 0.5rem 0;
@@ -1379,45 +1379,38 @@
 
   .approved-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 1rem;
+    /* Always show 24 photos: 3 columns x 8 rows on mobile, 4x6 on tablet, 6x4 on desktop, 8x3 on large */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
     padding: 1rem;
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
     min-width: 0;
-    align-items: start; /* Prevent stretching */
+    align-items: start;
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 640px) {
     .approved-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 1.25rem;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
       padding: 1.25rem;
     }
   }
 
-  @media (min-width: 1200px) {
+  @media (min-width: 1024px) {
     .approved-grid {
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 1.25rem;
       padding: 1.5rem;
     }
   }
 
   @media (min-width: 1600px) {
     .approved-grid {
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 2rem;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 1.5rem;
       padding: 2rem;
-    }
-  }
-
-  @media (max-width: 767px) {
-    .approved-grid {
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 0.75rem;
-      padding: 0.75rem;
     }
   }
 
@@ -2003,38 +1996,86 @@
   .settings-section {
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 1rem;
     background: var(--card);
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+
+  .settings-section:hover {
+    border-color: var(--primary);
+  }
+
+  .settings-section-header {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    background: var(--card);
+  }
+
+  .settings-section-header:hover {
+    background: var(--secondary);
   }
 
   .settings-section-title {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    color: var(--muted-foreground);
+    color: var(--foreground);
     font-weight: 600;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .settings-section-chevron {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-foreground);
+    transition: transform 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .settings-section.expanded .settings-section-chevron {
+    transform: rotate(180deg);
+    color: var(--primary);
+  }
+
+  .settings-section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0 1.25rem;
+  }
+
+  .settings-section.expanded .settings-section-content {
+    max-height: 2000px;
+    padding: 0 1.25rem 1.25rem;
   }
 
   .settings-grid {
-    display: grid;
-    gap: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-top: 1rem;
   }
 
   .settings-row {
     display: flex;
-    gap: 12px;
+    gap: 1rem;
     align-items: center;
     justify-content: space-between;
   }
 
   .settings-label {
-    font-size: 0.6875rem;
-    color: var(--card-foreground);
+    font-size: 0.75rem;
+    color: var(--foreground);
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    font-weight: 300;
+    font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
@@ -2049,7 +2090,7 @@
     color: var(--foreground);
     font-size: 0.875rem;
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    font-weight: 300;
+    font-weight: 400;
     transition: all 0.2s ease;
     min-width: 0;
   }
@@ -2057,7 +2098,7 @@
   .settings-input:focus {
     outline: none;
     border-color: var(--ring);
-    box-shadow: 0 0 0 2px hsla(var(--ring) / 0.2);
+    box-shadow: 0 0 0 2px hsla(268, 85%, 55%, 0.2);
   }
 
   select.settings-input {
@@ -2080,6 +2121,9 @@
     min-height: 1rem;
     font-size: 0.75rem;
     color: var(--muted-foreground);
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 
   .settings-help {
@@ -2773,90 +2817,120 @@ View report to see the most recent interactions
 
             <div class="settings-content">
               <div class="settings-section">
-                <div class="settings-section-title">Ticket overlay</div>
-                <div class="settings-row">
-                  <span class="settings-label">Show ticket number after upload</span>
-                  <label class="toggle">
-                    <input type="checkbox" id="settingsTicketEnabled" />
-                    <span class="toggle-slider"></span>
-                  </label>
+                <div class="settings-section-header">
+                  <div class="settings-section-title">TICKET OVERLAY</div>
+                  <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="settings-section-content">
+                  <div class="settings-grid">
+                    <div class="settings-row">
+                      <span class="settings-label">Show ticket number after upload</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsTicketEnabled" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div class="settings-section">
-                <div class="settings-section-title">Gallery display</div>
-                <div class="settings-grid">
-                  <label class="settings-label" for="settingsGalleryDisplayLimit">Photos to display in gallery</label>
-                  <select id="settingsGalleryDisplayLimit" class="settings-input">
-                    <option value="all">All photos</option>
-                    <option value="last25">Last 25 photos</option>
-                    <option value="last10">Last 10 photos</option>
-                  </select>
+                <div class="settings-section-header">
+                  <div class="settings-section-title">GALLERY DISPLAY</div>
+                  <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="settings-section-content">
+                  <div class="settings-grid">
+                    <label class="settings-label" for="settingsGalleryDisplayLimit">Photos to display in gallery</label>
+                    <select id="settingsGalleryDisplayLimit" class="settings-input">
+                      <option value="all">All photos</option>
+                      <option value="last25">Last 25 photos</option>
+                      <option value="last10">Last 10 photos</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
               <div class="settings-section">
-                <div class="settings-section-title">Intro copy</div>
-                <div class="settings-grid">
-                  <label class="settings-label" for="settingsIntroTitle">Intro title</label>
-                  <input id="settingsIntroTitle" class="settings-input" type="text" />
-                  <label class="settings-label" for="settingsIntroSubtitle">Intro subtitle</label>
-                  <input id="settingsIntroSubtitle" class="settings-input" type="text" />
+                <div class="settings-section-header">
+                  <div class="settings-section-title">INTRO COPY</div>
+                  <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="settings-section-content">
+                  <div class="settings-grid">
+                    <label class="settings-label" for="settingsIntroTitle">Intro title</label>
+                    <input id="settingsIntroTitle" class="settings-input" type="text" />
+                    <label class="settings-label" for="settingsIntroSubtitle">Intro subtitle</label>
+                    <input id="settingsIntroSubtitle" class="settings-input" type="text" />
+                  </div>
                 </div>
               </div>
 
               <div class="settings-section">
-                <div class="settings-section-title">Form fields</div>
-                <div class="settings-grid">
-                  <div class="settings-row">
-                    <span class="settings-label">Enable location (country/region)</span>
-                    <label class="toggle">
-                      <input type="checkbox" id="settingsLocationEnabled" />
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
+                <div class="settings-section-header">
+                  <div class="settings-section-title">FORM FIELDS</div>
+                  <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="settings-section-content">
+                  <div class="settings-grid">
+                    <div class="settings-row">
+                      <span class="settings-label">Enable location (country/region)</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsLocationEnabled" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
 
-                  <div class="settings-row">
-                    <span class="settings-label">Enable last name</span>
-                    <label class="toggle">
-                      <input type="checkbox" id="settingsLastNameEnabled" />
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <label class="settings-label" for="settingsLastNameLabel">Last name label</label>
-                  <input id="settingsLastNameLabel" class="settings-input" type="text" />
-                  <label class="settings-label" for="settingsLastNamePlaceholder">Last name placeholder</label>
-                  <input id="settingsLastNamePlaceholder" class="settings-input" type="text" />
+                    <div class="settings-row">
+                      <span class="settings-label">Enable last name</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsLastNameEnabled" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <label class="settings-label" for="settingsLastNameLabel">Last name label</label>
+                    <input id="settingsLastNameLabel" class="settings-input" type="text" />
+                    <label class="settings-label" for="settingsLastNamePlaceholder">Last name placeholder</label>
+                    <input id="settingsLastNamePlaceholder" class="settings-input" type="text" />
 
-                  <div class="settings-row">
-                    <span class="settings-label">Enable email</span>
-                    <label class="toggle">
-                      <input type="checkbox" id="settingsEmailEnabled" />
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <label class="settings-label" for="settingsEmailLabel">Email label</label>
-                  <input id="settingsEmailLabel" class="settings-input" type="text" />
-                  <label class="settings-label" for="settingsEmailPlaceholder">Email placeholder</label>
-                  <input id="settingsEmailPlaceholder" class="settings-input" type="text" />
+                    <div class="settings-row">
+                      <span class="settings-label">Enable email</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEmailEnabled" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <label class="settings-label" for="settingsEmailLabel">Email label</label>
+                    <input id="settingsEmailLabel" class="settings-input" type="text" />
+                    <label class="settings-label" for="settingsEmailPlaceholder">Email placeholder</label>
+                    <input id="settingsEmailPlaceholder" class="settings-input" type="text" />
 
-                  <div class="settings-row">
-                    <span class="settings-label">Enable newsletter opt-in</span>
-                    <label class="toggle">
-                      <input type="checkbox" id="settingsNewsletterEnabled" />
-                      <span class="toggle-slider"></span>
-                    </label>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable newsletter opt-in</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsNewsletterEnabled" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <label class="settings-label" for="settingsNewsletterLabel">Newsletter label</label>
+                    <input id="settingsNewsletterLabel" class="settings-input" type="text" />
+                    <label class="settings-label" for="settingsNewsletterHelper">Newsletter helper text</label>
+                    <input id="settingsNewsletterHelper" class="settings-input" type="text" />
                   </div>
-                  <label class="settings-label" for="settingsNewsletterLabel">Newsletter label</label>
-                  <input id="settingsNewsletterLabel" class="settings-input" type="text" />
-                  <label class="settings-label" for="settingsNewsletterHelper">Newsletter helper text</label>
-                  <input id="settingsNewsletterHelper" class="settings-input" type="text" />
                 </div>
               </div>
 
               <div class="settings-actions">
                 <span id="settingsStatus" class="settings-status"></span>
-                <button id="settingsSaveBtn" class="btn-primary">Save settings</button>
+                <button id="settingsSaveBtn" class="btn-primary">SAVE SETTINGS</button>
               </div>
             </div>
           </div>
@@ -5356,6 +5430,10 @@ function hideReportLoading() {
           if (targetView) {
             setSettingsStatus("Loading settings…");
             loadSettings();
+            // Initialize accordion after a short delay to ensure DOM is ready
+            setTimeout(() => {
+              initSettingsAccordion();
+            }, 200);
           }
           break;
         case "templates":
@@ -6518,6 +6596,20 @@ reportViewBtn.addEventListener("click", async () => {
           },
         },
       };
+    }
+
+    // Settings accordion functionality
+    function initSettingsAccordion() {
+      const sections = document.querySelectorAll('.settings-section');
+      sections.forEach((section) => {
+        const header = section.querySelector('.settings-section-header');
+        if (header && !header.dataset.accordionInitialized) {
+          header.dataset.accordionInitialized = 'true';
+          header.addEventListener('click', () => {
+            section.classList.toggle('expanded');
+          });
+        }
+      });
     }
 
     async function loadSettings() {
