@@ -882,64 +882,6 @@
     cursor: default;
   }
 
-  .approved-thumb-actions {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 4px 4px 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.16s ease, transform 0.16s ease;
-    pointer-events: none;
-    background: linear-gradient(
-      to top,
-      rgba(15, 23, 42, 0.95),
-      rgba(15, 23, 42, 0.6),
-      transparent
-    );
-  }
-
-  .approved-thumb:hover .approved-thumb-actions {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-  }
-
-  .thumb-action-btn {
-    border-radius: calc(var(--radius) - 4px);
-    border: 1px solid var(--border);
-    background: var(--card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    color: var(--card-foreground);
-    font-size: 0.5625rem;
-    padding: 0.25rem 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.1875rem;
-    cursor: pointer;
-    font-weight: 500;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  }
-
-  .thumb-action-btn span.icon {
-    font-size: 10px;
-    line-height: 1;
-  }
-
-  .thumb-action-btn.danger {
-    border-color: var(--destructive);
-    color: var(--destructive);
-  }
-
   .approved-footer {
     display: flex;
     align-items: center;
@@ -1015,7 +957,7 @@
   }
 
   .viewer-icon-btn {
-    border-radius: var(--radius);
+    border-radius: calc(var(--radius) - 2px);
     border: 1px solid var(--border);
     background: var(--secondary);
     color: var(--foreground);
@@ -1024,9 +966,9 @@
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.5rem;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.3em;
     flex: 0 0 auto;
     font-weight: 500;
     transition: all 0.2s ease;
@@ -1148,9 +1090,14 @@
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   }
 
-  .photo-info-preview {
+  .photo-info-preview-wrapper {
+    position: relative;
     width: 100%;
     margin-bottom: 1.5rem;
+  }
+
+  .photo-info-preview {
+    width: 100%;
     border-radius: calc(var(--radius) - 2px);
     overflow: hidden;
     background: var(--secondary);
@@ -1163,6 +1110,57 @@
     display: block;
     object-fit: contain;
     max-height: 400px;
+  }
+
+  .photo-info-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .photo-info-nav-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 0 4px 12px hsla(268, 85%, 70%, 0.3);
+  }
+
+  .photo-info-nav-btn:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  .photo-info-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .photo-info-nav-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .photo-info-nav-btn-left {
+    left: 0.75rem;
+  }
+
+  .photo-info-nav-btn-right {
+    right: 0.75rem;
   }
 
   .photo-info-header {
@@ -2172,7 +2170,7 @@
         <div>
           <div class="approved-title">Approved photos</div>
           <div class="approved-subtitle">
-            Tap a thumbnail to view it. Hover to download or delete.
+            Tap a thumbnail to view details and download options.
           </div>
         </div>
         <button
@@ -2259,9 +2257,21 @@
         </div>
 
         <div id="photoInfoContent" class="photo-info-content-inner" style="display: none;">
-          <!-- Photo Preview -->
-          <div class="photo-info-preview">
-            <img id="photoInfoPreviewImg" class="photo-info-preview-img" alt="Photo preview" />
+          <!-- Photo Preview with Navigation -->
+          <div class="photo-info-preview-wrapper">
+            <button id="photoInfoPrevBtn" class="photo-info-nav-btn photo-info-nav-btn-left" aria-label="Previous photo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <div class="photo-info-preview">
+              <img id="photoInfoPreviewImg" class="photo-info-preview-img" alt="Photo preview" />
+            </div>
+            <button id="photoInfoNextBtn" class="photo-info-nav-btn photo-info-nav-btn-right" aria-label="Next photo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
           </div>
 
           <div class="photo-info-section">
@@ -3462,34 +3472,7 @@ function hideReportLoading() {
       img.src = imgUrl;
       img.alt = "Approved photo";
 
-      const actions = document.createElement("div");
-      actions.className = "approved-thumb-actions";
-
-      const dlBtn = document.createElement("button");
-      dlBtn.type = "button";
-      dlBtn.className = "thumb-action-btn";
-      dlBtn.innerHTML = '<span class="icon">⬇</span><span>DL</span>';
-
-      dlBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        downloadApprovedWithFrame(fileId);
-      });
-
-      const delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.className = "thumb-action-btn danger";
-      delBtn.innerHTML = '<span class="icon">🗑</span><span>Del</span>';
-
-      delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        confirmDeleteApproved(fileId, btn);
-      });
-
-      actions.appendChild(dlBtn);
-      actions.appendChild(delBtn);
-
       btn.appendChild(img);
-      btn.appendChild(actions);
 
       btn.addEventListener("click", () => {
         // Get filename from cache to extract ticket number
@@ -3917,6 +3900,10 @@ function hideReportLoading() {
     const photoInfoName = document.getElementById("photoInfoName");
     const photoInfoDownloadTemplate = document.getElementById("photoInfoDownloadTemplate");
     const photoInfoDownloadOriginal = document.getElementById("photoInfoDownloadOriginal");
+    const photoInfoPrevBtn = document.getElementById("photoInfoPrevBtn");
+    const photoInfoNextBtn = document.getElementById("photoInfoNextBtn");
+    
+    let photoInfoCurrentIndex = -1;
 
     // Extract ticket number from filename
     function extractTicketFromFileName(fileName) {
@@ -3930,11 +3917,48 @@ function hideReportLoading() {
       return null;
     }
 
+    // Update photo info navigation buttons
+    function updatePhotoInfoNavButtons() {
+      const total = approvedFilesCache.length;
+      if (photoInfoCurrentIndex < 0 || total === 0) {
+        photoInfoPrevBtn.disabled = true;
+        photoInfoNextBtn.disabled = true;
+        return;
+      }
+      photoInfoPrevBtn.disabled = photoInfoCurrentIndex <= 0;
+      photoInfoNextBtn.disabled = photoInfoCurrentIndex >= total - 1;
+    }
+
+    // Navigate to next/previous photo in overlay
+    function navigatePhotoInfo(direction) {
+      if (photoInfoCurrentIndex < 0 || approvedFilesCache.length === 0) return;
+      
+      if (direction === 'next' && photoInfoCurrentIndex < approvedFilesCache.length - 1) {
+        photoInfoCurrentIndex += 1;
+      } else if (direction === 'prev' && photoInfoCurrentIndex > 0) {
+        photoInfoCurrentIndex -= 1;
+      } else {
+        return;
+      }
+
+      const item = approvedFilesCache[photoInfoCurrentIndex];
+      if (item) {
+        openPhotoInfoOverlay(item.fileId, item.fileName, false);
+      }
+    }
+
     // Open photo info overlay
-    async function openPhotoInfoOverlay(fileId, fileName) {
+    async function openPhotoInfoOverlay(fileId, fileName, updateIndex = true) {
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
         return;
+      }
+
+      // Update current index
+      if (updateIndex) {
+        photoInfoCurrentIndex = approvedFilesCache.findIndex(
+          (item) => String(item.fileId) === String(fileId)
+        );
       }
 
       // Load photo preview
@@ -3954,6 +3978,7 @@ function hideReportLoading() {
         photoInfoEmail.textContent = "No email";
         photoInfoLocation.textContent = "No country";
         photoInfoName.textContent = "No last name";
+        updatePhotoInfoNavButtons();
         return;
       }
 
@@ -3962,6 +3987,7 @@ function hideReportLoading() {
       photoInfoLoading.style.display = "flex";
       photoInfoContent.style.display = "none";
       photoInfoError.style.display = "none";
+      updatePhotoInfoNavButtons();
 
       try {
         const res = await fetch(
@@ -4014,7 +4040,33 @@ function hideReportLoading() {
     function closePhotoInfoOverlay() {
       photoInfoOverlay.style.display = "none";
       currentPhotoInfo = { fileId: null, ticketNumber: null, userInfo: null };
+      photoInfoCurrentIndex = -1;
     }
+
+    // Arrow key navigation
+    document.addEventListener("keydown", (e) => {
+      if (photoInfoOverlay.style.display !== "flex") return;
+      
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        navigatePhotoInfo("prev");
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        navigatePhotoInfo("next");
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        closePhotoInfoOverlay();
+      }
+    });
+
+    // Arrow button handlers
+    photoInfoPrevBtn.addEventListener("click", () => {
+      navigatePhotoInfo("prev");
+    });
+
+    photoInfoNextBtn.addEventListener("click", () => {
+      navigatePhotoInfo("next");
+    });
 
     // Download with template (no user info printed)
     photoInfoDownloadTemplate.addEventListener("click", () => {
