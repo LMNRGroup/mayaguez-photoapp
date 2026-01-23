@@ -2280,8 +2280,11 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
 
       switch (eventType) {
         case 'visit': {
-          const location = [region, country].filter(Boolean).join(', ');
-          text = location ? `New visit from ${location}` : 'New visit';
+          if (country) {
+            text = `New visit from ${country.toUpperCase()}`;
+          } else {
+            text = 'New visit';
+          }
           break;
         }
         case 'form':

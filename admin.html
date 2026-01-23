@@ -5674,7 +5674,7 @@ function hideReportLoading() {
 
       const title = document.createElement("div");
       title.className = "template-name-title";
-      title.textContent = "TEMPLATE NAME";
+      title.textContent = "Please name your new template";
 
       const input = document.createElement("input");
       input.type = "text";
@@ -5694,8 +5694,19 @@ function hideReportLoading() {
           alert("Please enter a template name.");
           return;
         }
+        // Store overlay and input for restoration
+        const savedName = name;
+        const savedOverlay = overlay;
         document.body.removeChild(overlay);
-        showTemplatePreview(name);
+        showTemplatePreview(savedName, () => {
+          // Restore the name overlay with saved value
+          document.body.appendChild(savedOverlay);
+          const restoredInput = savedOverlay.querySelector(".template-name-input");
+          if (restoredInput) {
+            restoredInput.value = savedName;
+            restoredInput.focus();
+          }
+        });
       });
 
       const saveBtn = document.createElement("button");
@@ -5751,7 +5762,7 @@ function hideReportLoading() {
       });
 
       const cancelBtn = document.createElement("button");
-      cancelBtn.className = "btn-secondary";
+      cancelBtn.className = "btn-ghost";
       cancelBtn.textContent = "CANCEL";
       cancelBtn.addEventListener("click", () => {
         document.body.removeChild(overlay);
@@ -5775,7 +5786,7 @@ function hideReportLoading() {
 
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          previewBtn.click();
+          saveBtn.click();
         } else if (e.key === "Escape") {
           cancelBtn.click();
         }
@@ -5783,7 +5794,7 @@ function hideReportLoading() {
     }
 
 
-    function showTemplatePreview(templateName) {
+    function showTemplatePreview(templateName, onClose) {
       const overlay = document.createElement("div");
       overlay.className = "template-preview-overlay";
 
@@ -5800,6 +5811,9 @@ function hideReportLoading() {
       `;
       closeBtn.addEventListener("click", () => {
         document.body.removeChild(overlay);
+        if (onClose && typeof onClose === 'function') {
+          onClose();
+        }
       });
 
       // Background
@@ -5879,6 +5893,9 @@ function hideReportLoading() {
       overlay.addEventListener("click", (e) => {
         if (e.target === overlay) {
           document.body.removeChild(overlay);
+          if (onClose && typeof onClose === 'function') {
+            onClose();
+          }
         }
       });
     }
