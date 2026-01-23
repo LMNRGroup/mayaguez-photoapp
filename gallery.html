@@ -40,24 +40,25 @@
       overflow: hidden;
     }
 
-    /* 3:2 stage, scales but keeps AR, max 1500x1000 */
+    /* 16:9 stage, scales but keeps AR, max 1920x1080 */
     .stage {
       position: relative;
       width: 100vw;
-      max-width: 1500px;
-      aspect-ratio: 3 / 2;
-      max-height: 1000px;
+      max-width: 1920px;
+      aspect-ratio: 16 / 9;
+      max-height: 1080px;
       background: #000000;
       overflow: hidden;
     }
 
-    /* Photo window = 1500x1000 area fills entire stage (template cutout is full size) */
+    /* Photo window = 1500x1000 centered within 1920x1080 stage */
     .photo-window {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      /* Center 1500x1000 in 1920x1080: (1920-1500)/2 = 210px left, (1080-1000)/2 = 40px top */
+      top: 3.7037%;  /* 40/1080 */
+      left: 10.9375%; /* 210/1920 */
+      width: 78.125%;  /* 1500/1920 */
+      height: 92.5926%; /* 1000/1080 */
       overflow: hidden;
       z-index: 2;
       display: flex;
@@ -145,10 +146,10 @@
   Esperando las primeras fotos aprobadas…
 </div>
 
-      <!-- FRONT FRAME (transparent PNG) -->
+      <!-- FRONT FRAME (transparent PNG) - 1920x1080 template on top -->
       <img
         class="frame-image"
-        src="Assets/Layout 1500x1000.png"
+        src="Assets/NewLayout15_10.png"
         alt="Gallery Layout Template"
       />
     </div>

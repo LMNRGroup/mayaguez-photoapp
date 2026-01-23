@@ -3458,99 +3458,24 @@ function hideReportLoading() {
       )}?token=${encodeURIComponent(adminToken || "")}`;
 
       try {
-        const photoImgEl = new Image();
-        photoImgEl.crossOrigin = "anonymous";
-
-        const frameImg = await preloadFrameImage();
-
-        const photoPromise = new Promise((resolve, reject) => {
-          photoImgEl.onload = resolve;
-          photoImgEl.onerror = () => reject(new Error("Error loading photo"));
-        });
-
-        photoImgEl.src = photoUrl;
-
-        await Promise.all([photoPromise]);
-
-        const fw = STAGE_WIDTH;
-        const fh = STAGE_HEIGHT;
-
-        downloadCanvas.width = fw;
-        downloadCanvas.height = fh;
-        downloadCtx.clearRect(0, 0, fw, fh);
-
-        const pw = photoImgEl.width;
-        const ph = photoImgEl.height;
-
-        if (!pw || !ph) {
-          alert("Photo dimensions are invalid.");
-          return;
+        // Download clean photo directly without template frame
+        const response = await fetch(photoUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch photo");
         }
 
-        const photoAspect = pw / ph;
-        const windowAspect = WINDOW_WIDTH / WINDOW_HEIGHT;
-
-        let sx, sy, sWidth, sHeight;
-
-        if (photoAspect > windowAspect) {
-          sHeight = ph;
-          sWidth = sHeight * windowAspect;
-          sx = (pw - sWidth) / 2;
-          sy = 0;
-        } else {
-          sWidth = pw;
-          sHeight = sWidth / windowAspect;
-          sx = 0;
-          sy = (ph - sHeight) / 2;
-        }
-
-        downloadCtx.drawImage(
-          photoImgEl,
-          sx,
-          sy,
-          sWidth,
-          sHeight,
-          WINDOW_X,
-          WINDOW_Y,
-          WINDOW_WIDTH,
-          WINDOW_HEIGHT
-        );
-
-        if (frameImg) {
-          downloadCtx.drawImage(frameImg, 0, 0, fw, fh);
-        }
-
-        function triggerDownloadFromBlob(blob) {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `mayaguez_selfie_${fileId}.png`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
-
-        if (typeof downloadCanvas.toBlob === "function") {
-          downloadCanvas.toBlob(async (blob) => {
-            if (blob) {
-              triggerDownloadFromBlob(blob);
-            } else {
-              const dataUrl = downloadCanvas.toDataURL("image/png");
-              const resp = await fetch(dataUrl);
-              const fallbackBlob = await resp.blob();
-              triggerDownloadFromBlob(fallbackBlob);
-            }
-          }, "image/png");
-        } else {
-          const dataUrl = downloadCanvas.toDataURL("image/png");
-          const resp = await fetch(dataUrl);
-          const blob = await resp.blob();
-          triggerDownloadFromBlob(blob);
-        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mayaguez_selfie_${fileId}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       } catch (err) {
-        console.error("Error generating framed download:", err);
-        alert("Could not create the framed image. Please try again.");
+        console.error("Error downloading photo:", err);
+        alert("Could not download the photo. Please try again.");
       }
     }
 
