@@ -2174,6 +2174,8 @@ Report preview will appear here once the backend preview endpoint is configured.
 
     // Frame template used in gallery & downloads
     const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
+    // Vertical template for admin downloads
+    const DOWNLOAD_TEMPLATE_URL = "Assets/IGFiturVertical.png";
 
     // Stage + window specs (same as gallery CSS)
     const STAGE_WIDTH = 1920;
@@ -2183,6 +2185,15 @@ Report preview will appear here once the backend preview endpoint is configured.
     const WINDOW_Y = (20 / 1080) * STAGE_HEIGHT;
     const WINDOW_WIDTH = (1350 / 1920) * STAGE_WIDTH;
     const WINDOW_HEIGHT = (900 / 1080) * STAGE_HEIGHT;
+
+    // Download template specs (vertical 1080x1920)
+    const DOWNLOAD_TEMPLATE_WIDTH = 1080;
+    const DOWNLOAD_TEMPLATE_HEIGHT = 1920;
+    const DOWNLOAD_PHOTO_WIDTH = 1000;
+    const DOWNLOAD_PHOTO_HEIGHT = 666.666;
+    // Photo centered in template: (1080-1000)/2 = 40px left, (1920-666.666)/2 = 626.667px top
+    const DOWNLOAD_PHOTO_X = 40;
+    const DOWNLOAD_PHOTO_Y = 626.667;
 
     // Reusable offscreen canvas for framed downloads
     const downloadCanvas = document.createElement("canvas");
@@ -2205,6 +2216,25 @@ Report preview will appear here once the backend preview endpoint is configured.
         img.src = FRAME_IMAGE_URL;
       });
       return frameImagePromise;
+    }
+
+    // Preload vertical download template
+    let downloadTemplateCache = null;
+    let downloadTemplatePromise = null;
+
+    function preloadDownloadTemplate() {
+      if (downloadTemplatePromise) return downloadTemplatePromise;
+      downloadTemplatePromise = new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          downloadTemplateCache = img;
+          resolve(img);
+        };
+        img.onerror = () => reject(new Error("Error loading download template PNG"));
+        img.src = DOWNLOAD_TEMPLATE_URL;
+      });
+      return downloadTemplatePromise;
     }
 let globalLottie = null;
 
@@ -3458,24 +3488,110 @@ function hideReportLoading() {
       )}?token=${encodeURIComponent(adminToken || "")}`;
 
       try {
-        // Download clean photo directly without template frame
-        const response = await fetch(photoUrl);
-        if (!response.ok) {
-          throw new Error("Failed to fetch photo");
+        const photoImgEl = new Image();
+        photoImgEl.crossOrigin = "anonymous";
+
+        const downloadTemplateImg = await preloadDownloadTemplate();
+
+        const photoPromise = new Promise((resolve, reject) => {
+          photoImgEl.onload = resolve;
+          photoImgEl.onerror = () => reject(new Error("Error loading photo"));
+        });
+
+        photoImgEl.src = photoUrl;
+
+        await Promise.all([photoPromise]);
+
+        // Set canvas to download template size (1080x1920)
+        downloadCanvas.width = DOWNLOAD_TEMPLATE_WIDTH;
+        downloadCanvas.height = DOWNLOAD_TEMPLATE_HEIGHT;
+        downloadCtx.clearRect(0, 0, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
+
+        const pw = photoImgEl.width;
+        const ph = photoImgEl.height;
+
+        if (!pw || !ph) {
+          alert("Photo dimensions are invalid.");
+          return;
         }
 
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `mayaguez_selfie_${fileId}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Calculate how to fit the photo into 1000x666.666px area
+        const targetWidth = DOWNLOAD_PHOTO_WIDTH;
+        const targetHeight = DOWNLOAD_PHOTO_HEIGHT;
+        const photoAspect = pw / ph;
+        const targetAspect = targetWidth / targetHeight;
+
+        let sx, sy, sWidth, sHeight;
+
+        if (photoAspect > targetAspect) {
+          // Photo is wider - fit to height
+          sHeight = ph;
+          sWidth = sHeight * targetAspect;
+          sx = (pw - sWidth) / 2;
+          sy = 0;
+        } else {
+          // Photo is taller - fit to width
+          sWidth = pw;
+          sHeight = sWidth / targetAspect;
+          sx = 0;
+          sy = (ph - sHeight) / 2;
+        }
+
+        // Draw photo centered in the template (1000x666.666px area)
+        downloadCtx.drawImage(
+          photoImgEl,
+          sx,
+          sy,
+          sWidth,
+          sHeight,
+          DOWNLOAD_PHOTO_X,
+          DOWNLOAD_PHOTO_Y,
+          targetWidth,
+          targetHeight
+        );
+
+        // Draw template on top
+        if (downloadTemplateImg) {
+          downloadCtx.drawImage(
+            downloadTemplateImg,
+            0,
+            0,
+            DOWNLOAD_TEMPLATE_WIDTH,
+            DOWNLOAD_TEMPLATE_HEIGHT
+          );
+        }
+
+        function triggerDownloadFromBlob(blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `mayaguez_selfie_${fileId}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+
+        if (typeof downloadCanvas.toBlob === "function") {
+          downloadCanvas.toBlob(async (blob) => {
+            if (blob) {
+              triggerDownloadFromBlob(blob);
+            } else {
+              const dataUrl = downloadCanvas.toDataURL("image/png");
+              const resp = await fetch(dataUrl);
+              const fallbackBlob = await resp.blob();
+              triggerDownloadFromBlob(fallbackBlob);
+            }
+          }, "image/png");
+        } else {
+          const dataUrl = downloadCanvas.toDataURL("image/png");
+          const resp = await fetch(dataUrl);
+          const blob = await resp.blob();
+          triggerDownloadFromBlob(blob);
+        }
       } catch (err) {
-        console.error("Error downloading photo:", err);
-        alert("Could not download the photo. Please try again.");
+        console.error("Error generating download with template:", err);
+        alert("Could not create the download image. Please try again.");
       }
     }
 
