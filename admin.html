@@ -592,6 +592,246 @@
     gap: 1rem;
   }
 
+  /* Template Editor Styles */
+  .template-editor-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0;
+  }
+
+  .template-editor-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    padding: 1rem;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    flex-wrap: wrap;
+  }
+
+  .template-toolbar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .template-toolbar-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-left: auto;
+  }
+
+  .template-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: var(--muted-foreground);
+    font-weight: 500;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .template-select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 4px);
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 0.875rem;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    min-width: 200px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .template-select:hover {
+    border-color: var(--primary);
+  }
+
+  .template-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px hsla(var(--primary), 0.3);
+  }
+
+  .template-editor-wrapper {
+    position: relative;
+    width: 100%;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 1rem;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 0;
+    max-height: calc(100dvh - 400px);
+  }
+
+  .template-canvas {
+    position: relative;
+    width: 100%;
+    max-width: 1920px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: calc(var(--radius) - 2px);
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .template-background {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+  }
+
+  .template-photo-area {
+    position: absolute;
+    /* Center 1500x1000 in 1920x1080 */
+    top: 3.7037%;
+    left: 10.9375%;
+    width: 78.125%;
+    height: 92.5926%;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .template-photo-grid {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  .template-photo-label {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.25rem 0.75rem;
+    border-radius: calc(var(--radius) - 4px);
+  }
+
+  .template-logos-container {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .template-logo {
+    position: absolute;
+    cursor: move;
+    pointer-events: all;
+    user-select: none;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+
+  .template-logo.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px hsla(var(--primary), 0.3);
+  }
+
+  .template-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+
+  .template-logo-resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--primary);
+    border: 2px solid var(--background);
+    border-radius: 50%;
+    cursor: nwse-resize;
+    z-index: 11;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .template-logo-resize-handle.nw {
+    top: -6px;
+    left: -6px;
+    cursor: nwse-resize;
+  }
+
+  .template-logo-resize-handle.ne {
+    top: -6px;
+    right: -6px;
+    cursor: nesw-resize;
+  }
+
+  .template-logo-resize-handle.sw {
+    bottom: -6px;
+    left: -6px;
+    cursor: nesw-resize;
+  }
+
+  .template-logo-resize-handle.se {
+    bottom: -6px;
+    right: -6px;
+    cursor: nwse-resize;
+  }
+
+  .template-logo-actions {
+    position: absolute;
+    top: -2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0.5rem;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 4px);
+    padding: 0.25rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 12;
+  }
+
+  .template-logo-action-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    border: 1px solid var(--border);
+    background: var(--secondary);
+    color: var(--foreground);
+    border-radius: calc(var(--radius) - 4px);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .template-logo-action-btn:hover {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+  }
+
   .photo-meta-row {
     display: flex;
     justify-content: space-between;
@@ -973,6 +1213,14 @@
     cursor: pointer;
     flex: 0 0 auto;
     min-width: 0;
+    transition: all 0.2s ease;
+  }
+
+  .approved-thumb:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px hsla(var(--primary), 0.3);
+    z-index: 10;
   }
 
   .approved-thumb img {
@@ -2361,7 +2609,42 @@ Report preview will appear here once the backend preview endpoint is configured.
             <div class="view-header">
               <div class="view-title">My Templates</div>
               <div class="view-subtitle">
-                Template management coming soon.
+                Create and customize gallery templates. The photo area (1500×1000) is shown as a guide.
+              </div>
+            </div>
+
+            <div class="template-editor-container">
+              <div class="template-editor-toolbar">
+                <div class="template-toolbar-section">
+                  <label class="template-label">Background</label>
+                  <select id="templateBackgroundSelect" class="template-select">
+                    <option value="Assets/Templates/MayaguezColorBG.jpg">Mayaguez Color BG</option>
+                  </select>
+                </div>
+                <div class="template-toolbar-section">
+                  <label class="template-label">Add Logo</label>
+                  <select id="templateLogoSelect" class="template-select">
+                    <option value="">Select logo...</option>
+                    <option value="Assets/Templates/SomosMayaguez.png">Somos Mayaguez</option>
+                    <option value="Assets/Templates/SomosMayaguezFull.png">Somos Mayaguez Full</option>
+                    <option value="Assets/Templates/SomosMayaguezLeft.png">Somos Mayaguez Left</option>
+                  </select>
+                  <button id="templateAddLogoBtn" class="btn-ghost" style="margin-left: 0.5rem;">Add</button>
+                </div>
+                <div class="template-toolbar-actions">
+                  <button id="templateSaveBtn" class="btn-primary">Save Template</button>
+                </div>
+              </div>
+
+              <div class="template-editor-wrapper">
+                <div id="templateCanvas" class="template-canvas">
+                  <img id="templateBackgroundImg" class="template-background" src="Assets/Templates/MayaguezColorBG.jpg" alt="Background" />
+                  <div class="template-photo-area">
+                    <div class="template-photo-grid"></div>
+                    <div class="template-photo-label">PHOTO AREA (1500×1000)</div>
+                  </div>
+                  <div id="templateLogosContainer" class="template-logos-container"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -4775,6 +5058,391 @@ function hideReportLoading() {
       navTemplates.addEventListener("click", () => {
         setActiveNav(navTemplates);
         switchView("templates");
+      });
+    }
+
+    // --- TEMPLATE EDITOR FUNCTIONALITY ---
+    const templateBackgroundSelect = document.getElementById("templateBackgroundSelect");
+    const templateBackgroundImg = document.getElementById("templateBackgroundImg");
+    const templateLogoSelect = document.getElementById("templateLogoSelect");
+    const templateAddLogoBtn = document.getElementById("templateAddLogoBtn");
+    const templateSaveBtn = document.getElementById("templateSaveBtn");
+    const templateCanvas = document.getElementById("templateCanvas");
+    const templateLogosContainer = document.getElementById("templateLogosContainer");
+
+    let selectedLogo = null;
+    let isDragging = false;
+    let isResizing = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let logoStartX = 0;
+    let logoStartY = 0;
+    let logoStartWidth = 0;
+    let logoStartHeight = 0;
+    let resizeHandle = null;
+
+    // Available logo assets
+    const logoAssets = [
+      { value: "Assets/Templates/SomosMayaguez.png", label: "Somos Mayaguez" },
+      { value: "Assets/Templates/SomosMayaguezFull.png", label: "Somos Mayaguez Full" },
+      { value: "Assets/Templates/SomosMayaguezLeft.png", label: "Somos Mayaguez Left" },
+    ];
+
+    // Change background
+    if (templateBackgroundSelect && templateBackgroundImg) {
+      templateBackgroundSelect.addEventListener("change", (e) => {
+        const newSrc = e.target.value;
+        if (newSrc) {
+          templateBackgroundImg.src = newSrc;
+        }
+      });
+    }
+
+    // Add logo
+    if (templateAddLogoBtn && templateLogoSelect && templateLogosContainer) {
+      templateAddLogoBtn.addEventListener("click", () => {
+        const logoPath = templateLogoSelect.value;
+        if (!logoPath) {
+          alert("Please select a logo to add.");
+          return;
+        }
+        addLogoToCanvas(logoPath);
+        templateLogoSelect.value = "";
+      });
+    }
+
+    function addLogoToCanvas(logoPath) {
+      const logoDiv = document.createElement("div");
+      logoDiv.className = "template-logo";
+      logoDiv.dataset.logoPath = logoPath;
+
+      const img = document.createElement("img");
+      img.src = logoPath;
+      img.alt = "Logo";
+      img.onload = () => {
+        // Calculate initial size (max 200px width, maintain aspect ratio)
+        const canvasWidth = templateCanvas.offsetWidth;
+        const maxWidth = Math.min(200, canvasWidth * 0.2);
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        const width = maxWidth;
+        const height = maxWidth / aspectRatio;
+
+        // Center the logo initially
+        const left = (canvasWidth - width) / 2;
+        const top = 50; // 50px from top
+
+        logoDiv.style.width = `${width}px`;
+        logoDiv.style.height = `${height}px`;
+        logoDiv.style.left = `${left}px`;
+        logoDiv.style.top = `${top}px`;
+      };
+
+      logoDiv.appendChild(img);
+
+      // Add resize handles
+      const handles = ["nw", "ne", "sw", "se"];
+      handles.forEach((handle) => {
+        const handleDiv = document.createElement("div");
+        handleDiv.className = `template-logo-resize-handle ${handle}`;
+        logoDiv.appendChild(handleDiv);
+      });
+
+      // Add action buttons
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "template-logo-actions";
+      actionsDiv.style.display = "none";
+
+      const replaceBtn = document.createElement("button");
+      replaceBtn.className = "template-logo-action-btn";
+      replaceBtn.textContent = "Replace";
+      replaceBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        showLogoReplaceMenu(logoDiv);
+      });
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "template-logo-action-btn";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        logoDiv.remove();
+        selectedLogo = null;
+      });
+
+      actionsDiv.appendChild(replaceBtn);
+      actionsDiv.appendChild(deleteBtn);
+      logoDiv.appendChild(actionsDiv);
+
+      // Click to select
+      logoDiv.addEventListener("click", (e) => {
+        if (e.target.classList.contains("template-logo-resize-handle")) return;
+        if (e.target.classList.contains("template-logo-action-btn")) return;
+        selectLogo(logoDiv);
+        e.stopPropagation();
+      });
+
+      // Drag functionality
+      logoDiv.addEventListener("mousedown", (e) => {
+        if (e.target.classList.contains("template-logo-resize-handle")) return;
+        if (e.target.classList.contains("template-logo-action-btn")) return;
+        if (logoDiv !== selectedLogo) return;
+
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        logoStartX = logoDiv.offsetLeft;
+        logoStartY = logoDiv.offsetTop;
+        e.preventDefault();
+      });
+
+      // Resize functionality
+      handles.forEach((handle) => {
+        const handleEl = logoDiv.querySelector(`.template-logo-resize-handle.${handle}`);
+        handleEl.addEventListener("mousedown", (e) => {
+          isResizing = true;
+          resizeHandle = handle;
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          logoStartX = logoDiv.offsetLeft;
+          logoStartY = logoDiv.offsetTop;
+          logoStartWidth = logoDiv.offsetWidth;
+          logoStartHeight = logoDiv.offsetHeight;
+          e.stopPropagation();
+          e.preventDefault();
+        });
+      });
+
+      templateLogosContainer.appendChild(logoDiv);
+      selectLogo(logoDiv);
+    }
+
+    function selectLogo(logoDiv) {
+      // Deselect previous
+      if (selectedLogo) {
+        selectedLogo.classList.remove("selected");
+        const prevActions = selectedLogo.querySelector(".template-logo-actions");
+        if (prevActions) prevActions.style.display = "none";
+      }
+
+      // Select new
+      selectedLogo = logoDiv;
+      logoDiv.classList.add("selected");
+      const actions = logoDiv.querySelector(".template-logo-actions");
+      if (actions) actions.style.display = "flex";
+    }
+
+    function showLogoReplaceMenu(logoDiv) {
+      // Create a simple modal for logo selection
+      const modal = document.createElement("div");
+      modal.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      `;
+
+      const panel = document.createElement("div");
+      panel.style.cssText = `
+        background: var(--background);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) - 2px);
+        padding: 1.5rem;
+        max-width: 400px;
+        width: 90%;
+      `;
+
+      const title = document.createElement("div");
+      title.textContent = "REPLACE LOGO";
+      title.style.cssText = `
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: var(--foreground);
+        margin-bottom: 1rem;
+        font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      `;
+
+      const optionsDiv = document.createElement("div");
+      optionsDiv.style.cssText = `display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;`;
+
+      logoAssets.forEach((asset) => {
+        const btn = document.createElement("button");
+        btn.textContent = asset.label;
+        btn.className = "btn-ghost";
+        btn.style.cssText = `width: 100%; text-align: left; padding: 0.75rem;`;
+        btn.addEventListener("click", () => {
+          const img = logoDiv.querySelector("img");
+          if (img) {
+            img.src = asset.value;
+            logoDiv.dataset.logoPath = asset.value;
+          }
+          document.body.removeChild(modal);
+        });
+        optionsDiv.appendChild(btn);
+      });
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.textContent = "CANCEL";
+      cancelBtn.className = "btn-secondary";
+      cancelBtn.style.cssText = `width: 100%;`;
+      cancelBtn.addEventListener("click", () => {
+        document.body.removeChild(modal);
+      });
+
+      panel.appendChild(title);
+      panel.appendChild(optionsDiv);
+      panel.appendChild(cancelBtn);
+      modal.appendChild(panel);
+      document.body.appendChild(modal);
+
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
+        }
+      });
+    }
+
+    // Global mouse move for drag and resize
+    document.addEventListener("mousemove", (e) => {
+      if (!selectedLogo) return;
+
+      if (isDragging) {
+        const deltaX = e.clientX - dragStartX;
+        const deltaY = e.clientY - dragStartY;
+        const canvasRect = templateCanvas.getBoundingClientRect();
+        const newX = logoStartX + deltaX;
+        const newY = logoStartY + deltaY;
+
+        // Constrain to canvas bounds
+        const maxX = templateCanvas.offsetWidth - selectedLogo.offsetWidth;
+        const maxY = templateCanvas.offsetHeight - selectedLogo.offsetHeight;
+
+        selectedLogo.style.left = `${Math.max(0, Math.min(newX, maxX))}px`;
+        selectedLogo.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
+      } else if (isResizing && resizeHandle) {
+        const deltaX = e.clientX - dragStartX;
+        const deltaY = e.clientY - dragStartY;
+        const img = selectedLogo.querySelector("img");
+        if (!img || !img.complete) return;
+
+        // Get natural aspect ratio
+        const naturalWidth = img.naturalWidth || logoStartWidth;
+        const naturalHeight = img.naturalHeight || logoStartHeight;
+        const aspectRatio = naturalWidth / naturalHeight;
+
+        // Calculate distance from start point (use the larger delta for uniform scaling)
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const signX = resizeHandle.includes("e") ? 1 : -1;
+        const signY = resizeHandle.includes("s") ? 1 : -1;
+
+        // Calculate new dimensions maintaining aspect ratio
+        let newWidth = logoStartWidth + (deltaX * signX);
+        let newHeight = logoStartHeight + (deltaY * signY);
+
+        // Use the dimension that changed more to maintain aspect ratio
+        const widthChange = Math.abs(deltaX);
+        const heightChange = Math.abs(deltaY);
+
+        if (widthChange > heightChange) {
+          newHeight = newWidth / aspectRatio;
+        } else {
+          newWidth = newHeight * aspectRatio;
+        }
+
+        // Minimum size constraints
+        const minSize = 50;
+        if (newWidth < minSize) {
+          newWidth = minSize;
+          newHeight = newWidth / aspectRatio;
+        }
+        if (newHeight < minSize) {
+          newHeight = minSize;
+          newWidth = newHeight * aspectRatio;
+        }
+
+        // Constrain to canvas bounds
+        const canvasWidth = templateCanvas.offsetWidth;
+        const canvasHeight = templateCanvas.offsetHeight;
+        const currentLeft = parseFloat(selectedLogo.style.left) || logoStartX;
+        const currentTop = parseFloat(selectedLogo.style.top) || logoStartY;
+
+        const maxWidth = canvasWidth - currentLeft;
+        const maxHeight = canvasHeight - currentTop;
+
+        newWidth = Math.min(newWidth, maxWidth, canvasWidth * 0.8);
+        newHeight = newWidth / aspectRatio;
+
+        // Adjust position for top/left handles
+        if (resizeHandle.includes("n")) {
+          const heightDelta = newHeight - logoStartHeight;
+          selectedLogo.style.top = `${currentTop - heightDelta}px`;
+        }
+        if (resizeHandle.includes("w")) {
+          const widthDelta = newWidth - logoStartWidth;
+          selectedLogo.style.left = `${currentLeft - widthDelta}px`;
+        }
+
+        selectedLogo.style.width = `${newWidth}px`;
+        selectedLogo.style.height = `${newHeight}px`;
+      }
+    });
+
+    document.addEventListener("mouseup", () => {
+      isDragging = false;
+      isResizing = false;
+      resizeHandle = null;
+    });
+
+    // Click outside to deselect
+    templateCanvas.addEventListener("click", (e) => {
+      if (e.target === templateCanvas || e.target === templateBackgroundImg) {
+        if (selectedLogo) {
+          selectedLogo.classList.remove("selected");
+          const actions = selectedLogo.querySelector(".template-logo-actions");
+          if (actions) actions.style.display = "none";
+          selectedLogo = null;
+        }
+      }
+    });
+
+    // Save template
+    if (templateSaveBtn) {
+      templateSaveBtn.addEventListener("click", () => {
+        const templateName = window.prompt("Enter template name:");
+        if (!templateName || !templateName.trim()) {
+          return;
+        }
+
+        // Collect template data
+        const templateData = {
+          name: templateName.trim(),
+          background: templateBackgroundImg.src,
+          logos: [],
+        };
+
+        // Collect all logos
+        const logos = templateLogosContainer.querySelectorAll(".template-logo");
+        logos.forEach((logo) => {
+          const img = logo.querySelector("img");
+          if (img) {
+            templateData.logos.push({
+              src: logo.dataset.logoPath || img.src,
+              x: logo.offsetLeft,
+              y: logo.offsetTop,
+              width: logo.offsetWidth,
+              height: logo.offsetHeight,
+            });
+          }
+        });
+
+        // For now, just log to console (backend integration later)
+        console.log("Template saved:", templateData);
+        alert(`Template "${templateName}" saved successfully!\n\n(Backend integration pending)`);
       });
     }
 
