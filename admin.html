@@ -436,6 +436,7 @@
   #navApproved,
   #navReports,
   #navSettings,
+  #navTemplates,
   #navResetLogs {
     font-family: 'FuturaBT-Light', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     font-weight: 300;
@@ -485,6 +486,110 @@
     display: flex;
     flex-direction: column;
     gap: 0.625rem;
+    position: relative;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .center-view {
+    display: none;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0;
+  }
+
+  .center-view.active {
+    display: flex;
+  }
+
+  .view-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .view-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: var(--foreground);
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .view-subtitle {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    line-height: 1.6;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .view-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0.5rem 0;
+  }
+
+  /* Approved photos view styling */
+  #viewApproved {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #viewApproved .approved-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  #viewApproved .approved-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Report view styling */
+  #viewReports {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  #viewReports .report-preview {
+    flex: 1;
+    min-height: 200px;
+    max-height: 500px;
+    overflow-y: auto;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 1rem;
+    font-size: 0.75rem;
+    font-family: "Courier New", monospace;
+    color: var(--foreground);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* Templates view styling */
+  #viewTemplates {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .photo-meta-row {
@@ -2071,28 +2176,194 @@
             <button class="nav-item" id="navApproved">APPROVED PHOTOS</button>
             <button class="nav-item" id="navReports">EVENT REPORTS</button>
             <button class="nav-item" id="navSettings">APP SETTINGS</button>
+            <button class="nav-item" id="navTemplates">MY TEMPLATES</button>
             <button class="nav-item" id="navResetLogs">RESET LOGS</button>
           </div>
           <button class="nav-item nav-item-lock" id="lockAdminBtn">Lock Admin</button>
         </aside>
 
-        <!-- CENTER PANEL (PHOTO REVIEW) -->
+        <!-- CENTER PANEL (DYNAMIC CONTENT) -->
         <section class="center-panel">
-          <div class="photo-meta-row">
-            <div id="photoLabel" class="photo-label">PHOTO</div>
-            <div id="pendingCount" class="pending-count">AWAITING APPROVAL: 0</div>
-          </div>
-
-          <div id="photoFrame" class="photo-frame empty">
-            <div id="emptyText" class="empty-text">
-              Loading next pending photo…
+          <!-- DASHBOARD VIEW (Photo Review) -->
+          <div id="viewDashboard" class="center-view active">
+            <div class="photo-meta-row">
+              <div id="photoLabel" class="photo-label">PHOTO</div>
+              <div id="pendingCount" class="pending-count">AWAITING APPROVAL: 0</div>
             </div>
-            <img id="photoImg" alt="Pending photo" style="display:none;" />
+
+            <div id="photoFrame" class="photo-frame empty">
+              <div id="emptyText" class="empty-text">
+                Loading next pending photo…
+              </div>
+              <img id="photoImg" alt="Pending photo" style="display:none;" />
+            </div>
+
+            <div class="buttons">
+              <button id="rejectBtn" class="btn-reject" disabled>Reject</button>
+              <button id="approveBtn" class="btn-approve" disabled>Approve</button>
+            </div>
           </div>
 
-          <div class="buttons">
-            <button id="rejectBtn" class="btn-reject" disabled>Reject</button>
-            <button id="approveBtn" class="btn-approve" disabled>Approve</button>
+          <!-- APPROVED PHOTOS VIEW -->
+          <div id="viewApproved" class="center-view" style="display: none;">
+            <div class="view-header">
+              <div>
+                <div class="view-title">Approved Photos</div>
+                <div class="view-subtitle">
+                  Tap a thumbnail to view details and download options.
+                </div>
+              </div>
+            </div>
+
+            <div id="approvedEmpty" class="approved-empty">
+              Loading approved photos…
+            </div>
+            <div id="approvedGrid" class="approved-grid"></div>
+
+            <div class="approved-footer">
+              <div id="approvedFooterText">
+                Changes may take a few seconds to appear on the public screen.
+              </div>
+              <div class="approved-footer-controls">
+                <button type="button" id="approvedPrevBtn" class="btn-reject">
+                  Prev
+                </button>
+                <button type="button" id="approvedNextBtn" class="btn-approve">
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- EVENT REPORTS VIEW -->
+          <div id="viewReports" class="center-view" style="display: none;">
+            <div class="view-header">
+              <div class="view-title">Event Reports</div>
+              <div class="view-subtitle">
+                View the current session summary or generate a full report that will be
+                delivered to your configured email.
+              </div>
+            </div>
+
+            <div class="view-actions">
+              <button id="reportViewBtn" class="btn-ghost">View report (preview)</button>
+              <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
+            </div>
+
+            <div id="reportLoading" class="report-loading" style="display:none;"></div>
+
+            <pre id="reportPreview" class="report-preview">
+Report preview will appear here once the backend preview endpoint is configured.
+            </pre>
+          </div>
+
+          <!-- APP SETTINGS VIEW -->
+          <div id="viewSettings" class="center-view" style="display: none;">
+            <div class="view-header">
+              <div class="view-title">App Settings</div>
+              <div class="view-subtitle">
+                Customize the public form and ticket experience without editing code.
+              </div>
+            </div>
+
+            <div class="settings-content">
+              <div class="settings-section">
+                <div class="settings-section-title">Ticket overlay</div>
+                <div class="settings-row">
+                  <span class="settings-label">Show ticket number after upload</span>
+                  <label class="toggle">
+                    <input type="checkbox" id="settingsTicketEnabled" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-title">Gallery display</div>
+                <div class="settings-grid">
+                  <label class="settings-label" for="settingsGalleryDisplayLimit">Photos to display in gallery</label>
+                  <select id="settingsGalleryDisplayLimit" class="settings-input">
+                    <option value="all">All photos</option>
+                    <option value="last25">Last 25 photos</option>
+                    <option value="last10">Last 10 photos</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-title">Intro copy</div>
+                <div class="settings-grid">
+                  <label class="settings-label" for="settingsIntroTitle">Intro title</label>
+                  <input id="settingsIntroTitle" class="settings-input" type="text" />
+                  <label class="settings-label" for="settingsIntroSubtitle">Intro subtitle</label>
+                  <input id="settingsIntroSubtitle" class="settings-input" type="text" />
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-title">Form fields</div>
+                <div class="settings-grid">
+                  <div class="settings-row">
+                    <span class="settings-label">Enable location (country/region)</span>
+                    <label class="toggle">
+                      <input type="checkbox" id="settingsLocationEnabled" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="settings-row">
+                    <span class="settings-label">Enable last name</span>
+                    <label class="toggle">
+                      <input type="checkbox" id="settingsLastNameEnabled" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <label class="settings-label" for="settingsLastNameLabel">Last name label</label>
+                  <input id="settingsLastNameLabel" class="settings-input" type="text" />
+                  <label class="settings-label" for="settingsLastNamePlaceholder">Last name placeholder</label>
+                  <input id="settingsLastNamePlaceholder" class="settings-input" type="text" />
+
+                  <div class="settings-row">
+                    <span class="settings-label">Enable email</span>
+                    <label class="toggle">
+                      <input type="checkbox" id="settingsEmailEnabled" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <label class="settings-label" for="settingsEmailLabel">Email label</label>
+                  <input id="settingsEmailLabel" class="settings-input" type="text" />
+                  <label class="settings-label" for="settingsEmailPlaceholder">Email placeholder</label>
+                  <input id="settingsEmailPlaceholder" class="settings-input" type="text" />
+
+                  <div class="settings-row">
+                    <span class="settings-label">Enable newsletter opt-in</span>
+                    <label class="toggle">
+                      <input type="checkbox" id="settingsNewsletterEnabled" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <label class="settings-label" for="settingsNewsletterLabel">Newsletter label</label>
+                  <input id="settingsNewsletterLabel" class="settings-input" type="text" />
+                  <label class="settings-label" for="settingsNewsletterHelper">Newsletter helper text</label>
+                  <input id="settingsNewsletterHelper" class="settings-input" type="text" />
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <span id="settingsStatus" class="settings-status"></span>
+                <button id="settingsSaveBtn" class="btn-primary">Save settings</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MY TEMPLATES VIEW -->
+          <div id="viewTemplates" class="center-view" style="display: none;">
+            <div class="view-header">
+              <div class="view-title">My Templates</div>
+              <div class="view-subtitle">
+                Template management coming soon.
+              </div>
+            </div>
           </div>
         </section>
 
@@ -2814,7 +3085,15 @@ function hideGlobalLoader() {
     const navApproved = document.getElementById("navApproved");
     const navReports = document.getElementById("navReports");
     const navSettings = document.getElementById("navSettings");
+    const navTemplates = document.getElementById("navTemplates");
     const navResetLogs = document.getElementById("navResetLogs");
+    
+    // View elements
+    const viewDashboard = document.getElementById("viewDashboard");
+    const viewApproved = document.getElementById("viewApproved");
+    const viewReports = document.getElementById("viewReports");
+    const viewSettings = document.getElementById("viewSettings");
+    const viewTemplates = document.getElementById("viewTemplates");
     const lockAdminBtn = document.getElementById("lockAdminBtn");
 
     // Menu + approved overlay
@@ -3395,13 +3674,19 @@ function hideReportLoading() {
 
     // --- APPROVED GRID FUNCTIONS ---
     function openApprovedOverlay() {
+      // Legacy function - now redirects to view
       closeMoreMenu();
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
         return;
       }
-      approvedOverlay.style.display = "flex";
-      loadApprovedGrid();
+      if (typeof switchView === 'function') {
+        switchView("approved");
+      } else {
+        // Fallback to overlay if switchView not available yet
+        approvedOverlay.style.display = "flex";
+        loadApprovedGrid();
+      }
     }
 
     function closeApprovedOverlay() {
@@ -4404,8 +4689,51 @@ function hideReportLoading() {
 
     // --- LEFT NAV BEHAVIOR ---
 
+    // Switch to a specific view (global function for compatibility)
+    window.switchView = function switchView(viewName) {
+      // Hide all views
+      [viewDashboard, viewApproved, viewReports, viewSettings, viewTemplates].forEach((view) => {
+        if (view) {
+          view.classList.remove("active");
+          view.style.display = "none";
+        }
+      });
+
+      // Show selected view
+      let targetView = null;
+      switch (viewName) {
+        case "dashboard":
+          targetView = viewDashboard;
+          break;
+        case "approved":
+          targetView = viewApproved;
+          if (targetView) {
+            loadApprovedGrid();
+          }
+          break;
+        case "reports":
+          targetView = viewReports;
+          break;
+        case "settings":
+          targetView = viewSettings;
+          if (targetView) {
+            setSettingsStatus("Loading settings…");
+            loadSettings();
+          }
+          break;
+        case "templates":
+          targetView = viewTemplates;
+          break;
+      }
+
+      if (targetView) {
+        targetView.classList.add("active");
+        targetView.style.display = "flex";
+      }
+    };
+
     function setActiveNav(button) {
-      [navDashboard, navApproved, navReports, navSettings, navResetLogs].forEach((btn) => {
+      [navDashboard, navApproved, navReports, navSettings, navTemplates, navResetLogs].forEach((btn) => {
         if (!btn) return;
         btn.classList.toggle("active", btn === button);
       });
@@ -4414,14 +4742,14 @@ function hideReportLoading() {
     if (navDashboard) {
       navDashboard.addEventListener("click", () => {
         setActiveNav(navDashboard);
-        // Dashboard is the default view; nothing extra to show/hide right now
+        switchView("dashboard");
       });
     }
 
     if (navApproved) {
       navApproved.addEventListener("click", () => {
         setActiveNav(navApproved);
-        openApprovedOverlay();
+        switchView("approved");
       });
     }
 
@@ -4432,14 +4760,21 @@ function hideReportLoading() {
           showLock("Session expired. Enter the access code.");
           return;
         }
-        openReportOverlay();
+        switchView("reports");
       });
     }
 
     if (navSettings) {
       navSettings.addEventListener("click", () => {
         setActiveNav(navSettings);
-        openSettingsOverlay();
+        switchView("settings");
+      });
+    }
+
+    if (navTemplates) {
+      navTemplates.addEventListener("click", () => {
+        setActiveNav(navTemplates);
+        switchView("templates");
       });
     }
 
@@ -4447,6 +4782,11 @@ function hideReportLoading() {
       navResetLogs.addEventListener("click", () => {
         setActiveNav(navResetLogs);
         menuResetLogs.click();
+        // Reset logs doesn't change view, so switch back to dashboard
+        setTimeout(() => {
+          setActiveNav(navDashboard);
+          switchView("dashboard");
+        }, 100);
       });
     }
 
@@ -4460,9 +4800,23 @@ function hideReportLoading() {
     // --- REPORT MODAL LOGIC ---
 
 function openReportOverlay() {
-  reportOverlay.style.display = "flex";
-  reportPreview.textContent = "Tap “View report (preview)” to load the current summary.";
-  hideReportLoading(); // make sure loader is off when you first open
+  // Legacy function - kept for compatibility but now redirects to view
+  // Note: switchView is defined in the nav handler section, so this will be called from there
+  // For now, we'll just show the modal overlay as fallback
+  if (typeof switchView === 'function') {
+    switchView("reports");
+    if (reportPreview) {
+      reportPreview.textContent = "Tap \"View report (preview)\" to load the current summary.";
+    }
+    hideReportLoading();
+  } else {
+    // Fallback to modal if switchView not available yet
+    reportOverlay.style.display = "flex";
+    if (reportPreview) {
+      reportPreview.textContent = "Tap \"View report (preview)\" to load the current summary.";
+    }
+    hideReportLoading();
+  }
 }
 
     function closeReportOverlay() {
@@ -4583,13 +4937,12 @@ reportViewBtn.addEventListener("click", async () => {
       };
     }
 
-    async function openSettingsOverlay() {
+    async function loadSettings() {
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
         return;
       }
 
-      settingsOverlay.style.display = "flex";
       setSettingsStatus("Loading settings…");
 
       try {
@@ -4611,6 +4964,11 @@ reportViewBtn.addEventListener("click", async () => {
         console.error("Error loading settings", err);
         setSettingsStatus("Failed to load settings.", "error");
       }
+    }
+
+    async function openSettingsOverlay() {
+      // Legacy function - kept for compatibility but now redirects to view
+      switchView("settings");
     }
 
     function closeSettingsOverlay() {
