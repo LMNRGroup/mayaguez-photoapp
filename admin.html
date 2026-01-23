@@ -412,13 +412,14 @@
     border: none;
     background: transparent;
     color: var(--foreground);
-    font-size: 0.875rem;
+    font-size: 0.75rem; /* text-xs */
     padding: 0.5rem 0;
     cursor: pointer;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.3em; /* tracking-[0.3em] - QRC standard */
+    text-transform: uppercase; /* QRC standard */
     position: relative;
-    font-weight: 500;
-    transition: color 0.2s ease;
+    font-weight: 500; /* font-medium */
+    transition: color 0.2s ease; /* duration-200 */
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
@@ -524,7 +525,7 @@
 
   .view-actions {
     display: flex;
-    gap: 0.75rem;
+    gap: 1rem; /* gap-4 = 16px - QRC standard */
     margin-bottom: 1rem;
   }
 
@@ -630,8 +631,8 @@
   .template-editor-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
+    gap: 1rem; /* gap-4 = 16px - QRC standard */
+    padding: 1rem; /* 16px - QRC standard */
     background: var(--secondary);
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) - 2px);
@@ -1117,8 +1118,8 @@
 
   .buttons {
     display: flex;
-    gap: 0.625rem;
-    margin-top: 0.625rem;
+    gap: 1rem; /* gap-4 = 16px - QRC standard */
+    margin-top: 1rem; /* 16px - QRC standard */
   }
 
   button {
@@ -1128,18 +1129,24 @@
   .btn-reject,
   .btn-approve {
     flex: 1;
-    height: 2.5rem;
-    border-radius: calc(var(--radius) - 2px);
+    height: 2.5rem; /* h-10 = 40px */
+    border-radius: calc(var(--radius) - 2px); /* 10px */
     border: 1px solid var(--border);
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
-    font-weight: 500;
+    padding: 0.5rem 1rem; /* py-2 px-4 */
+    font-size: 0.75rem; /* text-xs */
+    font-weight: 500; /* font-medium */
     cursor: pointer;
     text-transform: uppercase;
-    letter-spacing: 0.3em;
+    letter-spacing: 0.3em; /* tracking-[0.3em] */
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    transition: all 0.2s ease;
+    transition: all 0.2s ease; /* duration-200 */
     min-width: 0;
+  }
+
+  .btn-reject:focus-visible,
+  .btn-approve:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px hsla(268, 85%, 55%, 0.2);
   }
 
   .btn-reject {
@@ -1332,75 +1339,7 @@
 
   /* APPROVED OVERLAY (grid) – restyled but same IDs/classes */
 
-  .approved-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--background);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 30;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .approved-panel {
-    background: var(--card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-radius: calc(var(--radius) + 4px);
-    width: 100%;
-    max-width: 900px;
-    max-height: calc(100dvh - 3rem);
-    display: flex;
-    flex-direction: column;
-    padding: 1.5rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--glass-border);
-    min-width: 0;
-    color: var(--card-foreground);
-  }
-
-  .approved-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 4px;
-  }
-
-  .approved-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--card-foreground);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  }
-
-  .approved-subtitle {
-    font-size: 0.6875rem;
-    color: var(--muted-foreground);
-    margin-bottom: 0.25rem;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  }
-
-  .approved-close-btn {
-    border: none;
-    background: transparent;
-    color: var(--foreground);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0 4px;
-    transition: color 0.2s ease;
-  }
-
-  .approved-close-btn:hover {
-    color: var(--primary);
-  }
+  /* Removed unused approved-overlay styles - now using inline view */
 
   .approved-grid {
     display: grid;
@@ -1497,7 +1436,7 @@
   .approved-footer-controls {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
+    gap: 1rem; /* gap-4 = 16px - QRC standard */
   }
 
   .approved-footer button {
@@ -1922,101 +1861,7 @@
     font-size: 0.875rem;
   }
 
-  /* REPORT MODAL (for Event Reports menu) */
-
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--background);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    display: none;
-    align-items: flex-start;
-    justify-content: center;
-    z-index: 35;
-    padding: 1.5rem 1rem;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .modal-panel {
-    background: var(--card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-radius: calc(var(--radius) + 4px);
-    max-width: 640px;
-    width: 100%;
-    padding: 1.5rem;
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    min-width: 0;
-    margin-top: 1.5rem;
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .modal-title {
-    font-size: 0.875rem;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--card-foreground);
-    font-weight: 600;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  }
-
-  .modal-close {
-    border: none;
-    background: transparent;
-    color: var(--foreground);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0 4px;
-    transition: color 0.2s ease;
-  }
-
-  .modal-close:hover {
-    color: var(--primary);
-  }
-
-  .modal-body {
-    font-size: 0.8125rem;
-    color: var(--muted-foreground);
-    line-height: 1.6;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  }
-
-  .modal-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    margin-bottom: 8px;
-  }
-
-  /* SETTINGS MODAL */
-
-  .settings-panel {
-    max-width: 760px;
-    max-height: calc(100dvh - 3rem);
-    overflow-y: auto;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    font-weight: 300;
-  }
-
-  .settings-panel .modal-title,
-  .settings-panel .settings-section-title,
-  .settings-panel .settings-help,
-  .settings-panel .settings-status {
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    font-weight: 300;
-  }
+  /* Removed unused modal-overlay and settings-panel styles - now using inline views */
 
   .settings-section {
     border: 1px solid var(--border);
@@ -2103,13 +1948,13 @@
   .settings-grid {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding-top: 1rem;
+    gap: 1rem; /* gap-4 = 16px - QRC standard */
+    padding-top: 1rem; /* 16px - QRC standard */
   }
 
   .settings-row {
     display: flex;
-    gap: 1rem;
+    gap: 1rem; /* gap-4 = 16px - QRC standard */
     align-items: center;
     justify-content: space-between;
   }
@@ -2192,18 +2037,22 @@
     line-height: 1.5;
   }
 
+  /* QRC Button Styles - Standardized */
   .btn-ghost,
-  .btn-primary {
-    height: 2.5rem;
-    border-radius: calc(var(--radius) - 2px);
-    padding: 0.5rem 0.875rem;
-    font-size: 0.75rem;
+  .btn-primary,
+  .btn-secondary {
+    height: 2.5rem; /* h-10 = 40px */
+    border-radius: calc(var(--radius) - 2px); /* 10px */
+    padding: 0.5rem 1rem; /* py-2 px-4 = 8px vertical, 16px horizontal */
+    font-size: 0.75rem; /* text-xs */
     text-transform: uppercase;
-    letter-spacing: 0.3em;
+    letter-spacing: 0.3em; /* tracking-[0.3em] */
     cursor: pointer;
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    font-weight: 500;
-    transition: all 0.2s ease;
+    font-weight: 500; /* font-medium */
+    transition: all 0.2s ease; /* duration-200 */
+    border: 1px solid transparent;
+    min-width: 0;
   }
 
   @media (max-width: 720px) {
@@ -2219,10 +2068,8 @@
 
   .btn-ghost {
     background: transparent;
-    border: 1px solid var(--border);
+    border-color: var(--border);
     color: var(--foreground);
-    flex: 0 0 auto;
-    transition: all 0.2s ease;
   }
 
   .btn-ghost:hover {
@@ -2231,18 +2078,42 @@
     color: var(--primary);
   }
 
+  .btn-ghost:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px hsla(268, 85%, 55%, 0.2);
+  }
+
   .btn-primary {
     background: var(--primary);
-    border: 1px solid var(--primary);
+    border-color: var(--primary);
     color: var(--primary-foreground);
-    flex: 0 0 auto;
-    transition: all 0.2s ease;
   }
 
   .btn-primary:hover {
     background: hsl(268, 85%, 50%);
     border-color: hsl(268, 85%, 50%);
     filter: brightness(0.95);
+  }
+
+  .btn-primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px hsla(268, 85%, 55%, 0.2);
+  }
+
+  .btn-secondary {
+    background: var(--secondary);
+    border-color: var(--border);
+    color: var(--secondary-foreground);
+  }
+
+  .btn-secondary:hover {
+    background: var(--muted);
+    border-color: var(--primary);
+  }
+
+  .btn-secondary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px hsla(268, 85%, 55%, 0.2);
   }
 
   .report-preview {
@@ -2808,8 +2679,8 @@
           </div>
 
           <div class="buttons">
-            <button id="rejectBtn" class="btn-reject" disabled>Reject</button>
-            <button id="approveBtn" class="btn-approve" disabled>Approve</button>
+            <button id="rejectBtn" class="btn-reject" disabled>REJECT</button>
+            <button id="approveBtn" class="btn-approve" disabled>APPROVE</button>
             </div>
           </div>
 
@@ -2835,10 +2706,10 @@
               </div>
               <div class="approved-footer-controls">
                 <button type="button" id="approvedPrevBtn" class="btn-reject">
-                  Prev
+                  PREV
                 </button>
                 <button type="button" id="approvedNextBtn" class="btn-approve">
-                  Next
+                  NEXT
                 </button>
               </div>
             </div>
@@ -2855,8 +2726,8 @@
             </div>
 
             <div class="view-actions">
-              <button id="reportViewBtn" class="btn-ghost">View report</button>
-              <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
+              <button id="reportViewBtn" class="btn-ghost">VIEW REPORT</button>
+              <button id="reportGenerateBtn" class="btn-primary">GENERATE &amp; EMAIL</button>
             </div>
 
             <div id="reportLoading" class="report-loading" style="display:none;"></div>
@@ -3039,7 +2910,7 @@ View report to see the most recent interactions
                     <circle cx="9" cy="9" r="2"></circle>
                     <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
                   </svg>
-                  <span>Add Logo</span>
+                  <span>ADD LOGO</span>
                 </button>
                 <div class="template-toolbar-actions">
                   <button id="templateDeleteBtn" class="template-toolbar-btn template-toolbar-btn-danger" style="display: none;" title="Delete Template">
@@ -3047,7 +2918,7 @@ View report to see the most recent interactions
                       <polyline points="3 6 5 6 21 6"></polyline>
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                     </svg>
-                    <span>Delete</span>
+                    <span>DELETE</span>
                   </button>
                   <button id="templateDoneBtn" class="btn-primary">DONE</button>
                 </div>
@@ -3155,44 +3026,6 @@ View report to see the most recent interactions
     </div>
   </div>
 
-  <!-- APPROVED PHOTOS OVERLAY -->
-  <div id="approvedOverlay" class="approved-overlay">
-    <div class="approved-panel">
-      <div class="approved-header">
-        <div>
-          <div class="approved-title">Approved photos</div>
-          <div class="approved-subtitle">
-            Tap a thumbnail to view details and download options.
-          </div>
-        </div>
-        <button
-          type="button"
-          class="approved-close-btn"
-          data-close-approved="1"
-        >×</button>
-      </div>
-
-      <div id="approvedEmpty" class="approved-empty">
-        Loading approved photos…
-      </div>
-      <div id="approvedGrid" class="approved-grid"></div>
-
-      <div class="approved-footer">
-        <div id="approvedFooterText">
-          Changes may take a few seconds to appear on the public screen.
-        </div>
-        <div class="approved-footer-controls">
-          <button type="button" id="approvedPrevBtn" class="btn-reject">
-            Prev
-          </button>
-          <button type="button" id="approvedNextBtn" class="btn-approve">
-            Next
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- SINGLE APPROVED PHOTO VIEWER -->
   <div id="approvedViewer" class="approved-viewer-overlay">
     <div class="approved-viewer-panel">
@@ -3200,11 +3033,11 @@ View report to see the most recent interactions
         <div class="viewer-toolbar-left">
           <button id="viewerDownloadBtn" type="button" class="viewer-icon-btn">
             <span class="icon">⬇</span>
-            <span>Download</span>
+            <span>DOWNLOAD</span>
           </button>
           <button id="viewerDeleteBtn" type="button" class="viewer-icon-btn danger">
             <span class="icon">🗑</span>
-            <span>Delete</span>
+            <span>DELETE</span>
           </button>
         </div>
         <button id="viewerCloseBtn" type="button" class="viewer-icon-btn close-only">
@@ -3318,134 +3151,6 @@ View report to see the most recent interactions
     </div>
   </div>
 
-  <!-- EVENT REPORT MODAL -->
-<div id="reportOverlay" class="modal-overlay">
-  <div class="modal-panel">
-    <div class="modal-header">
-      <div class="modal-title">Event reports</div>
-      <button id="reportCloseBtn" class="modal-close">×</button>
-    </div>
-    <div class="modal-body">
-      <p>
-        View the current session summary or generate a full report that will be
-        delivered to your configured email.
-      </p>
-      <div class="modal-actions">
-        <button id="reportViewBtn" class="btn-ghost">View report</button>
-        <button id="reportGenerateBtn" class="btn-primary">Generate &amp; email</button>
-      </div>
-
-      <!-- NEW: Lottie loader container -->
-      <div id="reportLoading" class="report-loading" style="display:none;"></div>
-
-      <pre id="reportPreview" class="report-preview">
-View report to see the most recent interactions
-      </pre>
-    </div>
-  </div>
-</div>
-
-  <!-- APP SETTINGS MODAL -->
-  <div id="settingsOverlay" class="modal-overlay">
-    <div class="modal-panel settings-panel">
-      <div class="modal-header">
-        <div class="modal-title">App settings</div>
-        <button id="settingsCloseBtn" class="modal-close">×</button>
-      </div>
-      <div class="modal-body">
-        <p class="settings-help">
-          Customize the public form and ticket experience without editing code.
-        </p>
-
-        <div class="settings-section">
-          <div class="settings-section-title">Ticket overlay</div>
-          <div class="settings-row">
-            <span class="settings-label">Show ticket number after upload</span>
-            <label class="toggle">
-              <input type="checkbox" id="settingsTicketEnabled" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-title">Gallery display</div>
-          <div class="settings-grid">
-            <label class="settings-label" for="settingsGalleryDisplayLimit">Photos to display in gallery</label>
-            <select id="settingsGalleryDisplayLimit" class="settings-input">
-              <option value="all">All photos</option>
-              <option value="last25">Last 25 photos</option>
-              <option value="last10">Last 10 photos</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-title">Intro copy</div>
-          <div class="settings-grid">
-            <label class="settings-label" for="settingsIntroTitle">Intro title</label>
-            <input id="settingsIntroTitle" class="settings-input" type="text" />
-            <label class="settings-label" for="settingsIntroSubtitle">Intro subtitle</label>
-            <input id="settingsIntroSubtitle" class="settings-input" type="text" />
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <div class="settings-section-title">Form fields</div>
-          <div class="settings-grid">
-            <div class="settings-row">
-              <span class="settings-label">Enable location (country/region)</span>
-              <label class="toggle">
-                <input type="checkbox" id="settingsLocationEnabled" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-
-            <div class="settings-row">
-              <span class="settings-label">Enable last name</span>
-              <label class="toggle">
-                <input type="checkbox" id="settingsLastNameEnabled" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <label class="settings-label" for="settingsLastNameLabel">Last name label</label>
-            <input id="settingsLastNameLabel" class="settings-input" type="text" />
-            <label class="settings-label" for="settingsLastNamePlaceholder">Last name placeholder</label>
-            <input id="settingsLastNamePlaceholder" class="settings-input" type="text" />
-
-            <div class="settings-row">
-              <span class="settings-label">Enable email</span>
-              <label class="toggle">
-                <input type="checkbox" id="settingsEmailEnabled" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <label class="settings-label" for="settingsEmailLabel">Email label</label>
-            <input id="settingsEmailLabel" class="settings-input" type="text" />
-            <label class="settings-label" for="settingsEmailPlaceholder">Email placeholder</label>
-            <input id="settingsEmailPlaceholder" class="settings-input" type="text" />
-
-            <div class="settings-row">
-              <span class="settings-label">Enable newsletter opt-in</span>
-              <label class="toggle">
-                <input type="checkbox" id="settingsNewsletterEnabled" />
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <label class="settings-label" for="settingsNewsletterLabel">Newsletter label</label>
-            <input id="settingsNewsletterLabel" class="settings-input" type="text" />
-            <label class="settings-label" for="settingsNewsletterHelper">Newsletter helper text</label>
-            <input id="settingsNewsletterHelper" class="settings-input" type="text" />
-          </div>
-        </div>
-
-        <div class="settings-actions">
-          <span id="settingsStatus" class="settings-status"></span>
-          <button id="settingsSaveBtn" class="btn-primary">Save settings</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <script>
     // Backend origin – this is where your Node/Express lives
@@ -3837,7 +3542,6 @@ function hideGlobalLoader() {
     const menuResetLogs = document.getElementById("menuResetLogs");
     const menuClearApproved = document.getElementById("menuClearApproved");
 
-    const approvedOverlay = document.getElementById("approvedOverlay");
     const approvedGrid = document.getElementById("approvedGrid");
     const approvedEmpty = document.getElementById("approvedEmpty");
     const approvedFooterText = document.getElementById("approvedFooterText");
@@ -3854,16 +3558,12 @@ function hideGlobalLoader() {
     const viewerNextBtn = document.getElementById("viewerNextBtn");
 
     // REPORT MODAL ELEMENTS
-    const reportOverlay = document.getElementById("reportOverlay");
-    const reportCloseBtn = document.getElementById("reportCloseBtn");
     const reportViewBtn = document.getElementById("reportViewBtn");
     const reportGenerateBtn = document.getElementById("reportGenerateBtn");
     const reportPreview = document.getElementById("reportPreview");
     const reportLoading = document.getElementById("reportLoading");
 
     // SETTINGS MODAL ELEMENTS
-    const settingsOverlay = document.getElementById("settingsOverlay");
-    const settingsCloseBtn = document.getElementById("settingsCloseBtn");
     const settingsSaveBtn = document.getElementById("settingsSaveBtn");
     const settingsStatus = document.getElementById("settingsStatus");
     const settingsTicketEnabled = document.getElementById("settingsTicketEnabled");
@@ -4421,7 +4121,14 @@ function hideReportLoading() {
 
     approvedButton.addEventListener("click", (e) => {
       e.stopPropagation();
-      openApprovedOverlay();
+      closeMoreMenu();
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+      if (typeof switchView === 'function') {
+        switchView("approved");
+      }
     });
 
     document.addEventListener("click", (e) => {
@@ -4431,29 +4138,6 @@ function hideReportLoading() {
     });
 
     // --- APPROVED GRID FUNCTIONS ---
-    function openApprovedOverlay() {
-      // Legacy function - now redirects to view
-      closeMoreMenu();
-      if (!adminToken) {
-        showLock("Session expired. Enter the access code.");
-        return;
-      }
-      if (typeof switchView === 'function') {
-        switchView("approved");
-      } else {
-        // Fallback to overlay if switchView not available yet
-      approvedOverlay.style.display = "flex";
-      loadApprovedGrid();
-      }
-    }
-
-    function closeApprovedOverlay() {
-      approvedOverlay.style.display = "none";
-    }
-
-    document.querySelectorAll("[data-close-approved]").forEach((btn) => {
-      btn.addEventListener("click", closeApprovedOverlay);
-    });
 
     function updateViewerNavButtons() {
       const allFiles = getAllCachedFiles();
@@ -4770,15 +4454,14 @@ function hideReportLoading() {
           throw new Error(`HTTP ${res.status}`);
         }
 
-        if (approvedOverlay.style.display === "flex") {
-          approvedFilesCache = {};
-          approvedTotalCount = 0;
-          approvedTotalPages = 0;
-          approvedGrid.innerHTML = "";
-          approvedEmpty.style.display = "block";
-          approvedEmpty.textContent = "There are no approved photos at this moment.";
-          approvedFooterText.textContent = "0 photos";
-        }
+        // Reset cache when clearing
+        approvedFilesCache = {};
+        approvedTotalCount = 0;
+        approvedTotalPages = 0;
+        approvedGrid.innerHTML = "";
+        approvedEmpty.style.display = "block";
+        approvedEmpty.textContent = "There are no approved photos at this moment.";
+        approvedFooterText.textContent = "0 photos";
 
         alert("Pending + approved folders cleared.");
       } catch (err) {
@@ -5260,7 +4943,16 @@ function hideReportLoading() {
     }
 
     // --- MENU ITEM HANDLERS ---
-    menuViewApproved.addEventListener("click", openApprovedOverlay);
+    menuViewApproved.addEventListener("click", () => {
+      closeMoreMenu();
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+      if (typeof switchView === 'function') {
+        switchView("approved");
+      }
+    });
 
    async function generateReportNow() {
   if (!adminToken) {
@@ -5268,11 +4960,8 @@ function hideReportLoading() {
     return;
   }
 
-  // If the modal is open, we show the animation there.
-  // If it's not open (called from kebab menu), it still runs fine.
-  if (reportOverlay.style.display === "flex") {
-    showGlobalLoader();
-  }
+  // Show loader for report generation
+  showGlobalLoader();
 
   try {
     const res = await fetch(`${BASE_URL}/session-report-now`, {
@@ -5577,9 +5266,7 @@ function hideReportLoading() {
           break;
         case "templates":
           targetView = viewTemplates;
-          if (targetView && typeof loadTemplatesList === 'function') {
-            loadTemplatesList();
-          }
+          // loadTemplatesList function removed - templates load automatically when view is shown
           break;
       }
 
@@ -6411,9 +6098,7 @@ function hideReportLoading() {
             templateDeleteBtn.style.display = "none";
             if (templateLoadSelect) templateLoadSelect.value = "";
             resetTemplateEditor();
-            if (typeof loadTemplatesList === 'function') {
-              await loadTemplatesList();
-            }
+            // Templates will reload when view is shown
           } else {
             alert("Failed to delete template.");
           }
@@ -6550,9 +6235,7 @@ function hideReportLoading() {
             document.body.removeChild(overlay);
             alert(`Template "${name}" saved successfully!`);
             // Reload templates list
-            if (typeof loadTemplatesList === 'function') {
-              await loadTemplatesList();
-            }
+            // Templates will reload when view is shown
           } else {
             alert("Failed to save template. Please try again.");
           }
@@ -6723,35 +6406,15 @@ function hideReportLoading() {
     // --- REPORT MODAL LOGIC ---
 
 function openReportOverlay() {
-  // Legacy function - kept for compatibility but now redirects to view
-  // Note: switchView is defined in the nav handler section, so this will be called from there
-  // For now, we'll just show the modal overlay as fallback
+  // Legacy function - now redirects to view
   if (typeof switchView === 'function') {
     switchView("reports");
     if (reportPreview) {
       reportPreview.textContent = "Tap \"View report\" to load the current summary.";
     }
     hideReportLoading();
-  } else {
-    // Fallback to modal if switchView not available yet
-  reportOverlay.style.display = "flex";
-    if (reportPreview) {
-      reportPreview.textContent = "Tap \"View report\" to load the current summary.";
-    }
-    hideReportLoading();
   }
 }
-
-    function closeReportOverlay() {
-      reportOverlay.style.display = "none";
-    }
-
-    reportCloseBtn.addEventListener("click", closeReportOverlay);
-    reportOverlay.addEventListener("click", (e) => {
-      if (e.target === reportOverlay) {
-        closeReportOverlay();
-      }
-    });
 
 reportViewBtn.addEventListener("click", async () => {
   if (!adminToken) {
@@ -6942,22 +6605,7 @@ reportViewBtn.addEventListener("click", async () => {
       switchView("settings");
     }
 
-    function closeSettingsOverlay() {
-      settingsOverlay.style.display = "none";
-      setSettingsStatus("");
-    }
-
-    if (settingsCloseBtn) {
-      settingsCloseBtn.addEventListener("click", closeSettingsOverlay);
-    }
-
-    if (settingsOverlay) {
-      settingsOverlay.addEventListener("click", (e) => {
-        if (e.target === settingsOverlay) {
-          closeSettingsOverlay();
-        }
-      });
-    }
+    // Settings are now in inline view, no overlay needed
 
     // Handle gallery display limit select change (show/hide custom input)
     if (settingsGalleryDisplayLimit && settingsGalleryDisplayCustom && settingsGalleryDisplayCustomLabel) {
