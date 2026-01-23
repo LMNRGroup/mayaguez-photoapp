@@ -1392,9 +1392,6 @@
       loadFlagImage(countryName);
     }
 
-    const fiturLogoImage = new Image();
-    fiturLogoImage.src = 'Assets/Fitur_Logo.png';
-
     // --- REGION DATA ---
 
     const PR_MUNICIPALITIES = [
@@ -1845,25 +1842,6 @@
       ctx.restore();
     }
 
-    function drawFiturSticker(ctx, width, height) {
-      const stickerWidth = 180;
-      const aspect = fiturLogoImage.width && fiturLogoImage.height
-        ? fiturLogoImage.height / fiturLogoImage.width
-        : 0.35;
-      const stickerHeight = stickerWidth * aspect;
-      const padding = 24;
-
-      const x = padding;
-      const y = height - padding - stickerHeight;
-
-      ctx.save();
-      ctx.globalAlpha = 0.95;
-      if (fiturLogoImage.complete && fiturLogoImage.naturalWidth) {
-        ctx.drawImage(fiturLogoImage, x, y, stickerWidth, stickerHeight);
-      }
-      ctx.restore();
-    }
-
    // Capture selfie
 captureButton.addEventListener('click', () => {
   const targetWidth  = 1500;
@@ -1919,7 +1897,6 @@ captureButton.addEventListener('click', () => {
   ctx.restore();
 
   drawLocationOverlay(ctx, canvas.width, canvas.height);
-  drawFiturSticker(ctx, canvas.width, canvas.height);
 
   video.style.display = 'none';
   canvas.style.display = 'block';
