@@ -3000,7 +3000,7 @@ Report preview will appear here once the backend preview endpoint is configured.
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              <span>DOWNLOAD FOR INSTAGRAM</span>
+              <span>DOWNLOAD WITH TEMPLATE</span>
             </button>
             <button id="photoInfoDownloadOriginal" class="photo-info-btn photo-info-btn-secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3157,8 +3157,8 @@ Report preview will appear here once the backend preview endpoint is configured.
 
     // Frame template used in gallery & downloads
     const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
-    // Vertical template for admin downloads
-    const DOWNLOAD_TEMPLATE_URL = "Assets/IGFiturVertical.png";
+    // Template for admin downloads (horizontal 1920x1080)
+    const DOWNLOAD_TEMPLATE_URL = "Assets/NewLayout15_10.png";
 
     // Stage + window specs (same as gallery CSS)
     const STAGE_WIDTH = 1920;
@@ -3169,14 +3169,14 @@ Report preview will appear here once the backend preview endpoint is configured.
     const WINDOW_WIDTH = (1350 / 1920) * STAGE_WIDTH;
     const WINDOW_HEIGHT = (900 / 1080) * STAGE_HEIGHT;
 
-    // Download template specs (vertical 1080x1920)
-    const DOWNLOAD_TEMPLATE_WIDTH = 1080;
-    const DOWNLOAD_TEMPLATE_HEIGHT = 1920;
-    const DOWNLOAD_PHOTO_WIDTH = 1000;
-    const DOWNLOAD_PHOTO_HEIGHT = 666.666;
-    // Photo centered in template: (1080-1000)/2 = 40px left, (1920-666.666)/2 = 626.667px top
-    const DOWNLOAD_PHOTO_X = 40;
-    const DOWNLOAD_PHOTO_Y = 626.667;
+    // Download template specs (horizontal 1920x1080)
+    const DOWNLOAD_TEMPLATE_WIDTH = 1920;
+    const DOWNLOAD_TEMPLATE_HEIGHT = 1080;
+    const DOWNLOAD_PHOTO_WIDTH = 1500;
+    const DOWNLOAD_PHOTO_HEIGHT = 1000;
+    // Photo centered in template: (1920-1500)/2 = 210px left, (1080-1000)/2 = 40px top
+    const DOWNLOAD_PHOTO_X = 210;
+    const DOWNLOAD_PHOTO_Y = 40;
 
     // Reusable offscreen canvas for framed downloads
     const downloadCanvas = document.createElement("canvas");
