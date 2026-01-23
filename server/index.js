@@ -7,6 +7,7 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
+const multer = require('multer');
 // sharp REMOVED from usage – we leave the import out so nothing touches the image
 
 dotenv.config();
@@ -18,6 +19,8 @@ const LUMI_LOGO_URL =
 // Google Drive folders
 const PENDING_FOLDER_ID  = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs'; // existing uploads
 const APPROVED_FOLDER_ID = '1blA55AfkUykFcYzgFzmvthXMvVFv6I0u'; // "Approved" folder
+const TEMPLATES_BG_FOLDER_ID = '1CcL_VNubTsran1Q8A8rJmgqwARi6asBp'; // Template backgrounds
+const TEMPLATES_LOGO_FOLDER_ID = '1YhfEJRXkbfpGcqkLnxFp8mkaCm_eOtrj'; // Template logos
 
 // Logs Google Sheet ID
 const SESSION_SHEET_ID =
@@ -28,6 +31,12 @@ const SETTINGS_SHEET_ID =
   process.env.SETTINGS_SHEET_ID ||
   '1vAcoPK5Xm588PQULy2eOlNTknihofKuiijlfLidKhbI';
 const SETTINGS_SHEET_NAME = process.env.SETTINGS_SHEET_NAME || 'Settings';
+
+const TEMPLATES_SHEET_ID =
+  process.env.TEMPLATES_SHEET_ID ||
+  '1yIyxpT_lYMBGcPsRbdp1egCzFO89iqEBLZZCzxaeCUY';
+const TEMPLATES_SHEET_NAME = process.env.TEMPLATES_SHEET_NAME || 'Templates';
+const TEMPLATES_SHEET_RANGE = `${TEMPLATES_SHEET_NAME}!A:D`; // Name, JSON, Created, Active
 
 // Range with columns:
 // timestamp_utc, timestamp_pr, event_type, email, session_id,
@@ -503,6 +512,174 @@ async function hydrateSettingsFromSheet() {
     appSessionId = generateServerSessionId();
   }
   settingsLoadedFromSheet = true;
+}
+
+// ---------- TEMPLATE SHEET HELPERS ----------
+
+let templatesSheetReady = false;
+
+async function ensureTemplatesSheet() {
+  if (templatesSheetReady) return true;
+  if (!TEMPLATES_SHEET_ID) return false;
+
+  try {
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: TEMPLATES_SHEET_ID,
+      fields: 'sheets(properties(title))'
+    });
+
+    const sheetsList = meta.data.sheets || [];
+    const hasTemplatesSheet = sheetsList.some(
+      (sheet) => sheet.properties && sheet.properties.title === TEMPLATES_SHEET_NAME
+    );
+
+    if (!hasTemplatesSheet) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: TEMPLATES_SHEET_ID,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: TEMPLATES_SHEET_NAME
+                }
+              }
+            }
+          ]
+        }
+      });
+    }
+
+    templatesSheetReady = true;
+    return true;
+  } catch (err) {
+    console.warn('Unable to ensure templates sheet exists:', err.message || err);
+    return false;
+  }
+}
+
+async function readTemplatesFromSheet() {
+  if (!TEMPLATES_SHEET_ID) return [];
+
+  try {
+    const ready = await ensureTemplatesSheet();
+    if (!ready) return [];
+
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: TEMPLATES_SHEET_ID,
+      range: TEMPLATES_SHEET_RANGE
+    });
+
+    const rows = resp.data.values || [];
+    if (rows.length < 2) return []; // No data (header + rows)
+
+    const templates = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const name = row[0] || '';
+      const jsonStr = row[1] || '{}';
+      const createdAt = row[2] || '';
+      const isActive = row[3] === 'true' || row[3] === true;
+
+      if (!name) continue;
+
+      try {
+        const data = JSON.parse(jsonStr);
+        templates.push({
+          id: i, // Row number as ID
+          name,
+          data,
+          createdAt,
+          isActive
+        });
+      } catch (err) {
+        console.warn(`Unable to parse template JSON for row ${i}:`, err.message);
+      }
+    }
+
+    return templates;
+  } catch (err) {
+    console.warn('Unable to read templates from sheet:', err.message || err);
+    return [];
+  }
+}
+
+async function writeTemplateToSheet(name, templateData, isActive = true) {
+  if (!TEMPLATES_SHEET_ID) return null;
+
+  try {
+    const ready = await ensureTemplatesSheet();
+    if (!ready) return null;
+
+    // Read existing to find next row
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: TEMPLATES_SHEET_ID,
+      range: TEMPLATES_SHEET_RANGE
+    });
+
+    const rows = resp.data.values || [];
+    const nextRow = rows.length + 1;
+
+    const createdAt = new Date().toISOString();
+    const values = [[name, JSON.stringify(templateData), createdAt, String(isActive)]];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: TEMPLATES_SHEET_ID,
+      range: `${TEMPLATES_SHEET_NAME}!A${nextRow}:D${nextRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values }
+    });
+
+    return { id: nextRow, name, createdAt, isActive };
+  } catch (err) {
+    console.warn('Unable to write template to sheet:', err.message || err);
+    return null;
+  }
+}
+
+async function updateTemplateInSheet(templateId, name, templateData, isActive) {
+  if (!TEMPLATES_SHEET_ID) return false;
+
+  try {
+    const ready = await ensureTemplatesSheet();
+    if (!ready) return false;
+
+    const row = parseInt(templateId, 10);
+    if (isNaN(row) || row < 2) return false;
+
+    const values = [[name, JSON.stringify(templateData), '', String(isActive)]];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: TEMPLATES_SHEET_ID,
+      range: `${TEMPLATES_SHEET_NAME}!A${row}:D${row}`,
+      valueInputOption: 'RAW',
+      requestBody: { values }
+    });
+
+    return true;
+  } catch (err) {
+    console.warn('Unable to update template in sheet:', err.message || err);
+    return false;
+  }
+}
+
+async function deleteTemplateFromSheet(templateId) {
+  if (!TEMPLATES_SHEET_ID) return false;
+
+  try {
+    const row = parseInt(templateId, 10);
+    if (isNaN(row) || row < 2) return false;
+
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: TEMPLATES_SHEET_ID,
+      range: `${TEMPLATES_SHEET_NAME}!A${row}:D${row}`
+    });
+
+    return true;
+  } catch (err) {
+    console.warn('Unable to delete template from sheet:', err.message || err);
+    return false;
+  }
 }
 
 // ---------- Google Auth (Service Account) ----------
@@ -2496,6 +2673,216 @@ app.get('/admin/photo-info/:ticketNumber', ensureAdminAuth, async (req, res) => 
   } catch (err) {
     console.error('Error getting photo info:', err);
     res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+// ---------- TEMPLATE API ENDPOINTS ----------
+
+// Ensure templates sheet has headers
+async function ensureTemplatesSheetHeaders() {
+  if (!TEMPLATES_SHEET_ID) return false;
+  try {
+    const ready = await ensureTemplatesSheet();
+    if (!ready) return false;
+
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId: TEMPLATES_SHEET_ID,
+      range: `${TEMPLATES_SHEET_NAME}!A1:D1`
+    });
+
+    const rows = resp.data.values || [];
+    if (rows.length === 0 || !rows[0] || rows[0][0] !== 'Name') {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: TEMPLATES_SHEET_ID,
+        range: `${TEMPLATES_SHEET_NAME}!A1:D1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [['Name', 'Template JSON', 'Created', 'Active']] }
+      });
+    }
+    return true;
+  } catch (err) {
+    console.warn('Unable to ensure templates sheet headers:', err.message || err);
+    return false;
+  }
+}
+
+// Initialize templates sheet on startup
+ensureTemplatesSheetHeaders().catch(() => {});
+
+// List all templates
+app.get('/admin/templates', ensureAdminAuth, async (req, res) => {
+  try {
+    const templates = await readTemplatesFromSheet();
+    res.json({ ok: true, templates });
+  } catch (err) {
+    console.error('Error listing templates:', err);
+    res.status(500).json({ ok: false, error: 'list_templates_failed' });
+  }
+});
+
+// Get single template
+app.get('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const templates = await readTemplatesFromSheet();
+    const template = templates.find(t => String(t.id) === String(id));
+    
+    if (!template) {
+      return res.status(404).json({ ok: false, error: 'template_not_found' });
+    }
+    
+    res.json({ ok: true, template });
+  } catch (err) {
+    console.error('Error getting template:', err);
+    res.status(500).json({ ok: false, error: 'get_template_failed' });
+  }
+});
+
+// Create new template
+app.post('/admin/templates', ensureAdminAuth, async (req, res) => {
+  try {
+    const { name, data } = req.body || {};
+    
+    if (!name || !data) {
+      return res.status(400).json({ ok: false, error: 'missing_name_or_data' });
+    }
+
+    const result = await writeTemplateToSheet(name, data, true);
+    
+    if (!result) {
+      return res.status(500).json({ ok: false, error: 'save_template_failed' });
+    }
+
+    res.json({ ok: true, template: result });
+  } catch (err) {
+    console.error('Error creating template:', err);
+    res.status(500).json({ ok: false, error: 'create_template_failed' });
+  }
+});
+
+// Update template
+app.put('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, data, isActive } = req.body || {};
+    
+    if (!name || !data) {
+      return res.status(400).json({ ok: false, error: 'missing_name_or_data' });
+    }
+
+    const success = await updateTemplateInSheet(id, name, data, isActive !== false);
+    
+    if (!success) {
+      return res.status(500).json({ ok: false, error: 'update_template_failed' });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error updating template:', err);
+    res.status(500).json({ ok: false, error: 'update_template_failed' });
+  }
+});
+
+// Delete template
+app.delete('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = await deleteTemplateFromSheet(id);
+    
+    if (!success) {
+      return res.status(500).json({ ok: false, error: 'delete_template_failed' });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting template:', err);
+    res.status(500).json({ ok: false, error: 'delete_template_failed' });
+  }
+});
+
+// Upload template asset (background or logo) to Drive
+app.post('/admin/templates/upload-asset', ensureAdminAuth, multer({ storage: multer.memoryStorage() }).single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: 'missing_file' });
+    }
+
+    const { assetType } = req.body || {}; // 'background' or 'logo'
+    
+    if (!assetType || (assetType !== 'background' && assetType !== 'logo')) {
+      return res.status(400).json({ ok: false, error: 'invalid_asset_type' });
+    }
+
+    const folderId = assetType === 'background' ? TEMPLATES_BG_FOLDER_ID : TEMPLATES_LOGO_FOLDER_ID;
+    const timestamp = Date.now();
+    const extension = req.file.originalname.split('.').pop() || 'jpg';
+    const filename = `template_${assetType}_${timestamp}.${extension}`;
+
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(req.file.buffer);
+
+    const response = await drive.files.create({
+      requestBody: {
+        name: filename,
+        mimeType: req.file.mimetype,
+        parents: [folderId]
+      },
+      media: {
+        mimeType: req.file.mimetype,
+        body: bufferStream
+      },
+      supportsAllDrives: true
+    });
+
+    res.json({
+      ok: true,
+      fileId: response.data.id,
+      filename: response.data.name,
+      type: assetType
+    });
+  } catch (err) {
+    console.error('Error uploading template asset:', err);
+    res.status(500).json({ ok: false, error: 'upload_asset_failed' });
+  }
+});
+
+// Serve uploaded template asset from Drive
+app.get('/admin/templates/asset/:fileId', ensureAdminAuth, async (req, res) => {
+  const { fileId } = req.params;
+
+  try {
+    const driveRes = await drive.files.get(
+      {
+        fileId,
+        alt: 'media'
+      },
+      { responseType: 'stream' }
+    );
+
+    // Try to get file metadata for content type
+    try {
+      const metadata = await drive.files.get({
+        fileId,
+        fields: 'mimeType'
+      });
+      res.setHeader('Content-Type', metadata.data.mimeType || 'image/jpeg');
+    } catch {
+      res.setHeader('Content-Type', 'image/jpeg');
+    }
+
+    driveRes.data
+      .on('error', (err) => {
+        console.error('Drive stream error (template asset):', err);
+        if (!res.headersSent) {
+          res.end();
+        }
+      })
+      .pipe(res);
+  } catch (err) {
+    console.error('Error streaming template asset:', err);
+    if (!res.headersSent) {
+      res.status(404).end();
+    }
   }
 });
 
