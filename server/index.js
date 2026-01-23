@@ -2400,5 +2400,104 @@ app.post('/session-report-date', async (req, res) => {
   }
 });
 
+// Get photo info (email, country, last name) by ticket number
+async function getEmailForPhoto(ticketNumber) {
+  try {
+    if (!SESSION_SHEET_ID) {
+      console.warn('SESSION_SHEET_ID missing, cannot match photo to email');
+      return null;
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SESSION_SHEET_ID,
+      range: SESSION_SHEET_RANGE,
+    });
+
+    const rows = response.data.values || [];
+    if (rows.length < 2) return null; // No data (header + rows)
+
+    // Skip header row, map to objects
+    const events = rows.slice(1).map(row => ({
+      timestamp_utc: row[0] || '',
+      timestamp_pr: row[1] || '',
+      event_type: row[2] || '',
+      email: row[3] || '',
+      session_id: row[4] || '',
+      country: row[5] || '',
+      region: row[6] || '',
+      last_name: row[7] || '',
+      newsletter: row[8] || '',
+      ticket: row[9] || '',
+    }));
+
+    // Find upload event with this ticket number
+    const uploadEvent = events.find(
+      e => e.event_type === 'upload' && e.ticket === ticketNumber
+    );
+
+    if (!uploadEvent || !uploadEvent.session_id) {
+      return null;
+    }
+
+    const sessionId = uploadEvent.session_id;
+    const uploadTime = new Date(uploadEvent.timestamp_utc);
+
+    // Find form events with same session_id
+    // Prefer form events that happened before or close to upload time
+    const formEvents = events
+      .filter(e => 
+        e.event_type === 'form' && 
+        e.session_id === sessionId &&
+        e.email // Must have email
+      )
+      .map(e => ({
+        ...e,
+        timeDiff: Math.abs(new Date(e.timestamp_utc) - uploadTime),
+      }))
+      .sort((a, b) => a.timeDiff - b.timeDiff);
+
+    if (formEvents.length > 0) {
+      const bestMatch = formEvents[0];
+      return {
+        email: bestMatch.email || '',
+        country: bestMatch.country || '',
+        region: bestMatch.region || '',
+        last_name: bestMatch.last_name || '',
+        newsletter: bestMatch.newsletter === 'Y',
+        session_id: sessionId,
+        timestamp: bestMatch.timestamp_utc,
+        confidence: 'high',
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Error matching photo to email:', err);
+    return null;
+  }
+}
+
+// Admin endpoint to get photo info by ticket number
+app.get('/admin/photo-info/:ticketNumber', ensureAdminAuth, async (req, res) => {
+  try {
+    const ticketNumber = req.params.ticketNumber; // e.g., "T001"
+    
+    if (!ticketNumber) {
+      return res.status(400).json({ ok: false, error: 'missing_ticket_number' });
+    }
+
+    const match = await getEmailForPhoto(ticketNumber);
+    
+    if (match) {
+      return res.json({ ok: true, match });
+    } else {
+      return res.json({ ok: false, error: 'no_match_found' });
+    }
+  } catch (err) {
+    console.error('Error getting photo info:', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

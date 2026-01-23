@@ -1122,6 +1122,208 @@
     cursor: default;
   }
 
+  /* PHOTO INFO OVERLAY */
+  .photo-info-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: hsla(225, 10%, 8%, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  :root[data-theme="light"] .photo-info-overlay {
+    background: hsla(220, 33%, 97%, 0.85);
+  }
+
+  .photo-info-content {
+    width: 90%;
+    max-width: 600px;
+    max-height: calc(100dvh - 64px);
+    overflow-y: auto;
+    border-radius: calc(var(--radius) + 4px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+
+  .photo-info-preview {
+    width: 100%;
+    margin-bottom: 1.5rem;
+    border-radius: calc(var(--radius) - 2px);
+    overflow: hidden;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+  }
+
+  .photo-info-preview-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    max-height: 400px;
+  }
+
+  .photo-info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .photo-info-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: var(--foreground);
+    margin: 0;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .photo-info-close {
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: calc(var(--radius) - 4px);
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .photo-info-close:hover {
+    background: var(--secondary);
+    border-color: var(--primary);
+    color: var(--foreground);
+  }
+
+  .photo-info-close svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .photo-info-body {
+    padding: 1.5rem;
+  }
+
+  .photo-info-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  .photo-info-loading .spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .photo-info-content-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .photo-info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .photo-info-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: var(--muted-foreground);
+    font-weight: 500;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .photo-info-value {
+    font-size: 0.875rem;
+    color: var(--foreground);
+    font-weight: 500;
+    word-break: break-word;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .photo-info-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .photo-info-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: calc(var(--radius) - 2px);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .photo-info-btn svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .photo-info-btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+  }
+
+  .photo-info-btn-primary:hover {
+    background: var(--primary);
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px hsla(268, 85%, 70%, 0.3);
+  }
+
+  .photo-info-btn-secondary {
+    background: transparent;
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+
+  .photo-info-btn-secondary:hover {
+    background: var(--secondary);
+    border-color: var(--primary);
+  }
+
+  .photo-info-error {
+    padding: 2rem;
+    text-align: center;
+    color: var(--destructive);
+    font-size: 0.875rem;
+  }
+
   /* REPORT MODAL (for Event Reports menu) */
 
   .modal-overlay {
@@ -2033,6 +2235,73 @@
         <button id="viewerNextBtn" type="button" class="viewer-nav-btn primary">
           Next ›
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHOTO INFO OVERLAY -->
+  <div id="photoInfoOverlay" class="photo-info-overlay" style="display: none;">
+    <div class="photo-info-content glass-panel">
+      <div class="photo-info-header">
+        <h3 class="photo-info-title">PHOTO DETAILS</h3>
+        <button class="photo-info-close" id="photoInfoClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="photo-info-body">
+        <div id="photoInfoLoading" class="photo-info-loading">
+          <div class="spinner"></div>
+          <span>Loading photo information...</span>
+        </div>
+
+        <div id="photoInfoContent" class="photo-info-content-inner" style="display: none;">
+          <!-- Photo Preview -->
+          <div class="photo-info-preview">
+            <img id="photoInfoPreviewImg" class="photo-info-preview-img" alt="Photo preview" />
+          </div>
+
+          <div class="photo-info-section">
+            <div class="photo-info-label">USER EMAIL</div>
+            <div id="photoInfoEmail" class="photo-info-value">—</div>
+          </div>
+
+          <div class="photo-info-section">
+            <div class="photo-info-label">LOCATION</div>
+            <div id="photoInfoLocation" class="photo-info-value">—</div>
+          </div>
+
+          <div class="photo-info-section">
+            <div class="photo-info-label">LAST NAME</div>
+            <div id="photoInfoName" class="photo-info-value">—</div>
+          </div>
+
+          <div class="photo-info-actions">
+            <button id="photoInfoDownloadTemplate" class="photo-info-btn photo-info-btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>DOWNLOAD FOR INSTAGRAM</span>
+            </button>
+            <button id="photoInfoDownloadOriginal" class="photo-info-btn photo-info-btn-secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>DOWNLOAD ORIGINAL</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="photoInfoError" class="photo-info-error" style="display: none;">
+          <p>Unable to load photo information.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -3223,7 +3492,10 @@ function hideReportLoading() {
       btn.appendChild(actions);
 
       btn.addEventListener("click", () => {
-        openApprovedViewer(fileId, imgUrl);
+        // Get filename from cache to extract ticket number
+        const item = approvedFilesCache.find(f => f.fileId === fileId);
+        const fileName = item?.fileName || fileId;
+        openPhotoInfoOverlay(fileId, fileName);
       });
 
       return btn;
@@ -3309,6 +3581,7 @@ function hideReportLoading() {
         files.forEach((f) => {
           let fileId = null;
           let imgUrl = "";
+          let fileName = "";
 
           if (typeof f === "string") {
             if (f.startsWith("http://") || f.startsWith("https://")) {
@@ -3319,6 +3592,7 @@ function hideReportLoading() {
             }
           } else if (f && typeof f === "object") {
             fileId = f.id || f.fileId || f.name || null;
+            fileName = f.name || f.fileName || "";
             imgUrl =
               f.url ||
               f.thumbnailUrl ||
@@ -3335,8 +3609,9 @@ function hideReportLoading() {
 
           if (!imgUrl) return;
           if (!fileId) fileId = imgUrl;
+          if (!fileName) fileName = fileId;
 
-          approvedFilesCache.push({ fileId, imgUrl });
+          approvedFilesCache.push({ fileId, imgUrl, fileName });
         });
 
         approvedPageIndex = 0;
@@ -3622,6 +3897,170 @@ function hideReportLoading() {
       const item = approvedFilesCache[viewerCurrentIndex];
       if (!item) return;
       openApprovedViewer(item.fileId, item.imgUrl);
+    });
+
+    // Photo Info Overlay Variables
+    let currentPhotoInfo = {
+      fileId: null,
+      ticketNumber: null,
+      userInfo: null,
+    };
+
+    const photoInfoOverlay = document.getElementById("photoInfoOverlay");
+    const photoInfoClose = document.getElementById("photoInfoClose");
+    const photoInfoLoading = document.getElementById("photoInfoLoading");
+    const photoInfoContent = document.getElementById("photoInfoContent");
+    const photoInfoError = document.getElementById("photoInfoError");
+    const photoInfoPreviewImg = document.getElementById("photoInfoPreviewImg");
+    const photoInfoEmail = document.getElementById("photoInfoEmail");
+    const photoInfoLocation = document.getElementById("photoInfoLocation");
+    const photoInfoName = document.getElementById("photoInfoName");
+    const photoInfoDownloadTemplate = document.getElementById("photoInfoDownloadTemplate");
+    const photoInfoDownloadOriginal = document.getElementById("photoInfoDownloadOriginal");
+
+    // Extract ticket number from filename
+    function extractTicketFromFileName(fileName) {
+      if (!fileName || typeof fileName !== "string") return null;
+      // Pattern: T001-... or legacy 01_...
+      const match = fileName.match(/^T(\d+)-/i) || fileName.match(/^(\d+)_/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `T${String(num).padStart(3, "0")}`;
+      }
+      return null;
+    }
+
+    // Open photo info overlay
+    async function openPhotoInfoOverlay(fileId, fileName) {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      // Load photo preview
+      const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
+        fileId
+      )}?token=${encodeURIComponent(adminToken || "")}`;
+      photoInfoPreviewImg.src = photoUrl;
+
+      const ticketNumber = extractTicketFromFileName(fileName);
+      if (!ticketNumber) {
+        // Still show overlay but with no match
+        currentPhotoInfo = { fileId, ticketNumber: null, userInfo: null };
+        photoInfoOverlay.style.display = "flex";
+        photoInfoLoading.style.display = "none";
+        photoInfoContent.style.display = "flex";
+        photoInfoError.style.display = "none";
+        photoInfoEmail.textContent = "No email";
+        photoInfoLocation.textContent = "No country";
+        photoInfoName.textContent = "No last name";
+        return;
+      }
+
+      currentPhotoInfo = { fileId, ticketNumber, userInfo: null };
+      photoInfoOverlay.style.display = "flex";
+      photoInfoLoading.style.display = "flex";
+      photoInfoContent.style.display = "none";
+      photoInfoError.style.display = "none";
+
+      try {
+        const res = await fetch(
+          `${BASE_URL}/admin/photo-info/${encodeURIComponent(ticketNumber)}`,
+          {
+            headers: withAdminHeaders(),
+          }
+        );
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Enter the access code to continue.");
+          closePhotoInfoOverlay();
+          return;
+        }
+
+        const data = await res.json();
+        photoInfoLoading.style.display = "none";
+
+        if (data.ok && data.match) {
+          const match = data.match;
+          currentPhotoInfo.userInfo = match;
+
+          // Display user info with fallbacks
+          photoInfoEmail.textContent = match.email || "No email";
+          
+          const locationParts = [match.region, match.country].filter(Boolean);
+          photoInfoLocation.textContent = locationParts.length > 0 
+            ? locationParts.join(", ") 
+            : "No country";
+          
+          photoInfoName.textContent = match.last_name || "No last name";
+
+          photoInfoContent.style.display = "flex";
+        } else {
+          // No match found - still show overlay but with no data
+          currentPhotoInfo.userInfo = null;
+          photoInfoEmail.textContent = "No email";
+          photoInfoLocation.textContent = "No country";
+          photoInfoName.textContent = "No last name";
+          photoInfoContent.style.display = "flex";
+        }
+      } catch (err) {
+        console.error("Error loading photo info:", err);
+        photoInfoLoading.style.display = "none";
+        photoInfoError.style.display = "block";
+      }
+    }
+
+    // Close photo info overlay
+    function closePhotoInfoOverlay() {
+      photoInfoOverlay.style.display = "none";
+      currentPhotoInfo = { fileId: null, ticketNumber: null, userInfo: null };
+    }
+
+    // Download with template (no user info printed)
+    photoInfoDownloadTemplate.addEventListener("click", () => {
+      if (!currentPhotoInfo.fileId) return;
+      downloadApprovedWithFrame(currentPhotoInfo.fileId);
+    });
+
+    // Download original (clean photo)
+    photoInfoDownloadOriginal.addEventListener("click", async () => {
+      if (!currentPhotoInfo.fileId) return;
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      try {
+        const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
+          currentPhotoInfo.fileId
+        )}?token=${encodeURIComponent(adminToken || "")}`;
+
+        const response = await fetch(photoUrl);
+        if (!response.ok) {
+          throw new Error("Failed to fetch photo");
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mayaguez_selfie_${currentPhotoInfo.fileId}_original.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Error downloading original photo:", err);
+        alert("Could not download the photo. Please try again.");
+      }
+    });
+
+    // Close handlers
+    photoInfoClose.addEventListener("click", closePhotoInfoOverlay);
+    photoInfoOverlay.addEventListener("click", (e) => {
+      if (e.target === photoInfoOverlay) {
+        closePhotoInfoOverlay();
+      }
     });
 
     function getYesterdayDateString() {
