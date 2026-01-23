@@ -2247,11 +2247,71 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
 // --------- ADMIN: list / manage APPROVED photos ----------
 
 // List approved photos for the admin thumbnail grid
+// List files in folder with pagination support
+async function listFilesInFolderPaginated(folderId, page = 1, pageSize = 24) {
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+  const size = Math.max(1, Math.min(100, parseInt(pageSize, 10) || 24));
+  
+  let pageToken = null;
+  const allResults = [];
+  let totalCount = 0;
+
+  // First, get total count by fetching all (or we could optimize this later)
+  // For now, we'll fetch all pages but only return the requested page
+  do {
+    const res = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'files(id, name, createdTime), nextPageToken',
+      orderBy: 'createdTime desc', // Newest first
+      pageSize: 100,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageToken,
+    });
+
+    const files = res.data.files || [];
+    for (const f of files) {
+      allResults.push({
+        id: f.id,
+        name: f.name,
+        createdTime: f.createdTime,
+      });
+    }
+
+    pageToken = res.data.nextPageToken;
+  } while (pageToken);
+
+  totalCount = allResults.length;
+
+  // Calculate pagination
+  const startIndex = (pageNumber - 1) * size;
+  const endIndex = startIndex + size;
+  const paginatedResults = allResults.slice(startIndex, endIndex);
+
+  return {
+    files: paginatedResults,
+    total: totalCount,
+    page: pageNumber,
+    pageSize: size,
+    totalPages: Math.ceil(totalCount / size),
+  };
+}
+
 app.get('/admin/approved-list', ensureAdminAuth, async (req, res) => {
   try {
-    const files = await listFilesInFolder(APPROVED_FOLDER_ID);
+    const page = parseInt(req.query.page, 10) || 1;
+    const pageSize = parseInt(req.query.pageSize, 10) || 24;
+    
+    const result = await listFilesInFolderPaginated(APPROVED_FOLDER_ID, page, pageSize);
     // admin UI can build thumb src as /admin/photo/:id?token=...
-    res.json({ ok: true, files });
+    res.json({ 
+      ok: true, 
+      files: result.files,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+      totalPages: result.totalPages
+    });
   } catch (err) {
     console.error('Error listing approved files for admin:', err);
     res.status(500).json({ ok: false, error: 'list_approved_failed' });
