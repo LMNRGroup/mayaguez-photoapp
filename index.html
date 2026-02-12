@@ -758,19 +758,6 @@
       </p>
     </div>
   </div>
-  <div id="landingModal" class="landing-modal">
-    <div class="landing-card">
-      <img
-        src="Assets/Somos Mayaguez Logo.png"
-        alt="Somos Mayagüez"
-        class="landing-logo"
-        id="landingLogoPrimary"
-      />
-      <button class="landing-button" id="landingPhotoAppBtn">Mayagüez Photo App</button>
-      <button class="landing-button secondary" id="landingWebsiteBtn">Visit Our Website</button>
-      <img src="Assets/Fitur_Logo.png" alt="Fitur" class="landing-logo secondary" />
-    </div>
-  </div>
   <div id="languageModal" class="language-modal">
     <div class="language-card">
       <h2>Selecciona idioma / Select language</h2>
@@ -785,7 +772,6 @@
     <div class="intro-backdrop">
       <div class="intro-box">
         <div class="intro-close" id="introClose">×</div>
-        <img src="Assets/Fitur_Logo.png" alt="Fitur" class="intro-logo" />
 
         <h2 id="introTitle">¿Desde dónde nos visitas?</h2>
         <p id="introSubtitle">
@@ -2187,7 +2173,12 @@ captureButton.addEventListener('click', () => {
       if (!appIsEnabled) {
         return;
       }
-      showLandingModal();
+      // Skip landing overlay – go straight to language (if needed) or form/camera
+      if (initializeLanguage()) {
+        finalizeIntroFlow();
+      } else {
+        showLanguageModal();
+      }
       pingSession();
     });
   </script>
