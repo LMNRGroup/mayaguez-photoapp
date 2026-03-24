@@ -2799,6 +2799,23 @@ View report to see the most recent interactions
 
               <div class="settings-section">
                 <div class="settings-section-header">
+                  <div class="settings-section-title">GALLERY TEMPLATE</div>
+                  <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="settings-section-content">
+                  <div class="settings-grid">
+                    <label class="settings-label" for="settingsActiveTemplateId">Active gallery template</label>
+                    <select id="settingsActiveTemplateId" class="settings-input">
+                      <option value="">Use current fallback layout</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-header">
                   <div class="settings-section-title">INTRO COPY</div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -2912,7 +2929,31 @@ View report to see the most recent interactions
                   </svg>
                   <span>ADD LOGO</span>
                 </button>
+                <button id="templateAddQrBtn" class="template-toolbar-btn" title="Add QR Code">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="6" height="6"></rect>
+                    <rect x="15" y="3" width="6" height="6"></rect>
+                    <rect x="3" y="15" width="6" height="6"></rect>
+                    <path d="M15 15h3v3h-3z"></path>
+                    <path d="M18 18h3v3h-3z"></path>
+                    <path d="M15 12h6"></path>
+                  </svg>
+                  <span>ADD QR CODE</span>
+                </button>
                 <div class="template-toolbar-actions">
+                  <button id="templatePreviewBtn" class="template-toolbar-btn" title="Preview Template">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>PREVIEW</span>
+                  </button>
+                  <button id="templateSetActiveBtn" class="template-toolbar-btn" title="Set as Live Template">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M5 12l5 5L20 7"></path>
+                    </svg>
+                    <span>SET AS TEMPLATE</span>
+                  </button>
                   <button id="templateDeleteBtn" class="template-toolbar-btn template-toolbar-btn-danger" style="display: none;" title="Delete Template">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="3 6 5 6 21 6"></polyline>
@@ -2937,8 +2978,9 @@ View report to see the most recent interactions
                 <option value="Assets/Templates/SomosMayaguezFull.png">Somos Mayaguez Full</option>
                 <option value="Assets/Templates/SomosMayaguezLeft.png">Somos Mayaguez Left</option>
               </select>
-              <input type="file" id="templateBackgroundUpload" accept="image/*" style="display: none;" />
+              <input type="file" id="templateBackgroundUpload" accept=".png,.jpg,.jpeg,image/png,image/jpeg" style="display: none;" />
               <input type="file" id="templateLogoUpload" accept="image/*" style="display: none;" />
+              <input type="file" id="templateQrUpload" accept=".svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg" style="display: none;" />
 
               <div class="template-editor-wrapper">
                 <div id="templateCanvas" class="template-canvas">
@@ -3570,6 +3612,7 @@ function hideGlobalLoader() {
     const settingsGalleryDisplayLimit = document.getElementById("settingsGalleryDisplayLimit");
     const settingsGalleryDisplayCustom = document.getElementById("settingsGalleryDisplayCustom");
     const settingsGalleryDisplayCustomLabel = document.getElementById("settingsGalleryDisplayCustomLabel");
+    const settingsActiveTemplateId = document.getElementById("settingsActiveTemplateId");
     const settingsIntroTitle = document.getElementById("settingsIntroTitle");
     const settingsIntroSubtitle = document.getElementById("settingsIntroSubtitle");
     const settingsLocationEnabled = document.getElementById("settingsLocationEnabled");
@@ -5326,12 +5369,16 @@ function hideReportLoading() {
     const templateLoadBtn = document.getElementById("templateLoadBtn");
     const templateBackgroundBtn = document.getElementById("templateBackgroundBtn");
     const templateAddLogoBtn = document.getElementById("templateAddLogoBtn");
+    const templateAddQrBtn = document.getElementById("templateAddQrBtn");
     const templateLoadSelect = document.getElementById("templateLoadSelect");
     const templateBackgroundSelect = document.getElementById("templateBackgroundSelect");
     const templateBackgroundImg = document.getElementById("templateBackgroundImg");
     const templateBackgroundUpload = document.getElementById("templateBackgroundUpload");
     const templateLogoSelect = document.getElementById("templateLogoSelect");
     const templateLogoUpload = document.getElementById("templateLogoUpload");
+    const templateQrUpload = document.getElementById("templateQrUpload");
+    const templatePreviewBtn = document.getElementById("templatePreviewBtn");
+    const templateSetActiveBtn = document.getElementById("templateSetActiveBtn");
     const templateDoneBtn = document.getElementById("templateDoneBtn");
     const templateDeleteBtn = document.getElementById("templateDeleteBtn");
     const templateCanvas = document.getElementById("templateCanvas");
@@ -5339,6 +5386,7 @@ function hideReportLoading() {
 
     let selectedLogo = null;
     let currentTemplateId = null; // Track if we're editing an existing template
+    let currentTemplateName = "";
     let isDragging = false;
     let isResizing = false;
     let dragStartX = 0;
@@ -5348,6 +5396,10 @@ function hideReportLoading() {
     let logoStartWidth = 0;
     let logoStartHeight = 0;
     let resizeHandle = null;
+    const TEMPLATE_STAGE_WIDTH = 1920;
+    const TEMPLATE_STAGE_HEIGHT = 1080;
+    const TEMPLATE_PHOTO_WIDTH = 1500;
+    const TEMPLATE_PHOTO_HEIGHT = 1000;
 
     // Available logo assets
     const logoAssets = [
@@ -5380,6 +5432,14 @@ function hideReportLoading() {
       });
     }
 
+    if (templateAddQrBtn) {
+      templateAddQrBtn.addEventListener("click", () => {
+        if (templateQrUpload) {
+          templateQrUpload.click();
+        }
+      });
+    }
+
     // Reset template editor to default state
     function resetTemplateEditor() {
       // Clear all logos
@@ -5388,6 +5448,7 @@ function hideReportLoading() {
       }
       selectedLogo = null;
       currentTemplateId = null;
+      currentTemplateName = "";
       
       // Reset background to default
       if (templateBackgroundImg) {
@@ -5439,6 +5500,7 @@ function hideReportLoading() {
 
         // Set current template ID for editing
         currentTemplateId = templateId;
+        currentTemplateName = template.name || "";
         if (templateDeleteBtn) {
           templateDeleteBtn.style.display = "inline-flex";
         }
@@ -5596,6 +5658,11 @@ function hideReportLoading() {
       const content = document.createElement("div");
       content.style.cssText = "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;";
 
+      const requirements = document.createElement("div");
+      requirements.style.cssText = "padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); background: var(--secondary); color: var(--muted-foreground); font-size: 0.875rem; line-height: 1.5;";
+      requirements.innerHTML = `Background requirements: upload a horizontal PNG or JPEG that is exactly ${TEMPLATE_STAGE_WIDTH} x ${TEMPLATE_STAGE_HEIGHT}. The user photo always sits in the centered ${TEMPLATE_PHOTO_WIDTH} x ${TEMPLATE_PHOTO_HEIGHT} photo layer above the background and below any logos.`;
+      content.appendChild(requirements);
+
       // Preloaded backgrounds
       backgroundAssets.forEach((asset) => {
         const btn = document.createElement("button");
@@ -5730,6 +5797,140 @@ function hideReportLoading() {
           // Load lower resolution for editing (you can add ?w=960 or similar if your server supports it)
           templateBackgroundImg.src = newSrc;
           templateBackgroundImg.loading = "lazy";
+        }
+      });
+    }
+
+    async function uploadTemplateAsset(file, assetType) {
+      if (!file) return null;
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return null;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("assetType", assetType);
+
+      const res = await fetch(`${BASE_URL}/admin/templates/upload-asset`, {
+        method: "POST",
+        headers: withAdminHeaders(),
+        body: formData,
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        showLock("Session expired. Enter the access code.");
+        return null;
+      }
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) {}
+
+      if (!res.ok || !data.ok || !data.fileId) {
+        throw new Error(data.error || "upload_asset_failed");
+      }
+
+      return data;
+    }
+
+    function readImageDimensionsFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+          const dimensions = {
+            width: img.naturalWidth || 0,
+            height: img.naturalHeight || 0,
+          };
+          URL.revokeObjectURL(objectUrl);
+          resolve(dimensions);
+        };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error("invalid_image_file"));
+        };
+
+        img.src = objectUrl;
+      });
+    }
+
+    async function validateTemplateBackgroundFile(file) {
+      const allowedTypes = ["image/png", "image/jpeg"];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error("Background must be a PNG or JPEG file.");
+      }
+
+      const { width, height } = await readImageDimensionsFromFile(file);
+      if (width !== TEMPLATE_STAGE_WIDTH || height !== TEMPLATE_STAGE_HEIGHT) {
+        throw new Error(`Background must be exactly ${TEMPLATE_STAGE_WIDTH} x ${TEMPLATE_STAGE_HEIGHT}px.`);
+      }
+
+      if (width < TEMPLATE_STAGE_WIDTH || height < TEMPLATE_STAGE_HEIGHT) {
+        throw new Error(`Background cannot be smaller than ${TEMPLATE_STAGE_WIDTH} x ${TEMPLATE_STAGE_HEIGHT}px.`);
+      }
+    }
+
+    if (templateBackgroundUpload) {
+      templateBackgroundUpload.addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        try {
+          await validateTemplateBackgroundFile(file);
+          const uploaded = await uploadTemplateAsset(file, "background");
+          if (!uploaded) return;
+
+          templateBackgroundImg.src = `${BASE_URL}/admin/templates/asset/${uploaded.fileId}`;
+          if (templateBackgroundSelect) {
+            templateBackgroundSelect.value = "";
+          }
+        } catch (err) {
+          console.error("Error uploading template background:", err);
+          alert(err && err.message ? err.message : "Failed to upload background. Please try again.");
+        } finally {
+          templateBackgroundUpload.value = "";
+        }
+      });
+    }
+
+    if (templateLogoUpload) {
+      templateLogoUpload.addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        try {
+          const uploaded = await uploadTemplateAsset(file, "logo");
+          if (!uploaded) return;
+
+          await addLogoToCanvas(`${BASE_URL}/admin/templates/asset/${uploaded.fileId}`);
+        } catch (err) {
+          console.error("Error uploading template logo:", err);
+          alert("Failed to upload logo. Please try again.");
+        } finally {
+          templateLogoUpload.value = "";
+        }
+      });
+    }
+
+    if (templateQrUpload) {
+      templateQrUpload.addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        try {
+          const uploaded = await uploadTemplateAsset(file, "logo");
+          if (!uploaded) return;
+
+          await addLogoToCanvas(`${BASE_URL}/admin/templates/asset/${uploaded.fileId}`);
+        } catch (err) {
+          console.error("Error uploading QR code overlay:", err);
+          alert("Failed to upload QR code image. Please try again.");
+        } finally {
+          templateQrUpload.value = "";
         }
       });
     }
@@ -6072,6 +6273,31 @@ function hideReportLoading() {
       });
     }
 
+    if (templatePreviewBtn) {
+      templatePreviewBtn.addEventListener("click", () => {
+        showTemplatePreview(currentTemplateName || "Template Preview");
+      });
+    }
+
+    if (templateSetActiveBtn) {
+      templateSetActiveBtn.addEventListener("click", async () => {
+        if (!currentTemplateId) {
+          alert("Save this template first, then you can set it as the live gallery template.");
+          return;
+        }
+
+        showTemplatePreview(currentTemplateName || "Template Preview", async () => {
+          const confirmed = window.confirm("Use this template in the live gallery?");
+          if (!confirmed) return;
+
+          const success = await setTemplateAsActive(currentTemplateId);
+          if (success) {
+            alert(`Template "${currentTemplateName || currentTemplateId}" is now the live gallery template.`);
+          }
+        });
+      });
+    }
+
     // Delete template button
     if (templateDeleteBtn) {
       templateDeleteBtn.addEventListener("click", async () => {
@@ -6146,9 +6372,71 @@ function hideReportLoading() {
       });
       
       return {
+        canvasWidth: templateCanvas ? templateCanvas.offsetWidth : 0,
+        canvasHeight: templateCanvas ? templateCanvas.offsetHeight : 0,
         background,
         logos
       };
+    }
+
+    async function setTemplateAsActive(templateId) {
+      if (!templateId) {
+        alert("Save the template first, then set it as the live template.");
+        return false;
+      }
+
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return false;
+      }
+
+      try {
+        const currentSettingsRes = await fetch(`${BASE_URL}/admin/settings`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (currentSettingsRes.status === 401 || currentSettingsRes.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return false;
+        }
+
+        if (!currentSettingsRes.ok) {
+          throw new Error("settings_load_failed");
+        }
+
+        const currentSettingsData = await currentSettingsRes.json();
+        const currentSettings = currentSettingsData && currentSettingsData.settings ? currentSettingsData.settings : {};
+        const payload = {
+          ...currentSettings,
+          activeTemplateId: String(templateId),
+        };
+
+        const res = await fetch(`${BASE_URL}/admin/settings`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(payload),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return false;
+        }
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "set_active_template_failed");
+        }
+
+        if (settingsActiveTemplateId) {
+          settingsActiveTemplateId.value = String(templateId);
+        }
+
+        return true;
+      } catch (err) {
+        console.error("Error setting active template:", err);
+        alert("Failed to set the live template. Please try again.");
+        return false;
+      }
     }
 
     function showTemplateNameOverlay() {
@@ -6232,6 +6520,10 @@ function hideReportLoading() {
           
           const data = await res.json();
           if (data && data.ok) {
+            if (data.template && data.template.id) {
+              currentTemplateId = String(data.template.id);
+            }
+            currentTemplateName = name;
             document.body.removeChild(overlay);
             alert(`Template "${name}" saved successfully!`);
             // Reload templates list
@@ -6476,9 +6768,55 @@ reportViewBtn.addEventListener("click", async () => {
       }
     }
 
+    async function loadTemplateSettingsOptions(selectedTemplateId = "") {
+      if (!settingsActiveTemplateId) return;
+
+      settingsActiveTemplateId.innerHTML = "";
+
+      const fallbackOption = document.createElement("option");
+      fallbackOption.value = "";
+      fallbackOption.textContent = "Use current fallback layout";
+      settingsActiveTemplateId.appendChild(fallbackOption);
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("templates_load_failed");
+        }
+
+        const data = await res.json();
+        const templates = (data.templates || []).filter((template) => template && template.isActive);
+
+        templates.forEach((template) => {
+          const option = document.createElement("option");
+          option.value = String(template.id);
+          option.textContent = template.name || `Template ${template.id}`;
+          settingsActiveTemplateId.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error loading template options", err);
+      }
+
+      settingsActiveTemplateId.value = selectedTemplateId ? String(selectedTemplateId) : "";
+      if (settingsActiveTemplateId.value !== (selectedTemplateId ? String(selectedTemplateId) : "")) {
+        settingsActiveTemplateId.value = "";
+      }
+    }
+
     function fillSettingsForm(settings) {
       if (!settings) return;
       settingsTicketEnabled.checked = Boolean(settings.ticketEnabled);
+      if (settingsActiveTemplateId) {
+        settingsActiveTemplateId.value = settings.activeTemplateId ? String(settings.activeTemplateId) : "";
+      }
       
       // Handle gallery display limit (support custom:20 format)
       const galleryLimit = settings.galleryDisplayLimit || "all";
@@ -6532,6 +6870,7 @@ reportViewBtn.addEventListener("click", async () => {
       return {
         ticketEnabled: settingsTicketEnabled.checked,
         galleryDisplayLimit: galleryDisplayLimit,
+        activeTemplateId: settingsActiveTemplateId ? settingsActiveTemplateId.value : "",
         intro: {
           title: settingsIntroTitle.value.trim(),
           subtitle: settingsIntroSubtitle.value.trim(),
@@ -6589,6 +6928,7 @@ reportViewBtn.addEventListener("click", async () => {
         }
         const data = await res.json();
         if (data && data.settings) {
+          await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
           fillSettingsForm(data.settings);
           setSettingsStatus("");
         } else {

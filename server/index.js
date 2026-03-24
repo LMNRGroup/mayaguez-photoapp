@@ -183,6 +183,7 @@ let appSessionId = null;
 const DEFAULT_APP_SETTINGS = {
   ticketEnabled: true,
   galleryDisplayLimit: 'all', // 'all', 'last10', 'last25'
+  activeTemplateId: '',
   intro: {
     title: '¿Desde dónde nos visitas? 😊',
     subtitle: 'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.'
@@ -214,6 +215,7 @@ let settingsLoadedFromSheet = false;
 const SETTINGS_FIELDS = [
   { key: 'Ticket Overlay Enabled', type: 'boolean', path: ['ticketEnabled'] },
   { key: 'Gallery Display Limit', type: 'string', path: ['galleryDisplayLimit'] },
+  { key: 'Active Template ID', type: 'string', path: ['activeTemplateId'] },
   { key: 'Intro Title', type: 'string', path: ['intro', 'title'] },
   { key: 'Intro Subtitle', type: 'string', path: ['intro', 'subtitle'] },
   { key: 'Location Enabled', type: 'boolean', path: ['form', 'locationEnabled'] },
@@ -306,6 +308,11 @@ function mergeAppSettings(patch = {}) {
     } else {
       next.galleryDisplayLimit = 'all';
     }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'activeTemplateId')) {
+    const rawTemplateId = patch.activeTemplateId;
+    next.activeTemplateId = rawTemplateId == null ? '' : String(rawTemplateId).trim();
   }
 
   if (patch.intro && typeof patch.intro === 'object') {
@@ -610,6 +617,75 @@ async function readTemplatesFromSheet() {
     console.warn('Unable to read templates from sheet:', err.message || err);
     return [];
   }
+}
+
+function normalizeTemplateId(value) {
+  const normalized = value == null ? '' : String(value).trim();
+  return normalized;
+}
+
+async function getTemplateById(templateId) {
+  const normalizedId = normalizeTemplateId(templateId);
+  if (!normalizedId) return null;
+
+  const templates = await readTemplatesFromSheet();
+  return templates.find((template) => String(template.id) === normalizedId) || null;
+}
+
+function buildPublicTemplateAssetUrl(fileId) {
+  return `/gallery/template-asset/${encodeURIComponent(fileId)}`;
+}
+
+function resolveTemplateAsset(asset) {
+  if (!asset || !asset.value) return null;
+
+  if (asset.type === 'uploaded') {
+    return {
+      type: 'uploaded',
+      value: asset.value,
+      url: buildPublicTemplateAssetUrl(asset.value)
+    };
+  }
+
+  return {
+    type: 'preloaded',
+    value: asset.value,
+    url: asset.value
+  };
+}
+
+function serializeTemplateForPublic(template) {
+  if (!template || !template.data) return null;
+
+  const background = resolveTemplateAsset(template.data.background);
+  const logos = Array.isArray(template.data.logos)
+    ? template.data.logos
+        .map((logo) => {
+          const resolved = resolveTemplateAsset(logo);
+          if (!resolved) return null;
+
+          return {
+            type: resolved.type,
+            value: resolved.value,
+            url: resolved.url,
+            x: Number.isFinite(Number(logo.x)) ? Number(logo.x) : 0,
+            y: Number.isFinite(Number(logo.y)) ? Number(logo.y) : 0,
+            width: Number.isFinite(Number(logo.width)) ? Number(logo.width) : 0,
+            height: Number.isFinite(Number(logo.height)) ? Number(logo.height) : 0,
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  return {
+    id: template.id,
+    name: template.name,
+    createdAt: template.createdAt || '',
+    canvasWidth: Number.isFinite(Number(template.data.canvasWidth)) ? Number(template.data.canvasWidth) : 1920,
+    canvasHeight: Number.isFinite(Number(template.data.canvasHeight)) ? Number(template.data.canvasHeight) : 1080,
+    background,
+    logos
+  };
 }
 
 async function writeTemplateToSheet(name, templateData, isActive = true) {
@@ -2593,6 +2669,65 @@ app.get('/gallery/photo/:fileId', async (req, res) => {
     if (!res.headersSent) {
       res.status(404).end();
     }
+  }
+});
+
+app.get('/gallery/template-asset/:fileId', async (req, res) => {
+  const { fileId } = req.params;
+
+  try {
+    const driveRes = await drive.files.get(
+      {
+        fileId,
+        alt: 'media',
+      },
+      { responseType: 'stream' }
+    );
+
+    try {
+      const metadata = await drive.files.get({
+        fileId,
+        fields: 'mimeType'
+      });
+      res.setHeader('Content-Type', metadata.data.mimeType || 'image/jpeg');
+    } catch {
+      res.setHeader('Content-Type', 'image/jpeg');
+    }
+
+    driveRes.data
+      .on('error', (err) => {
+        console.error('Drive stream error (gallery template asset):', err);
+        if (!res.headersSent) {
+          res.end();
+        }
+      })
+      .pipe(res);
+  } catch (err) {
+    console.error('Error streaming gallery template asset', err);
+    if (!res.headersSent) {
+      res.status(404).end();
+    }
+  }
+});
+
+app.get('/gallery/active-template', async (req, res) => {
+  try {
+    await hydrateSettingsFromSheet();
+
+    const activeTemplateId = normalizeTemplateId(appSettings.activeTemplateId);
+    if (!activeTemplateId) {
+      return res.json({ ok: true, template: null });
+    }
+
+    const template = await getTemplateById(activeTemplateId);
+    if (!template || template.isActive === false) {
+      return res.json({ ok: true, template: null });
+    }
+
+    return res.json({ ok: true, template: serializeTemplateForPublic(template) });
+  } catch (err) {
+    console.error('Error loading active gallery template', err);
+    return res.status(500).json({ ok: false, error: 'active_template_failed' });
   }
 });
 

@@ -66,6 +66,17 @@
       justify-content: center;
     }
 
+    .template-background-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      pointer-events: none;
+      display: none;
+    }
+
     /* Photos inside window - display at native 1500x1000 size, centered */
     .photo {
       position: absolute;
@@ -89,6 +100,25 @@
       object-fit: fill;
       z-index: 10;
       pointer-events: none;
+    }
+
+    .template-logos-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .template-logo-layer {
+      position: absolute;
+      overflow: hidden;
+    }
+
+    .template-logo-layer img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
     }
 
     /* Waiting text */
@@ -165,6 +195,8 @@
   <div class="wall">
     <div class="stage">
 
+      <img id="templateBackground" class="template-background-layer" alt="Template Background" />
+
       <!-- PHOTO WINDOW -->
 <div class="photo-window">
   <img id="photoA" class="photo" alt="Selfie aprobado A" />
@@ -181,10 +213,13 @@
 
       <!-- FRONT FRAME (transparent PNG) - 1920x1080 template on top -->
       <img
+        id="fallbackFrameImage"
         class="frame-image"
         src="Assets/template.png"
         alt="Gallery Layout Template"
       />
+
+      <div id="templateLogos" class="template-logos-layer"></div>
 
       <!-- Sort order selector -->
       <div class="sort-control">
@@ -206,6 +241,9 @@
     const imgB = document.getElementById("photoB");
     const emptyEl = document.getElementById("galleryEmpty");
     const ticketBadgeEl = document.getElementById("ticketBadge");
+    const templateBackgroundEl = document.getElementById("templateBackground");
+    const templateLogosEl = document.getElementById("templateLogos");
+    const fallbackFrameImageEl = document.getElementById("fallbackFrameImage");
 
     const imgSlots = [imgA, imgB];
     let activeIndex = 0;
@@ -215,6 +253,7 @@
     let currentIndex = 0;
     let rotateTimer = null;
     let refreshTimer = null;
+    let activeTemplateKey = "";
     let sortOrder = localStorage.getItem('gallerySortOrder') || 'newest';
     
     const sortOrderSelect = document.getElementById('sortOrder');
@@ -233,6 +272,113 @@
 
     function buildPhotoUrl(fileId) {
       return `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
+    }
+
+    function normalizeAssetUrl(url) {
+      if (!url) return "";
+      if (url.startsWith("http://") || url.startsWith("https://")) return url;
+      if (url.startsWith("/")) return `${BASE_URL}${url}`;
+      return url;
+    }
+
+    function clearTemplateLayers() {
+      if (templateBackgroundEl) {
+        templateBackgroundEl.style.display = "none";
+        templateBackgroundEl.removeAttribute("src");
+      }
+      if (templateLogosEl) {
+        templateLogosEl.innerHTML = "";
+      }
+      if (fallbackFrameImageEl) {
+        fallbackFrameImageEl.style.display = "block";
+      }
+      activeTemplateKey = "";
+    }
+
+    function buildTemplateKey(template) {
+      if (!template) return "";
+      return JSON.stringify({
+        id: template.id || "",
+        background: template.background ? template.background.url || template.background.value || "" : "",
+        logos: Array.isArray(template.logos)
+          ? template.logos.map((logo) => [
+              logo.url || logo.value || "",
+              logo.x || 0,
+              logo.y || 0,
+              logo.width || 0,
+              logo.height || 0,
+            ])
+          : [],
+      });
+    }
+
+    function renderTemplate(template) {
+      if (!template) {
+        clearTemplateLayers();
+        return;
+      }
+
+      const templateKey = buildTemplateKey(template);
+      if (templateKey === activeTemplateKey) {
+        return;
+      }
+
+      activeTemplateKey = templateKey;
+
+      if (fallbackFrameImageEl) {
+        fallbackFrameImageEl.style.display = "none";
+      }
+
+      if (templateBackgroundEl) {
+        if (template.background && template.background.url) {
+          templateBackgroundEl.src = normalizeAssetUrl(template.background.url);
+          templateBackgroundEl.style.display = "block";
+        } else {
+          templateBackgroundEl.style.display = "none";
+          templateBackgroundEl.removeAttribute("src");
+        }
+      }
+
+      if (templateLogosEl) {
+        templateLogosEl.innerHTML = "";
+        const baseWidth = Number(template.canvasWidth) || 1920;
+        const baseHeight = Number(template.canvasHeight) || 1080;
+
+        (template.logos || []).forEach((logo) => {
+          const logoEl = document.createElement("div");
+          logoEl.className = "template-logo-layer";
+          logoEl.style.left = `${((Number(logo.x) || 0) / baseWidth) * 100}%`;
+          logoEl.style.top = `${((Number(logo.y) || 0) / baseHeight) * 100}%`;
+          logoEl.style.width = `${((Number(logo.width) || 0) / baseWidth) * 100}%`;
+          logoEl.style.height = `${((Number(logo.height) || 0) / baseHeight) * 100}%`;
+
+          const img = document.createElement("img");
+          img.src = normalizeAssetUrl(logo.url || logo.value || "");
+          img.alt = "";
+          logoEl.appendChild(img);
+          templateLogosEl.appendChild(logoEl);
+        });
+      }
+    }
+
+    async function fetchActiveTemplate() {
+      try {
+        const res = await fetch(`${BASE_URL}/gallery/active-template`);
+        if (!res.ok) {
+          console.error("Error fetching active template", res.status);
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          console.error("Active template API returned not ok", data);
+          return;
+        }
+
+        renderTemplate(data.template || null);
+      } catch (err) {
+        console.error("Failed to fetch active template", err);
+      }
     }
 
     // --- Ticket helpers (from filename) ---
@@ -375,6 +521,8 @@
 
     async function fetchApproved() {
       try {
+        await fetchActiveTemplate();
+
         const res = await fetch(`${BASE_URL}/gallery/approved`);
         if (!res.ok) {
           console.error("Error fetching approved list", res.status);
