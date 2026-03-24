@@ -157,38 +157,6 @@
   display: none;    /* JS will set to block when we have a photo */
 }
 
-/* Sort order selector */
-.sort-control {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  z-index: 30;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.sort-control select {
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.85);
-  color: #f9fafb;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.sort-control select:hover {
-  background: rgba(0, 0, 0, 0.95);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.sort-control select:focus {
-  border-color: rgba(255, 255, 255, 0.5);
-}
   </style>
 </head>
 <body>
@@ -220,14 +188,6 @@
       />
 
       <div id="templateLogos" class="template-logos-layer"></div>
-
-      <!-- Sort order selector -->
-      <div class="sort-control">
-        <select id="sortOrder">
-          <option value="newest">Newest to Oldest</option>
-          <option value="oldest">Oldest to Newest</option>
-        </select>
-      </div>
     </div>
   </div>
 
@@ -255,21 +215,8 @@
     let rotateTimer = null;
     let refreshTimer = null;
     let activeTemplateKey = "";
-    let sortOrder = localStorage.getItem('gallerySortOrder') || 'newest';
-    
-    const sortOrderSelect = document.getElementById('sortOrder');
-    if (sortOrderSelect) {
-      sortOrderSelect.value = sortOrder;
-      sortOrderSelect.addEventListener('change', (e) => {
-        sortOrder = e.target.value;
-        localStorage.setItem('gallerySortOrder', sortOrder);
-        sortPhotos();
-        if (photos.length) {
-          currentIndex = 0;
-          startRotation();
-        }
-      });
-    }
+    const sortOrder = "newest";
+    let activeTemplateRequestId = 0;
 
     function buildPhotoUrl(fileId) {
       return `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
@@ -363,14 +310,20 @@
     }
 
     async function fetchActiveTemplate() {
+      const requestId = ++activeTemplateRequestId;
       try {
-        const res = await fetch(`${BASE_URL}/gallery/active-template`);
+        const res = await fetch(`${BASE_URL}/gallery/active-template?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (!res.ok) {
           console.error("Error fetching active template", res.status);
           return;
         }
 
         const data = await res.json();
+        if (requestId !== activeTemplateRequestId) {
+          return;
+        }
         if (!data.ok) {
           console.error("Active template API returned not ok", data);
           return;

@@ -2732,6 +2732,9 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
 app.get('/gallery/active-template', async (req, res) => {
   try {
     await hydrateSettingsFromSheet();
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
 
     const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
     if (snapshot) {
