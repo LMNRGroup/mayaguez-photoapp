@@ -4121,6 +4121,11 @@ function hideReportLoading() {
       return headers;
     }
 
+    function buildAdminTemplateAssetUrl(fileId) {
+      const tokenPart = adminToken ? `?token=${encodeURIComponent(adminToken)}` : "";
+      return `${BASE_URL}/admin/templates/asset/${encodeURIComponent(fileId)}${tokenPart}`;
+    }
+
     async function attemptLogin() {
       const code = accessCodeInput.value.trim();
       if (!code) {
@@ -5979,7 +5984,7 @@ function hideReportLoading() {
           let bgSrc = null;
           if (templateData.background.type === "uploaded") {
             // Load from Drive
-            bgSrc = `${BASE_URL}/admin/templates/asset/${templateData.background.value}`;
+            bgSrc = buildAdminTemplateAssetUrl(templateData.background.value);
           } else {
             // Preloaded asset
             bgSrc = templateData.background.value;
@@ -6001,7 +6006,7 @@ function hideReportLoading() {
             
             if (logoData.type === "uploaded") {
               // Load from Drive
-              logoSrc = `${BASE_URL}/admin/templates/asset/${logoData.value}`;
+              logoSrc = buildAdminTemplateAssetUrl(logoData.value);
             } else {
               // Preloaded asset
               logoSrc = logoData.value;
@@ -6358,7 +6363,7 @@ function hideReportLoading() {
           const uploaded = await uploadTemplateAsset(file, "background");
           if (!uploaded) return;
 
-          templateBackgroundImg.src = `${BASE_URL}/admin/templates/asset/${uploaded.fileId}`;
+          templateBackgroundImg.src = buildAdminTemplateAssetUrl(uploaded.fileId);
           if (templateBackgroundSelect) {
             templateBackgroundSelect.value = "";
           }
@@ -6381,7 +6386,7 @@ function hideReportLoading() {
           const uploaded = await uploadTemplateAsset(file, "logo");
           if (!uploaded) return;
 
-          await addLogoToCanvas(`${BASE_URL}/admin/templates/asset/${uploaded.fileId}`);
+          await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId));
           markTemplateDirty();
         } catch (err) {
           console.error("Error uploading template logo:", err);
@@ -6401,7 +6406,7 @@ function hideReportLoading() {
           const uploaded = await uploadTemplateAsset(file, "logo");
           if (!uploaded) return;
 
-          await addLogoToCanvas(`${BASE_URL}/admin/templates/asset/${uploaded.fileId}`);
+          await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId));
           markTemplateDirty();
         } catch (err) {
           console.error("Error uploading QR code overlay:", err);
