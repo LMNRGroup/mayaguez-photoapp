@@ -4159,6 +4159,34 @@ function hideReportLoading() {
       return `${BASE_URL}/admin/templates/asset/${encodeURIComponent(fileId)}${tokenPart}`;
     }
 
+    function clearPendingBackgroundDraft() {
+      if (pendingBackgroundObjectUrl) {
+        URL.revokeObjectURL(pendingBackgroundObjectUrl);
+      }
+      pendingBackgroundObjectUrl = "";
+      pendingBackgroundFile = null;
+    }
+
+    function setTemplateBackgroundSource({ type = "", value = "", src = "", file = null } = {}) {
+      if (type !== "local") {
+        clearPendingBackgroundDraft();
+      } else {
+        clearPendingBackgroundDraft();
+        pendingBackgroundFile = file || null;
+        pendingBackgroundObjectUrl = src || "";
+      }
+
+      if (templateBackgroundImg) {
+        if (src) {
+          templateBackgroundImg.src = src;
+        } else {
+          templateBackgroundImg.removeAttribute("src");
+        }
+        templateBackgroundImg.dataset.backgroundType = type || "";
+        templateBackgroundImg.dataset.backgroundValue = value || "";
+      }
+    }
+
     async function attemptLogin() {
       const code = accessCodeInput.value.trim();
       if (!code) {
@@ -5752,16 +5780,22 @@ function hideReportLoading() {
     const TEMPLATE_CENTER_SNAP_THRESHOLD = 14;
 
     // Available logo assets
+    const DEFAULT_BACKGROUND_ASSET = {
+      type: "preloaded",
+      value: "Assets/Templates/MayaguezColorBG.jpg",
+      label: "Mayaguez Color BG",
+      isDefault: true,
+    };
+
     const logoAssets = [
       { value: "Assets/Templates/SomosMayaguez.png", label: "Somos Mayaguez" },
       { value: "Assets/Templates/SomosMayaguezFull.png", label: "Somos Mayaguez Full" },
       { value: "Assets/Templates/SomosMayaguezLeft.png", label: "Somos Mayaguez Left" },
     ];
 
-    // Available background assets
-    const backgroundAssets = [
-      { value: "Assets/Templates/MayaguezColorBG.jpg", label: "Mayaguez Color BG" },
-    ];
+    let backgroundAssets = [DEFAULT_BACKGROUND_ASSET];
+    let pendingBackgroundFile = null;
+    let pendingBackgroundObjectUrl = "";
 
     function hideTemplateEntryOverlay() {
       if (templateEntryOverlay) {
@@ -5946,6 +5980,33 @@ function hideReportLoading() {
       }
     }
 
+    async function loadBackgroundAssets() {
+      backgroundAssets = [DEFAULT_BACKGROUND_ASSET];
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates/background-assets`, {
+          headers: withAdminHeaders(),
+        });
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+        if (!res.ok) {
+          throw new Error("background_assets_load_failed");
+        }
+        const data = await res.json();
+        const uploadedAssets = (data.assets || []).map((asset) => ({
+          type: "uploaded",
+          value: asset.id,
+          label: asset.name || "Uploaded Background",
+          isDefault: false,
+          createdTime: asset.createdTime || "",
+        }));
+        backgroundAssets = [DEFAULT_BACKGROUND_ASSET, ...uploadedAssets];
+      } catch (err) {
+        console.error("Error loading background assets:", err);
+      }
+    }
+
     function beginCreateTemplate() {
       resetTemplateEditor();
       currentTemplateDirty = false;
@@ -6019,11 +6080,10 @@ function hideReportLoading() {
       selectedLogo = null;
       currentTemplateId = null;
       currentTemplateName = "";
+      clearPendingBackgroundDraft();
       
       // Reset background to default
-      if (templateBackgroundImg) {
-        templateBackgroundImg.removeAttribute("src");
-      }
+      setTemplateBackgroundSource();
       if (templateBackgroundSelect) {
         templateBackgroundSelect.value = "";
       }
@@ -6084,7 +6144,11 @@ function hideReportLoading() {
           }
 
           if (bgSrc && templateBackgroundImg) {
-            templateBackgroundImg.src = bgSrc;
+            setTemplateBackgroundSource({
+              type: templateData.background.type,
+              value: templateData.background.value,
+              src: bgSrc,
+            });
             // Only set select value for preloaded assets
             if (templateBackgroundSelect && templateData.background.type === "preloaded") {
               templateBackgroundSelect.value = templateData.background.value;
@@ -6211,7 +6275,8 @@ function hideReportLoading() {
     }
 
     // Background Overlay
-    function showBackgroundOverlay() {
+    async function showBackgroundOverlay() {
+      await loadBackgroundAssets();
       const overlay = document.createElement("div");
       overlay.className = "template-name-overlay";
       overlay.style.zIndex = "2000";
@@ -6234,17 +6299,76 @@ function hideReportLoading() {
 
       // Preloaded backgrounds
       backgroundAssets.forEach((asset) => {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex; align-items:center; gap:0.5rem;";
+
         const btn = document.createElement("button");
         btn.className = "btn-ghost";
-        btn.style.cssText = "width: 100%; text-align: left; padding: 0.75rem 1rem;";
+        btn.style.cssText = "flex:1; width: 100%; text-align: left; padding: 0.75rem 1rem;";
         btn.textContent = asset.label;
         btn.addEventListener("click", () => {
-          templateBackgroundImg.src = asset.value;
-          if (templateBackgroundSelect) templateBackgroundSelect.value = asset.value;
+          if (asset.type === "uploaded") {
+            setTemplateBackgroundSource({
+              type: "uploaded",
+              value: asset.value,
+              src: buildAdminTemplateAssetUrl(asset.value),
+            });
+          } else {
+            setTemplateBackgroundSource({
+              type: "preloaded",
+              value: asset.value,
+              src: asset.value,
+            });
+            if (templateBackgroundSelect) templateBackgroundSelect.value = asset.value;
+          }
           markTemplateDirty();
           document.body.removeChild(overlay);
         });
-        content.appendChild(btn);
+        row.appendChild(btn);
+
+        if (!asset.isDefault && asset.type === "uploaded") {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "template-toolbar-btn template-toolbar-btn-danger";
+          deleteBtn.style.cssText = "padding: 0.75rem; min-width: 46px;";
+          deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          `;
+          deleteBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const confirmed = window.confirm(`Delete background "${asset.label}"?`);
+            if (!confirmed) return;
+            try {
+              const res = await fetch(`${BASE_URL}/admin/templates/background-assets/${encodeURIComponent(asset.value)}`, {
+                method: "DELETE",
+                headers: withAdminHeaders(),
+              });
+              if (res.status === 401 || res.status === 403) {
+                showLock("Session expired. Enter the access code.");
+                return;
+              }
+              const data = await res.json();
+              if (!res.ok || !data.ok) {
+                throw new Error("delete_background_failed");
+              }
+              if (templateBackgroundImg && templateBackgroundImg.dataset.backgroundType === "uploaded" && templateBackgroundImg.dataset.backgroundValue === asset.value) {
+                setTemplateBackgroundSource();
+                markTemplateDirty();
+              }
+              document.body.removeChild(overlay);
+              await showBackgroundOverlay();
+            } catch (err) {
+              console.error("Error deleting background asset:", err);
+              alert("Failed to delete background image.");
+            }
+          });
+          row.appendChild(deleteBtn);
+        }
+
+        content.appendChild(row);
       });
 
       // Upload button
@@ -6365,8 +6489,11 @@ function hideReportLoading() {
       templateBackgroundSelect.addEventListener("change", (e) => {
         const newSrc = e.target.value;
         if (newSrc) {
-          // Load lower resolution for editing (you can add ?w=960 or similar if your server supports it)
-          templateBackgroundImg.src = newSrc;
+          setTemplateBackgroundSource({
+            type: "preloaded",
+            value: newSrc,
+            src: newSrc,
+          });
           templateBackgroundImg.loading = "lazy";
           markTemplateDirty();
         }
@@ -6453,13 +6580,14 @@ function hideReportLoading() {
 
         try {
           await validateTemplateBackgroundFile(file);
-          const uploaded = await uploadTemplateAsset(file, "background");
-          if (!uploaded) return;
-
-          templateBackgroundImg.src = buildAdminTemplateAssetUrl(uploaded.fileId);
-          if (templateBackgroundSelect) {
-            templateBackgroundSelect.value = "";
-          }
+          const localUrl = URL.createObjectURL(file);
+          setTemplateBackgroundSource({
+            type: "local",
+            value: file.name,
+            src: localUrl,
+            file,
+          });
+          if (templateBackgroundSelect) templateBackgroundSelect.value = "";
           markTemplateDirty();
         } catch (err) {
           console.error("Error uploading template background:", err);
@@ -6939,23 +7067,13 @@ function hideReportLoading() {
     }
 
     function collectTemplateData() {
-      // Determine background type and value
-      const bgSrc = templateBackgroundImg.src;
-      const bgSelectValue = templateBackgroundSelect.value;
-      let background;
-      
-      if (bgSrc.startsWith(BASE_URL)) {
-        // Uploaded asset
-        const fileId = bgSrc.split("/").pop();
+      const backgroundType = templateBackgroundImg?.dataset.backgroundType || "";
+      const backgroundValue = templateBackgroundImg?.dataset.backgroundValue || "";
+      let background = null;
+      if (backgroundType && backgroundValue) {
         background = {
-          type: "uploaded",
-          value: fileId
-        };
-      } else {
-        // Preloaded asset
-        background = {
-          type: "preloaded",
-          value: bgSelectValue || bgSrc
+          type: backgroundType,
+          value: backgroundValue
         };
       }
       
@@ -7056,6 +7174,23 @@ function hideReportLoading() {
 
     async function persistTemplate(name) {
       const templateData = collectTemplateData();
+      if (templateData.background && templateData.background.type === "local" && pendingBackgroundFile) {
+        const uploaded = await uploadTemplateAsset(pendingBackgroundFile, "background");
+        if (!uploaded) {
+          throw new Error("upload_background_failed");
+        }
+        setTemplateBackgroundSource({
+          type: "uploaded",
+          value: uploaded.fileId,
+          src: buildAdminTemplateAssetUrl(uploaded.fileId),
+        });
+        templateData.background = {
+          type: "uploaded",
+          value: uploaded.fileId,
+        };
+        await loadBackgroundAssets();
+      }
+
       let res;
       if (currentTemplateId) {
         res = await fetch(`${BASE_URL}/admin/templates/${currentTemplateId}`, {

@@ -236,6 +236,7 @@
 
     const DISPLAY_MS = 8000;
     const REFRESH_MS = 10000;
+    const EMERGENCY_BACKGROUND_URL = "Assets/Templates/MayaguezColorBG.jpg";
 
     const imgA = document.getElementById("photoA");
     const imgB = document.getElementById("photoB");
@@ -283,16 +284,16 @@
 
     function clearTemplateLayers() {
       if (templateBackgroundEl) {
-        templateBackgroundEl.style.display = "none";
-        templateBackgroundEl.removeAttribute("src");
+        templateBackgroundEl.src = EMERGENCY_BACKGROUND_URL;
+        templateBackgroundEl.style.display = "block";
       }
       if (templateLogosEl) {
         templateLogosEl.innerHTML = "";
       }
       if (fallbackFrameImageEl) {
-        fallbackFrameImageEl.style.display = "block";
+        fallbackFrameImageEl.style.display = "none";
       }
-      activeTemplateKey = "";
+      activeTemplateKey = "emergency-fallback";
     }
 
     function buildTemplateKey(template) {
@@ -334,8 +335,8 @@
           templateBackgroundEl.src = normalizeAssetUrl(template.background.url);
           templateBackgroundEl.style.display = "block";
         } else {
-          templateBackgroundEl.style.display = "none";
-          templateBackgroundEl.removeAttribute("src");
+          templateBackgroundEl.src = EMERGENCY_BACKGROUND_URL;
+          templateBackgroundEl.style.display = "block";
         }
       }
 

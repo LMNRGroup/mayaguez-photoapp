@@ -3149,6 +3149,50 @@ app.post('/admin/templates/upload-asset', ensureAdminAuth, multer({ storage: mul
   }
 });
 
+app.get('/admin/templates/background-assets', ensureAdminAuth, async (req, res) => {
+  try {
+    const response = await drive.files.list({
+      q: `'${TEMPLATES_BG_FOLDER_ID}' in parents and trashed = false`,
+      fields: 'files(id, name, createdTime)',
+      orderBy: 'createdTime desc',
+      pageSize: 200,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+
+    const assets = (response.data.files || []).map((file) => ({
+      id: file.id,
+      name: file.name,
+      createdTime: file.createdTime || '',
+    }));
+
+    res.json({ ok: true, assets });
+  } catch (err) {
+    console.error('Error listing template background assets:', err);
+    res.status(500).json({ ok: false, error: 'list_background_assets_failed' });
+  }
+});
+
+app.delete('/admin/templates/background-assets/:fileId', ensureAdminAuth, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    if (!fileId) {
+      return res.status(400).json({ ok: false, error: 'missing_file_id' });
+    }
+
+    await drive.files.update({
+      fileId,
+      requestBody: { trashed: true },
+      supportsAllDrives: true,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting template background asset:', err);
+    res.status(500).json({ ok: false, error: 'delete_background_asset_failed' });
+  }
+});
+
 // Serve uploaded template asset from Drive
 app.get('/admin/templates/asset/:fileId', ensureAdminAuth, async (req, res) => {
   const { fileId } = req.params;
