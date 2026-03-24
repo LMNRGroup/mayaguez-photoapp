@@ -622,6 +622,85 @@
 
   /* Template Editor Styles */
   .template-editor-container {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 1rem;
+    min-height: 0;
+  }
+
+  .template-library {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 1rem;
+  }
+
+  .template-library-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .template-library-title {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    font-weight: 600;
+  }
+
+  .template-library-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: auto;
+    min-height: 0;
+    padding-right: 0.25rem;
+  }
+
+  .template-library-empty {
+    color: var(--muted-foreground);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .template-library-item {
+    width: 100%;
+    text-align: left;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 4px);
+    background: var(--background);
+    color: var(--foreground);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  }
+
+  .template-library-item:hover,
+  .template-library-item.active {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--background) 85%, var(--primary) 15%);
+    transform: translateY(-1px);
+  }
+
+  .template-library-item-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .template-library-item-meta {
+    color: var(--muted-foreground);
+    font-size: 0.78rem;
+  }
+
+  .template-editor-main {
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -631,12 +710,29 @@
   .template-editor-toolbar {
     display: flex;
     align-items: center;
-    gap: 1rem; /* gap-4 = 16px - QRC standard */
-    padding: 1rem; /* 16px - QRC standard */
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
     background: var(--secondary);
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) - 2px);
     flex-wrap: wrap;
+  }
+
+  .template-toolbar-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .template-editor-title {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .template-editor-subtitle {
+    font-size: 0.88rem;
+    color: var(--muted-foreground);
   }
 
   .template-toolbar-btn {
@@ -685,8 +781,8 @@
   .template-toolbar-actions {
     display: flex;
     gap: 0.75rem;
-    margin-left: auto;
     align-items: center;
+    flex-wrap: wrap;
   }
 
   .template-label {
@@ -736,6 +832,53 @@
     max-height: calc(100dvh - 400px);
   }
 
+  .template-entry-overlay {
+    position: absolute;
+    inset: 1rem;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+    background: rgba(8, 12, 24, 0.42);
+    border-radius: calc(var(--radius) - 2px);
+  }
+
+  .template-entry-overlay.visible {
+    display: flex;
+  }
+
+  .template-entry-card {
+    width: min(520px, 92%);
+    background: rgba(14, 19, 35, 0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    text-align: center;
+    box-shadow: 0 22px 48px rgba(0,0,0,0.28);
+  }
+
+  .template-entry-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .template-entry-copy {
+    color: rgba(255,255,255,0.72);
+    font-size: 0.92rem;
+  }
+
+  .template-entry-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
   .template-canvas {
     position: relative;
     width: 100%;
@@ -754,6 +897,39 @@
     height: 100%;
     object-fit: cover;
     z-index: 1;
+  }
+
+  .template-background.is-empty {
+    display: none;
+  }
+
+  .template-background-action {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    border: 1px dashed rgba(255,255,255,0.45);
+    background: rgba(10, 16, 30, 0.72);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.8rem 1.15rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    opacity: 0;
+  }
+
+  .template-canvas:hover .template-background-action,
+  .template-background-action.visible {
+    opacity: 1;
+  }
+
+  .template-background-action:hover {
+    transform: translate(-50%, -50%) translateY(-1px);
+    border-color: rgba(255,255,255,0.8);
   }
 
   .template-photo-area {
@@ -802,6 +978,64 @@
     inset: 0;
     z-index: 10;
     pointer-events: none;
+  }
+
+  .template-add-asset-fab {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 14;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.28);
+  }
+
+  .template-add-asset-fab.visible {
+    display: inline-flex;
+  }
+
+  .template-add-asset-fab svg {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .template-add-asset-menu {
+    position: absolute;
+    right: 1rem;
+    bottom: 4.9rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.6rem;
+    z-index: 14;
+  }
+
+  .template-add-asset-menu.visible {
+    display: flex;
+  }
+
+  .template-add-asset-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(10, 16, 30, 0.9);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .template-add-asset-option svg {
+    width: 1rem;
+    height: 1rem;
   }
 
   .template-logo {
@@ -1038,6 +1272,12 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
+  }
+
+  @media (max-width: 1180px) {
+    .template-editor-container {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   /* Light mode adjustments */
@@ -2904,66 +3144,52 @@ View report to see the most recent interactions
             </div>
 
             <div class="template-editor-container">
-              <div class="template-editor-toolbar">
-                <button id="templateLoadBtn" class="template-toolbar-btn" title="Load Template">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                  </svg>
-                  <span>Load Template</span>
-                </button>
-                <button id="templateBackgroundBtn" class="template-toolbar-btn" title="Background">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                  </svg>
-                  <span>Background</span>
-                </button>
-                <button id="templateAddLogoBtn" class="template-toolbar-btn" title="Add Logo">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="9" cy="9" r="2"></circle>
-                    <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-                  </svg>
-                  <span>ADD LOGO</span>
-                </button>
-                <button id="templateAddQrBtn" class="template-toolbar-btn" title="Add QR Code">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="6" height="6"></rect>
-                    <rect x="15" y="3" width="6" height="6"></rect>
-                    <rect x="3" y="15" width="6" height="6"></rect>
-                    <path d="M15 15h3v3h-3z"></path>
-                    <path d="M18 18h3v3h-3z"></path>
-                    <path d="M15 12h6"></path>
-                  </svg>
-                  <span>ADD QR CODE</span>
-                </button>
-                <div class="template-toolbar-actions">
-                  <button id="templatePreviewBtn" class="template-toolbar-btn" title="Preview Template">
+              <div class="template-library">
+                <div class="template-library-header">
+                  <div class="template-library-title">My Templates</div>
+                  <button id="templateCreateBtn" class="template-toolbar-btn" type="button">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    <span>PREVIEW</span>
+                    <span>Create New</span>
                   </button>
-                  <button id="templateSetActiveBtn" class="template-toolbar-btn" title="Set as Live Template">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M5 12l5 5L20 7"></path>
-                    </svg>
-                    <span>SET AS TEMPLATE</span>
-                  </button>
-                  <button id="templateDeleteBtn" class="template-toolbar-btn template-toolbar-btn-danger" style="display: none;" title="Delete Template">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    <span>DELETE</span>
-                  </button>
-                  <button id="templateDoneBtn" class="btn-primary">DONE</button>
                 </div>
+                <div id="templateListEmpty" class="template-library-empty">Loading templates…</div>
+                <div id="templateList" class="template-library-list"></div>
               </div>
+
+              <div class="template-editor-main">
+                <div class="template-editor-toolbar">
+                  <div class="template-toolbar-meta">
+                    <div id="templateEditorTitle" class="template-editor-title">Template Builder</div>
+                    <div id="templateEditorSubtitle" class="template-editor-subtitle">Choose a template to edit or create a new one.</div>
+                  </div>
+                  <div class="template-toolbar-actions">
+                    <button id="templatePreviewBtn" class="template-toolbar-btn" title="Preview Template" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                      <span>Preview</span>
+                    </button>
+                    <button id="templateSaveBtn" class="btn-primary" type="button">Save</button>
+                    <button id="templateSaveSetBtn" class="template-toolbar-btn" type="button">Save + Set</button>
+                    <button id="templateSetActiveBtn" class="template-toolbar-btn" title="Set as Live Template" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12l5 5L20 7"></path>
+                      </svg>
+                      <span>Set To Screen</span>
+                    </button>
+                    <button id="templateDeleteBtn" class="template-toolbar-btn template-toolbar-btn-danger" style="display: none;" title="Delete Template" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
 
               <!-- Hidden select elements for internal state tracking -->
               <select id="templateLoadSelect" style="display: none;">
@@ -2983,14 +3209,53 @@ View report to see the most recent interactions
               <input type="file" id="templateQrUpload" accept=".svg,.png,.jpg,.jpeg,image/svg+xml,image/png,image/jpeg" style="display: none;" />
 
               <div class="template-editor-wrapper">
+                <div id="templateEntryOverlay" class="template-entry-overlay">
+                  <div class="template-entry-card">
+                    <div class="template-entry-title">Start Building</div>
+                    <div class="template-entry-copy">Load an existing template or create a new one.</div>
+                    <div class="template-entry-actions">
+                      <button id="templateEntryLoadBtn" class="template-toolbar-btn" type="button">Load Template</button>
+                      <button id="templateEntryCreateBtn" class="btn-primary" type="button">Create New +</button>
+                    </div>
+                  </div>
+                </div>
                 <div id="templateCanvas" class="template-canvas">
-                  <img id="templateBackgroundImg" class="template-background" src="Assets/Templates/MayaguezColorBG.jpg" alt="Background" />
+                  <img id="templateBackgroundImg" class="template-background" alt="Background" />
+                  <button id="templateBackgroundAction" class="template-background-action" type="button">Add Background</button>
                   <div class="template-photo-area">
                     <div class="template-photo-grid"></div>
                     <div class="template-photo-label">PHOTO AREA (1500×1000)</div>
                   </div>
                   <div id="templateLogosContainer" class="template-logos-container"></div>
+                  <div id="templateAddAssetMenu" class="template-add-asset-menu">
+                    <button id="templateAddLogoFab" class="template-add-asset-option" type="button" title="Add Logo">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="9" cy="9" r="2"></circle>
+                        <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                      </svg>
+                      <span>Add Logo</span>
+                    </button>
+                    <button id="templateAddQrFab" class="template-add-asset-option" type="button" title="Add QR Code">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="6" height="6"></rect>
+                        <rect x="15" y="3" width="6" height="6"></rect>
+                        <rect x="3" y="15" width="6" height="6"></rect>
+                        <path d="M15 15h3v3h-3z"></path>
+                        <path d="M18 18h3v3h-3z"></path>
+                        <path d="M15 12h6"></path>
+                      </svg>
+                      <span>Add QR Code</span>
+                    </button>
+                  </div>
+                  <button id="templateAddAssetFab" class="template-add-asset-fab" type="button" aria-label="Add overlay">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                  </button>
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -5309,7 +5574,11 @@ function hideReportLoading() {
           break;
         case "templates":
           targetView = viewTemplates;
-          // loadTemplatesList function removed - templates load automatically when view is shown
+          loadTemplatesSidebar();
+          if (!currentTemplateId && !isCreatingNewTemplate) {
+            showTemplateEntryOverlay();
+          }
+          updateTemplateUiState();
           break;
       }
 
@@ -5366,10 +5635,19 @@ function hideReportLoading() {
     }
 
     // --- TEMPLATE EDITOR FUNCTIONALITY ---
-    const templateLoadBtn = document.getElementById("templateLoadBtn");
-    const templateBackgroundBtn = document.getElementById("templateBackgroundBtn");
-    const templateAddLogoBtn = document.getElementById("templateAddLogoBtn");
-    const templateAddQrBtn = document.getElementById("templateAddQrBtn");
+    const templateCreateBtn = document.getElementById("templateCreateBtn");
+    const templateList = document.getElementById("templateList");
+    const templateListEmpty = document.getElementById("templateListEmpty");
+    const templateEditorTitle = document.getElementById("templateEditorTitle");
+    const templateEditorSubtitle = document.getElementById("templateEditorSubtitle");
+    const templateEntryOverlay = document.getElementById("templateEntryOverlay");
+    const templateEntryLoadBtn = document.getElementById("templateEntryLoadBtn");
+    const templateEntryCreateBtn = document.getElementById("templateEntryCreateBtn");
+    const templateBackgroundAction = document.getElementById("templateBackgroundAction");
+    const templateAddLogoFab = document.getElementById("templateAddLogoFab");
+    const templateAddQrFab = document.getElementById("templateAddQrFab");
+    const templateAddAssetFab = document.getElementById("templateAddAssetFab");
+    const templateAddAssetMenu = document.getElementById("templateAddAssetMenu");
     const templateLoadSelect = document.getElementById("templateLoadSelect");
     const templateBackgroundSelect = document.getElementById("templateBackgroundSelect");
     const templateBackgroundImg = document.getElementById("templateBackgroundImg");
@@ -5378,8 +5656,9 @@ function hideReportLoading() {
     const templateLogoUpload = document.getElementById("templateLogoUpload");
     const templateQrUpload = document.getElementById("templateQrUpload");
     const templatePreviewBtn = document.getElementById("templatePreviewBtn");
+    const templateSaveBtn = document.getElementById("templateSaveBtn");
+    const templateSaveSetBtn = document.getElementById("templateSaveSetBtn");
     const templateSetActiveBtn = document.getElementById("templateSetActiveBtn");
-    const templateDoneBtn = document.getElementById("templateDoneBtn");
     const templateDeleteBtn = document.getElementById("templateDeleteBtn");
     const templateCanvas = document.getElementById("templateCanvas");
     const templateLogosContainer = document.getElementById("templateLogosContainer");
@@ -5387,6 +5666,9 @@ function hideReportLoading() {
     let selectedLogo = null;
     let currentTemplateId = null; // Track if we're editing an existing template
     let currentTemplateName = "";
+    let currentTemplateDirty = false;
+    let currentActiveTemplateId = "";
+    let isCreatingNewTemplate = false;
     let isDragging = false;
     let isResizing = false;
     let dragStartX = 0;
@@ -5413,27 +5695,185 @@ function hideReportLoading() {
       { value: "Assets/Templates/MayaguezColorBG.jpg", label: "Mayaguez Color BG" },
     ];
 
-    // Icon button event listeners
-    if (templateLoadBtn) {
-      templateLoadBtn.addEventListener("click", () => {
-        showLoadTemplateOverlay();
+    function hideTemplateEntryOverlay() {
+      if (templateEntryOverlay) {
+        templateEntryOverlay.classList.remove("visible");
+      }
+    }
+
+    function showTemplateEntryOverlay() {
+      if (templateEntryOverlay) {
+        templateEntryOverlay.classList.add("visible");
+      }
+    }
+
+    function hasTemplateBackground() {
+      return Boolean(templateBackgroundImg && templateBackgroundImg.getAttribute("src"));
+    }
+
+    function closeTemplateAddAssetMenu() {
+      if (templateAddAssetMenu) templateAddAssetMenu.classList.remove("visible");
+    }
+
+    function updateTemplateUiState() {
+      const savedTemplateLoaded = Boolean(currentTemplateId);
+      const hasBackground = hasTemplateBackground();
+
+      if (templateBackgroundImg) {
+        templateBackgroundImg.classList.toggle("is-empty", !hasBackground);
+      }
+      if (templateBackgroundAction) {
+        templateBackgroundAction.textContent = hasBackground ? "Replace Background" : "Add Background";
+        templateBackgroundAction.classList.add("visible");
+      }
+      if (templateAddAssetFab) {
+        templateAddAssetFab.classList.toggle("visible", hasBackground);
+      }
+      if (templateSaveBtn) {
+        templateSaveBtn.style.display = currentTemplateDirty || !savedTemplateLoaded ? "inline-flex" : "none";
+      }
+      if (templateSaveSetBtn) {
+        templateSaveSetBtn.style.display = currentTemplateDirty || !savedTemplateLoaded ? "inline-flex" : "none";
+      }
+      if (templateSetActiveBtn) {
+        templateSetActiveBtn.style.display = savedTemplateLoaded && !currentTemplateDirty ? "inline-flex" : "none";
+        templateSetActiveBtn.disabled = !savedTemplateLoaded;
+        const setLabel = currentTemplateId && String(currentTemplateId) === String(currentActiveTemplateId || "")
+          ? "Live On Screen"
+          : "Set To Screen";
+        const labelSpan = templateSetActiveBtn.querySelector("span");
+        if (labelSpan) labelSpan.textContent = setLabel;
+      }
+      if (templateDeleteBtn) {
+        templateDeleteBtn.style.display = savedTemplateLoaded ? "inline-flex" : "none";
+      }
+      if (templateEditorTitle) {
+        templateEditorTitle.textContent = currentTemplateName || (isCreatingNewTemplate ? "New Template" : "Template Builder");
+      }
+      if (templateEditorSubtitle) {
+        if (currentTemplateDirty) {
+          templateEditorSubtitle.textContent = "Unsaved changes. Save to keep this layout.";
+        } else if (savedTemplateLoaded) {
+          templateEditorSubtitle.textContent = "Saved template loaded. Set it to screen when ready.";
+        } else {
+          templateEditorSubtitle.textContent = "Choose a template to edit or create a new one.";
+        }
+      }
+
+      if (templateList) {
+        Array.from(templateList.querySelectorAll(".template-library-item")).forEach((item) => {
+          item.classList.toggle("active", item.dataset.templateId === String(currentTemplateId || ""));
+        });
+      }
+    }
+
+    function markTemplateDirty() {
+      currentTemplateDirty = true;
+      updateTemplateUiState();
+    }
+
+    function markTemplateSaved() {
+      currentTemplateDirty = false;
+      isCreatingNewTemplate = false;
+      updateTemplateUiState();
+    }
+
+    async function loadTemplatesSidebar() {
+      if (!templateList || !templateListEmpty) return;
+      templateList.innerHTML = "";
+      templateListEmpty.textContent = "Loading templates…";
+      templateListEmpty.style.display = "block";
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates`, {
+          headers: withAdminHeaders()
+        });
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+        if (!res.ok) {
+          throw new Error("templates_load_failed");
+        }
+        const data = await res.json();
+        const templates = (data.templates || []).filter((template) => template && template.isActive);
+        if (!templates.length) {
+          templateListEmpty.textContent = "No templates yet. Create one to get started.";
+          return;
+        }
+        templateListEmpty.style.display = "none";
+        templates.forEach((template) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "template-library-item";
+          button.dataset.templateId = String(template.id);
+          button.innerHTML = `
+            <span class="template-library-item-name">${template.name}</span>
+            <span class="template-library-item-meta">${template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "Saved template"}</span>
+          `;
+          button.addEventListener("click", async () => {
+            hideTemplateEntryOverlay();
+            await loadTemplate(template.id);
+          });
+          templateList.appendChild(button);
+        });
+        updateTemplateUiState();
+      } catch (err) {
+        console.error("Error loading template sidebar:", err);
+        templateListEmpty.textContent = "Could not load templates.";
+      }
+    }
+
+    function beginCreateTemplate() {
+      resetTemplateEditor();
+      currentTemplateDirty = false;
+      isCreatingNewTemplate = true;
+      hideTemplateEntryOverlay();
+      updateTemplateUiState();
+    }
+
+    if (templateCreateBtn) {
+      templateCreateBtn.addEventListener("click", () => {
+        beginCreateTemplate();
       });
     }
 
-    if (templateBackgroundBtn) {
-      templateBackgroundBtn.addEventListener("click", () => {
+    if (templateEntryCreateBtn) {
+      templateEntryCreateBtn.addEventListener("click", () => {
+        beginCreateTemplate();
+      });
+    }
+
+    if (templateEntryLoadBtn) {
+      templateEntryLoadBtn.addEventListener("click", () => {
+        hideTemplateEntryOverlay();
+      });
+    }
+
+    if (templateBackgroundAction) {
+      templateBackgroundAction.addEventListener("click", () => {
         showBackgroundOverlay();
       });
     }
 
-    if (templateAddLogoBtn) {
-      templateAddLogoBtn.addEventListener("click", () => {
+    if (templateAddAssetFab) {
+      templateAddAssetFab.addEventListener("click", () => {
+        if (templateAddAssetMenu) {
+          templateAddAssetMenu.classList.toggle("visible");
+        }
+      });
+    }
+
+    if (templateAddLogoFab) {
+      templateAddLogoFab.addEventListener("click", () => {
+        closeTemplateAddAssetMenu();
         showAddLogoOverlay();
       });
     }
 
-    if (templateAddQrBtn) {
-      templateAddQrBtn.addEventListener("click", () => {
+    if (templateAddQrFab) {
+      templateAddQrFab.addEventListener("click", () => {
+        closeTemplateAddAssetMenu();
         if (templateQrUpload) {
           templateQrUpload.click();
         }
@@ -5452,16 +5892,14 @@ function hideReportLoading() {
       
       // Reset background to default
       if (templateBackgroundImg) {
-        templateBackgroundImg.src = backgroundAssets[0].value;
+        templateBackgroundImg.removeAttribute("src");
       }
       if (templateBackgroundSelect) {
-        templateBackgroundSelect.value = backgroundAssets[0].value;
+        templateBackgroundSelect.value = "";
       }
-      
-      // Hide delete button
-      if (templateDeleteBtn) {
-        templateDeleteBtn.style.display = "none";
-      }
+
+      closeTemplateAddAssetMenu();
+      updateTemplateUiState();
     }
 
     // Load template from backend
@@ -5501,9 +5939,8 @@ function hideReportLoading() {
         // Set current template ID for editing
         currentTemplateId = templateId;
         currentTemplateName = template.name || "";
-        if (templateDeleteBtn) {
-          templateDeleteBtn.style.display = "inline-flex";
-        }
+        currentTemplateDirty = false;
+        isCreatingNewTemplate = false;
 
         // Load background
         if (templateData.background) {
@@ -5558,6 +5995,8 @@ function hideReportLoading() {
           if (actions) actions.style.display = "none";
           selectedLogo = null;
         }
+        closeTemplateAddAssetMenu();
+        updateTemplateUiState();
 
       } catch (err) {
         console.error("Error loading template:", err);
@@ -5672,6 +6111,7 @@ function hideReportLoading() {
         btn.addEventListener("click", () => {
           templateBackgroundImg.src = asset.value;
           if (templateBackgroundSelect) templateBackgroundSelect.value = asset.value;
+          markTemplateDirty();
           document.body.removeChild(overlay);
         });
         content.appendChild(btn);
@@ -5743,6 +6183,7 @@ function hideReportLoading() {
         btn.textContent = asset.label;
         btn.addEventListener("click", () => {
           addLogoToCanvas(asset.value);
+          markTemplateDirty();
           document.body.removeChild(overlay);
         });
         content.appendChild(btn);
@@ -5797,6 +6238,7 @@ function hideReportLoading() {
           // Load lower resolution for editing (you can add ?w=960 or similar if your server supports it)
           templateBackgroundImg.src = newSrc;
           templateBackgroundImg.loading = "lazy";
+          markTemplateDirty();
         }
       });
     }
@@ -5888,6 +6330,7 @@ function hideReportLoading() {
           if (templateBackgroundSelect) {
             templateBackgroundSelect.value = "";
           }
+          markTemplateDirty();
         } catch (err) {
           console.error("Error uploading template background:", err);
           alert(err && err.message ? err.message : "Failed to upload background. Please try again.");
@@ -5907,6 +6350,7 @@ function hideReportLoading() {
           if (!uploaded) return;
 
           await addLogoToCanvas(`${BASE_URL}/admin/templates/asset/${uploaded.fileId}`);
+          markTemplateDirty();
         } catch (err) {
           console.error("Error uploading template logo:", err);
           alert("Failed to upload logo. Please try again.");
@@ -5926,6 +6370,7 @@ function hideReportLoading() {
           if (!uploaded) return;
 
           await addLogoToCanvas(`${BASE_URL}/admin/templates/asset/${uploaded.fileId}`);
+          markTemplateDirty();
         } catch (err) {
           console.error("Error uploading QR code overlay:", err);
           alert("Failed to upload QR code image. Please try again.");
@@ -5942,6 +6387,7 @@ function hideReportLoading() {
         if (logoPath) {
           addLogoToCanvas(logoPath);
           templateLogoSelect.value = ""; // Reset dropdown
+          markTemplateDirty();
         }
       });
     }
@@ -6002,6 +6448,7 @@ function hideReportLoading() {
         e.stopPropagation();
         logoDiv.remove();
         selectedLogo = null;
+        markTemplateDirty();
       });
 
       actionsDiv.appendChild(replaceBtn);
@@ -6145,7 +6592,10 @@ function hideReportLoading() {
           if (img) {
             img.src = asset.value;
             logoDiv.dataset.logoPath = asset.value;
+            logoDiv.dataset.logoType = "preloaded";
+            logoDiv.dataset.logoValue = asset.value;
           }
+          markTemplateDirty();
           document.body.removeChild(modal);
         });
         optionsDiv.appendChild(btn);
@@ -6249,9 +6699,20 @@ function hideReportLoading() {
     });
 
     document.addEventListener("mouseup", () => {
+      const wasDragging = isDragging;
+      const wasResizing = isResizing;
       isDragging = false;
       isResizing = false;
       resizeHandle = null;
+      if (wasDragging || wasResizing) {
+        markTemplateDirty();
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!templateAddAssetMenu || !templateAddAssetFab) return;
+      if (templateAddAssetMenu.contains(e.target) || templateAddAssetFab.contains(e.target)) return;
+      closeTemplateAddAssetMenu();
     });
 
     // Click outside to deselect
@@ -6266,10 +6727,17 @@ function hideReportLoading() {
       }
     });
 
-    // DONE button - show template name overlay
-    if (templateDoneBtn) {
-      templateDoneBtn.addEventListener("click", () => {
-        showTemplateNameOverlay();
+    updateTemplateUiState();
+
+    if (templateSaveBtn) {
+      templateSaveBtn.addEventListener("click", async () => {
+        await saveCurrentTemplate(false);
+      });
+    }
+
+    if (templateSaveSetBtn) {
+      templateSaveSetBtn.addEventListener("click", async () => {
+        await saveCurrentTemplate(true);
       });
     }
 
@@ -6321,10 +6789,10 @@ function hideReportLoading() {
           if (data && data.ok) {
             alert("Template deleted successfully!");
             currentTemplateId = null;
-            templateDeleteBtn.style.display = "none";
             if (templateLoadSelect) templateLoadSelect.value = "";
             resetTemplateEditor();
-            // Templates will reload when view is shown
+            await loadTemplatesSidebar();
+            showTemplateEntryOverlay();
           } else {
             alert("Failed to delete template.");
           }
@@ -6430,6 +6898,8 @@ function hideReportLoading() {
         if (settingsActiveTemplateId) {
           settingsActiveTemplateId.value = String(templateId);
         }
+        currentActiveTemplateId = String(templateId);
+        updateTemplateUiState();
 
         return true;
       } catch (err) {
@@ -6439,7 +6909,72 @@ function hideReportLoading() {
       }
     }
 
-    function showTemplateNameOverlay() {
+    async function persistTemplate(name) {
+      const templateData = collectTemplateData();
+      let res;
+      if (currentTemplateId) {
+        res = await fetch(`${BASE_URL}/admin/templates/${currentTemplateId}`, {
+          method: "PUT",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ name, data: templateData, isActive: true })
+        });
+      } else {
+        res = await fetch(`${BASE_URL}/admin/templates`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ name, data: templateData })
+        });
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        showLock("Session expired. Enter the access code.");
+        return null;
+      }
+
+      const data = await res.json();
+      if (!data || !data.ok) {
+        throw new Error("save_template_failed");
+      }
+
+      if (data.template && data.template.id) {
+        currentTemplateId = String(data.template.id);
+      }
+      currentTemplateName = name;
+      markTemplateSaved();
+      await loadTemplatesSidebar();
+      return data;
+    }
+
+    async function saveCurrentTemplate(setActiveAfterSave = false) {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return false;
+      }
+
+      try {
+        if (currentTemplateId && currentTemplateName) {
+          await persistTemplate(currentTemplateName);
+          if (setActiveAfterSave) {
+            const success = await setTemplateAsActive(currentTemplateId);
+            if (success) {
+              currentActiveTemplateId = String(currentTemplateId);
+              updateTemplateUiState();
+            }
+          }
+          alert(setActiveAfterSave ? `Template "${currentTemplateName}" saved and set to screen.` : `Template "${currentTemplateName}" saved.`);
+          return true;
+        }
+
+        showTemplateNameOverlay(setActiveAfterSave);
+        return false;
+      } catch (err) {
+        console.error("Error saving template:", err);
+        alert("Failed to save template. Please try again.");
+        return false;
+      }
+    }
+
+    function showTemplateNameOverlay(setActiveAfterSave = false) {
       const overlay = document.createElement("div");
       overlay.className = "template-name-overlay";
 
@@ -6448,12 +6983,13 @@ function hideReportLoading() {
 
       const title = document.createElement("div");
       title.className = "template-name-title";
-      title.textContent = "Please name your new template";
+      title.textContent = "Name your template";
 
       const input = document.createElement("input");
       input.type = "text";
       input.className = "template-name-input";
       input.placeholder = "Enter template name...";
+      input.value = currentTemplateName || "";
       input.autofocus = true;
 
       const actions = document.createElement("div");
@@ -6494,43 +7030,19 @@ function hideReportLoading() {
         }
         
         const templateData = collectTemplateData();
-        
+
         try {
-          let res;
-          if (currentTemplateId) {
-            // Update existing template
-            res = await fetch(`${BASE_URL}/admin/templates/${currentTemplateId}`, {
-              method: "PUT",
-              headers: withAdminHeaders({ "Content-Type": "application/json" }),
-              body: JSON.stringify({ name, data: templateData, isActive: true })
-            });
-          } else {
-            // Create new template
-            res = await fetch(`${BASE_URL}/admin/templates`, {
-              method: "POST",
-              headers: withAdminHeaders({ "Content-Type": "application/json" }),
-              body: JSON.stringify({ name, data: templateData })
-            });
-          }
-          
-          if (res.status === 401 || res.status === 403) {
-            showLock("Session expired. Enter the access code.");
-            return;
-          }
-          
-          const data = await res.json();
-          if (data && data.ok) {
-            if (data.template && data.template.id) {
-              currentTemplateId = String(data.template.id);
+          await persistTemplate(name);
+          if (setActiveAfterSave) {
+            const success = await setTemplateAsActive(currentTemplateId);
+            if (success) {
+              currentActiveTemplateId = String(currentTemplateId);
             }
-            currentTemplateName = name;
-            document.body.removeChild(overlay);
-            alert(`Template "${name}" saved successfully!`);
-            // Reload templates list
-            // Templates will reload when view is shown
-          } else {
-            alert("Failed to save template. Please try again.");
           }
+          if (overlay.parentNode) {
+            document.body.removeChild(overlay);
+          }
+          alert(setActiveAfterSave ? `Template "${name}" saved and set to screen.` : `Template "${name}" saved successfully!`);
         } catch (err) {
           console.error("Error saving template:", err);
           alert("Failed to save template. Please try again.");
@@ -6817,6 +7329,7 @@ reportViewBtn.addEventListener("click", async () => {
       if (settingsActiveTemplateId) {
         settingsActiveTemplateId.value = settings.activeTemplateId ? String(settings.activeTemplateId) : "";
       }
+      currentActiveTemplateId = settings.activeTemplateId ? String(settings.activeTemplateId) : "";
       
       // Handle gallery display limit (support custom:20 format)
       const galleryLimit = settings.galleryDisplayLimit || "all";
