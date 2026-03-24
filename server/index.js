@@ -184,6 +184,7 @@ const DEFAULT_APP_SETTINGS = {
   ticketEnabled: true,
   galleryDisplayLimit: 'all', // 'all', 'last10', 'last25'
   activeTemplateId: '',
+  activeTemplateSnapshot: '',
   intro: {
     title: '¿Desde dónde nos visitas? 😊',
     subtitle: 'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.'
@@ -216,6 +217,7 @@ const SETTINGS_FIELDS = [
   { key: 'Ticket Overlay Enabled', type: 'boolean', path: ['ticketEnabled'] },
   { key: 'Gallery Display Limit', type: 'string', path: ['galleryDisplayLimit'] },
   { key: 'Active Template ID', type: 'string', path: ['activeTemplateId'] },
+  { key: 'Active Template Snapshot', type: 'string', path: ['activeTemplateSnapshot'] },
   { key: 'Intro Title', type: 'string', path: ['intro', 'title'] },
   { key: 'Intro Subtitle', type: 'string', path: ['intro', 'subtitle'] },
   { key: 'Location Enabled', type: 'boolean', path: ['form', 'locationEnabled'] },
@@ -313,6 +315,11 @@ function mergeAppSettings(patch = {}) {
   if (Object.prototype.hasOwnProperty.call(patch, 'activeTemplateId')) {
     const rawTemplateId = patch.activeTemplateId;
     next.activeTemplateId = rawTemplateId == null ? '' : String(rawTemplateId).trim();
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'activeTemplateSnapshot')) {
+    const rawSnapshot = patch.activeTemplateSnapshot;
+    next.activeTemplateSnapshot = rawSnapshot == null ? '' : String(rawSnapshot).trim();
   }
 
   if (patch.intro && typeof patch.intro === 'object') {
@@ -686,6 +693,18 @@ function serializeTemplateForPublic(template) {
     background,
     logos
   };
+}
+
+function parseActiveTemplateSnapshot(snapshotStr) {
+  if (!snapshotStr || typeof snapshotStr !== 'string') return null;
+  try {
+    const parsed = JSON.parse(snapshotStr);
+    if (!parsed || typeof parsed !== 'object' || !parsed.data) return null;
+    return parsed;
+  } catch (err) {
+    console.warn('Unable to parse active template snapshot:', err.message || err);
+    return null;
+  }
 }
 
 async function writeTemplateToSheet(name, templateData, isActive = true) {
@@ -2713,6 +2732,19 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
 app.get('/gallery/active-template', async (req, res) => {
   try {
     await hydrateSettingsFromSheet();
+
+    const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
+    if (snapshot) {
+      return res.json({
+        ok: true,
+        template: serializeTemplateForPublic({
+          id: snapshot.id || appSettings.activeTemplateId || '',
+          name: snapshot.name || '',
+          createdAt: snapshot.createdAt || '',
+          data: snapshot.data
+        })
+      });
+    }
 
     const activeTemplateId = normalizeTemplateId(appSettings.activeTemplateId);
     if (!activeTemplateId) {
