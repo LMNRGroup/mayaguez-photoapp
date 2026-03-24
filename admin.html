@@ -6769,15 +6769,10 @@ function hideReportLoading() {
           return;
         }
 
-        showTemplatePreview(currentTemplateName || "Template Preview", async () => {
-          const confirmed = window.confirm("Use this template in the live gallery?");
-          if (!confirmed) return;
-
-          const success = await setTemplateAsActive(currentTemplateId);
-          if (success) {
-            alert(`Template "${currentTemplateName || currentTemplateId}" is now the live gallery template.`);
-          }
-        });
+        const success = await setTemplateAsActive(currentTemplateId);
+        if (success) {
+          alert(`"${currentTemplateName || currentTemplateId}" is set to screen.`);
+        }
       });
     }
 
