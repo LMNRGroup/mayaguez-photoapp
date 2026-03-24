@@ -642,7 +642,7 @@
   .template-library-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0.75rem;
   }
 
@@ -688,6 +688,11 @@
     border-color: var(--primary);
     background: color-mix(in srgb, var(--background) 85%, var(--primary) 15%);
     transform: translateY(-1px);
+  }
+
+  .template-library-item-create {
+    background: color-mix(in srgb, var(--primary) 18%, var(--background) 82%);
+    border-color: color-mix(in srgb, var(--primary) 55%, var(--border) 45%);
   }
 
   .template-library-item-name {
@@ -787,7 +792,8 @@
   }
 
   .template-create-btn {
-    min-width: 140px;
+    width: 100%;
+    min-width: 0;
   }
 
   .template-primary-action {
@@ -910,6 +916,36 @@
     border-radius: calc(var(--radius) - 2px);
     overflow: hidden;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .template-guide-line {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.3), 0 0 14px rgba(255, 255, 255, 0.22);
+    z-index: 12;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+  }
+
+  .template-guide-line.visible {
+    opacity: 1;
+  }
+
+  .template-guide-line-vertical {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    transform: translateX(-50%);
+  }
+
+  .template-guide-line-horizontal {
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    transform: translateY(-50%);
   }
 
   .template-background {
@@ -1065,6 +1101,7 @@
     cursor: move;
     pointer-events: all;
     user-select: none;
+    will-change: left, top, width, height;
     border: 2px solid transparent;
     transition: border-color 0.2s;
   }
@@ -3169,13 +3206,6 @@ View report to see the most recent interactions
               <div class="template-library">
                 <div class="template-library-header">
                   <div class="template-library-title">My Templates</div>
-                  <button id="templateCreateBtn" class="template-toolbar-btn template-create-btn" type="button">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="12" y1="5" x2="12" y2="19"></line>
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    <span>Create New</span>
-                  </button>
                 </div>
                 <div id="templateListEmpty" class="template-library-empty">Loading templates…</div>
                 <div id="templateList" class="template-library-list"></div>
@@ -3184,10 +3214,11 @@ View report to see the most recent interactions
               <div class="template-editor-main">
                 <div class="template-editor-toolbar">
                   <div class="template-toolbar-meta">
-                    <div id="templateEditorTitle" class="template-editor-title">Template Builder</div>
-                    <div id="templateEditorSubtitle" class="template-editor-subtitle">Choose a template to edit or create a new one.</div>
-                  </div>
+                  <div id="templateEditorTitle" class="template-editor-title">Template Builder</div>
+                  <div id="templateEditorSubtitle" class="template-editor-subtitle">Choose a template to edit or create a new one.</div>
+                </div>
                   <div class="template-toolbar-actions">
+                    <button id="templateSnapToggleBtn" class="template-toolbar-btn" type="button">Auto Align: On</button>
                     <button id="templatePreviewBtn" class="template-toolbar-btn" title="Preview Template" type="button">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
@@ -3244,6 +3275,8 @@ View report to see the most recent interactions
                 <div id="templateCanvas" class="template-canvas">
                   <img id="templateBackgroundImg" class="template-background" alt="Background" />
                   <button id="templateBackgroundAction" class="template-background-action" type="button">Add Background</button>
+                  <div id="templateGuideVertical" class="template-guide-line template-guide-line-vertical"></div>
+                  <div id="templateGuideHorizontal" class="template-guide-line template-guide-line-horizontal"></div>
                   <div class="template-photo-area">
                     <div class="template-photo-grid"></div>
                     <div class="template-photo-label">PHOTO AREA (1500×1000)</div>
@@ -5675,6 +5708,8 @@ function hideReportLoading() {
     const templateAddQrFab = document.getElementById("templateAddQrFab");
     const templateAddAssetFab = document.getElementById("templateAddAssetFab");
     const templateAddAssetMenu = document.getElementById("templateAddAssetMenu");
+    const templateGuideVertical = document.getElementById("templateGuideVertical");
+    const templateGuideHorizontal = document.getElementById("templateGuideHorizontal");
     const templateLoadSelect = document.getElementById("templateLoadSelect");
     const templateBackgroundSelect = document.getElementById("templateBackgroundSelect");
     const templateBackgroundImg = document.getElementById("templateBackgroundImg");
@@ -5683,6 +5718,7 @@ function hideReportLoading() {
     const templateLogoUpload = document.getElementById("templateLogoUpload");
     const templateQrUpload = document.getElementById("templateQrUpload");
     const templatePreviewBtn = document.getElementById("templatePreviewBtn");
+    const templateSnapToggleBtn = document.getElementById("templateSnapToggleBtn");
     const templateSaveBtn = document.getElementById("templateSaveBtn");
     const templateSaveSetBtn = document.getElementById("templateSaveSetBtn");
     const templateSetActiveBtn = document.getElementById("templateSetActiveBtn");
@@ -5697,6 +5733,7 @@ function hideReportLoading() {
     let currentActiveTemplateId = "";
     let isCreatingNewTemplate = false;
     let isSavingTemplate = false;
+    let autoAlignEnabled = true;
     let isDragging = false;
     let isResizing = false;
     let dragStartX = 0;
@@ -5706,10 +5743,13 @@ function hideReportLoading() {
     let logoStartWidth = 0;
     let logoStartHeight = 0;
     let resizeHandle = null;
+    let pointerMoveRaf = 0;
+    let pendingPointerMove = null;
     const TEMPLATE_STAGE_WIDTH = 1920;
     const TEMPLATE_STAGE_HEIGHT = 1080;
     const TEMPLATE_PHOTO_WIDTH = 1500;
     const TEMPLATE_PHOTO_HEIGHT = 1000;
+    const TEMPLATE_CENTER_SNAP_THRESHOLD = 14;
 
     // Available logo assets
     const logoAssets = [
@@ -5741,6 +5781,39 @@ function hideReportLoading() {
 
     function closeTemplateAddAssetMenu() {
       if (templateAddAssetMenu) templateAddAssetMenu.classList.remove("visible");
+    }
+
+    function hideTemplateGuides() {
+      if (templateGuideVertical) templateGuideVertical.classList.remove("visible");
+      if (templateGuideHorizontal) templateGuideHorizontal.classList.remove("visible");
+    }
+
+    function updateSnapToggleUi() {
+      if (!templateSnapToggleBtn) return;
+      templateSnapToggleBtn.textContent = autoAlignEnabled ? "Auto Align: On" : "Auto Align: Off";
+    }
+
+    function applyCenterSnap(nextX, nextY, width, height) {
+      const canvasWidth = templateCanvas.offsetWidth || 1;
+      const canvasHeight = templateCanvas.offsetHeight || 1;
+      const elementCenterX = nextX + (width / 2);
+      const elementCenterY = nextY + (height / 2);
+      const canvasCenterX = canvasWidth / 2;
+      const canvasCenterY = canvasHeight / 2;
+      const showVertical = autoAlignEnabled && Math.abs(elementCenterX - canvasCenterX) <= TEMPLATE_CENTER_SNAP_THRESHOLD;
+      const showHorizontal = autoAlignEnabled && Math.abs(elementCenterY - canvasCenterY) <= TEMPLATE_CENTER_SNAP_THRESHOLD;
+
+      if (templateGuideVertical) {
+        templateGuideVertical.classList.toggle("visible", showVertical);
+      }
+      if (templateGuideHorizontal) {
+        templateGuideHorizontal.classList.toggle("visible", showHorizontal);
+      }
+
+      return {
+        x: showVertical ? Math.max(0, Math.min(canvasCenterX - (width / 2), canvasWidth - width)) : nextX,
+        y: showHorizontal ? Math.max(0, Math.min(canvasCenterY - (height / 2), canvasHeight - height)) : nextY,
+      };
     }
 
     function updateTemplateUiState() {
@@ -5801,6 +5874,7 @@ function hideReportLoading() {
           item.classList.toggle("active", item.dataset.templateId === String(currentTemplateId || ""));
         });
       }
+      updateSnapToggleUi();
     }
 
     function markTemplateDirty() {
@@ -5834,6 +5908,17 @@ function hideReportLoading() {
         }
         const data = await res.json();
         const templates = (data.templates || []).filter((template) => template && template.isActive);
+        const createButton = document.createElement("button");
+        createButton.type = "button";
+        createButton.className = "template-library-item template-library-item-create template-create-btn";
+        createButton.innerHTML = `
+          <span class="template-library-item-name">Create New +</span>
+          <span class="template-library-item-meta">Start a blank template from scratch.</span>
+        `;
+        createButton.addEventListener("click", () => {
+          beginCreateTemplate();
+        });
+        templateList.appendChild(createButton);
         if (!templates.length) {
           templateListEmpty.textContent = "No templates yet. Create one to get started.";
           return;
@@ -5872,6 +5957,14 @@ function hideReportLoading() {
     if (templateCreateBtn) {
       templateCreateBtn.addEventListener("click", () => {
         beginCreateTemplate();
+      });
+    }
+
+    if (templateSnapToggleBtn) {
+      templateSnapToggleBtn.addEventListener("click", () => {
+        autoAlignEnabled = !autoAlignEnabled;
+        if (!autoAlignEnabled) hideTemplateGuides();
+        updateSnapToggleUi();
       });
     }
 
@@ -6659,40 +6752,42 @@ function hideReportLoading() {
       });
     }
 
-    // Global mouse move for drag and resize
-    document.addEventListener("mousemove", (e) => {
-      if (!selectedLogo) return;
+    function processTemplatePointerMove() {
+      pointerMoveRaf = 0;
+      if (!selectedLogo || !pendingPointerMove) return;
+
+      const { clientX, clientY } = pendingPointerMove;
 
       if (isDragging) {
-        const deltaX = e.clientX - dragStartX;
-        const deltaY = e.clientY - dragStartY;
-        const canvasRect = templateCanvas.getBoundingClientRect();
-        const newX = logoStartX + deltaX;
-        const newY = logoStartY + deltaY;
+        const deltaX = clientX - dragStartX;
+        const deltaY = clientY - dragStartY;
+        let newX = logoStartX + deltaX;
+        let newY = logoStartY + deltaY;
 
-        // Constrain to canvas bounds
         const maxX = templateCanvas.offsetWidth - selectedLogo.offsetWidth;
         const maxY = templateCanvas.offsetHeight - selectedLogo.offsetHeight;
 
-        selectedLogo.style.left = `${Math.max(0, Math.min(newX, maxX))}px`;
-        selectedLogo.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
+        newX = Math.max(0, Math.min(newX, maxX));
+        newY = Math.max(0, Math.min(newY, maxY));
+
+        const snapped = applyCenterSnap(newX, newY, selectedLogo.offsetWidth, selectedLogo.offsetHeight);
+        selectedLogo.style.left = `${snapped.x}px`;
+        selectedLogo.style.top = `${snapped.y}px`;
       } else if (isResizing && resizeHandle === "se") {
-        // Bottom-right resize only
-        const deltaX = e.clientX - dragStartX;
-        const deltaY = e.clientY - dragStartY;
+        hideTemplateGuides();
+        const deltaX = clientX - dragStartX;
+        const deltaY = clientY - dragStartY;
         const img = selectedLogo.querySelector("img");
         if (!img || !img.complete) return;
 
-        // Get natural aspect ratio
         const naturalWidth = img.naturalWidth || logoStartWidth;
         const naturalHeight = img.naturalHeight || logoStartHeight;
         const aspectRatio = naturalWidth / naturalHeight;
-
-        // Use the larger delta to maintain aspect ratio
         const widthChange = Math.abs(deltaX);
         const heightChange = Math.abs(deltaY);
 
-        let newWidth, newHeight;
+        let newWidth;
+        let newHeight;
         if (widthChange > heightChange) {
           newWidth = logoStartWidth + deltaX;
           newHeight = newWidth / aspectRatio;
@@ -6701,7 +6796,6 @@ function hideReportLoading() {
           newWidth = newHeight * aspectRatio;
         }
 
-        // Minimum size constraints
         const minSize = 50;
         if (newWidth < minSize) {
           newWidth = minSize;
@@ -6712,18 +6806,15 @@ function hideReportLoading() {
           newWidth = newHeight * aspectRatio;
         }
 
-        // Constrain to canvas bounds
         const canvasWidth = templateCanvas.offsetWidth;
         const canvasHeight = templateCanvas.offsetHeight;
         const currentLeft = parseFloat(selectedLogo.style.left) || logoStartX;
         const currentTop = parseFloat(selectedLogo.style.top) || logoStartY;
-
         const maxWidth = canvasWidth - currentLeft;
         const maxHeight = canvasHeight - currentTop;
 
         newWidth = Math.min(newWidth, maxWidth, canvasWidth * 0.8);
         newHeight = Math.min(newHeight, maxHeight, canvasHeight * 0.8);
-        // Recalculate to maintain aspect ratio
         if (newWidth / aspectRatio > newHeight) {
           newWidth = newHeight * aspectRatio;
         } else {
@@ -6732,6 +6823,17 @@ function hideReportLoading() {
 
         selectedLogo.style.width = `${newWidth}px`;
         selectedLogo.style.height = `${newHeight}px`;
+      } else {
+        hideTemplateGuides();
+      }
+    }
+
+    // Global mouse move for drag and resize
+    document.addEventListener("mousemove", (e) => {
+      if (!selectedLogo) return;
+      pendingPointerMove = { clientX: e.clientX, clientY: e.clientY };
+      if (!pointerMoveRaf) {
+        pointerMoveRaf = requestAnimationFrame(processTemplatePointerMove);
       }
     });
 
@@ -6741,6 +6843,12 @@ function hideReportLoading() {
       isDragging = false;
       isResizing = false;
       resizeHandle = null;
+      pendingPointerMove = null;
+      hideTemplateGuides();
+      if (pointerMoveRaf) {
+        cancelAnimationFrame(pointerMoveRaf);
+        pointerMoveRaf = 0;
+      }
       if (wasDragging || wasResizing) {
         markTemplateDirty();
       }
