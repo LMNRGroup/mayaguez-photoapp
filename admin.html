@@ -738,6 +738,7 @@
   .template-toolbar-btn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
     padding: 0.625rem 1rem;
     background: var(--background);
@@ -783,6 +784,27 @@
     gap: 0.75rem;
     align-items: center;
     flex-wrap: wrap;
+  }
+
+  .template-create-btn {
+    min-width: 140px;
+  }
+
+  .template-primary-action {
+    min-width: 152px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .template-primary-action[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .template-primary-action.is-saving {
+    opacity: 0.85;
   }
 
   .template-label {
@@ -3147,7 +3169,7 @@ View report to see the most recent interactions
               <div class="template-library">
                 <div class="template-library-header">
                   <div class="template-library-title">My Templates</div>
-                  <button id="templateCreateBtn" class="template-toolbar-btn" type="button">
+                  <button id="templateCreateBtn" class="template-toolbar-btn template-create-btn" type="button">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
                       <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -3173,9 +3195,9 @@ View report to see the most recent interactions
                       </svg>
                       <span>Preview</span>
                     </button>
-                    <button id="templateSaveBtn" class="btn-primary" type="button">Save</button>
-                    <button id="templateSaveSetBtn" class="template-toolbar-btn" type="button">Save + Set</button>
-                    <button id="templateSetActiveBtn" class="template-toolbar-btn" title="Set as Live Template" type="button">
+                    <button id="templateSaveBtn" class="btn-primary template-primary-action" type="button">Save</button>
+                    <button id="templateSaveSetBtn" class="template-toolbar-btn" type="button" style="display: none;">Save + Set</button>
+                    <button id="templateSetActiveBtn" class="template-toolbar-btn" title="Set as Live Template" type="button" style="display: none;">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12l5 5L20 7"></path>
                       </svg>
@@ -5669,6 +5691,7 @@ function hideReportLoading() {
     let currentTemplateDirty = false;
     let currentActiveTemplateId = "";
     let isCreatingNewTemplate = false;
+    let isSavingTemplate = false;
     let isDragging = false;
     let isResizing = false;
     let dragStartX = 0;
@@ -5718,6 +5741,8 @@ function hideReportLoading() {
     function updateTemplateUiState() {
       const savedTemplateLoaded = Boolean(currentTemplateId);
       const hasBackground = hasTemplateBackground();
+      const needsSave = !savedTemplateLoaded || currentTemplateDirty;
+      const isCurrentlyLive = currentTemplateId && String(currentTemplateId) === String(currentActiveTemplateId || "");
 
       if (templateBackgroundImg) {
         templateBackgroundImg.classList.toggle("is-empty", !hasBackground);
@@ -5730,22 +5755,28 @@ function hideReportLoading() {
         templateAddAssetFab.classList.toggle("visible", hasBackground);
       }
       if (templateSaveBtn) {
-        templateSaveBtn.style.display = currentTemplateDirty || !savedTemplateLoaded ? "inline-flex" : "none";
+        templateSaveBtn.style.display = "inline-flex";
+        templateSaveBtn.disabled = isSavingTemplate || (needsSave && !hasBackground) || (!needsSave && isCurrentlyLive);
+        templateSaveBtn.classList.toggle("is-saving", isSavingTemplate);
+        templateSaveBtn.textContent = isSavingTemplate
+          ? "Saving..."
+          : needsSave
+            ? "Save"
+            : isCurrentlyLive
+              ? "Live On Screen"
+              : "Set To Screen";
       }
       if (templateSaveSetBtn) {
-        templateSaveSetBtn.style.display = currentTemplateDirty || !savedTemplateLoaded ? "inline-flex" : "none";
+        templateSaveSetBtn.style.display = "none";
       }
       if (templateSetActiveBtn) {
-        templateSetActiveBtn.style.display = savedTemplateLoaded && !currentTemplateDirty ? "inline-flex" : "none";
-        templateSetActiveBtn.disabled = !savedTemplateLoaded;
-        const setLabel = currentTemplateId && String(currentTemplateId) === String(currentActiveTemplateId || "")
-          ? "Live On Screen"
-          : "Set To Screen";
-        const labelSpan = templateSetActiveBtn.querySelector("span");
-        if (labelSpan) labelSpan.textContent = setLabel;
+        templateSetActiveBtn.style.display = "none";
       }
       if (templateDeleteBtn) {
         templateDeleteBtn.style.display = savedTemplateLoaded ? "inline-flex" : "none";
+      }
+      if (templatePreviewBtn) {
+        templatePreviewBtn.style.display = hasBackground || savedTemplateLoaded ? "inline-flex" : "none";
       }
       if (templateEditorTitle) {
         templateEditorTitle.textContent = currentTemplateName || (isCreatingNewTemplate ? "New Template" : "Template Builder");
@@ -5768,6 +5799,7 @@ function hideReportLoading() {
     }
 
     function markTemplateDirty() {
+      if (isSavingTemplate) return;
       currentTemplateDirty = true;
       updateTemplateUiState();
     }
@@ -6731,26 +6763,9 @@ function hideReportLoading() {
 
     if (templateSaveBtn) {
       templateSaveBtn.addEventListener("click", async () => {
-        await saveCurrentTemplate(false);
-      });
-    }
-
-    if (templateSaveSetBtn) {
-      templateSaveSetBtn.addEventListener("click", async () => {
-        await saveCurrentTemplate(true);
-      });
-    }
-
-    if (templatePreviewBtn) {
-      templatePreviewBtn.addEventListener("click", () => {
-        showTemplatePreview(currentTemplateName || "Template Preview");
-      });
-    }
-
-    if (templateSetActiveBtn) {
-      templateSetActiveBtn.addEventListener("click", async () => {
-        if (!currentTemplateId) {
-          alert("Save this template first, then you can set it as the live gallery template.");
+        const needsSave = !currentTemplateId || currentTemplateDirty;
+        if (needsSave) {
+          await saveCurrentTemplate(false);
           return;
         }
 
@@ -6763,6 +6778,18 @@ function hideReportLoading() {
             alert(`Template "${currentTemplateName || currentTemplateId}" is now the live gallery template.`);
           }
         });
+      });
+    }
+
+    if (templateSaveSetBtn) {
+      templateSaveSetBtn.addEventListener("click", async () => {
+        await saveCurrentTemplate(true);
+      });
+    }
+
+    if (templatePreviewBtn) {
+      templatePreviewBtn.addEventListener("click", () => {
+        showTemplatePreview(currentTemplateName || "Template Preview");
       });
     }
 
@@ -6952,6 +6979,9 @@ function hideReportLoading() {
       }
 
       try {
+        isSavingTemplate = true;
+        updateTemplateUiState();
+
         if (currentTemplateId && currentTemplateName) {
           await persistTemplate(currentTemplateName);
           if (setActiveAfterSave) {
@@ -6971,6 +7001,9 @@ function hideReportLoading() {
         console.error("Error saving template:", err);
         alert("Failed to save template. Please try again.");
         return false;
+      } finally {
+        isSavingTemplate = false;
+        updateTemplateUiState();
       }
     }
 
