@@ -2749,17 +2749,7 @@ app.get('/gallery/active-template', async (req, res) => {
       });
     }
 
-    const activeTemplateId = normalizeTemplateId(appSettings.activeTemplateId);
-    if (!activeTemplateId) {
-      return res.json({ ok: true, template: null });
-    }
-
-    const template = await getTemplateById(activeTemplateId);
-    if (!template || template.isActive === false) {
-      return res.json({ ok: true, template: null });
-    }
-
-    return res.json({ ok: true, template: serializeTemplateForPublic(template) });
+    return res.json({ ok: true, template: null });
   } catch (err) {
     console.error('Error loading active gallery template', err);
     return res.status(500).json({ ok: false, error: 'active_template_failed' });
