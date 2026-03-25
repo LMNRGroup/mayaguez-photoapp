@@ -707,6 +707,51 @@ function parseActiveTemplateSnapshot(snapshotStr) {
   }
 }
 
+function buildActiveTemplateSnapshotString(template) {
+  if (!template || !template.data) return '';
+
+  return JSON.stringify({
+    id: template.id ? String(template.id) : '',
+    name: template.name || '',
+    createdAt: template.createdAt || new Date().toISOString(),
+    data: template.data
+  });
+}
+
+async function syncActiveTemplateSettings(settings) {
+  const next = JSON.parse(JSON.stringify(settings || {}));
+  const activeTemplateId = normalizeTemplateId(next.activeTemplateId);
+
+  if (!activeTemplateId) {
+    next.activeTemplateId = '';
+    next.activeTemplateSnapshot = '';
+    return next;
+  }
+
+  const snapshot = parseActiveTemplateSnapshot(next.activeTemplateSnapshot);
+  if (snapshot && String(snapshot.id || '') === activeTemplateId) {
+    next.activeTemplateId = activeTemplateId;
+    next.activeTemplateSnapshot = buildActiveTemplateSnapshotString({
+      id: activeTemplateId,
+      name: snapshot.name || '',
+      createdAt: snapshot.createdAt || '',
+      data: snapshot.data
+    });
+    return next;
+  }
+
+  const template = await getTemplateById(activeTemplateId);
+  if (!template) {
+    next.activeTemplateId = '';
+    next.activeTemplateSnapshot = '';
+    return next;
+  }
+
+  next.activeTemplateId = String(template.id);
+  next.activeTemplateSnapshot = buildActiveTemplateSnapshotString(template);
+  return next;
+}
+
 async function writeTemplateToSheet(name, templateData, isActive = true) {
   if (!TEMPLATES_SHEET_ID) return null;
 
@@ -2091,7 +2136,8 @@ app.get('/admin/settings', ensureAdminAuth, (req, res) => {
 // Admin: update app settings
 app.post('/admin/settings', ensureAdminAuth, async (req, res) => {
   try {
-    appSettings = mergeAppSettings(req.body || {});
+    const mergedSettings = mergeAppSettings(req.body || {});
+    appSettings = await syncActiveTemplateSettings(mergedSettings);
     const persisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
     if (!persisted) {
       return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
@@ -2737,7 +2783,7 @@ app.get('/gallery/active-template', async (req, res) => {
     res.set('Expires', '0');
 
     const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
-    if (snapshot) {
+    if (snapshot && String(snapshot.id || '') === String(appSettings.activeTemplateId || snapshot.id || '')) {
       return res.json({
         ok: true,
         template: serializeTemplateForPublic({
@@ -2747,6 +2793,13 @@ app.get('/gallery/active-template', async (req, res) => {
           data: snapshot.data
         })
       });
+    }
+
+    if (appSettings.activeTemplateId) {
+      const liveTemplate = await getTemplateById(appSettings.activeTemplateId);
+      if (liveTemplate) {
+        return res.json({ ok: true, template: serializeTemplateForPublic(liveTemplate) });
+      }
     }
 
     return res.json({ ok: true, template: null });
@@ -3070,6 +3123,24 @@ app.put('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
     
     if (!success) {
       return res.status(500).json({ ok: false, error: 'update_template_failed' });
+    }
+
+    if (String(appSettings.activeTemplateId || '') === String(id)) {
+      appSettings = await syncActiveTemplateSettings({
+        ...appSettings,
+        activeTemplateId: String(id),
+        activeTemplateSnapshot: buildActiveTemplateSnapshotString({
+          id: String(id),
+          name,
+          createdAt: new Date().toISOString(),
+          data
+        })
+      });
+
+      const settingsPersisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
+      if (!settingsPersisted) {
+        return res.status(500).json({ ok: false, error: 'active_template_sync_failed' });
+      }
     }
 
     res.json({ ok: true });

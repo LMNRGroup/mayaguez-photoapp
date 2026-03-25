@@ -22,6 +22,10 @@
     text-transform: uppercase;
     color: var(--destructive);
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
   }
 
   #lockAdminBtn:hover {
@@ -261,6 +265,13 @@
     display: block;
   }
 
+  [data-lucide] {
+    width: 1rem;
+    height: 1rem;
+    stroke-width: 1.85;
+    flex: 0 0 auto;
+  }
+
   .app-toggle {
     display: flex;
     align-items: center;
@@ -461,14 +472,22 @@
 
   .nav-item-lock {
     margin-top: 1.5rem;
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.3em;
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    padding: 0;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--secondary);
     color: var(--destructive);
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .nav-item-lock:hover {
+    background: var(--muted);
+    border-color: var(--destructive);
     color: hsl(0, 84%, 50%);
   }
 
@@ -2328,6 +2347,12 @@
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .settings-status.visible {
+    opacity: 1;
   }
 
   .settings-help {
@@ -2399,6 +2424,33 @@
     box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px hsla(268, 85%, 55%, 0.2);
   }
 
+  .btn-inline-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+  }
+
+  .btn-inline-spinner {
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 999px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    animation: spin 0.7s linear infinite;
+    opacity: 0.9;
+  }
+
+  .btn-loading {
+    pointer-events: none;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .btn-secondary {
     background: var(--secondary);
     border-color: var(--border);
@@ -2440,6 +2492,73 @@
     align-items: center;
     justify-content: center;
     height: 120px;
+  }
+
+  .minimal-loader {
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 999px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    animation: spin 0.7s linear infinite;
+    opacity: 0.88;
+  }
+
+  .minimal-loader-lg {
+    width: 2rem;
+    height: 2rem;
+    border-width: 2px;
+  }
+
+  .app-toast-stack {
+    position: fixed;
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 100001;
+    pointer-events: none;
+  }
+
+  .app-toast {
+    min-width: 220px;
+    max-width: min(92vw, 420px);
+    padding: 0.75rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid var(--glass-border);
+    background: hsl(225, 12%, 12% / 0.82);
+    color: var(--foreground);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 180ms ease, transform 180ms ease;
+    font-size: 0.875rem;
+    letter-spacing: 0.01em;
+  }
+
+  .app-toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .app-toast.success {
+    border-color: hsl(142, 60%, 45% / 0.4);
+  }
+
+  .app-toast.error {
+    border-color: hsl(0, 84%, 60% / 0.42);
+  }
+
+  .app-toast.muted {
+    border-color: var(--border);
   }
 
   /* LOCK SCREEN */
@@ -2866,6 +2985,7 @@
   }
 
 </style>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" integrity="sha512-tB17y8UnF6R45OZyeP+fM4x6hzFH6qC1t1PmiJdWWYV7eonbbyrcF0av8RyzZkjIl95QoUiG+2l3OjVhL7Jqmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
@@ -2919,20 +3039,8 @@
 
       <div class="header-right">
         <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle dark/light mode" aria-label="Toggle theme">
-          <svg class="icon-moon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-          <svg class="icon-sun" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display: none;">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-          </svg>
+          <i class="icon-moon" data-lucide="moon"></i>
+          <i class="icon-sun" data-lucide="sun" style="display: none;"></i>
         </button>
         <div class="app-toggle">
           <span id="appStatusDot" class="status-dot off"></span>
@@ -2959,7 +3067,9 @@
             <button class="nav-item" id="navTemplates">MY TEMPLATES</button>
             <button class="nav-item" id="navResetLogs">RESET LOGS</button>
           </div>
-          <button class="nav-item nav-item-lock" id="lockAdminBtn">Lock Admin</button>
+          <button class="nav-item nav-item-lock" id="lockAdminBtn" title="Lock Admin" aria-label="Lock Admin">
+            <i data-lucide="lock"></i>
+          </button>
         </aside>
 
         <!-- CENTER PANEL (DYNAMIC CONTENT) -->
@@ -3026,8 +3136,18 @@
             </div>
 
             <div class="view-actions">
-              <button id="reportViewBtn" class="btn-ghost">VIEW REPORT</button>
-              <button id="reportGenerateBtn" class="btn-primary">GENERATE &amp; EMAIL</button>
+              <button id="reportViewBtn" class="btn-ghost">
+                <span class="btn-inline-content">
+                  <i data-lucide="file-text"></i>
+                  <span>VIEW REPORT</span>
+                </span>
+              </button>
+              <button id="reportGenerateBtn" class="btn-primary">
+                <span class="btn-inline-content">
+                  <i data-lucide="send"></i>
+                  <span>GENERATE &amp; EMAIL</span>
+                </span>
+              </button>
             </div>
 
             <div id="reportLoading" class="report-loading" style="display:none;"></div>
@@ -3189,7 +3309,12 @@ View report to see the most recent interactions
 
               <div class="settings-actions">
                 <span id="settingsStatus" class="settings-status"></span>
-                <button id="settingsSaveBtn" class="btn-primary">SAVE SETTINGS</button>
+                <button id="settingsSaveBtn" class="btn-primary">
+                  <span class="btn-inline-content">
+                    <i data-lucide="save"></i>
+                    <span>SAVE SETTINGS</span>
+                  </span>
+                </button>
               </div>
             </div>
           </div>
@@ -3227,7 +3352,12 @@ View report to see the most recent interactions
                       </svg>
                       <span>Preview</span>
                     </button>
-                    <button id="templateSaveBtn" class="btn-primary template-primary-action" type="button">Save</button>
+                    <button id="templateSaveBtn" class="btn-primary template-primary-action" type="button">
+                      <span class="btn-inline-content">
+                        <i data-lucide="save"></i>
+                        <span>Save</span>
+                      </span>
+                    </button>
                     <button id="templateSaveSetBtn" class="template-toolbar-btn" type="button" style="display: none;">Save + Set</button>
                     <button id="templateSetActiveBtn" class="template-toolbar-btn" title="Set as Live Template" type="button" style="display: none;">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3489,19 +3619,11 @@ View report to see the most recent interactions
 
           <div class="photo-info-actions">
             <button id="photoInfoDownloadTemplate" class="photo-info-btn photo-info-btn-primary">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
+              <i data-lucide="download"></i>
               <span>DOWNLOAD WITH TEMPLATE</span>
             </button>
             <button id="photoInfoDownloadOriginal" class="photo-info-btn photo-info-btn-secondary">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
+              <i data-lucide="download"></i>
               <span>DOWNLOAD ORIGINAL</span>
             </button>
           </div>
@@ -3585,31 +3707,14 @@ View report to see the most recent interactions
       });
       return downloadTemplatePromise;
     }
-let globalLottie = null;
-
-function ensureGlobalLottie() {
-  if (!globalLottie) {
-    globalLottie = lottie.loadAnimation({
-      container: document.getElementById("globalLottie"),
-      renderer: "svg",
-      loop: true,
-      autoplay: false,
-      path: "Assets/Material wave loading.json",
-    });
-  }
-}
-
 function showGlobalLoader() {
-  ensureGlobalLottie();
   const el = document.getElementById("globalLoader");
-  el.style.display = "flex";
-  globalLottie.goToAndPlay(0);
+  if (el) el.style.display = "flex";
 }
 
 function hideGlobalLoader() {
   const el = document.getElementById("globalLoader");
-  el.style.display = "none";
-  if (globalLottie) globalLottie.stop();
+  if (el) el.style.display = "none";
 }
     // Will store the admin session token returned by /admin/auth
     let adminToken = null;
@@ -3632,8 +3737,7 @@ function hideGlobalLoader() {
 
     // DARK MODE TOGGLE (Moon/Sun Icon Button)
     const themeToggleBtn = document.getElementById("themeToggleBtn");
-    const moonIcon = themeToggleBtn?.querySelector(".icon-moon");
-    const sunIcon = themeToggleBtn?.querySelector(".icon-sun");
+    renderLucideIcons();
     
     // Initialize theme from localStorage or default to dark
     const savedTheme = localStorage.getItem("adminTheme") || "dark";
@@ -3641,6 +3745,8 @@ function hideGlobalLoader() {
     updateThemeIcons(savedTheme);
     
     function updateThemeIcons(theme) {
+      const moonIcon = themeToggleBtn?.querySelector(".icon-moon");
+      const sunIcon = themeToggleBtn?.querySelector(".icon-sun");
       if (!moonIcon || !sunIcon) return;
       // Show moon icon in dark mode, sun icon in light mode
       if (theme === "dark") {
@@ -3946,28 +4052,79 @@ function hideGlobalLoader() {
     const settingsNewsletterEnabled = document.getElementById("settingsNewsletterEnabled");
     const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
     const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
+    const appToastStack = document.getElementById("appToastStack");
+    let settingsStatusTimeoutId = null;
 
-// Lottie loader for the report modal
-let reportLottie = null;
+    function renderLucideIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === "function") {
+        window.lucide.createIcons();
+      }
+    }
 
-function ensureReportLottie() {
-  if (reportLottie || !window.lottie || !reportLoading) return;
-  reportLottie = lottie.loadAnimation({
-    container: reportLoading,
-    renderer: "svg",
-    loop: true,
-    autoplay: false,
-    path: "Assets/Material wave loading.json", // 🔥 your file
-  });
-}
+    function lucideIcon(name) {
+      return `<i data-lucide="${name}"></i>`;
+    }
+
+    function setButtonHtml(button, html) {
+      if (!button) return;
+      button.innerHTML = html;
+      renderLucideIcons();
+    }
+
+    function setButtonLoading(button, label, busy) {
+      if (!button) return;
+
+      if (busy) {
+        if (!button.dataset.initialHtml) {
+          button.dataset.initialHtml = button.innerHTML;
+        }
+        button.dataset.wasDisabled = button.disabled ? "true" : "false";
+        button.disabled = true;
+        button.classList.add("btn-loading");
+        button.innerHTML = `<span class="btn-inline-content"><span class="btn-inline-spinner"></span><span>${label}</span></span>`;
+        return;
+      }
+
+      if (button.dataset.initialHtml) {
+        button.innerHTML = button.dataset.initialHtml;
+      }
+      button.classList.remove("btn-loading");
+      button.disabled = button.dataset.wasDisabled === "true";
+      delete button.dataset.initialHtml;
+      delete button.dataset.wasDisabled;
+      renderLucideIcons();
+    }
+
+    function showToast(message, tone = "muted", duration = 2200) {
+      if (!appToastStack || !message) return;
+
+      const toast = document.createElement("div");
+      toast.className = `app-toast ${tone}`;
+      toast.innerHTML = `
+        ${tone === "success" ? lucideIcon("check") : tone === "error" ? lucideIcon("alert-circle") : lucideIcon("info")}
+        <span>${message}</span>
+      `;
+      appToastStack.appendChild(toast);
+      renderLucideIcons();
+
+      requestAnimationFrame(() => {
+        toast.classList.add("visible");
+      });
+
+      window.setTimeout(() => {
+        toast.classList.remove("visible");
+        window.setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 180);
+      }, duration);
+    }
 
 function showReportLoading() {
-  ensureReportLottie();
   if (reportLoading) {
+    reportLoading.innerHTML = '<span class="minimal-loader minimal-loader-lg" aria-hidden="true"></span>';
     reportLoading.style.display = "flex";
-  }
-  if (reportLottie) {
-    reportLottie.play();
   }
   // lock buttons while we load
   if (reportViewBtn) reportViewBtn.disabled = true;
@@ -3976,11 +4133,9 @@ function showReportLoading() {
 }
 
 function hideReportLoading() {
-  if (reportLottie) {
-    reportLottie.stop();
-  }
   if (reportLoading) {
     reportLoading.style.display = "none";
+    reportLoading.innerHTML = "";
   }
   if (reportViewBtn) reportViewBtn.disabled = false;
   if (reportGenerateBtn) reportGenerateBtn.disabled = false;
@@ -4918,6 +5073,10 @@ function hideReportLoading() {
       )}?token=${encodeURIComponent(adminToken || "")}`;
 
       try {
+        const usingViewerButton = String(fileId) === String(viewerCurrentFileId || "");
+        if (usingViewerButton) {
+          setButtonLoading(viewerDownloadBtn, "Downloading...", true);
+        }
         const photoImgEl = new Image();
         photoImgEl.crossOrigin = "anonymous";
 
@@ -5022,6 +5181,10 @@ function hideReportLoading() {
       } catch (err) {
         console.error("Error generating download with template:", err);
         alert("Could not create the download image. Please try again.");
+      } finally {
+        if (String(fileId) === String(viewerCurrentFileId || "")) {
+          setButtonLoading(viewerDownloadBtn, "Downloading...", false);
+        }
       }
     }
 
@@ -5284,9 +5447,14 @@ function hideReportLoading() {
     });
 
     // Download with template (no user info printed)
-    photoInfoDownloadTemplate.addEventListener("click", () => {
+    photoInfoDownloadTemplate.addEventListener("click", async () => {
       if (!currentPhotoInfo.fileId) return;
-      downloadApprovedWithFrame(currentPhotoInfo.fileId);
+      setButtonLoading(photoInfoDownloadTemplate, "Downloading...", true);
+      try {
+        await downloadApprovedWithFrame(currentPhotoInfo.fileId);
+      } finally {
+        setButtonLoading(photoInfoDownloadTemplate, "Downloading...", false);
+      }
     });
 
     // Download original (clean photo)
@@ -5298,6 +5466,7 @@ function hideReportLoading() {
       }
 
       try {
+        setButtonLoading(photoInfoDownloadOriginal, "Downloading...", true);
         const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
           currentPhotoInfo.fileId
         )}?token=${encodeURIComponent(adminToken || "")}`;
@@ -5319,6 +5488,8 @@ function hideReportLoading() {
       } catch (err) {
         console.error("Error downloading original photo:", err);
         alert("Could not download the photo. Please try again.");
+      } finally {
+        setButtonLoading(photoInfoDownloadOriginal, "Downloading...", false);
       }
     });
 
@@ -5357,8 +5528,7 @@ function hideReportLoading() {
     return;
   }
 
-  // Show loader for report generation
-  showGlobalLoader();
+  setButtonLoading(reportGenerateBtn, "Generating...", true);
 
   try {
     const res = await fetch(`${BASE_URL}/session-report-now`, {
@@ -5389,16 +5559,16 @@ function hideReportLoading() {
       reportPreview.textContent = text;
     }
 
-    alert("Event report generated and sent to the configured email.");
+    showToast("Event report generated and emailed.", "success");
   } catch (err) {
     console.error("Error generating event report", err);
     if (reportPreview) {
       reportPreview.textContent =
         "Could not generate the event report. Please try again.";
     }
-    alert("Could not generate the event report. Please try again.");
+    showToast("Could not generate the event report.", "error");
   } finally {
-    hideGlobalLoader();
+    setButtonLoading(reportGenerateBtn, "Generating...", false);
   }
 }
 
@@ -5871,13 +6041,26 @@ function hideReportLoading() {
         templateSaveBtn.style.display = "inline-flex";
         templateSaveBtn.disabled = isSavingTemplate || (needsSave && !hasBackground) || (!needsSave && isCurrentlyLive);
         templateSaveBtn.classList.toggle("is-saving", isSavingTemplate);
-        templateSaveBtn.textContent = isSavingTemplate
+        const templateButtonLabel = isSavingTemplate
           ? "Saving..."
           : needsSave
-            ? "Save"
+            ? (isCurrentlyLive ? "Save Live Changes" : "Save")
             : isCurrentlyLive
               ? "Live On Screen"
               : "Set To Screen";
+        const templateButtonIcon = isSavingTemplate
+          ? ""
+          : needsSave
+            ? "save"
+            : isCurrentlyLive
+              ? "monitor"
+              : "monitor";
+        setButtonHtml(
+          templateSaveBtn,
+          `<span class="btn-inline-content">${
+            isSavingTemplate ? '<span class="btn-inline-spinner"></span>' : lucideIcon(templateButtonIcon)
+          }<span>${templateButtonLabel}</span></span>`
+        );
       }
       if (templateSaveSetBtn) {
         templateSaveSetBtn.style.display = "none";
@@ -5896,9 +6079,13 @@ function hideReportLoading() {
       }
       if (templateEditorSubtitle) {
         if (currentTemplateDirty) {
-          templateEditorSubtitle.textContent = "Unsaved changes. Save to keep this layout.";
+          templateEditorSubtitle.textContent = isCurrentlyLive
+            ? "Unsaved changes to the live template. Save to update the screen layout."
+            : "Unsaved changes. Save to keep this layout.";
         } else if (savedTemplateLoaded) {
-          templateEditorSubtitle.textContent = "Saved template loaded. Set it to screen when ready.";
+          templateEditorSubtitle.textContent = isCurrentlyLive
+            ? "This template is currently live on the gallery screen."
+            : "Saved template loaded. Set it to screen when ready.";
         } else {
           templateEditorSubtitle.textContent = "Choose a template to edit or create a new one.";
         }
@@ -6267,6 +6454,7 @@ function hideReportLoading() {
       panel.appendChild(cancelBtn);
       overlay.appendChild(panel);
       document.body.appendChild(overlay);
+      renderLucideIcons();
 
       overlay.addEventListener("click", (e) => {
         if (e.target === overlay) {
@@ -6332,12 +6520,7 @@ function hideReportLoading() {
           deleteBtn.type = "button";
           deleteBtn.className = "template-toolbar-btn template-toolbar-btn-danger";
           deleteBtn.style.cssText = "padding: 0.75rem; min-width: 46px;";
-          deleteBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          `;
+          deleteBtn.innerHTML = lucideIcon("trash-2");
           deleteBtn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const confirmed = window.confirm(`Delete background "${asset.label}"?`);
@@ -6376,14 +6559,7 @@ function hideReportLoading() {
       const uploadBtn = document.createElement("button");
       uploadBtn.className = "btn-primary";
       uploadBtn.style.cssText = "width: 100%; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;";
-      uploadBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 1rem; height: 1rem;">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 21 12 17 16"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-        <span>UPLOAD BACKGROUND</span>
-      `;
+      uploadBtn.innerHTML = `<span class="btn-inline-content">${lucideIcon("upload")}<span>UPLOAD BACKGROUND</span></span>`;
       uploadBtn.addEventListener("click", () => {
         if (templateBackgroundUpload) {
           templateBackgroundUpload.click();
@@ -6405,6 +6581,7 @@ function hideReportLoading() {
       panel.appendChild(cancelBtn);
       overlay.appendChild(panel);
       document.body.appendChild(overlay);
+      renderLucideIcons();
 
       overlay.addEventListener("click", (e) => {
         if (e.target === overlay) {
@@ -6448,14 +6625,7 @@ function hideReportLoading() {
       const uploadBtn = document.createElement("button");
       uploadBtn.className = "btn-primary";
       uploadBtn.style.cssText = "width: 100%; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;";
-      uploadBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 1rem; height: 1rem;">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 21 12 17 16"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-        <span>UPLOAD LOGO</span>
-      `;
+      uploadBtn.innerHTML = `<span class="btn-inline-content">${lucideIcon("upload")}<span>UPLOAD LOGO</span></span>`;
       uploadBtn.addEventListener("click", () => {
         if (templateLogoUpload) {
           templateLogoUpload.click();
@@ -6681,13 +6851,7 @@ function hideReportLoading() {
 
       const replaceBtn = document.createElement("button");
       replaceBtn.className = "template-logo-action-btn";
-      replaceBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 21 12 17 16"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-      `;
+      replaceBtn.innerHTML = lucideIcon("refresh-cw");
       replaceBtn.title = "Replace logo";
       replaceBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -6696,12 +6860,7 @@ function hideReportLoading() {
 
       const deleteBtn = document.createElement("button");
       deleteBtn.className = "template-logo-action-btn danger";
-      deleteBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        </svg>
-      `;
+      deleteBtn.innerHTML = lucideIcon("trash-2");
       deleteBtn.title = "Delete logo";
       deleteBtn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -6713,6 +6872,7 @@ function hideReportLoading() {
       actionsDiv.appendChild(replaceBtn);
       actionsDiv.appendChild(deleteBtn);
       logoDiv.appendChild(actionsDiv);
+      renderLucideIcons();
 
       // Click to select
       logoDiv.addEventListener("click", (e) => {
@@ -7013,7 +7173,7 @@ function hideReportLoading() {
 
         const success = await setTemplateAsActive(currentTemplateId);
         if (success) {
-          alert(`"${currentTemplateName || currentTemplateId}" is set to screen.`);
+          showToast(`"${currentTemplateName || currentTemplateId}" is live on screen.`, "success");
         }
       });
     }
@@ -7112,7 +7272,7 @@ function hideReportLoading() {
 
     async function setTemplateAsActive(templateId, templateName = currentTemplateName, templateData = collectTemplateData()) {
       if (!templateId) {
-        alert("Save the template first, then set it as the live template.");
+        showToast("Save the template first, then set it live.", "error");
         return false;
       }
 
@@ -7164,11 +7324,12 @@ function hideReportLoading() {
         }
         currentActiveTemplateId = String(templateId);
         updateTemplateUiState();
+        showToast(`"${templateName || templateId}" is now the live template.`, "success");
 
         return true;
       } catch (err) {
         console.error("Error setting active template:", err);
-        alert("Failed to set the live template. Please try again.");
+        showToast("Failed to set the live template.", "error");
         return false;
       }
     }
@@ -7246,6 +7407,7 @@ function hideReportLoading() {
           const savedTemplateId = saved?.savedTemplateId || (currentTemplateId ? String(currentTemplateId) : "");
           const savedTemplateName = saved?.savedTemplateName || currentTemplateName || "";
           const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
+          const wasLiveTemplate = savedTemplateId && String(savedTemplateId) === String(currentActiveTemplateId || "");
 
           if (setActiveAfterSave) {
             const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData);
@@ -7253,8 +7415,18 @@ function hideReportLoading() {
               currentActiveTemplateId = String(savedTemplateId);
               updateTemplateUiState();
             }
+          } else if (wasLiveTemplate) {
+            currentActiveTemplateId = String(savedTemplateId);
+            updateTemplateUiState();
           }
-          alert(setActiveAfterSave ? `Template "${currentTemplateName}" saved and set to screen.` : `Template "${currentTemplateName}" saved.`);
+          showToast(
+            setActiveAfterSave
+              ? `Template "${currentTemplateName}" saved and updated live.`
+              : wasLiveTemplate
+                ? `Template "${currentTemplateName}" saved and the live screen was updated.`
+                : `Template "${currentTemplateName}" saved.`,
+            "success"
+          );
           return true;
         }
 
@@ -7262,7 +7434,7 @@ function hideReportLoading() {
         return false;
       } catch (err) {
         console.error("Error saving template:", err);
-        alert("Failed to save template. Please try again.");
+        showToast("Failed to save template.", "error");
         return false;
       } finally {
         isSavingTemplate = false;
@@ -7317,35 +7489,46 @@ function hideReportLoading() {
 
       const saveBtn = document.createElement("button");
       saveBtn.className = "btn-primary";
-      saveBtn.textContent = "SAVE";
+      saveBtn.innerHTML = `<span class="btn-inline-content">${lucideIcon("save")}<span>SAVE</span></span>`;
       saveBtn.addEventListener("click", async () => {
         const name = input.value.trim();
         if (!name) {
-          alert("Please enter a template name.");
+          showToast("Please enter a template name.", "error");
           return;
         }
-        
-        const templateData = collectTemplateData();
 
         try {
+          setButtonLoading(saveBtn, "Saving...", true);
           const saved = await persistTemplate(name);
           const savedTemplateId = saved?.savedTemplateId || (currentTemplateId ? String(currentTemplateId) : "");
           const savedTemplateName = saved?.savedTemplateName || currentTemplateName || "";
           const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
+          const wasLiveTemplate = savedTemplateId && String(savedTemplateId) === String(currentActiveTemplateId || "");
 
           if (setActiveAfterSave) {
             const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData);
             if (success) {
               currentActiveTemplateId = String(savedTemplateId);
             }
+          } else if (wasLiveTemplate) {
+            currentActiveTemplateId = String(savedTemplateId);
           }
           if (overlay.parentNode) {
             document.body.removeChild(overlay);
           }
-          alert(setActiveAfterSave ? `Template "${name}" saved and set to screen.` : `Template "${name}" saved successfully!`);
+          showToast(
+            setActiveAfterSave
+              ? `Template "${name}" saved and updated live.`
+              : wasLiveTemplate
+                ? `Template "${name}" saved and the live screen was updated.`
+                : `Template "${name}" saved.`,
+            "success"
+          );
         } catch (err) {
           console.error("Error saving template:", err);
-          alert("Failed to save template. Please try again.");
+          showToast("Failed to save template.", "error");
+        } finally {
+          setButtonLoading(saveBtn, "Saving...", false);
         }
       });
 
@@ -7527,6 +7710,7 @@ reportViewBtn.addEventListener("click", async () => {
   }
 
   showReportLoading();
+  setButtonLoading(reportViewBtn, "Loading...", true);
 
   try {
     const res = await fetch(`${BASE_URL}/session-report-preview`, {
@@ -7559,6 +7743,7 @@ reportViewBtn.addEventListener("click", async () => {
       "Error loading the report preview. Please try again.";
   } finally {
     hideReportLoading();
+    setButtonLoading(reportViewBtn, "Loading...", false);
   }
 });
 
@@ -7570,13 +7755,26 @@ reportViewBtn.addEventListener("click", async () => {
 
     function setSettingsStatus(message, tone = "muted") {
       if (!settingsStatus) return;
+      if (settingsStatusTimeoutId) {
+        window.clearTimeout(settingsStatusTimeoutId);
+        settingsStatusTimeoutId = null;
+      }
       settingsStatus.textContent = message || "";
+      settingsStatus.classList.toggle("visible", Boolean(message));
       if (tone === "success") {
         settingsStatus.style.color = "#86efac";
       } else if (tone === "error") {
         settingsStatus.style.color = "#fca5a5";
       } else {
         settingsStatus.style.color = "var(--muted-foreground)";
+      }
+
+      if (message && tone !== "muted") {
+        settingsStatusTimeoutId = window.setTimeout(() => {
+          settingsStatus.textContent = "";
+          settingsStatus.classList.remove("visible");
+          settingsStatusTimeoutId = null;
+        }, 2400);
       }
     }
 
@@ -7784,6 +7982,7 @@ reportViewBtn.addEventListener("click", async () => {
         }
 
         setSettingsStatus("Saving settings…");
+        setButtonLoading(settingsSaveBtn, "Saving...", true);
 
         try {
           const payload = collectSettingsPayload();
@@ -7802,12 +8001,18 @@ reportViewBtn.addEventListener("click", async () => {
           if (data && data.ok) {
             fillSettingsForm(data.settings);
             setSettingsStatus("Settings saved.", "success");
+            await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
+            showToast("Settings saved.", "success");
           } else {
             setSettingsStatus("Could not save settings.", "error");
+            showToast("Could not save settings.", "error");
           }
         } catch (err) {
           console.error("Error saving settings", err);
           setSettingsStatus("Error saving settings.", "error");
+          showToast("Error saving settings.", "error");
+        } finally {
+          setButtonLoading(settingsSaveBtn, "Saving...", false);
         }
       });
     }
@@ -7835,6 +8040,7 @@ reportViewBtn.addEventListener("click", async () => {
         });
     })();
   </script>
+  <div id="appToastStack" class="app-toast-stack" aria-live="polite" aria-atomic="true"></div>
   <div id="globalLoader" style="
   display:none;
   position:fixed;
@@ -7844,7 +8050,7 @@ reportViewBtn.addEventListener("click", async () => {
   align-items:center;
   justify-content:center;
 ">
-  <div id="globalLottie" style="width:180px;height:180px;"></div>
+  <div class="minimal-loader minimal-loader-lg" aria-hidden="true" style="color: white;"></div>
 </div>
 </body>
 </html>

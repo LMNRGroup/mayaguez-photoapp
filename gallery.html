@@ -215,8 +215,10 @@
     let rotateTimer = null;
     let refreshTimer = null;
     let activeTemplateKey = "";
-    const sortOrder = "newest";
+    const sortOrder = "oldest";
     let activeTemplateRequestId = 0;
+    let currentPhotoId = "";
+    let photoTransitionToken = 0;
 
     function buildPhotoUrl(fileId) {
       return `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
@@ -382,63 +384,95 @@
     function setEmptyState() {
       imgSlots.forEach((img) => {
         img.classList.remove("visible");
+        img.onload = null;
+        img.onerror = null;
         img.removeAttribute("src");
       });
       emptyEl.classList.remove("hidden");
       hideTicketBadge();
       hasImage = false;
+      currentPhotoId = "";
     }
 
-    function crossfadeTo(url) {
-      if (!hasImage) {
-        const img = imgSlots[activeIndex];
-        img.onload = () => {
-          emptyEl.classList.add("hidden");
-          img.classList.add("visible");
-          hasImage = true;
+    function preloadPhoto(url) {
+      return new Promise((resolve, reject) => {
+        const preloadImg = new Image();
+        preloadImg.decoding = "async";
+        preloadImg.onload = async () => {
+          try {
+            if (typeof preloadImg.decode === "function") {
+              await preloadImg.decode();
+            }
+          } catch (_) {}
+          resolve(url);
         };
-        img.onerror = (err) => console.error("Error loading first photo", err);
-        img.src = url;
+        preloadImg.onerror = reject;
+        preloadImg.src = url;
+      });
+    }
+
+    async function crossfadeTo(url, photoId = "") {
+      const normalizedTargetUrl = url ? new URL(url, window.location.href).href : "";
+      const transitionToken = ++photoTransitionToken;
+
+      if (!hasImage) {
+        try {
+          await preloadPhoto(url);
+          if (transitionToken !== photoTransitionToken) return;
+
+          const img = imgSlots[activeIndex];
+          img.onload = null;
+          img.onerror = null;
+          img.classList.remove("visible");
+          img.src = url;
+
+          requestAnimationFrame(() => {
+            if (transitionToken !== photoTransitionToken) return;
+            emptyEl.classList.add("hidden");
+            img.classList.add("visible");
+            hasImage = true;
+            currentPhotoId = photoId ? String(photoId) : "";
+          });
+        } catch (err) {
+          console.error("Error loading first photo", err);
+        }
         return;
       }
 
       const currentImg = imgSlots[activeIndex];
+      const currentVisibleUrl = currentImg.currentSrc || currentImg.src || "";
+      if (normalizedTargetUrl && currentVisibleUrl === normalizedTargetUrl) {
+        emptyEl.classList.add("hidden");
+        currentPhotoId = photoId ? String(photoId) : currentPhotoId;
+        hasImage = true;
+        return;
+      }
+
       const nextIndex = 1 - activeIndex;
       const nextImg = imgSlots[nextIndex];
+      nextImg.onload = null;
+      nextImg.onerror = null;
 
-      nextImg.onload = () => {
-        nextImg.classList.add("visible");
-        currentImg.classList.remove("visible");
-        activeIndex = nextIndex;
-        emptyEl.classList.add("hidden");
-        hasImage = true;
-      };
+      try {
+        await preloadPhoto(url);
+        if (transitionToken !== photoTransitionToken) return;
 
-      nextImg.onerror = (err) => console.error("Error loading photo", err);
-      nextImg.src = url;
-    }
+        nextImg.classList.remove("visible");
+        nextImg.src = url;
 
-    function sortPhotos() {
-      if (!photos.length) return;
-      
-      const sorted = [...photos];
-      if (sortOrder === 'newest') {
-        // Sort by createdTime descending (newest first)
-        sorted.sort((a, b) => {
-          const timeA = new Date(a.createdTime || 0).getTime();
-          const timeB = new Date(b.createdTime || 0).getTime();
-          return timeB - timeA;
+        requestAnimationFrame(() => {
+          if (transitionToken !== photoTransitionToken) return;
+          void nextImg.offsetWidth;
+          nextImg.classList.add("visible");
+          currentImg.classList.remove("visible");
+          activeIndex = nextIndex;
+          emptyEl.classList.add("hidden");
+          hasImage = true;
+          currentPhotoId = photoId ? String(photoId) : "";
         });
-      } else {
-        // Sort by createdTime ascending (oldest first)
-        sorted.sort((a, b) => {
-          const timeA = new Date(a.createdTime || 0).getTime();
-          const timeB = new Date(b.createdTime || 0).getTime();
-          return timeA - timeB;
-        });
+      } catch (err) {
+        console.error("Error loading photo", err);
       }
-      
-      photos = sorted;
     }
 
     function showCurrentPhoto() {
@@ -451,7 +485,7 @@
       const url = buildPhotoUrl(file.id);
 
       updateTicketBadge(file.name);
-      crossfadeTo(url);
+      crossfadeTo(url, file.id);
     }
 
     function startRotation() {
@@ -488,12 +522,12 @@
           return;
         }
 
-        const newPhotos = data.files || [];
+        const newPhotos = Array.isArray(data.files) ? [...data.files] : [];
+        sortPhotosList(newPhotos);
         const oldIds = photos.map((p) => p.id).join(",");
         const newIds = newPhotos.map((p) => p.id).join(",");
 
         photos = newPhotos;
-        sortPhotos(); // Sort based on user preference
 
         if (!photos.length) {
           currentIndex = 0;
@@ -502,7 +536,12 @@
         }
 
         if (oldIds !== newIds) {
-          if (currentIndex >= photos.length) {
+          const currentPhotoIndex = currentPhotoId
+            ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
+            : -1;
+          if (currentPhotoIndex >= 0) {
+            currentIndex = currentPhotoIndex;
+          } else if (currentIndex >= photos.length) {
             currentIndex = photos.length - 1;
           }
           startRotation();
@@ -515,6 +554,26 @@
     function startRefreshLoop() {
       if (refreshTimer) clearInterval(refreshTimer);
       refreshTimer = setInterval(fetchApproved, REFRESH_MS);
+    }
+
+    function sortPhotosList(list) {
+      if (!Array.isArray(list) || !list.length) return list;
+
+      if (sortOrder === 'newest') {
+        list.sort((a, b) => {
+          const timeA = new Date(a.createdTime || 0).getTime();
+          const timeB = new Date(b.createdTime || 0).getTime();
+          return timeB - timeA;
+        });
+      } else {
+        list.sort((a, b) => {
+          const timeA = new Date(a.createdTime || 0).getTime();
+          const timeB = new Date(b.createdTime || 0).getTime();
+          return timeA - timeB;
+        });
+      }
+
+      return list;
     }
 
     fetchApproved().then(startRefreshLoop);
