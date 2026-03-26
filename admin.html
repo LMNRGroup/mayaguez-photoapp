@@ -2784,6 +2784,14 @@
     letter-spacing: 0.01em; /* Slight letter spacing for readability */
   }
 
+  .report-preview.overlay-report-preview {
+    margin-top: 0;
+    max-height: none;
+    min-height: min(54vh, 560px);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
   .metrics-placeholder {
     flex: 1;
     min-height: 360px;
@@ -4652,6 +4660,7 @@ function hideGlobalLoader() {
     const activityXAxis = document.getElementById("activityXAxis");
     const activityYAxis = document.getElementById("activityYAxis");
     const systemHealthGrid = document.getElementById("systemHealthGrid");
+    let latestReportPreviewText = 'Tap "View report" to load the current summary.';
     // Pending counter state (frontend)
     let pendingCountState = 0;
     // Delta we expect after our own actions (approve/reject)
@@ -4757,6 +4766,14 @@ function hideGlobalLoader() {
         overlay: document.getElementById("systemHealthOverlay"),
         closeBtn: document.getElementById("systemHealthOverlayClose"),
         expandedGrid: document.getElementById("systemHealthExpandedGrid"),
+      };
+    }
+
+    function getReportOverlayElements() {
+      return {
+        overlay: document.getElementById("reportOverlay"),
+        closeBtn: document.getElementById("reportOverlayClose"),
+        preview: document.getElementById("reportOverlayPreview"),
       };
     }
 
@@ -5381,6 +5398,10 @@ function hideGlobalLoader() {
 function showReportLoading() {
   if (reportLoading) {
     showReportSkeleton();
+  }
+  const { preview } = getReportOverlayElements();
+  if (preview) {
+    preview.textContent = "";
   }
   // lock buttons while we load
   if (reportViewBtn) reportViewBtn.disabled = true;
@@ -7717,6 +7738,16 @@ function hideReportLoading() {
       }
       if (healthOverlay && event.target === healthOverlay) {
         closeSystemHealthOverlay();
+        return;
+      }
+
+      const { overlay: reportOverlay, closeBtn: reportCloseBtn } = getReportOverlayElements();
+      if (reportCloseBtn && event.target === reportCloseBtn) {
+        closeReportOverlay();
+        return;
+      }
+      if (reportOverlay && event.target === reportOverlay) {
+        closeReportOverlay();
       }
     });
 
@@ -9725,6 +9756,13 @@ function hideReportLoading() {
       if (key === "escape" && healthOverlay && healthOverlay.classList.contains("visible")) {
         event.preventDefault();
         closeSystemHealthOverlay();
+        return;
+      }
+
+      const { overlay: reportOverlay } = getReportOverlayElements();
+      if (key === "escape" && reportOverlay && reportOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeReportOverlay();
       }
     });
 
@@ -9738,14 +9776,22 @@ function hideReportLoading() {
     // --- REPORT MODAL LOGIC ---
 
 function openReportOverlay() {
-  // Legacy function - now redirects to view
-  if (typeof switchView === 'function') {
-    switchView("reports");
-    if (reportPreview) {
-      reportPreview.textContent = "Tap \"View report\" to load the current summary.";
-    }
-    hideReportLoading();
+  const { overlay, preview } = getReportOverlayElements();
+  if (!overlay) return;
+  if (preview) {
+    preview.textContent = latestReportPreviewText;
   }
+  overlay.classList.add("visible");
+  overlay.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+
+function closeReportOverlay() {
+  const { overlay } = getReportOverlayElements();
+  if (!overlay) return;
+  overlay.classList.remove("visible");
+  overlay.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
 }
 
 reportViewBtn.addEventListener("click", async () => {
@@ -9754,6 +9800,7 @@ reportViewBtn.addEventListener("click", async () => {
     return;
   }
 
+  openReportOverlay();
   showReportLoading();
   setButtonLoading(reportViewBtn, "Loading...", true);
 
@@ -9769,23 +9816,35 @@ reportViewBtn.addEventListener("click", async () => {
     }
 
     if (!res.ok) {
+      latestReportPreviewText = "Could not load the report preview. Please try again.";
       reportPreview.textContent =
         "Could not load the report preview. Please try again.";
+      const { preview } = getReportOverlayElements();
+      if (preview) preview.textContent = latestReportPreviewText;
       return;
     }
 
     const data = await res.json();
 
     if (data && data.reportText) {
+      latestReportPreviewText = data.reportText;
       reportPreview.textContent = data.reportText;
+      const { preview } = getReportOverlayElements();
+      if (preview) preview.textContent = latestReportPreviewText;
     } else {
+      latestReportPreviewText = "No report text was returned by the server.";
       reportPreview.textContent =
         "No report text was returned by the server.";
+      const { preview } = getReportOverlayElements();
+      if (preview) preview.textContent = latestReportPreviewText;
     }
   } catch (err) {
     console.error("Error fetching report preview", err);
+    latestReportPreviewText = "Error loading the report preview. Please try again.";
     reportPreview.textContent =
       "Error loading the report preview. Please try again.";
+    const { preview } = getReportOverlayElements();
+    if (preview) preview.textContent = latestReportPreviewText;
   } finally {
     hideReportLoading();
     setButtonLoading(reportViewBtn, "Loading...", false);
@@ -10133,6 +10192,26 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
       <div class="event-logs-modal-body">
         <div id="systemHealthExpandedGrid" class="system-health-grid expanded"></div>
+      </div>
+    </div>
+  </div>
+  <div id="reportOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="reportOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="reportOverlayTitle" class="event-logs-modal-title">Event Report</h3>
+          <p class="event-logs-modal-subtitle">Expanded session summary view with the rest of the admin blurred behind it.</p>
+        </div>
+        <button id="reportOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close event report">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <pre id="reportOverlayPreview" class="report-preview overlay-report-preview">Tap "View report" to load the current summary.</pre>
       </div>
     </div>
   </div>
