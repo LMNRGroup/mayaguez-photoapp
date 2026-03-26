@@ -1704,6 +1704,14 @@
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 
+  .approved-view-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
   .approved-thumb {
     position: relative;
     border-radius: var(--radius);
@@ -1732,6 +1740,52 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  .approved-thumb.is-select-mode::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid transparent;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    pointer-events: none;
+  }
+
+  .approved-thumb.is-select-mode:hover::after {
+    border-color: hsla(var(--primary), 0.55);
+  }
+
+  .approved-thumb.is-selected::after {
+    border-color: hsl(var(--primary));
+    background: hsla(var(--primary), 0.18);
+  }
+
+  .approved-thumb-check {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(8, 11, 18, 0.55);
+    color: rgba(255, 255, 255, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  .approved-thumb.is-select-mode .approved-thumb-check {
+    display: inline-flex;
+  }
+
+  .approved-thumb.is-selected .approved-thumb-check {
+    background: hsl(var(--primary));
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
   }
 
   .approved-thumb.busy {
@@ -2338,21 +2392,6 @@
     justify-content: flex-end;
     gap: 10px;
     margin-top: 6px;
-  }
-
-  .settings-status {
-    min-height: 1rem;
-    font-size: 0.75rem;
-    color: var(--muted-foreground);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    opacity: 0;
-    transition: opacity 160ms ease;
-  }
-
-  .settings-status.visible {
-    opacity: 1;
   }
 
   .settings-help {
@@ -3103,6 +3142,17 @@
                   Tap a thumbnail to view details and download options.
                 </div>
               </div>
+              <div class="approved-view-actions">
+                <button id="approvedSelectModeBtn" type="button" class="btn-ghost">
+                  SELECT
+                </button>
+                <button id="approvedSelectPageBtn" type="button" class="btn-ghost" disabled>
+                  SELECT PAGE
+                </button>
+                <button id="approvedDeleteSelectedBtn" type="button" class="btn-reject" disabled>
+                  DELETE SELECTED
+                </button>
+              </div>
             </div>
 
             <div id="approvedEmpty" class="approved-empty">
@@ -3308,7 +3358,6 @@ View report to see the most recent interactions
               </div>
 
               <div class="settings-actions">
-                <span id="settingsStatus" class="settings-status"></span>
                 <button id="settingsSaveBtn" class="btn-primary">
                   <span class="btn-inline-content">
                     <i data-lucide="save"></i>
@@ -4016,6 +4065,9 @@ function hideGlobalLoader() {
     const approvedFooterText = document.getElementById("approvedFooterText");
     const approvedPrevBtn = document.getElementById("approvedPrevBtn");
     const approvedNextBtn = document.getElementById("approvedNextBtn");
+    const approvedSelectModeBtn = document.getElementById("approvedSelectModeBtn");
+    const approvedSelectPageBtn = document.getElementById("approvedSelectPageBtn");
+    const approvedDeleteSelectedBtn = document.getElementById("approvedDeleteSelectedBtn");
 
     // Viewer overlay elements
     const approvedViewer = document.getElementById("approvedViewer");
@@ -4034,7 +4086,6 @@ function hideGlobalLoader() {
 
     // SETTINGS MODAL ELEMENTS
     const settingsSaveBtn = document.getElementById("settingsSaveBtn");
-    const settingsStatus = document.getElementById("settingsStatus");
     const settingsTicketEnabled = document.getElementById("settingsTicketEnabled");
     const settingsGalleryDisplayLimit = document.getElementById("settingsGalleryDisplayLimit");
     const settingsGalleryDisplayCustom = document.getElementById("settingsGalleryDisplayCustom");
@@ -4053,8 +4104,6 @@ function hideGlobalLoader() {
     const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
     const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
     const appToastStack = document.getElementById("appToastStack");
-    let settingsStatusTimeoutId = null;
-
     function renderLucideIcons() {
       if (window.lucide && typeof window.lucide.createIcons === "function") {
         window.lucide.createIcons();
@@ -4156,19 +4205,25 @@ function hideReportLoading() {
 
     // Approved gallery paging
     let approvedFilesCache = {}; // Cache pages: { pageNumber: [files] }
+    let approvedPageMetaCache = {};
     let approvedPageIndex = 1; // Start at page 1 (server-side pagination)
-    let approvedTotalCount = 0;
+    let approvedTotalCount = null;
     let approvedTotalPages = 0;
+    let approvedHasNextPage = false;
+    let approvedSelectionMode = false;
+    let approvedSelectedIds = new Set();
     const APPROVED_PAGE_SIZE = 24;
 
     // Helper: Get all cached files as flat array (for finding items)
     function getAllCachedFiles() {
       const all = [];
-      for (const pageNum in approvedFilesCache) {
-        if (approvedFilesCache.hasOwnProperty(pageNum)) {
-          all.push(...approvedFilesCache[pageNum]);
-        }
-      }
+      const pageNumbers = Object.keys(approvedFilesCache)
+        .map((pageNum) => parseInt(pageNum, 10))
+        .filter((pageNum) => !Number.isNaN(pageNum))
+        .sort((a, b) => a - b);
+      pageNumbers.forEach((pageNum) => {
+        all.push(...(approvedFilesCache[pageNum] || []));
+      });
       return all;
     }
 
@@ -4182,6 +4237,37 @@ function hideReportLoading() {
     function getFileIndexInCache(fileId) {
       const all = getAllCachedFiles();
       return all.findIndex(f => String(f.fileId) === String(fileId));
+    }
+
+    function getCurrentApprovedPageFiles() {
+      return approvedFilesCache[approvedPageIndex] || [];
+    }
+
+    function updateApprovedSelectionControls() {
+      const selectedCount = approvedSelectedIds.size;
+      const currentPageFiles = getCurrentApprovedPageFiles();
+      const currentPageIds = currentPageFiles.map((item) => String(item.fileId));
+      const allCurrentSelected =
+        currentPageIds.length > 0 &&
+        currentPageIds.every((fileId) => approvedSelectedIds.has(fileId));
+
+      approvedSelectModeBtn.textContent = approvedSelectionMode ? "CANCEL SELECT" : "SELECT";
+      approvedSelectPageBtn.disabled = !approvedSelectionMode || currentPageIds.length === 0;
+      approvedSelectPageBtn.textContent =
+        approvedSelectionMode && allCurrentSelected ? "CLEAR PAGE" : "SELECT PAGE";
+      approvedDeleteSelectedBtn.disabled = selectedCount === 0;
+      approvedDeleteSelectedBtn.textContent =
+        selectedCount > 0 ? `DELETE SELECTED (${selectedCount})` : "DELETE SELECTED";
+    }
+
+    function toggleApprovedSelection(fileId) {
+      const id = String(fileId);
+      if (approvedSelectedIds.has(id)) {
+        approvedSelectedIds.delete(id);
+      } else {
+        approvedSelectedIds.add(id);
+      }
+      renderApprovedPage();
     }
 
     // --- Toggle UI (frontend) ---
@@ -4745,15 +4831,30 @@ function hideReportLoading() {
       btn.type = "button";
       btn.className = "approved-thumb";
       btn.dataset.id = fileId;
+      if (approvedSelectionMode) {
+        btn.classList.add("is-select-mode");
+      }
+      if (approvedSelectedIds.has(String(fileId))) {
+        btn.classList.add("is-selected");
+      }
 
       const img = document.createElement("img");
-      img.src = imgUrl; // This is now the thumbnail URL
+      img.src = imgUrl;
       img.alt = "Approved photo";
-      img.loading = "lazy"; // Lazy load thumbnails
+      img.loading = "lazy";
+
+      const check = document.createElement("span");
+      check.className = "approved-thumb-check";
+      check.textContent = "✓";
 
       btn.appendChild(img);
+      btn.appendChild(check);
 
       btn.addEventListener("click", () => {
+        if (approvedSelectionMode) {
+          toggleApprovedSelection(fileId);
+          return;
+        }
         // Get full item data from cache
         const item = findFileInCache(fileId);
         const fileName = item?.fileName || fileId;
@@ -4767,24 +4868,27 @@ function hideReportLoading() {
     function renderApprovedPage() {
       approvedGrid.innerHTML = "";
 
-      if (approvedTotalCount === 0) {
+      const currentPageFiles = getCurrentApprovedPageFiles();
+      approvedHasNextPage = Boolean(approvedPageMetaCache[approvedPageIndex]?.hasNextPage);
+      const knownTotal = Number.isFinite(approvedTotalCount);
+
+      if (knownTotal && approvedTotalCount === 0 && currentPageFiles.length === 0) {
         approvedEmpty.style.display = "block";
         approvedEmpty.textContent = "There are no approved photos at this moment.";
         approvedFooterText.textContent = "0 photos";
         approvedPrevBtn.disabled = true;
         approvedNextBtn.disabled = true;
+        updateApprovedSelectionControls();
         return;
       }
 
       approvedEmpty.style.display = "none";
-
-      // Get current page from cache
-      const currentPageFiles = approvedFilesCache[approvedPageIndex] || [];
       
       if (currentPageFiles.length === 0) {
         // Page not loaded yet, show loading
         approvedEmpty.style.display = "block";
         approvedEmpty.textContent = "Loading photos...";
+        updateApprovedSelectionControls();
         return;
       }
 
@@ -4796,10 +4900,17 @@ function hideReportLoading() {
       });
 
       const start = (approvedPageIndex - 1) * APPROVED_PAGE_SIZE + 1;
-      const end = Math.min(start + currentPageFiles.length - 1, approvedTotalCount);
-      approvedFooterText.textContent = `Showing ${start}–${end} of ${approvedTotalCount} photos`;
+      const end = knownTotal
+        ? Math.min(start + currentPageFiles.length - 1, approvedTotalCount)
+        : start + currentPageFiles.length - 1;
+      approvedFooterText.textContent = knownTotal
+        ? `Showing ${start}–${end} of ${approvedTotalCount} photos`
+        : `Showing ${start}–${end}${approvedHasNextPage ? "+" : ""} photos`;
       approvedPrevBtn.disabled = approvedPageIndex <= 1;
-      approvedNextBtn.disabled = approvedPageIndex >= approvedTotalPages;
+      approvedNextBtn.disabled = approvedTotalPages
+        ? approvedPageIndex >= approvedTotalPages
+        : !approvedHasNextPage;
+      updateApprovedSelectionControls();
     }
 
     approvedPrevBtn.addEventListener("click", async () => {
@@ -4810,10 +4921,48 @@ function hideReportLoading() {
     });
 
     approvedNextBtn.addEventListener("click", async () => {
-      if (approvedPageIndex >= approvedTotalPages) return;
+      if (approvedTotalPages ? approvedPageIndex >= approvedTotalPages : !approvedHasNextPage) return;
       approvedPageIndex += 1;
       await loadApprovedPage(approvedPageIndex);
       renderApprovedPage();
+    });
+
+    approvedSelectModeBtn.addEventListener("click", () => {
+      approvedSelectionMode = !approvedSelectionMode;
+      if (!approvedSelectionMode) {
+        approvedSelectedIds = new Set();
+      }
+      renderApprovedPage();
+    });
+
+    approvedSelectPageBtn.addEventListener("click", () => {
+      if (!approvedSelectionMode) return;
+
+      const currentPageFiles = getCurrentApprovedPageFiles();
+      const currentPageIds = currentPageFiles.map((item) => String(item.fileId));
+      const allCurrentSelected =
+        currentPageIds.length > 0 &&
+        currentPageIds.every((fileId) => approvedSelectedIds.has(fileId));
+
+      if (allCurrentSelected) {
+        currentPageIds.forEach((fileId) => approvedSelectedIds.delete(fileId));
+      } else {
+        currentPageIds.forEach((fileId) => approvedSelectedIds.add(fileId));
+      }
+
+      renderApprovedPage();
+    });
+
+    approvedDeleteSelectedBtn.addEventListener("click", async () => {
+      const selectedIds = Array.from(approvedSelectedIds);
+      if (!selectedIds.length) return;
+
+      const ok = window.confirm(
+        `Delete ${selectedIds.length} approved photo(s)?\n\nThis action cannot be undone.`
+      );
+      if (!ok) return;
+
+      await deleteApprovedPhotosBatch(selectedIds);
     });
 
     async function loadApprovedPage(pageNumber) {
@@ -4843,13 +4992,15 @@ function hideReportLoading() {
 
         // Update total count and pages (from first page load or if changed)
         if (data.total !== undefined) {
-          approvedTotalCount = data.total;
-          approvedTotalPages = data.totalPages || Math.ceil(data.total / APPROVED_PAGE_SIZE);
+          approvedTotalCount = typeof data.total === "number" ? data.total : null;
+          approvedTotalPages =
+            typeof data.totalPages === "number" && data.totalPages > 0 ? data.totalPages : 0;
         }
 
         if (!files.length && pageNumber === 1) {
           // Only show empty message on first page
           approvedFilesCache = {};
+          approvedPageMetaCache = {};
           approvedTotalCount = 0;
           approvedTotalPages = 0;
           approvedEmpty.textContent = "There are no approved photos at this moment.";
@@ -4882,11 +5033,19 @@ function hideReportLoading() {
               "";
           }
 
-          // Use full image URL for grid (revert to working flow)
-          if (!imgUrl && fileId) {
-            imgUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
-              fileId
-            )}?token=${encodeURIComponent(adminToken || "")}`;
+          const thumbUrl = fileId
+            ? `${BASE_URL}/admin/photo/${encodeURIComponent(
+                fileId
+              )}/thumbnail?token=${encodeURIComponent(adminToken || "")}`
+            : "";
+          const fullImageUrl = fileId
+            ? `${BASE_URL}/admin/photo/${encodeURIComponent(
+                fileId
+              )}?token=${encodeURIComponent(adminToken || "")}`
+            : "";
+
+          if (!imgUrl) {
+            imgUrl = thumbUrl || fullImageUrl;
           }
 
           if (!imgUrl) return;
@@ -4895,8 +5054,8 @@ function hideReportLoading() {
 
           pageFiles.push({ 
             fileId, 
-            imgUrl, // Use full image for grid (reliable)
-            fullImageUrl: imgUrl, // Same URL for downloads/overlay
+            imgUrl,
+            fullImageUrl: fullImageUrl || imgUrl,
             fileName,
             createdTime: f.createdTime || null
           });
@@ -4904,6 +5063,9 @@ function hideReportLoading() {
 
         // Cache this page
         approvedFilesCache[pageNumber] = pageFiles;
+        approvedPageMetaCache[pageNumber] = {
+          hasNextPage: Boolean(data.hasNextPage),
+        };
       } catch (err) {
         console.error("Error loading approved page", err);
         approvedEmpty.style.display = "block";
@@ -4920,10 +5082,46 @@ function hideReportLoading() {
       // Reset to page 1
       approvedPageIndex = 1;
       approvedFilesCache = {};
-      approvedTotalCount = 0;
+      approvedPageMetaCache = {};
+      approvedTotalCount = null;
       approvedTotalPages = 0;
+      approvedHasNextPage = false;
+      approvedSelectionMode = false;
+      approvedSelectedIds = new Set();
 
       await loadApprovedPage(1);
+      renderApprovedPage();
+    }
+
+    async function refreshApprovedAfterMutation(deletedCount = 0) {
+      const nextKnownTotal =
+        Number.isFinite(approvedTotalCount) && approvedTotalCount > 0
+          ? Math.max(0, approvedTotalCount - deletedCount)
+          : 0;
+      const maxPage = nextKnownTotal > 0
+        ? Math.max(1, Math.ceil(nextKnownTotal / APPROVED_PAGE_SIZE))
+        : 1;
+
+      approvedPageIndex = Math.min(approvedPageIndex, maxPage);
+      approvedFilesCache = {};
+      approvedPageMetaCache = {};
+      approvedTotalCount = null;
+      approvedTotalPages = 0;
+      approvedHasNextPage = false;
+
+      await loadApprovedPage(approvedPageIndex);
+
+      const currentPageFiles = getCurrentApprovedPageFiles();
+      if (approvedPageIndex > 1 && currentPageFiles.length === 0) {
+        approvedPageIndex -= 1;
+        approvedFilesCache = {};
+        approvedPageMetaCache = {};
+        approvedTotalCount = null;
+        approvedTotalPages = 0;
+        approvedHasNextPage = false;
+        await loadApprovedPage(approvedPageIndex);
+      }
+
       renderApprovedPage();
     }
 
@@ -4959,17 +5157,8 @@ function hideReportLoading() {
           throw new Error(`HTTP ${res.status}`);
         }
 
-        // Remove from cache (find and remove from the page it's on)
-        for (const pageNum in approvedFilesCache) {
-          if (approvedFilesCache.hasOwnProperty(pageNum)) {
-            approvedFilesCache[pageNum] = approvedFilesCache[pageNum].filter(
-              (item) => item.fileId !== fileId
-            );
-          }
-        }
-        approvedTotalCount = Math.max(0, approvedTotalCount - 1);
-
-        renderApprovedPage();
+        approvedSelectedIds.delete(String(fileId));
+        await refreshApprovedAfterMutation(1);
       } catch (err) {
         console.error("Error deleting approved photo", err);
         if (thumbEl) thumbEl.classList.remove("busy");
@@ -5008,17 +5197,59 @@ function hideReportLoading() {
 
         // Reset cache when clearing
         approvedFilesCache = {};
+        approvedPageMetaCache = {};
         approvedTotalCount = 0;
         approvedTotalPages = 0;
+        approvedHasNextPage = false;
+        approvedSelectionMode = false;
+        approvedSelectedIds = new Set();
         approvedGrid.innerHTML = "";
         approvedEmpty.style.display = "block";
         approvedEmpty.textContent = "There are no approved photos at this moment.";
         approvedFooterText.textContent = "0 photos";
+        updateApprovedSelectionControls();
 
         alert("Pending + approved folders cleared.");
       } catch (err) {
         console.error("Error clearing approved folder", err);
         alert("Could not clear the folder. Please try again.");
+      }
+    }
+
+    async function deleteApprovedPhotosBatch(fileIds) {
+      const uniqueFileIds = Array.from(new Set((fileIds || []).map((fileId) => String(fileId)).filter(Boolean)));
+      if (!uniqueFileIds.length) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/delete-approved-batch`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ fileIds: uniqueFileIds }),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+
+        const deletedIds = Array.isArray(data.deletedIds) ? data.deletedIds.map(String) : [];
+        const failedIds = Array.isArray(data.failedIds) ? data.failedIds.map(String) : [];
+
+        deletedIds.forEach((fileId) => approvedSelectedIds.delete(fileId));
+
+        if (failedIds.length) {
+          alert(`Deleted ${deletedIds.length} photo(s). ${failedIds.length} could not be deleted.`);
+        }
+
+        await refreshApprovedAfterMutation(deletedIds.length);
+      } catch (err) {
+        console.error("Error batch deleting approved photos", err);
+        alert("Could not delete the selected photos. Please try again.");
       }
     }
 
@@ -5202,8 +5433,9 @@ function hideReportLoading() {
 
     viewerPrevBtn.addEventListener("click", () => {
       if (viewerCurrentIndex <= 0) return;
+      const allFiles = getAllCachedFiles();
       viewerCurrentIndex -= 1;
-      const item = approvedFilesCache[viewerCurrentIndex];
+      const item = allFiles[viewerCurrentIndex];
       if (!item) return;
       openApprovedViewer(item.fileId, item.imgUrl);
     });
@@ -7754,27 +7986,8 @@ reportViewBtn.addEventListener("click", async () => {
     // --- Try to restore existing session on load ---
 
     function setSettingsStatus(message, tone = "muted") {
-      if (!settingsStatus) return;
-      if (settingsStatusTimeoutId) {
-        window.clearTimeout(settingsStatusTimeoutId);
-        settingsStatusTimeoutId = null;
-      }
-      settingsStatus.textContent = message || "";
-      settingsStatus.classList.toggle("visible", Boolean(message));
-      if (tone === "success") {
-        settingsStatus.style.color = "#86efac";
-      } else if (tone === "error") {
-        settingsStatus.style.color = "#fca5a5";
-      } else {
-        settingsStatus.style.color = "var(--muted-foreground)";
-      }
-
-      if (message && tone !== "muted") {
-        settingsStatusTimeoutId = window.setTimeout(() => {
-          settingsStatus.textContent = "";
-          settingsStatus.classList.remove("visible");
-          settingsStatusTimeoutId = null;
-        }, 2400);
+      if (tone === "error" && message) {
+        showToast(message, "error");
       }
     }
 
@@ -7927,8 +8140,6 @@ reportViewBtn.addEventListener("click", async () => {
         return;
       }
 
-      setSettingsStatus("Loading settings…");
-
       try {
         const res = await fetch(`${BASE_URL}/admin/settings`, {
           headers: withAdminHeaders(),
@@ -7941,13 +8152,12 @@ reportViewBtn.addEventListener("click", async () => {
         if (data && data.settings) {
           await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
           fillSettingsForm(data.settings);
-          setSettingsStatus("");
         } else {
-          setSettingsStatus("No settings were returned from the server.", "error");
+          showToast("No settings were returned from the server.", "error");
         }
       } catch (err) {
         console.error("Error loading settings", err);
-        setSettingsStatus("Failed to load settings.", "error");
+        showToast("Failed to load settings.", "error");
       }
     }
 
@@ -7981,7 +8191,6 @@ reportViewBtn.addEventListener("click", async () => {
           return;
         }
 
-        setSettingsStatus("Saving settings…");
         setButtonLoading(settingsSaveBtn, "Saving...", true);
 
         try {
@@ -8000,16 +8209,13 @@ reportViewBtn.addEventListener("click", async () => {
           const data = await res.json();
           if (data && data.ok) {
             fillSettingsForm(data.settings);
-            setSettingsStatus("Settings saved.", "success");
             await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
-            showToast("Settings saved.", "success");
+            showToast("SETTINGS SAVED", "success", 1700);
           } else {
-            setSettingsStatus("Could not save settings.", "error");
             showToast("Could not save settings.", "error");
           }
         } catch (err) {
           console.error("Error saving settings", err);
-          setSettingsStatus("Error saving settings.", "error");
           showToast("Error saving settings.", "error");
         } finally {
           setButtonLoading(settingsSaveBtn, "Saving...", false);

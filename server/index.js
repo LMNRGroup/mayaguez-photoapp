@@ -1387,6 +1387,9 @@ async function clearDriveFolders() {
     }
   }
 
+  invalidateDriveFolderCaches(PENDING_FOLDER_ID);
+  invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
+
   return result;
 }
 
@@ -2364,6 +2367,9 @@ app.post('/admin/approve', ensureAdminAuth, async (req, res) => {
       supportsAllDrives: true
     });
 
+    invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
+    invalidateDriveFolderCaches(PENDING_FOLDER_ID);
+
     res.json({ ok: true });
   } catch (err) {
     console.error('Error approving photo:', err);
@@ -2386,6 +2392,9 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
       supportsAllDrives: true
     });
 
+    invalidateDriveFolderCaches(PENDING_FOLDER_ID);
+    invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
+
     res.json({ ok: true });
   } catch (err) {
     console.error('Error rejecting photo:', err);
@@ -2395,54 +2404,168 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
 
 // --------- ADMIN: list / manage APPROVED photos ----------
 
-// List approved photos for the admin thumbnail grid
-// List files in folder with pagination support
-async function listFilesInFolderPaginated(folderId, page = 1, pageSize = 24) {
-  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
-  const size = Math.max(1, Math.min(100, parseInt(pageSize, 10) || 24));
-  
-  let pageToken = null;
-  const allResults = [];
-  let totalCount = 0;
+const driveFolderPageTokenCache = new Map();
+const driveFolderCountCache = new Map();
+const DRIVE_FOLDER_COUNT_TTL_MS = 60 * 1000;
 
-  // First, get total count by fetching all (or we could optimize this later)
-  // For now, we'll fetch all pages but only return the requested page
+function getDriveFolderPageCacheKey(folderId, pageSize) {
+  return `${folderId}:${pageSize}`;
+}
+
+function invalidateDriveFolderCaches(folderId) {
+  for (const key of Array.from(driveFolderPageTokenCache.keys())) {
+    if (key.startsWith(`${folderId}:`)) {
+      driveFolderPageTokenCache.delete(key);
+    }
+  }
+  driveFolderCountCache.delete(folderId);
+}
+
+async function countFilesInFolder(folderId) {
+  let pageToken = null;
+  let total = 0;
+
   do {
     const res = await drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
-      fields: 'files(id, name, createdTime), nextPageToken',
-      orderBy: 'createdTime desc', // Newest first
-      pageSize: 100,
+      fields: 'files(id), nextPageToken',
+      pageSize: 1000,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
       pageToken,
     });
 
-    const files = res.data.files || [];
-    for (const f of files) {
-      allResults.push({
-        id: f.id,
-        name: f.name,
-        createdTime: f.createdTime,
-      });
-    }
-
-    pageToken = res.data.nextPageToken;
+    total += (res.data.files || []).length;
+    pageToken = res.data.nextPageToken || null;
   } while (pageToken);
 
-  totalCount = allResults.length;
+  return total;
+}
 
-  // Calculate pagination
-  const startIndex = (pageNumber - 1) * size;
-  const endIndex = startIndex + size;
-  const paginatedResults = allResults.slice(startIndex, endIndex);
+function getCachedFolderCount(folderId) {
+  const now = Date.now();
+  const existing = driveFolderCountCache.get(folderId);
+
+  if (existing && existing.value != null && existing.expiresAt > now) {
+    return existing.value;
+  }
+
+  if (!existing || !existing.promise) {
+    const refreshPromise = countFilesInFolder(folderId)
+      .then((value) => {
+        driveFolderCountCache.set(folderId, {
+          value,
+          expiresAt: Date.now() + DRIVE_FOLDER_COUNT_TTL_MS,
+          promise: null
+        });
+        return value;
+      })
+      .catch((err) => {
+        console.error('Error refreshing folder count cache:', err);
+        const staleValue = existing && existing.value != null ? existing.value : null;
+        driveFolderCountCache.set(folderId, {
+          value: staleValue,
+          expiresAt: Date.now() + 5000,
+          promise: null
+        });
+        return staleValue;
+      });
+
+    driveFolderCountCache.set(folderId, {
+      value: existing && existing.value != null ? existing.value : null,
+      expiresAt: existing && existing.expiresAt ? existing.expiresAt : 0,
+      promise: refreshPromise
+    });
+  }
+
+  return existing && existing.value != null ? existing.value : null;
+}
+
+async function listFilesInFolderPaginated(folderId, page = 1, pageSize = 24) {
+  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+  const size = Math.max(1, Math.min(100, parseInt(pageSize, 10) || 24));
+  const cacheKey = getDriveFolderPageCacheKey(folderId, size);
+
+  let tokenMap = driveFolderPageTokenCache.get(cacheKey);
+  if (!tokenMap) {
+    tokenMap = new Map([[1, null]]);
+    driveFolderPageTokenCache.set(cacheKey, tokenMap);
+  }
+
+  let currentPage = 1;
+  while (currentPage < pageNumber) {
+    if (tokenMap.has(currentPage + 1)) {
+      currentPage += 1;
+      continue;
+    }
+
+    const currentToken = tokenMap.get(currentPage) || null;
+    const res = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'nextPageToken',
+      orderBy: 'createdTime desc',
+      pageSize: size,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageToken: currentToken,
+    });
+
+    const nextToken = res.data.nextPageToken || null;
+    tokenMap.set(currentPage + 1, nextToken);
+
+    if (!nextToken) {
+      return {
+        files: [],
+        total: getCachedFolderCount(folderId),
+        page: pageNumber,
+        pageSize: size,
+        totalPages: null,
+        hasNextPage: false,
+      };
+    }
+
+    currentPage += 1;
+  }
+
+  const pageToken = tokenMap.get(pageNumber) || null;
+  if (pageNumber > 1 && pageToken === null) {
+    return {
+      files: [],
+      total: getCachedFolderCount(folderId),
+      page: pageNumber,
+      pageSize: size,
+      totalPages: null,
+      hasNextPage: false,
+    };
+  }
+
+  const res = await drive.files.list({
+    q: `'${folderId}' in parents and trashed = false`,
+    fields: 'files(id, name, createdTime), nextPageToken',
+    orderBy: 'createdTime desc',
+    pageSize: size,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    pageToken,
+  });
+
+  const files = (res.data.files || []).map((f) => ({
+    id: f.id,
+    name: f.name,
+    createdTime: f.createdTime,
+  }));
+  const nextPageToken = res.data.nextPageToken || null;
+  tokenMap.set(pageNumber + 1, nextPageToken);
+
+  const total = getCachedFolderCount(folderId);
 
   return {
-    files: paginatedResults,
-    total: totalCount,
+    files,
+    total,
     page: pageNumber,
     pageSize: size,
-    totalPages: Math.ceil(totalCount / size),
+    totalPages: total != null ? Math.ceil(total / size) : null,
+    hasNextPage: Boolean(nextPageToken),
   };
 }
 
@@ -2452,14 +2575,14 @@ app.get('/admin/approved-list', ensureAdminAuth, async (req, res) => {
     const pageSize = parseInt(req.query.pageSize, 10) || 24;
     
     const result = await listFilesInFolderPaginated(APPROVED_FOLDER_ID, page, pageSize);
-    // admin UI can build thumb src as /admin/photo/:id?token=...
     res.json({ 
       ok: true, 
       files: result.files,
       total: result.total,
       page: result.page,
       pageSize: result.pageSize,
-      totalPages: result.totalPages
+      totalPages: result.totalPages,
+      hasNextPage: result.hasNextPage
     });
   } catch (err) {
     console.error('Error listing approved files for admin:', err);
@@ -2614,10 +2737,56 @@ app.post('/admin/delete-approved', ensureAdminAuth, async (req, res) => {
       supportsAllDrives: true,
     });
 
+    invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
+
     res.json({ ok: true });
   } catch (err) {
     console.error('Error deleting approved photo:', err);
     res.status(500).json({ ok: false, error: 'delete_approved_failed' });
+  }
+});
+
+app.post('/admin/delete-approved-batch', ensureAdminAuth, async (req, res) => {
+  try {
+    const fileIds = Array.isArray(req.body?.fileIds) ? req.body.fileIds.filter(Boolean) : [];
+    if (!fileIds.length) {
+      return res.status(400).json({ ok: false, error: 'missing_fileIds' });
+    }
+
+    const results = await Promise.allSettled(
+      fileIds.map((fileId) =>
+        drive.files.update({
+          fileId,
+          requestBody: { trashed: true },
+          fields: 'id, trashed',
+          supportsAllDrives: true,
+        })
+      )
+    );
+
+    const deletedIds = [];
+    const failedIds = [];
+
+    results.forEach((result, index) => {
+      const fileId = fileIds[index];
+      if (result.status === 'fulfilled') {
+        deletedIds.push(fileId);
+      } else {
+        failedIds.push(fileId);
+        console.error('Error deleting approved photo in batch:', fileId, result.reason);
+      }
+    });
+
+    invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
+
+    res.json({
+      ok: failedIds.length === 0,
+      deletedIds,
+      failedIds,
+    });
+  } catch (err) {
+    console.error('Error batch deleting approved photos:', err);
+    res.status(500).json({ ok: false, error: 'delete_approved_batch_failed' });
   }
 });
 
