@@ -1685,12 +1685,17 @@
 
   #eventLogsPanel .panel-title,
   #eventLogsPanel .event-log-list,
-  #eventLogsPanel .event-log-hint {
+  #eventLogsPanel .event-log-hint,
+  #systemHealthPanel .panel-title,
+  #systemHealthPanel .system-health-grid,
+  #systemHealthPanel .event-log-hint {
     pointer-events: none;
   }
 
   #eventLogsPanel:hover .event-log-hint,
-  #eventLogsPanel:focus-visible .event-log-hint {
+  #eventLogsPanel:focus-visible .event-log-hint,
+  #systemHealthPanel:hover .event-log-hint,
+  #systemHealthPanel:focus-visible .event-log-hint {
     opacity: 0.8;
     max-height: 1.25rem;
     transform: translateY(0);
@@ -1783,6 +1788,11 @@
     gap: 0.65rem;
   }
 
+  .system-health-grid.expanded {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+
   .system-health-item {
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) - 4px);
@@ -1812,6 +1822,25 @@
   .system-health-meta {
     font-size: 0.7rem;
     color: var(--muted-foreground);
+  }
+
+  .system-health-grid.expanded .system-health-item {
+    min-height: 8rem;
+    padding: 1rem;
+    gap: 0.45rem;
+  }
+
+  .system-health-grid.expanded .system-health-label {
+    font-size: 0.68rem;
+  }
+
+  .system-health-grid.expanded .system-health-value {
+    font-size: 1.2rem;
+  }
+
+  .system-health-grid.expanded .system-health-meta {
+    font-size: 0.78rem;
+    line-height: 1.5;
   }
 
   .system-health-value.status-ok {
@@ -4315,9 +4344,10 @@ View report to see the most recent interactions
             </div>
           </div>
 
-          <div class="panel-box">
+          <div id="systemHealthPanel" class="panel-box panel-interactive" role="button" tabindex="0" aria-label="Open full system health">
             <div class="panel-title">System health</div>
             <div id="systemHealthGrid" class="system-health-grid"></div>
+            <div class="event-log-hint">Click to expand system status</div>
           </div>
         </aside>
       </div>
@@ -4616,6 +4646,7 @@ function hideGlobalLoader() {
     const pendingCountEl = document.getElementById("pendingCount");
     const eventLogsPanel = document.getElementById("eventLogsPanel");
     const eventLogList = document.getElementById("eventLogList");
+    const systemHealthPanel = document.getElementById("systemHealthPanel");
     const activityBars = document.getElementById("activityBars");
     const activityChart = document.getElementById("activityChart");
     const activityXAxis = document.getElementById("activityXAxis");
@@ -4718,6 +4749,14 @@ function hideGlobalLoader() {
         overlay: document.getElementById("commandPaletteOverlay"),
         input: document.getElementById("commandPaletteInput"),
         results: document.getElementById("commandPaletteResults"),
+      };
+    }
+
+    function getSystemHealthOverlayElements() {
+      return {
+        overlay: document.getElementById("systemHealthOverlay"),
+        closeBtn: document.getElementById("systemHealthOverlayClose"),
+        expandedGrid: document.getElementById("systemHealthExpandedGrid"),
       };
     }
 
@@ -4926,8 +4965,10 @@ function hideGlobalLoader() {
       reportLoading.style.display = "flex";
     }
 
-    function renderSystemHealthCards(health = {}) {
-      if (!systemHealthGrid) return;
+    let latestSystemHealth = {};
+
+    function buildSystemHealthCardsMarkup(health = {}) {
+      latestSystemHealth = health || {};
 
       const cards = [
         {
@@ -4968,13 +5009,24 @@ function hideGlobalLoader() {
         },
       ];
 
-      systemHealthGrid.innerHTML = cards.map((card) => `
+      return cards.map((card) => `
         <div class="system-health-item">
           <div class="system-health-label">${card.label}</div>
           <div class="system-health-value ${card.tone || ""}">${card.value}</div>
           <div class="system-health-meta">${card.meta}</div>
         </div>
       `).join("");
+    }
+
+    function renderSystemHealthCards(health = {}) {
+      if (!systemHealthGrid) return;
+      const markup = buildSystemHealthCardsMarkup(health);
+      systemHealthGrid.innerHTML = markup;
+
+      const { expandedGrid } = getSystemHealthOverlayElements();
+      if (expandedGrid) {
+        expandedGrid.innerHTML = markup;
+      }
     }
 
     async function fetchSystemHealth() {
@@ -5005,6 +5057,25 @@ function hideGlobalLoader() {
           checkedAt: new Date().toISOString(),
         });
       }
+    }
+
+    function openSystemHealthOverlay() {
+      const { overlay, expandedGrid } = getSystemHealthOverlayElements();
+      if (!overlay) return;
+      if (expandedGrid) {
+        expandedGrid.innerHTML = buildSystemHealthCardsMarkup(latestSystemHealth);
+      }
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeSystemHealthOverlay() {
+      const { overlay } = getSystemHealthOverlayElements();
+      if (!overlay) return;
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
     }
 
     function clearTemplateListSkeleton() {
@@ -7636,6 +7707,16 @@ function hideReportLoading() {
       }
       if (eventOverlay && event.target === eventOverlay) {
         closeExpandedEventLogs();
+        return;
+      }
+
+      const { overlay: healthOverlay, closeBtn: healthCloseBtn } = getSystemHealthOverlayElements();
+      if (healthCloseBtn && event.target === healthCloseBtn) {
+        closeSystemHealthOverlay();
+        return;
+      }
+      if (healthOverlay && event.target === healthOverlay) {
+        closeSystemHealthOverlay();
       }
     });
 
@@ -9599,6 +9680,20 @@ function hideReportLoading() {
       });
     }
 
+    if (systemHealthPanel) {
+      systemHealthPanel.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openSystemHealthOverlay();
+      });
+      systemHealthPanel.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openSystemHealthOverlay();
+        }
+      });
+    }
+
     document.addEventListener("keydown", (event) => {
       const key = (event.key || "").toLowerCase();
       if ((event.metaKey || event.ctrlKey) && key === "k") {
@@ -9616,6 +9711,20 @@ function hideReportLoading() {
       if (key === "escape" && overlay && overlay.classList.contains("visible")) {
         event.preventDefault();
         closeCommandPalette();
+        return;
+      }
+
+      const { overlay: eventOverlay } = getEventLogsOverlayElements();
+      if (key === "escape" && eventOverlay && eventOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeExpandedEventLogs();
+        return;
+      }
+
+      const { overlay: healthOverlay } = getSystemHealthOverlayElements();
+      if (key === "escape" && healthOverlay && healthOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeSystemHealthOverlay();
       }
     });
 
@@ -10005,6 +10114,26 @@ reportViewBtn.addEventListener("click", async () => {
         <div class="command-palette-shortcut">Esc</div>
       </div>
       <div id="commandPaletteResults" class="command-palette-results"></div>
+    </div>
+  </div>
+  <div id="systemHealthOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="systemHealthOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="systemHealthOverlayTitle" class="event-logs-modal-title">System Health</h3>
+          <p class="event-logs-modal-subtitle">Expanded live status for server, storage, sheets, queue counts, and the current live template.</p>
+        </div>
+        <button id="systemHealthOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close system health">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div id="systemHealthExpandedGrid" class="system-health-grid expanded"></div>
+      </div>
     </div>
   </div>
   <div id="globalLoader" style="
