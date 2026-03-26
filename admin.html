@@ -1469,6 +1469,13 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   }
 
+  .template-preview-stage.is-loading .template-preview-bg,
+  .template-preview-stage.is-loading .template-preview-photo-window,
+  .template-preview-stage.is-loading .template-preview-ticket,
+  .template-preview-stage.is-loading .template-preview-logos {
+    opacity: 0;
+  }
+
   .template-preview-photo-window {
     position: absolute;
     top: 3.7037%;
@@ -1541,6 +1548,38 @@
     font-size: clamp(0.75rem, 1vw, 1.15rem);
     font-weight: 700;
     letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .template-preview-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    background: rgba(2, 5, 8, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.24s ease;
+  }
+
+  .template-preview-loader.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .template-preview-loader-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    color: rgba(248, 250, 252, 0.86);
+  }
+
+  .template-preview-loader-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
   }
 
@@ -9709,6 +9748,7 @@ function hideReportLoading() {
 
       const stage = document.createElement("div");
       stage.className = "template-preview-stage";
+      stage.classList.add("is-loading");
 
       const bgImg = document.createElement("img");
       bgImg.className = "template-preview-bg";
@@ -9729,6 +9769,7 @@ function hideReportLoading() {
       const fallbackPhoto = document.createElement("div");
       fallbackPhoto.className = "template-preview-photo-fallback";
       fallbackPhoto.textContent = "Live Template Preview";
+      fallbackPhoto.style.display = "none";
       photoWindow.appendChild(fallbackPhoto);
 
       const ticketBadge = document.createElement("div");
@@ -9742,12 +9783,22 @@ function hideReportLoading() {
       const logosContainer = document.createElement("div");
       logosContainer.className = "template-preview-logos";
 
+      const loader = document.createElement("div");
+      loader.className = "template-preview-loader";
+      loader.innerHTML = `
+        <div class="template-preview-loader-inner">
+          <span class="minimal-loader minimal-loader-lg" aria-hidden="true" style="color: rgba(248, 250, 252, 0.96);"></span>
+          <span class="template-preview-loader-label">Preparing live preview</span>
+        </div>
+      `;
+
       container.appendChild(closeBtn);
       stage.appendChild(bgImg);
       stage.appendChild(photoWindow);
       stage.appendChild(ticketBadge);
       stage.appendChild(liveBadge);
       stage.appendChild(logosContainer);
+      stage.appendChild(loader);
       shell.appendChild(stage);
       container.appendChild(shell);
       overlay.appendChild(container);
@@ -9758,11 +9809,81 @@ function hideReportLoading() {
       let previewSlotIndex = 0;
       let previewRotateTimer = null;
       const previewSlots = [previewPhotoA, previewPhotoB];
+      let previewClosed = false;
+      let initialFrameVisible = false;
+      let backgroundReady = !bgImg.src;
+      let logosReady = false;
+      let photoReady = false;
+
+      function markBackgroundReady() {
+        backgroundReady = true;
+        maybeRevealPreview();
+      }
+
+      if (!backgroundReady) {
+        if (bgImg.complete && bgImg.naturalWidth > 0) {
+          markBackgroundReady();
+        } else {
+          bgImg.addEventListener("load", markBackgroundReady, { once: true });
+          bgImg.addEventListener("error", markBackgroundReady, { once: true });
+        }
+      }
 
       function cleanupPreview() {
+        previewClosed = true;
         if (previewRotateTimer) {
           clearInterval(previewRotateTimer);
           previewRotateTimer = null;
+        }
+      }
+
+      function maybeRevealPreview() {
+        if (previewClosed || initialFrameVisible) {
+          return;
+        }
+        if (!backgroundReady || !logosReady || !photoReady) {
+          return;
+        }
+        initialFrameVisible = true;
+        stage.classList.remove("is-loading");
+        loader.classList.add("hidden");
+        window.setTimeout(() => {
+          if (!previewClosed) {
+            loader.remove();
+          }
+        }, 220);
+      }
+
+      function resetPreviewSlots() {
+        previewSlots.forEach((slot) => {
+          slot.classList.remove("visible");
+          slot.removeAttribute("src");
+          slot.onload = null;
+          slot.onerror = null;
+        });
+      }
+
+      function markPhotoReady() {
+        photoReady = true;
+        maybeRevealPreview();
+      }
+
+      function loadSlotSource(slot, src, onReady) {
+        slot.onload = () => {
+          slot.onload = null;
+          slot.onerror = null;
+          onReady(true);
+        };
+        slot.onerror = () => {
+          slot.onload = null;
+          slot.onerror = null;
+          onReady(false);
+        };
+        slot.src = src;
+        if (slot.complete && slot.naturalWidth > 0) {
+          slot.onload = null;
+          slot.onerror = null;
+          onReady(true);
         }
       }
 
@@ -9778,22 +9899,34 @@ function hideReportLoading() {
       function showPreviewPhoto(photo) {
         if (!photo || !photo.id) {
           fallbackPhoto.style.display = "flex";
-          previewSlots.forEach((slot) => {
-            slot.classList.remove("visible");
-            slot.removeAttribute("src");
-          });
+          resetPreviewSlots();
           ticketBadge.textContent = "#084";
+          markPhotoReady();
           return;
         }
 
         fallbackPhoto.style.display = "none";
         const nextSlot = previewSlots[previewSlotIndex % previewSlots.length];
         const prevSlot = previewSlots[(previewSlotIndex + 1) % previewSlots.length];
-        nextSlot.src = `${BASE_URL}/gallery/photo/${encodeURIComponent(photo.id)}`;
-        nextSlot.classList.add("visible");
-        prevSlot.classList.remove("visible");
-        previewSlotIndex = (previewSlotIndex + 1) % previewSlots.length;
+        const photoSrc = photo.local
+          ? photo.id
+          : `${BASE_URL}/gallery/photo/${encodeURIComponent(photo.id)}`;
         updateTicketLabelFromName(photo.name || "");
+        loadSlotSource(nextSlot, photoSrc, (didLoad) => {
+          if (!didLoad) {
+            if (!initialFrameVisible) {
+              fallbackPhoto.style.display = "flex";
+              markPhotoReady();
+            }
+            return;
+          }
+          nextSlot.classList.add("visible");
+          prevSlot.classList.remove("visible");
+          if (!initialFrameVisible) {
+            markPhotoReady();
+          }
+        });
+        previewSlotIndex = (previewSlotIndex + 1) % previewSlots.length;
       }
 
       async function loadLivePreviewPhotos() {
@@ -9808,12 +9941,8 @@ function hideReportLoading() {
 
           if (!previewPhotos.length) {
             const availablePreviewPhoto = photoImg && photoImg.src ? { id: photoImg.src, local: true, name: "" } : null;
-            if (availablePreviewPhoto && availablePreviewPhoto.local) {
-              fallbackPhoto.style.display = "none";
-              previewPhotoA.src = photoImg.src;
-              previewPhotoA.classList.add("visible");
-              previewPhotoB.classList.remove("visible");
-              ticketBadge.textContent = "#084";
+            if (availablePreviewPhoto) {
+              showPreviewPhoto(availablePreviewPhoto);
               return;
             }
             showPreviewPhoto(null);
@@ -9836,10 +9965,7 @@ function hideReportLoading() {
           console.error("Failed to load live preview photos", err);
           const availablePreviewPhoto = photoImg && photoImg.src ? photoImg.src : "";
           if (availablePreviewPhoto) {
-            fallbackPhoto.style.display = "none";
-            previewPhotoA.src = availablePreviewPhoto;
-            previewPhotoA.classList.add("visible");
-            previewPhotoB.classList.remove("visible");
+            showPreviewPhoto({ id: availablePreviewPhoto, local: true, name: "" });
           } else {
             showPreviewPhoto(null);
           }
@@ -9858,6 +9984,7 @@ function hideReportLoading() {
         const previewHeight = stage.offsetHeight;
         
         const logos = templateLogosContainer.querySelectorAll(".template-logo");
+        const logoLoadPromises = [];
         logos.forEach((logo) => {
           // Get actual position from style (set during drag/resize) - these are pixel values relative to canvas
           const computedLeft = parseFloat(logo.style.left) || 0;
@@ -9881,9 +10008,25 @@ function hideReportLoading() {
 
           const img = document.createElement("img");
           img.src = logo.querySelector("img").src;
+          logoLoadPromises.push(new Promise((resolve) => {
+            if (img.complete) {
+              resolve();
+              return;
+            }
+            img.addEventListener("load", resolve, { once: true });
+            img.addEventListener("error", resolve, { once: true });
+          }));
           previewLogo.appendChild(img);
           logosContainer.appendChild(previewLogo);
         });
+        Promise.all(logoLoadPromises).finally(() => {
+          logosReady = true;
+          maybeRevealPreview();
+        });
+        if (!logoLoadPromises.length) {
+          logosReady = true;
+          maybeRevealPreview();
+        }
       });
 
       overlay.addEventListener("click", (e) => {
