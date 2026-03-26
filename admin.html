@@ -163,27 +163,47 @@
 
   .header-left {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.625rem;
+    justify-content: center;
+    gap: 0.12rem;
     min-width: 0;
+    flex: 1;
   }
 
-  .header-logo {
-    height: 24px;
-    width: auto;
-    object-fit: contain;
+  .header-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.08rem;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .header-brand-top {
+    font-family: "SF Pro Display", "Helvetica Neue", "Gotham", "Satoshi", Arial, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 300;
+    letter-spacing: 0.38em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--foreground) 58%, var(--muted-foreground) 42%);
+    white-space: nowrap;
+  }
+
+  .header-brand-bottom {
+    font-family: "SF Pro Display", "Helvetica Neue", "Gotham", "Satoshi", Arial, sans-serif;
+    font-size: 1.28rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: none;
+    color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground) 28%);
+    white-space: nowrap;
   }
 
   .header-title {
     flex: 1;
     text-align: center;
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    font-size: 1.25rem;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--foreground);
-    font-weight: 600;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
@@ -405,7 +425,7 @@
   .nav-group {
     display: flex;
     flex-direction: column;
-    gap: 0.625rem;
+    gap: 0.95rem;
   }
 
   .nav-group-secondary {
@@ -435,7 +455,7 @@
     background: transparent;
     color: var(--foreground);
     font-size: 0.75rem; /* text-xs */
-    padding: 0.5rem 0;
+    padding: 0.7rem 0;
     cursor: pointer;
     letter-spacing: 0.3em; /* tracking-[0.3em] - QRC standard */
     text-transform: uppercase; /* QRC standard */
@@ -473,6 +493,7 @@
   #navDashboard,
   #navApproved,
   #navReports,
+  #navMetrics,
   #navSettings,
   #navTemplates,
   #navResetLogs {
@@ -3408,12 +3429,20 @@
 
     .header-left {
       justify-content: center;
-      gap: 0.5rem;
+      gap: 0.16rem;
+    }
+
+    .header-brand-top {
+      font-size: 0.68rem;
+      letter-spacing: 0.3em;
+    }
+
+    .header-brand-bottom {
+      font-size: 1.02rem;
+      letter-spacing: 0.06em;
     }
 
     .header-title {
-      font-size: 0.875rem;
-      letter-spacing: 0.2em;
       white-space: normal;
       line-height: 1.3;
       word-wrap: break-word;
@@ -3472,7 +3501,7 @@
     .nav-group {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 10px;
     }
 
     .nav-group-secondary {
@@ -3481,7 +3510,7 @@
     }
 
     .nav-item {
-      padding: 0.625rem 0.875rem;
+      padding: 0.75rem 0.95rem;
       text-align: left;
       border-radius: var(--radius);
       background: var(--card);
@@ -3634,14 +3663,13 @@
     <!-- TOP HEADER -->
     <header class="admin-header">
       <div class="header-left">
-        <img
-          src="Assets/Luminar.Apps-Light.png"
-          alt="Luminar Apps"
-          class="header-logo"
-        />
+        <div class="header-brand" aria-label="Luminar Apps Selfie App">
+          <div class="header-brand-top">Luminar Apps</div>
+          <div class="header-brand-bottom">Selfie App</div>
+        </div>
       </div>
 
-      <div class="header-title">ADMIN PORTAL</div>
+      <div class="header-title"></div>
 
       <div class="header-right">
         <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle dark/light mode" aria-label="Toggle theme">
