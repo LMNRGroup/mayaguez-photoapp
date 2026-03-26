@@ -2284,27 +2284,34 @@ app.get('/admin/photo/:id/thumbnail', ensureAdminAuth, async (req, res) => {
   const fileId = req.params.id;
 
   try {
-    // Get thumbnail link from Drive metadata
     const fileMeta = await drive.files.get({
       fileId,
-      fields: 'thumbnailLink, webContentLink'
+      fields: 'thumbnailLink, mimeType',
+      supportsAllDrives: true,
     });
 
-    // If Drive provides a thumbnail, redirect to it
     if (fileMeta.data.thumbnailLink) {
-      return res.redirect(fileMeta.data.thumbnailLink);
+      const thumbRes = await fetch(fileMeta.data.thumbnailLink);
+      if (thumbRes.ok) {
+        const contentType = thumbRes.headers.get('content-type') || fileMeta.data.mimeType || 'image/jpeg';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        const thumbBuffer = Buffer.from(await thumbRes.arrayBuffer());
+        return res.end(thumbBuffer);
+      }
     }
 
-    // Fallback: serve full image if no thumbnail available
     const driveRes = await drive.files.get(
       {
         fileId,
-        alt: 'media'
+        alt: 'media',
+        supportsAllDrives: true,
       },
       { responseType: 'stream' }
     );
 
     res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=60');
     driveRes.data
       .on('error', (err) => {
         console.error('Error streaming photo thumbnail:', err);
