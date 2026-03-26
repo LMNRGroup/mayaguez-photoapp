@@ -3333,6 +3333,24 @@
     min-height: 0;
   }
 
+  #eventLogsOverlay .event-logs-modal-body {
+    position: relative;
+  }
+
+  #eventLogsOverlay .event-logs-modal-body::after {
+    content: "";
+    position: sticky;
+    display: block;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: min(20%, 8rem);
+    margin-top: calc(-1 * min(20%, 8rem));
+    background: linear-gradient(180deg, rgba(7, 12, 21, 0), rgba(7, 12, 21, 0.96) 82%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
   .event-log-list.expanded {
     max-height: none;
     font-size: 0.8125rem;
