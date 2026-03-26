@@ -191,6 +191,7 @@ const DEFAULT_APP_SETTINGS = {
   },
   form: {
     locationEnabled: true,
+    showCountryFlag: true,
     lastName: {
       enabled: true,
       label: 'Apellidos de la familia',
@@ -224,6 +225,7 @@ const SETTINGS_FIELDS = [
   { key: 'Intro Title', type: 'string', path: ['intro', 'title'] },
   { key: 'Intro Subtitle', type: 'string', path: ['intro', 'subtitle'] },
   { key: 'Location Enabled', type: 'boolean', path: ['form', 'locationEnabled'] },
+  { key: 'Show Country Flag', type: 'boolean', path: ['form', 'showCountryFlag'] },
   { key: 'Last Name Enabled', type: 'boolean', path: ['form', 'lastName', 'enabled'] },
   { key: 'Last Name Label', type: 'string', path: ['form', 'lastName', 'label'] },
   { key: 'Last Name Placeholder', type: 'string', path: ['form', 'lastName', 'placeholder'] },
@@ -333,6 +335,9 @@ function mergeAppSettings(patch = {}) {
   if (patch.form && typeof patch.form === 'object') {
     if (Object.prototype.hasOwnProperty.call(patch.form, 'locationEnabled')) {
       next.form.locationEnabled = coerceBoolean(patch.form.locationEnabled, next.form.locationEnabled);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch.form, 'showCountryFlag')) {
+      next.form.showCountryFlag = coerceBoolean(patch.form.showCountryFlag, next.form.showCountryFlag);
     }
 
     if (patch.form.lastName && typeof patch.form.lastName === 'object') {

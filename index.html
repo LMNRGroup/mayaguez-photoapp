@@ -1331,6 +1331,7 @@
       },
       form: {
         locationEnabled: true,
+        showCountryFlag: true,
         lastName: {
           enabled: true,
           label: 'Apellidos de la familia',
@@ -1890,6 +1891,8 @@
     }
 
     function drawLocationOverlay(ctx, width, height) {
+      if (appSettings?.form?.showCountryFlag === false) return;
+
       const country = localStorage.getItem('lumi_country') || '';
       const region = localStorage.getItem('lumi_region') || '';
 

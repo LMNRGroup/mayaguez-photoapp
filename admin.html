@@ -2633,7 +2633,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--card);
-    overflow: visible; /* Allow dropdowns to be visible */
+    overflow: hidden;
     transition: all 0.2s ease;
     position: relative;
   }
@@ -2651,10 +2651,16 @@
     user-select: none;
     transition: all 0.2s ease;
     background: var(--card);
+    border-radius: inherit;
   }
 
   .settings-section-header:hover {
     background: var(--secondary);
+  }
+
+  .settings-section.expanded .settings-section-header {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
   }
 
   .settings-section-title {
@@ -2688,6 +2694,7 @@
     transition: max-height 0.3s ease, padding 0.3s ease;
     padding: 0 1.25rem;
     position: relative;
+    background: var(--card);
   }
 
   .settings-section.expanded .settings-section-content {
@@ -2786,6 +2793,274 @@
     justify-content: flex-end;
     gap: 10px;
     margin-top: 6px;
+  }
+
+  #settingsSaveBtn[disabled] {
+    opacity: 0.46;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .page-wrapper.settings-preview-mode #eventLogsPanel,
+  .page-wrapper.settings-preview-mode #activityPanel,
+  .page-wrapper.settings-preview-mode #systemHealthPanel {
+    display: none;
+  }
+
+  #settingsLivePanel {
+    display: none;
+    gap: 0.9rem;
+  }
+
+  .page-wrapper.settings-preview-mode #settingsLivePanel {
+    display: flex;
+  }
+
+  .settings-live-eyebrow {
+    font-size: 0.625rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--primary);
+    opacity: 0.82;
+  }
+
+  .settings-live-copy {
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--muted-foreground);
+  }
+
+  .settings-live-shell {
+    position: relative;
+    min-height: 0;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.1), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+      #0a1019;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .settings-live-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top right, rgba(43, 125, 255, 0.18), transparent 32%),
+      linear-gradient(180deg, rgba(4, 9, 18, 0.06), rgba(4, 9, 18, 0.34));
+    pointer-events: none;
+  }
+
+  .settings-live-topbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.95rem 1rem 0.8rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 1;
+  }
+
+  .settings-live-topbar-copy {
+    min-width: 0;
+  }
+
+  .settings-live-brand {
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(248, 250, 252, 0.86);
+  }
+
+  .settings-live-screen {
+    position: relative;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    z-index: 1;
+  }
+
+  .settings-live-stage {
+    width: min(100%, 290px);
+    aspect-ratio: 9 / 16;
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(43, 125, 255, 0.18), transparent 36%),
+      linear-gradient(180deg, #101927 0%, #090f18 100%);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .settings-live-stage-top {
+    padding: 1rem 1rem 0.5rem;
+  }
+
+  .settings-live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.42rem 0.72rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(248, 250, 252, 0.85);
+  }
+
+  .settings-live-pill-dot {
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: #6ee7b7;
+    box-shadow: 0 0 0 0.22rem rgba(110, 231, 183, 0.15);
+  }
+
+  .settings-live-ticket {
+    margin-left: auto;
+    display: inline-flex;
+    padding: 0.42rem 0.72rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.58);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(248, 250, 252, 0.92);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .settings-live-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.72rem;
+    padding: 0.25rem 1rem 1rem;
+  }
+
+  .settings-live-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .settings-live-title {
+    font-size: 1rem;
+    line-height: 1.2;
+    font-weight: 600;
+    color: rgba(249, 250, 251, 0.98);
+  }
+
+  .settings-live-subtitle {
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: rgba(226, 232, 240, 0.76);
+  }
+
+  .settings-live-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.34rem;
+  }
+
+  .settings-live-field-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(203, 213, 225, 0.64);
+  }
+
+  .settings-live-field-box {
+    height: 2.75rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 0.9rem;
+    color: rgba(248, 250, 252, 0.76);
+    font-size: 0.78rem;
+  }
+
+  .settings-live-field-box.is-select::after {
+    content: "";
+    margin-left: auto;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-right: 1.5px solid rgba(248, 250, 252, 0.62);
+    border-bottom: 1.5px solid rgba(248, 250, 252, 0.62);
+    transform: rotate(45deg) translateY(-1px);
+  }
+
+  .settings-live-flag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.42rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.44);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(248, 250, 252, 0.88);
+    font-size: 0.66rem;
+    overflow: hidden;
+  }
+
+  .settings-live-flag-swatch {
+    width: 1.25rem;
+    height: 0.9rem;
+    border-radius: 0.2rem;
+    background: linear-gradient(180deg, #ed2939 0 50%, #0050f0 50% 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .settings-live-flag-swatch::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 33%;
+    width: 100%;
+    height: 34%;
+    background: #fff;
+  }
+
+  .settings-live-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+    padding: 0 1rem 1rem;
+  }
+
+  .settings-live-meta-card {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+  }
+
+  .settings-live-meta-label {
+    font-size: 0.56rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(203, 213, 225, 0.6);
+  }
+
+  .settings-live-meta-value {
+    font-size: 0.84rem;
+    color: rgba(249, 250, 251, 0.94);
+    font-weight: 600;
   }
 
   .settings-help {
@@ -4295,6 +4570,13 @@ View report to see the most recent interactions
                         <span class="toggle-slider"></span>
                       </label>
                     </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Show country flag + name on photo</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsCountryFlagEnabled" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
 
                     <div class="settings-row">
                       <span class="settings-label">Enable last name</span>
@@ -4336,7 +4618,7 @@ View report to see the most recent interactions
               </div>
 
               <div class="settings-actions">
-                <button id="settingsSaveBtn" class="btn-primary">
+                <button id="settingsSaveBtn" class="btn-primary" disabled>
                   <span class="btn-inline-content">
                     <i data-lucide="save"></i>
                     <span>SAVE SETTINGS</span>
@@ -4500,7 +4782,7 @@ View report to see the most recent interactions
             <div class="event-log-hint">Click to expand live activity</div>
           </div>
 
-          <div class="panel-box">
+          <div id="activityPanel" class="panel-box">
           <div class="panel-title">Activity</div>
             <div id="activityBars" class="activity-bars">
               <div class="activity-chart">
@@ -4515,6 +4797,66 @@ View report to see the most recent interactions
             <div class="panel-title">System health</div>
             <div id="systemHealthGrid" class="system-health-grid"></div>
             <div class="event-log-hint">Click to expand system status</div>
+          </div>
+
+          <div id="settingsLivePanel" class="panel-box" aria-live="polite">
+            <div class="panel-title">Live App Mockup</div>
+            <div class="settings-live-eyebrow">Instant preview while editing</div>
+            <div class="settings-live-copy">This mirrors the public app state as you type, before you apply the changes live.</div>
+            <div class="settings-live-shell">
+              <div class="settings-live-topbar">
+                <div class="settings-live-topbar-copy">
+                  <div class="settings-live-brand">Luminar Apps</div>
+                </div>
+                <div id="settingsLiveTicket" class="settings-live-ticket">Ticket #084</div>
+              </div>
+              <div class="settings-live-screen">
+                <div class="settings-live-stage">
+                  <div class="settings-live-stage-top">
+                    <div class="settings-live-pill">
+                      <span class="settings-live-pill-dot"></span>
+                      <span>Live public app</span>
+                    </div>
+                  </div>
+                  <div class="settings-live-form">
+                    <div class="settings-live-intro">
+                      <div id="settingsLiveTitle" class="settings-live-title">¿Desde dónde nos visitas? 😊</div>
+                      <div id="settingsLiveSubtitle" class="settings-live-subtitle">Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.</div>
+                    </div>
+                    <div id="settingsLiveLocationField" class="settings-live-field">
+                      <div class="settings-live-field-label">Location</div>
+                      <div class="settings-live-field-box is-select">Puerto Rico · Mayagüez</div>
+                    </div>
+                    <div id="settingsLiveFlagChip" class="settings-live-flag-chip">
+                      <span class="settings-live-flag-swatch" aria-hidden="true"></span>
+                      <span>Mayagüez, Puerto Rico</span>
+                    </div>
+                    <div id="settingsLiveLastNameField" class="settings-live-field">
+                      <div id="settingsLiveLastNameLabel" class="settings-live-field-label">Apellidos de la familia</div>
+                      <div id="settingsLiveLastNamePlaceholder" class="settings-live-field-box">Apellidos de la familia (Ej. Pérez González)</div>
+                    </div>
+                    <div id="settingsLiveEmailField" class="settings-live-field">
+                      <div id="settingsLiveEmailLabel" class="settings-live-field-label">Correo electrónico</div>
+                      <div id="settingsLiveEmailPlaceholder" class="settings-live-field-box">Correo electrónico</div>
+                    </div>
+                    <div id="settingsLiveNewsletterField" class="settings-live-field">
+                      <div id="settingsLiveNewsletterLabel" class="settings-live-field-label">Newsletter</div>
+                      <div id="settingsLiveNewsletterHelper" class="settings-live-subtitle">Tu email será utilizado únicamente si autorizas recibir nuestro boletín.</div>
+                    </div>
+                  </div>
+                  <div class="settings-live-meta">
+                    <div class="settings-live-meta-card">
+                      <div class="settings-live-meta-label">Playlist</div>
+                      <div id="settingsLivePlaylistValue" class="settings-live-meta-value">All photos</div>
+                    </div>
+                    <div class="settings-live-meta-card">
+                      <div class="settings-live-meta-label">Gallery template</div>
+                      <div id="settingsLiveTemplateValue" class="settings-live-meta-value">Default</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
@@ -4807,6 +5149,7 @@ function hideGlobalLoader() {
     const appToggleInput = document.getElementById("appToggle");
     const appToggleWrapper = document.getElementById("appToggleWrapper");
     const appStatusDot = document.getElementById("appStatusDot");
+    const pageWrapper = document.querySelector(".page-wrapper");
 
     // NEW: photo meta elements
     const photoLabel = document.getElementById("photoLabel");
@@ -4818,7 +5161,25 @@ function hideGlobalLoader() {
     const activityChart = document.getElementById("activityChart");
     const activityXAxis = document.getElementById("activityXAxis");
     const activityYAxis = document.getElementById("activityYAxis");
+    const activityPanel = document.getElementById("activityPanel");
     const systemHealthGrid = document.getElementById("systemHealthGrid");
+    const settingsLivePanel = document.getElementById("settingsLivePanel");
+    const settingsLiveTicket = document.getElementById("settingsLiveTicket");
+    const settingsLiveTitle = document.getElementById("settingsLiveTitle");
+    const settingsLiveSubtitle = document.getElementById("settingsLiveSubtitle");
+    const settingsLiveLocationField = document.getElementById("settingsLiveLocationField");
+    const settingsLiveFlagChip = document.getElementById("settingsLiveFlagChip");
+    const settingsLiveLastNameField = document.getElementById("settingsLiveLastNameField");
+    const settingsLiveLastNameLabel = document.getElementById("settingsLiveLastNameLabel");
+    const settingsLiveLastNamePlaceholder = document.getElementById("settingsLiveLastNamePlaceholder");
+    const settingsLiveEmailField = document.getElementById("settingsLiveEmailField");
+    const settingsLiveEmailLabel = document.getElementById("settingsLiveEmailLabel");
+    const settingsLiveEmailPlaceholder = document.getElementById("settingsLiveEmailPlaceholder");
+    const settingsLiveNewsletterField = document.getElementById("settingsLiveNewsletterField");
+    const settingsLiveNewsletterLabel = document.getElementById("settingsLiveNewsletterLabel");
+    const settingsLiveNewsletterHelper = document.getElementById("settingsLiveNewsletterHelper");
+    const settingsLivePlaylistValue = document.getElementById("settingsLivePlaylistValue");
+    const settingsLiveTemplateValue = document.getElementById("settingsLiveTemplateValue");
     let latestReportPreviewText = 'Tap "View report" to load the current summary.';
     // Pending counter state (frontend)
     let pendingCountState = 0;
@@ -5117,6 +5478,10 @@ function hideGlobalLoader() {
     function renderTemplateListSkeleton(count = 5) {
       if (!templateList || !templateListEmpty) return;
       templateListEmpty.style.display = "none";
+      if (!count) {
+        templateList.innerHTML = "";
+        return;
+      }
       templateList.innerHTML = '<div class="template-list-skeleton"></div>';
       const skeletonWrap = templateList.querySelector(".template-list-skeleton");
       for (let i = 0; i < count; i += 1) {
@@ -5323,6 +5688,7 @@ function hideGlobalLoader() {
     const settingsIntroTitle = document.getElementById("settingsIntroTitle");
     const settingsIntroSubtitle = document.getElementById("settingsIntroSubtitle");
     const settingsLocationEnabled = document.getElementById("settingsLocationEnabled");
+    const settingsCountryFlagEnabled = document.getElementById("settingsCountryFlagEnabled");
     const settingsLastNameEnabled = document.getElementById("settingsLastNameEnabled");
     const settingsLastNameLabel = document.getElementById("settingsLastNameLabel");
     const settingsLastNamePlaceholder = document.getElementById("settingsLastNamePlaceholder");
@@ -5332,6 +5698,29 @@ function hideGlobalLoader() {
     const settingsNewsletterEnabled = document.getElementById("settingsNewsletterEnabled");
     const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
     const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
+    const settingsFields = [
+      settingsTicketEnabled,
+      settingsGalleryDisplayLimit,
+      settingsGalleryDisplayCustom,
+      settingsActiveTemplateId,
+      settingsIntroTitle,
+      settingsIntroSubtitle,
+      settingsLocationEnabled,
+      settingsCountryFlagEnabled,
+      settingsLastNameEnabled,
+      settingsLastNameLabel,
+      settingsLastNamePlaceholder,
+      settingsEmailEnabled,
+      settingsEmailLabel,
+      settingsEmailPlaceholder,
+      settingsNewsletterEnabled,
+      settingsNewsletterLabel,
+      settingsNewsletterHelper,
+    ].filter(Boolean);
+    let settingsBaselineSerialized = "";
+    let settingsLoadedOnce = false;
+    let templateSidebarRequestId = 0;
+    let lastKnownTemplateCount = 0;
     function renderLucideIcons() {
       if (window.lucide && typeof window.lucide.createIcons === "function") {
         window.lucide.createIcons();
@@ -7561,6 +7950,10 @@ function hideReportLoading() {
 
     // Switch to a specific view (global function for compatibility)
     window.switchView = function switchView(viewName) {
+      if (pageWrapper) {
+        pageWrapper.classList.toggle("settings-preview-mode", viewName === "settings");
+      }
+
       // Hide all views
       [viewDashboard, viewApproved, viewReports, viewMetrics, viewSettings, viewTemplates].forEach((view) => {
         if (view) {
@@ -7683,6 +8076,7 @@ function hideReportLoading() {
       { id: "settings_intro_title", title: "Intro Title", meta: "Intro Copy section", tag: "Setting", keywords: "intro title headline", fieldId: "settingsIntroTitle" },
       { id: "settings_intro_subtitle", title: "Intro Subtitle", meta: "Intro Copy section", tag: "Setting", keywords: "intro subtitle copy", fieldId: "settingsIntroSubtitle" },
       { id: "settings_location_enabled", title: "Enable Location", meta: "Form Fields section", tag: "Setting", keywords: "location country region field", fieldId: "settingsLocationEnabled" },
+      { id: "settings_country_flag", title: "Show Country Flag + Name on Photo", meta: "Form Fields section", tag: "Setting", keywords: "country flag name photo overlay print", fieldId: "settingsCountryFlagEnabled" },
       { id: "settings_last_name_enabled", title: "Enable Last Name", meta: "Form Fields section", tag: "Setting", keywords: "last name enable form field", fieldId: "settingsLastNameEnabled" },
       { id: "settings_last_name_label", title: "Last Name Label", meta: "Form Fields section", tag: "Setting", keywords: "last name label lastname label", fieldId: "settingsLastNameLabel" },
       { id: "settings_last_name_placeholder", title: "Last Name Placeholder", meta: "Form Fields section", tag: "Setting", keywords: "last name placeholder lastname", fieldId: "settingsLastNamePlaceholder" },
@@ -8130,10 +8524,11 @@ function hideReportLoading() {
 
     async function loadTemplatesSidebar() {
       if (!templateList || !templateListEmpty) return;
+      const requestId = ++templateSidebarRequestId;
       templateList.innerHTML = "";
       templateListEmpty.textContent = "Loading templates…";
       templateListEmpty.style.display = "none";
-      renderTemplateListSkeleton();
+      renderTemplateListSkeleton(Math.min(Math.max(lastKnownTemplateCount, 0), 4));
 
       try {
         const res = await fetch(`${BASE_URL}/admin/templates`, {
@@ -8147,8 +8542,13 @@ function hideReportLoading() {
           throw new Error("templates_load_failed");
         }
         const data = await res.json();
+        if (requestId !== templateSidebarRequestId) {
+          return;
+        }
         const templates = (data.templates || []).filter((template) => template && template.isActive);
+        lastKnownTemplateCount = templates.length;
         clearTemplateListSkeleton();
+        templateList.innerHTML = "";
         const createButton = document.createElement("button");
         createButton.type = "button";
         createButton.className = "template-library-item template-library-item-create template-create-btn";
@@ -8184,6 +8584,9 @@ function hideReportLoading() {
         updateTemplateUiState();
       } catch (err) {
         console.error("Error loading template sidebar:", err);
+        if (requestId !== templateSidebarRequestId) {
+          return;
+        }
         clearTemplateListSkeleton();
         templateListEmpty.textContent = "Could not load templates.";
         templateListEmpty.style.display = "block";
@@ -10277,6 +10680,7 @@ reportViewBtn.addEventListener("click", async () => {
       if (settingsActiveTemplateId.value !== (selectedTemplateId ? String(selectedTemplateId) : "")) {
         settingsActiveTemplateId.value = "";
       }
+      refreshSettingsLivePreview();
     }
 
     function fillSettingsForm(settings) {
@@ -10313,6 +10717,7 @@ reportViewBtn.addEventListener("click", async () => {
       settingsIntroTitle.value = settings.intro?.title || "";
       settingsIntroSubtitle.value = settings.intro?.subtitle || "";
       settingsLocationEnabled.checked = Boolean(settings.form?.locationEnabled);
+      settingsCountryFlagEnabled.checked = settings.form?.showCountryFlag !== false;
       settingsLastNameEnabled.checked = Boolean(settings.form?.lastName?.enabled);
       settingsLastNameLabel.value = settings.form?.lastName?.label || "";
       settingsLastNamePlaceholder.value = settings.form?.lastName?.placeholder || "";
@@ -10322,6 +10727,74 @@ reportViewBtn.addEventListener("click", async () => {
       settingsNewsletterEnabled.checked = Boolean(settings.form?.newsletter?.enabled);
       settingsNewsletterLabel.value = settings.form?.newsletter?.label || "";
       settingsNewsletterHelper.value = settings.form?.newsletter?.helper || "";
+      refreshSettingsLivePreview();
+    }
+
+    function getGalleryDisplayLimitLabel(value) {
+      if (!value || value === "all") return "All photos";
+      if (value === "last25") return "Last 25 photos";
+      if (value === "last10") return "Last 10 photos";
+      if (value.startsWith("custom:")) {
+        return `${value.replace("custom:", "")} photos`;
+      }
+      return value;
+    }
+
+    function getSelectedTemplateLabel() {
+      if (!settingsActiveTemplateId) return "Default";
+      const selectedOption = settingsActiveTemplateId.options[settingsActiveTemplateId.selectedIndex];
+      if (!selectedOption || !selectedOption.value) {
+        return "Default";
+      }
+      return selectedOption.textContent || "Default";
+    }
+
+    function refreshSettingsLivePreview() {
+      if (!settingsLivePanel) return;
+
+      const introTitle = settingsIntroTitle?.value.trim() || "¿Desde dónde nos visitas? 😊";
+      const introSubtitle = settingsIntroSubtitle?.value.trim() || "Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.";
+      const lastNameLabel = settingsLastNameLabel?.value.trim() || "Apellidos de la familia";
+      const lastNamePlaceholder = settingsLastNamePlaceholder?.value.trim() || "Apellidos de la familia (Ej. Pérez González)";
+      const emailLabel = settingsEmailLabel?.value.trim() || "Correo electrónico";
+      const emailPlaceholder = settingsEmailPlaceholder?.value.trim() || "Correo electrónico";
+      const newsletterLabel = settingsNewsletterLabel?.value.trim() || "Deseo recibir noticias y ofertas de Municipio de Mayagüez.";
+      const newsletterHelper = settingsNewsletterHelper?.value.trim() || "Tu email será utilizado únicamente si autorizas recibir nuestro boletín.";
+      const galleryDisplayLimit = collectSettingsPayload().galleryDisplayLimit;
+
+      if (settingsLiveTitle) settingsLiveTitle.textContent = introTitle;
+      if (settingsLiveSubtitle) settingsLiveSubtitle.textContent = introSubtitle;
+      if (settingsLiveTicket) settingsLiveTicket.style.display = settingsTicketEnabled?.checked ? "inline-flex" : "none";
+      if (settingsLiveLocationField) settingsLiveLocationField.style.display = settingsLocationEnabled?.checked ? "flex" : "none";
+      if (settingsLiveFlagChip) settingsLiveFlagChip.style.display = settingsLocationEnabled?.checked && settingsCountryFlagEnabled?.checked ? "inline-flex" : "none";
+      if (settingsLiveLastNameField) settingsLiveLastNameField.style.display = settingsLastNameEnabled?.checked ? "flex" : "none";
+      if (settingsLiveLastNameLabel) settingsLiveLastNameLabel.textContent = lastNameLabel;
+      if (settingsLiveLastNamePlaceholder) settingsLiveLastNamePlaceholder.textContent = lastNamePlaceholder;
+      if (settingsLiveEmailField) settingsLiveEmailField.style.display = settingsEmailEnabled?.checked ? "flex" : "none";
+      if (settingsLiveEmailLabel) settingsLiveEmailLabel.textContent = emailLabel;
+      if (settingsLiveEmailPlaceholder) settingsLiveEmailPlaceholder.textContent = emailPlaceholder;
+      if (settingsLiveNewsletterField) settingsLiveNewsletterField.style.display = settingsNewsletterEnabled?.checked ? "flex" : "none";
+      if (settingsLiveNewsletterLabel) settingsLiveNewsletterLabel.textContent = newsletterLabel;
+      if (settingsLiveNewsletterHelper) settingsLiveNewsletterHelper.textContent = newsletterHelper;
+      if (settingsLivePlaylistValue) settingsLivePlaylistValue.textContent = getGalleryDisplayLimitLabel(galleryDisplayLimit);
+      if (settingsLiveTemplateValue) settingsLiveTemplateValue.textContent = getSelectedTemplateLabel();
+    }
+
+    function serializeSettingsPayload(payload = collectSettingsPayload()) {
+      return JSON.stringify(payload);
+    }
+
+    function syncSettingsDirtyState() {
+      if (!settingsSaveBtn) return;
+      refreshSettingsLivePreview();
+      const isDirty = settingsLoadedOnce && serializeSettingsPayload() !== settingsBaselineSerialized;
+      settingsSaveBtn.disabled = !isDirty;
+    }
+
+    function captureSettingsBaseline() {
+      settingsBaselineSerialized = serializeSettingsPayload();
+      settingsLoadedOnce = true;
+      syncSettingsDirtyState();
     }
 
     function collectSettingsPayload() {
@@ -10346,6 +10819,7 @@ reportViewBtn.addEventListener("click", async () => {
         },
         form: {
           locationEnabled: settingsLocationEnabled.checked,
+          showCountryFlag: settingsCountryFlagEnabled.checked,
           lastName: {
             enabled: settingsLastNameEnabled.checked,
             label: settingsLastNameLabel.value.trim(),
@@ -10397,6 +10871,7 @@ reportViewBtn.addEventListener("click", async () => {
         if (data && data.settings) {
           await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
           fillSettingsForm(data.settings);
+          captureSettingsBaseline();
         } else {
           showToast("No settings were returned from the server.", "error");
         }
@@ -10426,13 +10901,40 @@ reportViewBtn.addEventListener("click", async () => {
           settingsGalleryDisplayCustomLabel.style.display = "none";
           settingsGalleryDisplayCustom.value = "";
         }
+        syncSettingsDirtyState();
       });
     }
+
+    settingsFields.forEach((field) => {
+      const eventName = field.type === "checkbox" || field.tagName === "SELECT" ? "change" : "input";
+      field.addEventListener(eventName, syncSettingsDirtyState);
+      if (eventName !== "change") {
+        field.addEventListener("change", syncSettingsDirtyState);
+      }
+    });
 
     if (settingsSaveBtn) {
       settingsSaveBtn.addEventListener("click", async () => {
         if (!adminToken) {
           showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        if (settingsSaveBtn.disabled) {
+          return;
+        }
+
+        const confirmSave = await appConfirm(
+          "Apply these changes to the live public app now?",
+          {
+            title: "Apply Settings",
+            tone: "primary",
+            confirmLabel: "Apply Changes",
+            cancelLabel: "Keep Editing",
+          }
+        );
+
+        if (!confirmSave) {
           return;
         }
 
@@ -10453,8 +10955,9 @@ reportViewBtn.addEventListener("click", async () => {
 
           const data = await res.json();
           if (data && data.ok) {
-            fillSettingsForm(data.settings);
             await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
+            fillSettingsForm(data.settings);
+            captureSettingsBaseline();
             showToast("SETTINGS SAVED", "success", 1700);
           } else {
             showToast("Could not save settings.", "error");
@@ -10464,6 +10967,7 @@ reportViewBtn.addEventListener("click", async () => {
           showToast("Error saving settings.", "error");
         } finally {
           setButtonLoading(settingsSaveBtn, "Saving...", false);
+          syncSettingsDirtyState();
         }
       });
     }
