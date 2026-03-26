@@ -1373,39 +1373,44 @@
   .template-preview-overlay {
     position: fixed;
     inset: 0;
-    z-index: 2001;
+    z-index: 100001;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: hsla(225, 10%, 8%, 0.95);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    padding: 1.5rem;
+    background:
+      radial-gradient(circle at top, rgba(43, 125, 255, 0.16), transparent 42%),
+      rgba(4, 9, 18, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
 
   .template-preview-container {
     position: relative;
-    width: min(90vw, 1760px);
+    width: min(92vw, 1700px);
     aspect-ratio: 16 / 9;
-    background: rgba(0, 0, 0, 0.82);
-    border-radius: calc(var(--radius) + 10px);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)),
+      rgba(7, 12, 21, 0.96);
+    border-radius: 28px;
     overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.12);
   }
 
   .template-preview-close {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
+    top: 1.15rem;
+    right: 1.15rem;
     width: 2.5rem;
     height: 2.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: hsla(var(--background), 0.8);
+    background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     color: var(--foreground);
     cursor: pointer;
     transition: all 0.2s;
@@ -1413,9 +1418,9 @@
   }
 
   .template-preview-close:hover {
-    background: var(--primary);
+    background: rgba(255, 255, 255, 0.08);
     border-color: var(--primary);
-    color: var(--primary-foreground);
+    color: var(--primary);
   }
 
   .template-preview-close svg {
@@ -1478,10 +1483,18 @@
   }
 
   .template-preview-photo-fill {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
     display: block;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+
+  .template-preview-photo-fill.visible {
+    opacity: 1;
   }
 
   .template-preview-photo-fallback {
@@ -1498,6 +1511,21 @@
     text-transform: uppercase;
     text-align: center;
     padding: 1.5rem;
+  }
+
+  .template-preview-live-badge {
+    position: absolute;
+    top: 1.4rem;
+    left: 1.4rem;
+    z-index: 20;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(248, 250, 252, 0.88);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
   }
 
   .template-preview-ticket {
@@ -9669,6 +9697,7 @@ function hideReportLoading() {
         </svg>
       `;
       closeBtn.addEventListener("click", () => {
+        cleanupPreview();
         document.body.removeChild(overlay);
         if (onClose && typeof onClose === 'function') {
           onClose();
@@ -9688,23 +9717,27 @@ function hideReportLoading() {
       const photoWindow = document.createElement("div");
       photoWindow.className = "template-preview-photo-window";
 
-      const availablePreviewPhoto = photoImg && photoImg.src ? photoImg.src : "";
-      if (availablePreviewPhoto) {
-        const previewPhoto = document.createElement("img");
-        previewPhoto.className = "template-preview-photo-fill";
-        previewPhoto.src = availablePreviewPhoto;
-        previewPhoto.alt = "Live template preview photo";
-        photoWindow.appendChild(previewPhoto);
-      } else {
-        const fallbackPhoto = document.createElement("div");
-        fallbackPhoto.className = "template-preview-photo-fallback";
-        fallbackPhoto.textContent = "Live Template Preview";
-        photoWindow.appendChild(fallbackPhoto);
-      }
+      const previewPhotoA = document.createElement("img");
+      previewPhotoA.className = "template-preview-photo-fill";
+      previewPhotoA.alt = "Preview photo A";
+      const previewPhotoB = document.createElement("img");
+      previewPhotoB.className = "template-preview-photo-fill";
+      previewPhotoB.alt = "Preview photo B";
+      photoWindow.appendChild(previewPhotoA);
+      photoWindow.appendChild(previewPhotoB);
+
+      const fallbackPhoto = document.createElement("div");
+      fallbackPhoto.className = "template-preview-photo-fallback";
+      fallbackPhoto.textContent = "Live Template Preview";
+      photoWindow.appendChild(fallbackPhoto);
 
       const ticketBadge = document.createElement("div");
       ticketBadge.className = "template-preview-ticket";
       ticketBadge.textContent = "#084";
+
+      const liveBadge = document.createElement("div");
+      liveBadge.className = "template-preview-live-badge";
+      liveBadge.textContent = "Gallery Preview";
 
       const logosContainer = document.createElement("div");
       logosContainer.className = "template-preview-logos";
@@ -9713,11 +9746,107 @@ function hideReportLoading() {
       stage.appendChild(bgImg);
       stage.appendChild(photoWindow);
       stage.appendChild(ticketBadge);
+      stage.appendChild(liveBadge);
       stage.appendChild(logosContainer);
       shell.appendChild(stage);
       container.appendChild(shell);
       overlay.appendChild(container);
       document.body.appendChild(overlay);
+
+      let previewPhotos = [];
+      let previewPhotoIndex = 0;
+      let previewSlotIndex = 0;
+      let previewRotateTimer = null;
+      const previewSlots = [previewPhotoA, previewPhotoB];
+
+      function cleanupPreview() {
+        if (previewRotateTimer) {
+          clearInterval(previewRotateTimer);
+          previewRotateTimer = null;
+        }
+      }
+
+      function updateTicketLabelFromName(name = "") {
+        const ticketMatch = String(name).match(/^T?(\d{1,})[-_]/i);
+        if (!ticketMatch) {
+          ticketBadge.textContent = "#084";
+          return;
+        }
+        ticketBadge.textContent = `#${String(Number(ticketMatch[1])).padStart(3, "0")}`;
+      }
+
+      function showPreviewPhoto(photo) {
+        if (!photo || !photo.id) {
+          fallbackPhoto.style.display = "flex";
+          previewSlots.forEach((slot) => {
+            slot.classList.remove("visible");
+            slot.removeAttribute("src");
+          });
+          ticketBadge.textContent = "#084";
+          return;
+        }
+
+        fallbackPhoto.style.display = "none";
+        const nextSlot = previewSlots[previewSlotIndex % previewSlots.length];
+        const prevSlot = previewSlots[(previewSlotIndex + 1) % previewSlots.length];
+        nextSlot.src = `${BASE_URL}/gallery/photo/${encodeURIComponent(photo.id)}`;
+        nextSlot.classList.add("visible");
+        prevSlot.classList.remove("visible");
+        previewSlotIndex = (previewSlotIndex + 1) % previewSlots.length;
+        updateTicketLabelFromName(photo.name || "");
+      }
+
+      async function loadLivePreviewPhotos() {
+        try {
+          const res = await fetch(`${BASE_URL}/gallery/approved`);
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          const files = Array.isArray(data.files) ? data.files : [];
+          previewPhotos = files;
+
+          if (!previewPhotos.length) {
+            const availablePreviewPhoto = photoImg && photoImg.src ? { id: photoImg.src, local: true, name: "" } : null;
+            if (availablePreviewPhoto && availablePreviewPhoto.local) {
+              fallbackPhoto.style.display = "none";
+              previewPhotoA.src = photoImg.src;
+              previewPhotoA.classList.add("visible");
+              previewPhotoB.classList.remove("visible");
+              ticketBadge.textContent = "#084";
+              return;
+            }
+            showPreviewPhoto(null);
+            return;
+          }
+
+          previewPhotoIndex = 0;
+          showPreviewPhoto(previewPhotos[previewPhotoIndex]);
+
+          if (previewRotateTimer) {
+            clearInterval(previewRotateTimer);
+          }
+          if (previewPhotos.length > 1) {
+            previewRotateTimer = setInterval(() => {
+              previewPhotoIndex = (previewPhotoIndex + 1) % previewPhotos.length;
+              showPreviewPhoto(previewPhotos[previewPhotoIndex]);
+            }, 4000);
+          }
+        } catch (err) {
+          console.error("Failed to load live preview photos", err);
+          const availablePreviewPhoto = photoImg && photoImg.src ? photoImg.src : "";
+          if (availablePreviewPhoto) {
+            fallbackPhoto.style.display = "none";
+            previewPhotoA.src = availablePreviewPhoto;
+            previewPhotoA.classList.add("visible");
+            previewPhotoB.classList.remove("visible");
+          } else {
+            showPreviewPhoto(null);
+          }
+        }
+      }
+
+      loadLivePreviewPhotos();
 
       // Wait for container to render, then copy logos with correct positioning
       requestAnimationFrame(() => {
@@ -9759,6 +9888,7 @@ function hideReportLoading() {
 
       overlay.addEventListener("click", (e) => {
         if (e.target === overlay) {
+          cleanupPreview();
           document.body.removeChild(overlay);
           if (onClose && typeof onClose === 'function') {
             onClose();
