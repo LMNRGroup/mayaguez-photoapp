@@ -667,14 +667,37 @@ function buildPublicTemplateAssetUrl(fileId) {
   return `/gallery/template-asset/${encodeURIComponent(fileId)}`;
 }
 
+function normalizeTemplateAssetFileId(value) {
+  if (value == null) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+
+  try {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      const parsed = new URL(raw);
+      const parts = parsed.pathname.split('/');
+      return decodeURIComponent(parts[parts.length - 1] || '');
+    }
+  } catch (_) {
+    // Fall through to the string cleanup below.
+  }
+
+  const withoutQuery = raw.split('?')[0];
+  const parts = withoutQuery.split('/');
+  return decodeURIComponent(parts[parts.length - 1] || withoutQuery);
+}
+
 function resolveTemplateAsset(asset) {
   if (!asset || !asset.value) return null;
 
   if (asset.type === 'uploaded') {
+    const normalizedFileId = normalizeTemplateAssetFileId(asset.value);
+    if (!normalizedFileId) return null;
+
     return {
       type: 'uploaded',
-      value: asset.value,
-      url: buildPublicTemplateAssetUrl(asset.value)
+      value: normalizedFileId,
+      url: buildPublicTemplateAssetUrl(normalizedFileId)
     };
   }
 

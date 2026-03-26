@@ -4677,6 +4677,24 @@ function hideReportLoading() {
       return `${BASE_URL}/admin/templates/asset/${encodeURIComponent(fileId)}${tokenPart}`;
     }
 
+    function extractTemplateAssetFileId(value) {
+      if (!value || typeof value !== "string") return "";
+
+      if (!value.startsWith(BASE_URL)) {
+        return value;
+      }
+
+      try {
+        const url = new URL(value);
+        const parts = url.pathname.split("/");
+        return decodeURIComponent(parts[parts.length - 1] || "");
+      } catch (_) {
+        const cleanValue = value.split("?")[0];
+        const parts = cleanValue.split("/");
+        return decodeURIComponent(parts[parts.length - 1] || "");
+      }
+    }
+
     function clearPendingBackgroundDraft() {
       if (pendingBackgroundObjectUrl) {
         URL.revokeObjectURL(pendingBackgroundObjectUrl);
@@ -6988,7 +7006,11 @@ function hideReportLoading() {
                 logoData.x || null,
                 logoData.y || null,
                 logoData.width || null,
-                logoData.height || null
+                logoData.height || null,
+                {
+                  type: logoData.type || (logoData.value && String(logoData.value).startsWith("http") ? "uploaded" : "preloaded"),
+                  value: logoData.value || "",
+                }
               );
             }
           }
@@ -7417,7 +7439,10 @@ function hideReportLoading() {
           const uploaded = await uploadTemplateAsset(file, "logo");
           if (!uploaded) return;
 
-          await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId));
+          await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId), null, null, null, null, {
+            type: "uploaded",
+            value: uploaded.fileId,
+          });
           markTemplateDirty();
         } catch (err) {
           console.error("Error uploading template logo:", err);
@@ -7440,7 +7465,10 @@ function hideReportLoading() {
           const uploaded = await uploadTemplateAsset(file, "logo");
           if (!uploaded) return;
 
-          await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId));
+          await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId), null, null, null, null, {
+            type: "uploaded",
+            value: uploaded.fileId,
+          });
           markTemplateDirty();
         } catch (err) {
           console.error("Error uploading QR code overlay:", err);
@@ -7466,16 +7494,20 @@ function hideReportLoading() {
       });
     }
 
-    function addLogoToCanvas(logoPath, x = null, y = null, width = null, height = null) {
-      return addLogoToCanvasWithPosition(logoPath, x, y, width, height);
+    function addLogoToCanvas(logoPath, x = null, y = null, width = null, height = null, metadata = {}) {
+      return addLogoToCanvasWithPosition(logoPath, x, y, width, height, metadata);
     }
 
-    function addLogoToCanvasWithPosition(logoPath, x = null, y = null, width = null, height = null) {
+    function addLogoToCanvasWithPosition(logoPath, x = null, y = null, width = null, height = null, metadata = {}) {
       const logoDiv = document.createElement("div");
+      const resolvedLogoType = metadata.type || (logoPath.startsWith(BASE_URL) ? "uploaded" : "preloaded");
+      const resolvedLogoValue =
+        metadata.value ||
+        (resolvedLogoType === "uploaded" ? extractTemplateAssetFileId(logoPath) : logoPath);
       logoDiv.className = "template-logo";
       logoDiv.dataset.logoPath = logoPath;
-      logoDiv.dataset.logoType = logoPath.startsWith(BASE_URL) ? "uploaded" : "preloaded";
-      logoDiv.dataset.logoValue = logoPath.startsWith(BASE_URL) ? logoPath.split("/").pop() : logoPath;
+      logoDiv.dataset.logoType = resolvedLogoType;
+      logoDiv.dataset.logoValue = resolvedLogoValue;
 
       const img = document.createElement("img");
       img.src = logoPath;
@@ -7521,16 +7553,16 @@ function hideReportLoading() {
 
       // Click to select
       logoDiv.addEventListener("click", (e) => {
-        if (e.target.classList.contains("template-logo-resize-handle")) return;
-        if (e.target.classList.contains("template-logo-action-btn")) return;
+        if (e.target.closest(".template-logo-resize-handle")) return;
+        if (e.target.closest(".template-logo-action-btn")) return;
         selectLogo(logoDiv);
         e.stopPropagation();
       });
 
       // Drag functionality
       logoDiv.addEventListener("mousedown", (e) => {
-        if (e.target.classList.contains("template-logo-resize-handle")) return;
-        if (e.target.classList.contains("template-logo-action-btn")) return;
+        if (e.target.closest(".template-logo-resize-handle")) return;
+        if (e.target.closest(".template-logo-action-btn")) return;
         if (logoDiv !== selectedLogo) return;
 
         isDragging = true;
