@@ -3172,6 +3172,176 @@
     line-height: 1.45;
   }
 
+  .command-palette-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: min(14vh, 8rem) 1.25rem 1.5rem;
+    background:
+      radial-gradient(circle at top, rgba(43, 125, 255, 0.14), transparent 36%),
+      rgba(4, 9, 18, 0.68);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 100001;
+  }
+
+  .command-palette-overlay.visible {
+    display: flex;
+  }
+
+  .command-palette {
+    width: min(92vw, 760px);
+    max-height: min(76vh, 760px);
+    overflow: hidden;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)),
+      rgba(7, 12, 21, 0.96);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .command-palette-band {
+    height: 4px;
+    background: linear-gradient(90deg, #8b96a8, #d3d8e2);
+  }
+
+  .command-palette-header {
+    padding: 1.1rem 1.25rem 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .command-palette-icon {
+    width: 2.6rem;
+    height: 2.6rem;
+    min-width: 2.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(244, 247, 252, 0.88);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .command-palette-icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .command-palette-input-wrap {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .command-palette-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(227, 233, 242, 0.6);
+  }
+
+  .command-palette-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: rgba(248, 250, 252, 0.96);
+    font-size: 1.05rem;
+    font-family: "SF Pro Display", "Helvetica Neue", "Gotham", "Satoshi", Arial, sans-serif;
+    outline: none;
+    padding: 0;
+  }
+
+  .command-palette-input::placeholder {
+    color: rgba(227, 233, 242, 0.42);
+  }
+
+  .command-palette-shortcut {
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(227, 233, 242, 0.56);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    padding: 0.4rem 0.6rem;
+    white-space: nowrap;
+  }
+
+  .command-palette-results {
+    padding: 0.65rem;
+    overflow: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .command-palette-item {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 18px;
+    background: transparent;
+    color: rgba(244, 247, 252, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    text-align: left;
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  }
+
+  .command-palette-item:hover,
+  .command-palette-item.active {
+    border-color: rgba(110, 231, 255, 0.22);
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateY(-1px);
+  }
+
+  .command-palette-item-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .command-palette-item-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: rgba(248, 250, 252, 0.96);
+  }
+
+  .command-palette-item-meta {
+    font-size: 0.76rem;
+    color: rgba(227, 233, 242, 0.62);
+  }
+
+  .command-palette-item-tag {
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(227, 233, 242, 0.52);
+    white-space: nowrap;
+  }
+
+  .command-palette-empty {
+    padding: 1rem;
+    text-align: center;
+    color: rgba(227, 233, 242, 0.62);
+    font-size: 0.86rem;
+  }
+
   /* LOCK SCREEN */
 
   .lock-screen {
@@ -4447,6 +4617,9 @@ function hideGlobalLoader() {
     const eventLogExpandedList = document.getElementById("eventLogExpandedList");
     const eventLogsOverlay = document.getElementById("eventLogsOverlay");
     const eventLogsOverlayClose = document.getElementById("eventLogsOverlayClose");
+    const commandPaletteOverlay = document.getElementById("commandPaletteOverlay");
+    const commandPaletteInput = document.getElementById("commandPaletteInput");
+    const commandPaletteResults = document.getElementById("commandPaletteResults");
     const activityBars = document.getElementById("activityBars");
     const activityChart = document.getElementById("activityChart");
     const activityXAxis = document.getElementById("activityXAxis");
@@ -7220,6 +7393,214 @@ function hideReportLoading() {
       });
     }
 
+    const commandPaletteCatalog = [
+      { id: "dashboard", title: "Dashboard", meta: "Review pending uploads", tag: "View", keywords: "dashboard pending review approve reject", run: () => { setActiveNav(navDashboard); switchView("dashboard"); } },
+      { id: "approved", title: "Approved Photos", meta: "Browse, select, and delete approved images", tag: "View", keywords: "approved photos gallery delete selection", run: () => { setActiveNav(navApproved); switchView("approved"); } },
+      { id: "templates", title: "My Templates", meta: "Create and edit screen layouts", tag: "View", keywords: "templates editor backgrounds logos qr layout", run: () => { setActiveNav(navTemplates); switchView("templates"); } },
+      { id: "reports", title: "Event Reports", meta: "View session reports and email exports", tag: "View", keywords: "reports event report email summary", run: () => { setActiveNav(navReports); switchView("reports"); } },
+      { id: "metrics", title: "Metrics & Data", meta: "Analytics workspace placeholder", tag: "View", keywords: "metrics data analytics under construction", run: () => { setActiveNav(navMetrics); switchView("metrics"); } },
+      { id: "settings", title: "App Settings", meta: "Open the configuration panel", tag: "Admin", keywords: "settings app configuration fields", run: () => { setActiveNav(navSettings); switchView("settings"); } },
+      { id: "logs", title: "Live Event Logs", meta: "Open the expanded event log view", tag: "Quick Action", keywords: "event logs live activity overlay", run: () => { openExpandedEventLogs(); } },
+      { id: "settings_ticket", title: "Show Ticket Number After Upload", meta: "Ticket Overlay section", tag: "Setting", keywords: "ticket overlay show ticket number upload", fieldId: "settingsTicketEnabled" },
+      { id: "settings_playlist_limit", title: "Photos to Display in Playlist", meta: "Playlist section", tag: "Setting", keywords: "playlist photo display limit", fieldId: "settingsGalleryDisplayLimit" },
+      { id: "settings_playlist_custom", title: "Custom Playlist Count", meta: "Playlist section", tag: "Setting", keywords: "playlist custom number count", fieldId: "settingsGalleryDisplayCustom" },
+      { id: "settings_active_template", title: "Active Gallery Template", meta: "Gallery Template section", tag: "Setting", keywords: "active gallery template live screen", fieldId: "settingsActiveTemplateId" },
+      { id: "settings_intro_title", title: "Intro Title", meta: "Intro Copy section", tag: "Setting", keywords: "intro title headline", fieldId: "settingsIntroTitle" },
+      { id: "settings_intro_subtitle", title: "Intro Subtitle", meta: "Intro Copy section", tag: "Setting", keywords: "intro subtitle copy", fieldId: "settingsIntroSubtitle" },
+      { id: "settings_location_enabled", title: "Enable Location", meta: "Form Fields section", tag: "Setting", keywords: "location country region field", fieldId: "settingsLocationEnabled" },
+      { id: "settings_last_name_enabled", title: "Enable Last Name", meta: "Form Fields section", tag: "Setting", keywords: "last name enable form field", fieldId: "settingsLastNameEnabled" },
+      { id: "settings_last_name_label", title: "Last Name Label", meta: "Form Fields section", tag: "Setting", keywords: "last name label lastname label", fieldId: "settingsLastNameLabel" },
+      { id: "settings_last_name_placeholder", title: "Last Name Placeholder", meta: "Form Fields section", tag: "Setting", keywords: "last name placeholder lastname", fieldId: "settingsLastNamePlaceholder" },
+      { id: "settings_email_enabled", title: "Enable Email", meta: "Form Fields section", tag: "Setting", keywords: "email enable form field", fieldId: "settingsEmailEnabled" },
+      { id: "settings_email_label", title: "Email Label", meta: "Form Fields section", tag: "Setting", keywords: "email label", fieldId: "settingsEmailLabel" },
+      { id: "settings_email_placeholder", title: "Email Placeholder", meta: "Form Fields section", tag: "Setting", keywords: "email placeholder", fieldId: "settingsEmailPlaceholder" },
+      { id: "settings_newsletter_enabled", title: "Enable Newsletter Opt-In", meta: "Form Fields section", tag: "Setting", keywords: "newsletter opt in enable", fieldId: "settingsNewsletterEnabled" },
+      { id: "settings_newsletter_label", title: "Newsletter Label", meta: "Form Fields section", tag: "Setting", keywords: "newsletter label", fieldId: "settingsNewsletterLabel" },
+      { id: "settings_newsletter_helper", title: "Newsletter Helper Text", meta: "Form Fields section", tag: "Setting", keywords: "newsletter helper text", fieldId: "settingsNewsletterHelper" },
+    ];
+
+    let commandPaletteResultsData = [];
+    let commandPaletteActiveIndex = 0;
+
+    function getCommandPaletteItemScore(item, query) {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (!normalizedQuery) return 1;
+
+      const haystack = `${item.title} ${item.meta} ${item.keywords || ""}`.toLowerCase();
+      if (item.title.toLowerCase() === normalizedQuery) return 100;
+      if (item.title.toLowerCase().startsWith(normalizedQuery)) return 80;
+      if (haystack.includes(normalizedQuery)) return 60;
+
+      const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+      const matchedTerms = queryTerms.filter((term) => haystack.includes(term)).length;
+      return matchedTerms > 0 ? matchedTerms * 10 : 0;
+    }
+
+    async function navigateToSettingsField(fieldId) {
+      setActiveNav(navSettings);
+      switchView("settings");
+      await loadSettings();
+      initSettingsAccordion();
+
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+
+      const section = field.closest(".settings-section");
+      if (section) {
+        section.classList.add("expanded");
+      }
+
+      field.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => {
+        if (typeof field.focus === "function") {
+          field.focus({ preventScroll: true });
+        }
+        if (typeof field.select === "function" && (field.tagName === "INPUT" || field.tagName === "TEXTAREA")) {
+          field.select();
+        }
+      }, 220);
+    }
+
+    function renderCommandPaletteResults(query = "") {
+      if (!commandPaletteResults) return;
+
+      const ranked = commandPaletteCatalog
+        .map((item) => ({ item, score: getCommandPaletteItemScore(item, query) }))
+        .filter((entry) => !query.trim() || entry.score > 0)
+        .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
+        .slice(0, 9)
+        .map((entry) => entry.item);
+
+      commandPaletteResultsData = ranked;
+      commandPaletteActiveIndex = 0;
+
+      if (!ranked.length) {
+        commandPaletteResults.innerHTML = '<div class="command-palette-empty">No quick actions found for that search.</div>';
+        return;
+      }
+
+      commandPaletteResults.innerHTML = ranked.map((item, index) => `
+        <button type="button" class="command-palette-item ${index === 0 ? "active" : ""}" data-command-id="${item.id}">
+          <div class="command-palette-item-copy">
+            <div class="command-palette-item-title">${item.title}</div>
+            <div class="command-palette-item-meta">${item.meta}</div>
+          </div>
+          <div class="command-palette-item-tag">${item.tag}</div>
+        </button>
+      `).join("");
+    }
+
+    function syncCommandPaletteActiveItem() {
+      if (!commandPaletteResults) return;
+      const items = Array.from(commandPaletteResults.querySelectorAll(".command-palette-item"));
+      items.forEach((item, index) => {
+        item.classList.toggle("active", index === commandPaletteActiveIndex);
+      });
+      const activeItem = items[commandPaletteActiveIndex];
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    function closeCommandPalette() {
+      if (!commandPaletteOverlay) return;
+      commandPaletteOverlay.classList.remove("visible");
+      commandPaletteOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      if (commandPaletteInput) {
+        commandPaletteInput.value = "";
+      }
+    }
+
+    function openCommandPalette() {
+      if (!commandPaletteOverlay || !adminToken) return;
+      commandPaletteOverlay.classList.add("visible");
+      commandPaletteOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      if (commandPaletteInput) {
+        commandPaletteInput.value = "";
+      }
+      renderCommandPaletteResults("");
+      requestAnimationFrame(() => {
+        if (commandPaletteInput) {
+          commandPaletteInput.focus();
+          commandPaletteInput.select();
+        }
+      });
+    }
+
+    async function executeCommandPaletteItem(item) {
+      if (!item) return;
+      closeCommandPalette();
+      if (item.fieldId) {
+        await navigateToSettingsField(item.fieldId);
+        return;
+      }
+      if (typeof item.run === "function") {
+        item.run();
+      }
+    }
+
+    if (commandPaletteInput) {
+      commandPaletteInput.addEventListener("input", (event) => {
+        renderCommandPaletteResults(event.target.value || "");
+      });
+
+      commandPaletteInput.addEventListener("keydown", async (event) => {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          commandPaletteActiveIndex = Math.min(commandPaletteActiveIndex + 1, Math.max(commandPaletteResultsData.length - 1, 0));
+          syncCommandPaletteActiveItem();
+          return;
+        }
+
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          commandPaletteActiveIndex = Math.max(commandPaletteActiveIndex - 1, 0);
+          syncCommandPaletteActiveItem();
+          return;
+        }
+
+        if (event.key === "Enter") {
+          event.preventDefault();
+          await executeCommandPaletteItem(commandPaletteResultsData[commandPaletteActiveIndex]);
+          return;
+        }
+
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeCommandPalette();
+        }
+      });
+    }
+
+    if (commandPaletteResults) {
+      commandPaletteResults.addEventListener("mousemove", (event) => {
+        const itemEl = event.target.closest(".command-palette-item");
+        if (!itemEl) return;
+        const itemIndex = Array.from(commandPaletteResults.querySelectorAll(".command-palette-item")).indexOf(itemEl);
+        if (itemIndex >= 0) {
+          commandPaletteActiveIndex = itemIndex;
+          syncCommandPaletteActiveItem();
+        }
+      });
+
+      commandPaletteResults.addEventListener("click", async (event) => {
+        const itemEl = event.target.closest(".command-palette-item");
+        if (!itemEl) return;
+        const item = commandPaletteResultsData.find((entry) => entry.id === itemEl.dataset.commandId);
+        await executeCommandPaletteItem(item);
+      });
+    }
+
+    if (commandPaletteOverlay) {
+      commandPaletteOverlay.addEventListener("click", (event) => {
+        if (event.target === commandPaletteOverlay) {
+          closeCommandPalette();
+        }
+      });
+    }
+
     // --- TEMPLATE EDITOR FUNCTIONALITY ---
     const templateCreateBtn = document.getElementById("templateCreateBtn");
     const templateList = document.getElementById("templateList");
@@ -9188,6 +9569,24 @@ function hideReportLoading() {
       });
     }
 
+    document.addEventListener("keydown", (event) => {
+      const key = (event.key || "").toLowerCase();
+      if ((event.metaKey || event.ctrlKey) && key === "k") {
+        event.preventDefault();
+        if (commandPaletteOverlay && commandPaletteOverlay.classList.contains("visible")) {
+          closeCommandPalette();
+        } else {
+          openCommandPalette();
+        }
+        return;
+      }
+
+      if (key === "escape" && commandPaletteOverlay && commandPaletteOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeCommandPalette();
+      }
+    });
+
     if (lockAdminBtn) {
       lockAdminBtn.addEventListener("click", () => {
         clearAdminToken();
@@ -9557,6 +9956,22 @@ reportViewBtn.addEventListener("click", async () => {
       <div class="event-logs-modal-body">
         <ul id="eventLogExpandedList" class="event-log-list expanded"></ul>
       </div>
+    </div>
+  </div>
+  <div id="commandPaletteOverlay" class="command-palette-overlay" aria-hidden="true">
+    <div class="command-palette" role="dialog" aria-modal="true" aria-labelledby="commandPaletteLabel">
+      <div class="command-palette-band"></div>
+      <div class="command-palette-header">
+        <div class="command-palette-icon">
+          <i data-lucide="search"></i>
+        </div>
+        <div class="command-palette-input-wrap">
+          <div id="commandPaletteLabel" class="command-palette-label">Quick actions</div>
+          <input id="commandPaletteInput" class="command-palette-input" type="text" placeholder="Search pages, settings, and actions..." autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="command-palette-shortcut">Esc</div>
+      </div>
+      <div id="commandPaletteResults" class="command-palette-results"></div>
     </div>
   </div>
   <div id="globalLoader" style="
