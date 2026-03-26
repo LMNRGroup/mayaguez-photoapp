@@ -744,6 +744,31 @@
     line-height: 1.5;
   }
 
+  .template-list-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    width: 100%;
+  }
+
+  .template-list-skeleton-item {
+    height: 4.35rem;
+    border-radius: calc(var(--radius) - 4px);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--secondary) 72%, var(--card) 28%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .template-list-skeleton-item::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+    animation: skeleton-slide 1.15s ease-in-out infinite;
+  }
+
   .template-library-item {
     width: 100%;
     text-align: left;
@@ -1627,7 +1652,24 @@
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--muted-foreground);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.18s ease, transform 0.18s ease, max-height 0.18s ease;
+  }
+
+  #eventLogsPanel .panel-title,
+  #eventLogsPanel .event-log-list,
+  #eventLogsPanel .event-log-hint {
+    pointer-events: none;
+  }
+
+  #eventLogsPanel:hover .event-log-hint,
+  #eventLogsPanel:focus-visible .event-log-hint {
     opacity: 0.8;
+    max-height: 1.25rem;
+    transform: translateY(0);
   }
 
   .event-log-item {
@@ -1709,6 +1751,55 @@
   .activity-axis.x span {
     text-align: center;
     white-space: nowrap;
+  }
+
+  .system-health-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .system-health-item {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 4px);
+    background: color-mix(in srgb, var(--card) 84%, var(--secondary) 16%);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .system-health-label {
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  .system-health-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--foreground);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .system-health-meta {
+    font-size: 0.7rem;
+    color: var(--muted-foreground);
+  }
+
+  .system-health-value.status-ok {
+    color: var(--accent);
+  }
+
+  .system-health-value.status-warn {
+    color: #fbbf24;
+  }
+
+  .system-health-value.status-error {
+    color: var(--destructive);
   }
 
   .activity-line {
@@ -1822,6 +1913,29 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  .approved-grid.is-loading {
+    display: grid;
+  }
+
+  .approved-thumb-skeleton {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--secondary) 72%, var(--card) 28%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .approved-thumb-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+    animation: skeleton-slide 1.15s ease-in-out infinite;
   }
 
   .approved-thumb.is-select-mode::after {
@@ -2617,12 +2731,97 @@
     letter-spacing: 0.01em; /* Slight letter spacing for readability */
   }
 
+  .metrics-placeholder {
+    flex: 1;
+    min-height: 360px;
+    border: 1px dashed color-mix(in srgb, var(--primary) 45%, var(--border) 55%);
+    border-radius: calc(var(--radius) + 4px);
+    background:
+      radial-gradient(circle at top, rgba(43, 125, 255, 0.12), transparent 38%),
+      color-mix(in srgb, var(--card) 88%, var(--secondary) 12%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .metrics-placeholder-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    max-width: 420px;
+  }
+
+  .metrics-placeholder-eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  .metrics-placeholder-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .metrics-placeholder-text {
+    color: var(--muted-foreground);
+    line-height: 1.6;
+    font-size: 0.95rem;
+  }
+
   /* Report loading container for Lottie */
   .report-loading {
     display: none;
     align-items: center;
     justify-content: center;
     height: 120px;
+  }
+
+  .report-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.25rem 0;
+  }
+
+  .report-skeleton-line {
+    height: 0.9rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--secondary) 72%, var(--card) 28%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .report-skeleton-line::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+    animation: skeleton-slide 1.15s ease-in-out infinite;
+  }
+
+  .report-skeleton-line.short {
+    width: 38%;
+  }
+
+  .report-skeleton-line.medium {
+    width: 72%;
+  }
+
+  .report-skeleton-line.full {
+    width: 100%;
+  }
+
+  @keyframes skeleton-slide {
+    100% {
+      transform: translateX(100%);
+    }
   }
 
   .minimal-loader {
@@ -3464,6 +3663,7 @@
             <button class="nav-item" id="navApproved"><span class="nav-item-label">APPROVED PHOTOS</span><span class="nav-item-icon"><i data-lucide="images"></i></span></button>
             <button class="nav-item" id="navTemplates"><span class="nav-item-label">MY TEMPLATES</span><span class="nav-item-icon"><i data-lucide="palette"></i></span></button>
             <button class="nav-item" id="navReports"><span class="nav-item-label">EVENT REPORTS</span><span class="nav-item-icon"><i data-lucide="file-text"></i></span></button>
+            <button class="nav-item" id="navMetrics"><span class="nav-item-label">METRICS &amp; DATA</span><span class="nav-item-icon"><i data-lucide="chart-column-big"></i></span></button>
           </div>
           <div class="nav-group nav-group-secondary">
             <div class="nav-label">Admin</div>
@@ -3569,6 +3769,24 @@
             <pre id="reportPreview" class="report-preview">
 View report to see the most recent interactions
             </pre>
+          </div>
+
+          <div id="viewMetrics" class="center-view" style="display: none;">
+            <div class="view-header">
+              <div class="view-title">Metrics &amp; Data</div>
+              <div class="view-subtitle">
+                Reserved for deeper analytics, reports, and operational insights.
+              </div>
+            </div>
+            <div class="metrics-placeholder">
+              <div class="metrics-placeholder-copy">
+                <div class="metrics-placeholder-eyebrow">Under Construction</div>
+                <div class="metrics-placeholder-title">Metrics workspace coming next</div>
+                <div class="metrics-placeholder-text">
+                  This area is intentionally parked so the data experience can be designed properly instead of rushed.
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- APP SETTINGS VIEW -->
@@ -3896,6 +4114,11 @@ View report to see the most recent interactions
               <div id="activityXAxis" class="activity-axis x"></div>
             </div>
           </div>
+
+          <div class="panel-box">
+            <div class="panel-title">System health</div>
+            <div id="systemHealthGrid" class="system-health-grid"></div>
+          </div>
         </aside>
       </div>
     </div>
@@ -4200,6 +4423,7 @@ function hideGlobalLoader() {
     const activityChart = document.getElementById("activityChart");
     const activityXAxis = document.getElementById("activityXAxis");
     const activityYAxis = document.getElementById("activityYAxis");
+    const systemHealthGrid = document.getElementById("systemHealthGrid");
     // Pending counter state (frontend)
     let pendingCountState = 0;
     // Delta we expect after our own actions (approve/reject)
@@ -4334,6 +4558,7 @@ function hideGlobalLoader() {
       if (!eventLogsOverlay) return;
       eventLogsOverlay.classList.add("visible");
       eventLogsOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
       await fetchExpandedEventLogs();
     }
 
@@ -4341,6 +4566,7 @@ function hideGlobalLoader() {
       if (!eventLogsOverlay) return;
       eventLogsOverlay.classList.remove("visible");
       eventLogsOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
     }
 
     function formatHourLabel(hour) {
@@ -4444,10 +4670,130 @@ function hideGlobalLoader() {
         console.error("Error fetching activity stats", err);
       }
     }
+
+    function renderApprovedSkeletonGrid(count = APPROVED_PAGE_SIZE) {
+      if (!approvedGrid) return;
+      approvedGrid.classList.add("is-loading");
+      approvedGrid.innerHTML = "";
+      for (let i = 0; i < count; i += 1) {
+        const skeleton = document.createElement("div");
+        skeleton.className = "approved-thumb-skeleton";
+        approvedGrid.appendChild(skeleton);
+      }
+    }
+
+    function renderTemplateListSkeleton(count = 5) {
+      if (!templateList || !templateListEmpty) return;
+      templateListEmpty.style.display = "none";
+      templateList.innerHTML = '<div class="template-list-skeleton"></div>';
+      const skeletonWrap = templateList.querySelector(".template-list-skeleton");
+      for (let i = 0; i < count; i += 1) {
+        const item = document.createElement("div");
+        item.className = "template-list-skeleton-item";
+        skeletonWrap.appendChild(item);
+      }
+    }
+
+    function showReportSkeleton() {
+      if (!reportLoading) return;
+      reportLoading.innerHTML = `
+        <div class="report-skeleton">
+          <div class="report-skeleton-line short"></div>
+          <div class="report-skeleton-line full"></div>
+          <div class="report-skeleton-line full"></div>
+          <div class="report-skeleton-line medium"></div>
+          <div class="report-skeleton-line full"></div>
+          <div class="report-skeleton-line full"></div>
+        </div>
+      `;
+      reportLoading.style.display = "flex";
+    }
+
+    function renderSystemHealthCards(health = {}) {
+      if (!systemHealthGrid) return;
+
+      const cards = [
+        {
+          label: "Server",
+          value: typeof health.serverEnabled === "boolean" ? (health.serverEnabled ? "Online" : "Offline") : "Checking",
+          tone: typeof health.serverEnabled === "boolean" ? (health.serverEnabled ? "status-ok" : "status-warn") : "",
+          meta: health.checkedAt ? `Checked ${new Date(health.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Waiting for status",
+        },
+        {
+          label: "Google Drive",
+          value: typeof health.driveOk === "boolean" ? (health.driveOk ? "Connected" : "Unavailable") : "Checking",
+          tone: typeof health.driveOk === "boolean" ? (health.driveOk ? "status-ok" : "status-error") : "",
+          meta: typeof health.pendingCount === "number" ? `${health.pendingCount} pending files` : "Folder access check",
+        },
+        {
+          label: "Google Sheets",
+          value: typeof health.sheetsOk === "boolean" ? (health.sheetsOk ? "Connected" : "Unavailable") : "Checking",
+          tone: typeof health.sheetsOk === "boolean" ? (health.sheetsOk ? "status-ok" : "status-error") : "",
+          meta: typeof health.sheetsOk === "boolean" ? (health.sheetsOk ? "Live logging ready" : "Session sheet check failed") : "Verifying sheet access",
+        },
+        {
+          label: "Approved",
+          value: typeof health.approvedCount === "number" ? String(health.approvedCount) : "—",
+          tone: "status-ok",
+          meta: "Files live in approved folder",
+        },
+        {
+          label: "Pending Queue",
+          value: typeof health.pendingCount === "number" ? String(health.pendingCount) : "—",
+          tone: typeof health.pendingCount === "number" && health.pendingCount > 0 ? "status-warn" : "status-ok",
+          meta: "Awaiting admin review",
+        },
+        {
+          label: "Live Template",
+          value: health.activeTemplateId ? `#${health.activeTemplateId}` : "Default",
+          tone: "status-ok",
+          meta: "Current screen layout",
+        },
+      ];
+
+      systemHealthGrid.innerHTML = cards.map((card) => `
+        <div class="system-health-item">
+          <div class="system-health-label">${card.label}</div>
+          <div class="system-health-value ${card.tone || ""}">${card.value}</div>
+          <div class="system-health-meta">${card.meta}</div>
+        </div>
+      `).join("");
+    }
+
+    async function fetchSystemHealth() {
+      if (!adminToken || !systemHealthGrid) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/system-health`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          return;
+        }
+
+        const data = await res.json();
+        if (data && data.ok && data.health) {
+          renderSystemHealthCards(data.health);
+        }
+      } catch (err) {
+        console.error("Error fetching system health", err);
+        renderSystemHealthCards({
+          serverEnabled: appServerEnabled,
+          driveOk: false,
+          sheetsOk: false,
+          approvedCount: null,
+          pendingCount: null,
+          activeTemplateId: "",
+          checkedAt: new Date().toISOString(),
+        });
+      }
+    }
     // LEFT NAV
     const navDashboard = document.getElementById("navDashboard");
     const navApproved = document.getElementById("navApproved");
     const navReports = document.getElementById("navReports");
+    const navMetrics = document.getElementById("navMetrics");
     const navSettings = document.getElementById("navSettings");
     const navTemplates = document.getElementById("navTemplates");
     const navResetLogs = document.getElementById("navResetLogs");
@@ -4456,6 +4802,7 @@ function hideGlobalLoader() {
     const viewDashboard = document.getElementById("viewDashboard");
     const viewApproved = document.getElementById("viewApproved");
     const viewReports = document.getElementById("viewReports");
+    const viewMetrics = document.getElementById("viewMetrics");
     const viewSettings = document.getElementById("viewSettings");
     const viewTemplates = document.getElementById("viewTemplates");
     const lockAdminBtn = document.getElementById("lockAdminBtn");
@@ -4737,8 +5084,7 @@ function hideGlobalLoader() {
 
 function showReportLoading() {
   if (reportLoading) {
-    reportLoading.innerHTML = '<span class="minimal-loader minimal-loader-lg" aria-hidden="true"></span>';
-    reportLoading.style.display = "flex";
+    showReportSkeleton();
   }
   // lock buttons while we load
   if (reportViewBtn) reportViewBtn.disabled = true;
@@ -4767,6 +5113,16 @@ function hideReportLoading() {
 
     // App/server status
     let appServerEnabled = true;
+
+    renderSystemHealthCards({
+      serverEnabled: null,
+      driveOk: null,
+      sheetsOk: null,
+      approvedCount: null,
+      pendingCount: null,
+      activeTemplateId: "",
+      checkedAt: "",
+    });
 
     // Approved gallery paging
     let approvedFilesCache = {}; // Cache pages: { pageNumber: [files] }
@@ -5056,6 +5412,7 @@ function hideReportLoading() {
             await loadNextPhoto();
             await fetchEventLogs();
             await fetchActivityStats();
+            await fetchSystemHealth();
             startAutoRefresh();
           }, 850);
         } else if (res.status === 401 && data.remainingAttempts != null) {
@@ -5308,6 +5665,7 @@ function hideReportLoading() {
         // also refresh event logs on the same cadence
         await fetchEventLogs();
         await fetchActivityStats();
+        await fetchSystemHealth();
       } catch (err) {
         console.error("Auto-refresh error", err);
       }
@@ -5458,6 +5816,7 @@ function hideReportLoading() {
     }
 
     function renderApprovedPage() {
+      approvedGrid.classList.remove("is-loading");
       approvedGrid.innerHTML = "";
 
       const currentPageFiles = getCurrentApprovedPageFiles();
@@ -5674,8 +6033,8 @@ function hideReportLoading() {
 
     async function loadApprovedGrid() {
       approvedGrid.innerHTML = "";
-      approvedEmpty.style.display = "block";
-      approvedEmpty.textContent = "Loading approved photos…";
+      approvedEmpty.style.display = "none";
+      renderApprovedSkeletonGrid();
 
       // Reset to page 1
       approvedPageIndex = 1;
@@ -6727,7 +7086,7 @@ function hideReportLoading() {
     // Switch to a specific view (global function for compatibility)
     window.switchView = function switchView(viewName) {
       // Hide all views
-      [viewDashboard, viewApproved, viewReports, viewSettings, viewTemplates].forEach((view) => {
+      [viewDashboard, viewApproved, viewReports, viewMetrics, viewSettings, viewTemplates].forEach((view) => {
         if (view) {
           view.classList.remove("active");
           view.style.display = "none";
@@ -6739,6 +7098,7 @@ function hideReportLoading() {
       switch (viewName) {
         case "dashboard":
           targetView = viewDashboard;
+          fetchSystemHealth();
           break;
         case "approved":
           targetView = viewApproved;
@@ -6748,6 +7108,9 @@ function hideReportLoading() {
           break;
         case "reports":
           targetView = viewReports;
+          break;
+        case "metrics":
+          targetView = viewMetrics;
           break;
         case "settings":
           targetView = viewSettings;
@@ -6777,7 +7140,7 @@ function hideReportLoading() {
     };
 
     function setActiveNav(button) {
-      [navDashboard, navApproved, navReports, navSettings, navTemplates, navResetLogs].forEach((btn) => {
+      [navDashboard, navApproved, navTemplates, navReports, navMetrics, navSettings, navResetLogs].forEach((btn) => {
         if (!btn) return;
         btn.classList.toggle("active", btn === button);
       });
@@ -6805,6 +7168,13 @@ function hideReportLoading() {
           return;
         }
         switchView("reports");
+      });
+    }
+
+    if (navMetrics) {
+      navMetrics.addEventListener("click", () => {
+        setActiveNav(navMetrics);
+        switchView("metrics");
       });
     }
 
@@ -7044,7 +7414,8 @@ function hideReportLoading() {
       if (!templateList || !templateListEmpty) return;
       templateList.innerHTML = "";
       templateListEmpty.textContent = "Loading templates…";
-      templateListEmpty.style.display = "block";
+      templateListEmpty.style.display = "none";
+      renderTemplateListSkeleton();
 
       try {
         const res = await fetch(`${BASE_URL}/admin/templates`, {
@@ -7558,6 +7929,11 @@ function hideReportLoading() {
       const content = document.createElement("div");
       content.style.cssText = "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;";
 
+      const requirements = document.createElement("div");
+      requirements.style.cssText = "padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); background: var(--secondary); color: var(--muted-foreground); font-size: 0.875rem; line-height: 1.5;";
+      requirements.innerHTML = "Logo requirements: PNG, JPEG, WEBP, or SVG. Keep it under 6 MB. Raster logos should be at least 64 x 64 and no larger than 4096 x 4096.";
+      content.appendChild(requirements);
+
       // Preloaded logos
       logoAssets.forEach((asset) => {
         const btn = document.createElement("button");
@@ -7656,6 +8032,18 @@ function hideReportLoading() {
       return data;
     }
 
+    function formatBytes(bytes) {
+      if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      let value = bytes;
+      let unitIndex = 0;
+      while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+      }
+      return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    }
+
     function readImageDimensionsFromFile(file) {
       return new Promise((resolve, reject) => {
         const objectUrl = URL.createObjectURL(file);
@@ -7679,19 +8067,95 @@ function hideReportLoading() {
       });
     }
 
-    async function validateTemplateBackgroundFile(file) {
-      const allowedTypes = ["image/png", "image/jpeg"];
-      if (!allowedTypes.includes(file.type)) {
-        throw new Error("Background must be a PNG or JPEG file.");
+    async function validateTemplateRasterAsset(file, options = {}) {
+      const {
+        label = "Image",
+        allowedTypes = [],
+        maxBytes = Infinity,
+        exactWidth = null,
+        exactHeight = null,
+        minWidth = 0,
+        minHeight = 0,
+        maxWidth = Infinity,
+        maxHeight = Infinity,
+      } = options;
+
+      if (allowedTypes.length && !allowedTypes.includes(file.type)) {
+        throw new Error(`${label} must be one of: ${allowedTypes.map((type) => type.replace("image/", "").toUpperCase()).join(", ")}.`);
+      }
+
+      if (file.size > maxBytes) {
+        throw new Error(`${label} must be ${formatBytes(maxBytes)} or smaller.`);
       }
 
       const { width, height } = await readImageDimensionsFromFile(file);
-      if (width !== TEMPLATE_STAGE_WIDTH || height !== TEMPLATE_STAGE_HEIGHT) {
-        throw new Error(`Background must be exactly ${TEMPLATE_STAGE_WIDTH} x ${TEMPLATE_STAGE_HEIGHT}px.`);
+
+      if (exactWidth !== null && exactHeight !== null && (width !== exactWidth || height !== exactHeight)) {
+        throw new Error(`${label} must be exactly ${exactWidth} x ${exactHeight}px.`);
       }
 
-      if (width < TEMPLATE_STAGE_WIDTH || height < TEMPLATE_STAGE_HEIGHT) {
-        throw new Error(`Background cannot be smaller than ${TEMPLATE_STAGE_WIDTH} x ${TEMPLATE_STAGE_HEIGHT}px.`);
+      if (width < minWidth || height < minHeight) {
+        throw new Error(`${label} must be at least ${minWidth} x ${minHeight}px.`);
+      }
+
+      if (width > maxWidth || height > maxHeight) {
+        throw new Error(`${label} must be no larger than ${maxWidth} x ${maxHeight}px.`);
+      }
+    }
+
+    async function validateTemplateBackgroundFile(file) {
+      await validateTemplateRasterAsset(file, {
+        label: "Background",
+        allowedTypes: ["image/png", "image/jpeg"],
+        maxBytes: 12 * 1024 * 1024,
+        exactWidth: TEMPLATE_STAGE_WIDTH,
+        exactHeight: TEMPLATE_STAGE_HEIGHT,
+      });
+    }
+
+    async function validateTemplateLogoFile(file) {
+      const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error("Logo must be PNG, JPEG, WEBP, or SVG.");
+      }
+
+      if (file.size > 6 * 1024 * 1024) {
+        throw new Error("Logo must be 6 MB or smaller.");
+      }
+
+      if (file.type !== "image/svg+xml") {
+        await validateTemplateRasterAsset(file, {
+          label: "Logo",
+          allowedTypes,
+          maxBytes: 6 * 1024 * 1024,
+          minWidth: 64,
+          minHeight: 64,
+          maxWidth: 4096,
+          maxHeight: 4096,
+        });
+      }
+    }
+
+    async function validateTemplateQrFile(file) {
+      const allowedTypes = ["image/png", "image/jpeg", "image/svg+xml"];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error("QR overlay must be PNG, JPEG, or SVG.");
+      }
+
+      if (file.size > 4 * 1024 * 1024) {
+        throw new Error("QR overlay must be 4 MB or smaller.");
+      }
+
+      if (file.type !== "image/svg+xml") {
+        await validateTemplateRasterAsset(file, {
+          label: "QR overlay",
+          allowedTypes,
+          maxBytes: 4 * 1024 * 1024,
+          minWidth: 256,
+          minHeight: 256,
+          maxWidth: 4096,
+          maxHeight: 4096,
+        });
       }
     }
 
@@ -7729,6 +8193,7 @@ function hideReportLoading() {
         if (!file) return;
 
         try {
+          await validateTemplateLogoFile(file);
           const uploaded = await uploadTemplateAsset(file, "logo");
           if (!uploaded) return;
 
@@ -7739,7 +8204,7 @@ function hideReportLoading() {
           markTemplateDirty();
         } catch (err) {
           console.error("Error uploading template logo:", err);
-          await appAlert("Failed to upload logo. Please try again.", {
+          await appAlert(err && err.message ? err.message : "Failed to upload logo. Please try again.", {
             title: "Upload Failed",
             tone: "error",
           });
@@ -7755,6 +8220,7 @@ function hideReportLoading() {
         if (!file) return;
 
         try {
+          await validateTemplateQrFile(file);
           const uploaded = await uploadTemplateAsset(file, "logo");
           if (!uploaded) return;
 
@@ -7765,7 +8231,7 @@ function hideReportLoading() {
           markTemplateDirty();
         } catch (err) {
           console.error("Error uploading QR code overlay:", err);
-          await appAlert("Failed to upload QR code image. Please try again.", {
+          await appAlert(err && err.message ? err.message : "Failed to upload QR code image. Please try again.", {
             title: "Upload Failed",
             tone: "error",
           });
@@ -8669,7 +9135,9 @@ function hideReportLoading() {
     }
 
     if (eventLogsPanel) {
-      eventLogsPanel.addEventListener("click", () => {
+      eventLogsPanel.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         openExpandedEventLogs();
       });
       eventLogsPanel.addEventListener("keydown", (event) => {

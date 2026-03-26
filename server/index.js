@@ -2169,6 +2169,7 @@ app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
       });
     }
 
+    adminSystemHealthCache.expiresAt = 0;
     return res.json({ ok: true, enabled: appEnabled });
   } catch (err) {
     console.error('Error updating app status:', err);
@@ -2193,6 +2194,7 @@ app.post('/admin/settings', ensureAdminAuth, async (req, res) => {
       return res.status(500).json({ ok: false, error: 'settings_persist_failed' });
     }
     settingsLoadedFromSheet = true;
+    adminSystemHealthCache.expiresAt = 0;
     return res.json({ ok: true, settings: appSettings });
   } catch (err) {
     console.error('Error updating app settings:', err);
@@ -2461,6 +2463,11 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
 const driveFolderPageTokenCache = new Map();
 const driveFolderCountCache = new Map();
 const DRIVE_FOLDER_COUNT_TTL_MS = 60 * 1000;
+const ADMIN_SYSTEM_HEALTH_TTL_MS = 30 * 1000;
+let adminSystemHealthCache = {
+  value: null,
+  expiresAt: 0,
+};
 
 function getDriveFolderPageCacheKey(folderId, pageSize) {
   return `${folderId}:${pageSize}`;
@@ -2473,6 +2480,7 @@ function invalidateDriveFolderCaches(folderId) {
     }
   }
   driveFolderCountCache.delete(folderId);
+  adminSystemHealthCache.expiresAt = 0;
 }
 
 async function countFilesInFolder(folderId) {
@@ -2533,6 +2541,26 @@ function getCachedFolderCount(folderId) {
   }
 
   return existing && existing.value != null ? existing.value : null;
+}
+
+async function getFolderCountForHealth(folderId) {
+  const cached = getCachedFolderCount(folderId);
+  if (typeof cached === 'number') {
+    return cached;
+  }
+
+  try {
+    const fresh = await countFilesInFolder(folderId);
+    driveFolderCountCache.set(folderId, {
+      value: fresh,
+      expiresAt: Date.now() + DRIVE_FOLDER_COUNT_TTL_MS,
+      promise: null
+    });
+    return fresh;
+  } catch (err) {
+    console.error('Error counting folder for health endpoint:', err);
+    return null;
+  }
 }
 
 async function listFilesInFolderPaginated(folderId, page = 1, pageSize = 24) {
@@ -2622,6 +2650,64 @@ async function listFilesInFolderPaginated(folderId, page = 1, pageSize = 24) {
     hasNextPage: Boolean(nextPageToken),
   };
 }
+
+app.get('/admin/system-health', ensureAdminAuth, async (req, res) => {
+  try {
+    if (adminSystemHealthCache.value && adminSystemHealthCache.expiresAt > Date.now()) {
+      return res.json({ ok: true, health: adminSystemHealthCache.value });
+    }
+
+    const [drivePending, driveApproved, sheetsStatus, pendingCount, approvedCount] = await Promise.all([
+      drive.files.get({
+        fileId: PENDING_FOLDER_ID,
+        fields: 'id',
+        supportsAllDrives: true,
+      }).then(() => true).catch((err) => {
+        console.error('System health pending folder check failed:', err);
+        return false;
+      }),
+      drive.files.get({
+        fileId: APPROVED_FOLDER_ID,
+        fields: 'id',
+        supportsAllDrives: true,
+      }).then(() => true).catch((err) => {
+        console.error('System health approved folder check failed:', err);
+        return false;
+      }),
+      SESSION_SHEET_ID
+        ? sheets.spreadsheets.values.get({
+            spreadsheetId: SESSION_SHEET_ID,
+            range: `${SESSION_SHEET_TAB_NAME}!A1:A2`,
+          }).then(() => true).catch((err) => {
+            console.error('System health sheet check failed:', err);
+            return false;
+          })
+        : Promise.resolve(false),
+      getFolderCountForHealth(PENDING_FOLDER_ID),
+      getFolderCountForHealth(APPROVED_FOLDER_ID),
+    ]);
+
+    const health = {
+      serverEnabled: Boolean(appEnabled),
+      driveOk: Boolean(drivePending && driveApproved),
+      sheetsOk: Boolean(sheetsStatus),
+      pendingCount: typeof pendingCount === 'number' ? pendingCount : null,
+      approvedCount: typeof approvedCount === 'number' ? approvedCount : null,
+      activeTemplateId: String(appSettings?.activeTemplateId || ''),
+      checkedAt: new Date().toISOString(),
+    };
+
+    adminSystemHealthCache = {
+      value: health,
+      expiresAt: Date.now() + ADMIN_SYSTEM_HEALTH_TTL_MS,
+    };
+
+    return res.json({ ok: true, health });
+  } catch (err) {
+    console.error('Error loading admin system health:', err);
+    return res.status(500).json({ ok: false, error: 'system_health_failed' });
+  }
+});
 
 app.get('/admin/approved-list', ensureAdminAuth, async (req, res) => {
   try {
