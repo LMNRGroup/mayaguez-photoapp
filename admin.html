@@ -1583,6 +1583,23 @@
     min-width: 0;
   }
 
+  .panel-box.panel-interactive {
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .panel-box.panel-interactive:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px hsla(var(--primary), 0.3);
+  }
+
+  .panel-box.panel-interactive:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px hsla(268, 85%, 55%, 0.2);
+  }
+
   .panel-title {
     font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     font-size: 0.75rem;
@@ -1603,6 +1620,14 @@
     overflow-x: hidden;
     min-width: 0;
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .event-log-hint {
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    opacity: 0.8;
   }
 
   .event-log-item {
@@ -2805,6 +2830,128 @@
     text-align: center;
   }
 
+  .event-logs-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background:
+      radial-gradient(circle at top, rgba(43, 125, 255, 0.16), transparent 42%),
+      rgba(4, 9, 18, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 100000;
+  }
+
+  .event-logs-overlay.visible {
+    display: flex;
+  }
+
+  .event-logs-modal {
+    width: min(92vw, 900px);
+    max-height: min(88vh, 860px);
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04)),
+      rgba(7, 12, 21, 0.96);
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .event-logs-modal-band {
+    height: 4px;
+    background: linear-gradient(90deg, #2b7dff, #6ee7ff);
+  }
+
+  .event-logs-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.35rem 1.5rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .event-logs-modal-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .event-logs-modal-title {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(244, 247, 252, 0.96);
+  }
+
+  .event-logs-modal-subtitle {
+    margin: 0;
+    color: rgba(227, 233, 242, 0.78);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .event-logs-modal-close {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--foreground);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+
+  .event-logs-modal-close:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .event-logs-modal-close svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .event-logs-modal-body {
+    padding: 1rem 1.5rem 1.5rem;
+    overflow: auto;
+    min-height: 0;
+  }
+
+  .event-log-list.expanded {
+    max-height: none;
+    font-size: 0.8125rem;
+    margin-top: 0;
+  }
+
+  .event-log-list.expanded .event-log-item {
+    padding: 0.65rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .event-log-list.expanded .event-log-time {
+    font-size: 0.6875rem;
+  }
+
+  .event-log-list.expanded .event-log-text {
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
   /* LOCK SCREEN */
 
   .lock-screen {
@@ -3722,7 +3869,7 @@ View report to see the most recent interactions
 
         <!-- RIGHT PANEL (EVENT LOGS + ACTIVITY) -->
         <aside class="sidebar-right">
-          <div class="panel-box">
+          <div id="eventLogsPanel" class="panel-box panel-interactive" role="button" tabindex="0" aria-label="Open full event logs">
             <div class="panel-title">Event logs:</div>
             <ul id="eventLogList" class="event-log-list">
               <!-- Static placeholder entries; backend can replace later -->
@@ -3743,6 +3890,7 @@ View report to see the most recent interactions
                 <span class="event-log-text">User subscribed to newsletter</span>
               </li>
             </ul>
+            <div class="event-log-hint">Click to expand live activity</div>
           </div>
 
           <div class="panel-box">
@@ -4050,7 +4198,11 @@ function hideGlobalLoader() {
     // NEW: photo meta elements
     const photoLabel = document.getElementById("photoLabel");
     const pendingCountEl = document.getElementById("pendingCount");
+    const eventLogsPanel = document.getElementById("eventLogsPanel");
     const eventLogList = document.getElementById("eventLogList");
+    const eventLogExpandedList = document.getElementById("eventLogExpandedList");
+    const eventLogsOverlay = document.getElementById("eventLogsOverlay");
+    const eventLogsOverlayClose = document.getElementById("eventLogsOverlayClose");
     const activityBars = document.getElementById("activityBars");
     const activityChart = document.getElementById("activityChart");
     const activityXAxis = document.getElementById("activityXAxis");
@@ -4094,10 +4246,10 @@ function hideGlobalLoader() {
     }
         // --- EVENT LOGS (right sidebar) ---
 
-    function renderEventLogs(events) {
-      if (!eventLogList) return;
+    function renderEventLogsList(listEl, events) {
+      if (!listEl) return;
 
-      eventLogList.innerHTML = "";
+      listEl.innerHTML = "";
 
       if (!events || !events.length) {
         const li = document.createElement("li");
@@ -4113,7 +4265,7 @@ function hideGlobalLoader() {
 
         li.appendChild(timeSpan);
         li.appendChild(textSpan);
-        eventLogList.appendChild(li);
+        listEl.appendChild(li);
         return;
       }
 
@@ -4131,8 +4283,12 @@ function hideGlobalLoader() {
 
         li.appendChild(timeSpan);
         li.appendChild(textSpan);
-        eventLogList.appendChild(li);
+        listEl.appendChild(li);
       });
+    }
+
+    function renderEventLogs(events) {
+      renderEventLogsList(eventLogList, events);
     }
 
     async function fetchEventLogs() {
@@ -4151,10 +4307,47 @@ function hideGlobalLoader() {
         const data = await res.json();
         if (data && Array.isArray(data.events)) {
           renderEventLogs(data.events);
+          if (eventLogsOverlay && eventLogsOverlay.classList.contains("visible")) {
+            await fetchExpandedEventLogs();
+          }
         }
       } catch (err) {
         console.error("Error fetching event logs", err);
       }
+    }
+
+    async function fetchExpandedEventLogs() {
+      if (!adminToken || !eventLogExpandedList) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/event-logs?limit=100`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          return;
+        }
+
+        const data = await res.json();
+        if (data && Array.isArray(data.events)) {
+          renderEventLogsList(eventLogExpandedList, data.events);
+        }
+      } catch (err) {
+        console.error("Error fetching expanded event logs", err);
+      }
+    }
+
+    async function openExpandedEventLogs() {
+      if (!eventLogsOverlay) return;
+      eventLogsOverlay.classList.add("visible");
+      eventLogsOverlay.setAttribute("aria-hidden", "false");
+      await fetchExpandedEventLogs();
+    }
+
+    function closeExpandedEventLogs() {
+      if (!eventLogsOverlay) return;
+      eventLogsOverlay.classList.remove("visible");
+      eventLogsOverlay.setAttribute("aria-hidden", "true");
     }
 
     function formatHourLabel(hour) {
@@ -8478,6 +8671,30 @@ function hideReportLoading() {
       });
     }
 
+    if (eventLogsPanel) {
+      eventLogsPanel.addEventListener("click", () => {
+        openExpandedEventLogs();
+      });
+      eventLogsPanel.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openExpandedEventLogs();
+        }
+      });
+    }
+
+    if (eventLogsOverlayClose) {
+      eventLogsOverlayClose.addEventListener("click", closeExpandedEventLogs);
+    }
+
+    if (eventLogsOverlay) {
+      eventLogsOverlay.addEventListener("click", (event) => {
+        if (event.target === eventLogsOverlay) {
+          closeExpandedEventLogs();
+        }
+      });
+    }
+
     if (lockAdminBtn) {
       lockAdminBtn.addEventListener("click", () => {
         clearAdminToken();
@@ -8826,6 +9043,26 @@ reportViewBtn.addEventListener("click", async () => {
           <button id="appDialogCancelBtn" type="button" class="btn-ghost" style="display:none;">Cancel</button>
           <button id="appDialogConfirmBtn" type="button" class="btn-primary">OK</button>
         </div>
+      </div>
+    </div>
+  </div>
+  <div id="eventLogsOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="eventLogsOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="eventLogsOverlayTitle" class="event-logs-modal-title">Live Event Logs</h3>
+          <p class="event-logs-modal-subtitle">Latest logged activity. Scroll through the most recent 100 events.</p>
+        </div>
+        <button id="eventLogsOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close event logs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <ul id="eventLogExpandedList" class="event-log-list expanded"></ul>
       </div>
     </div>
   </div>

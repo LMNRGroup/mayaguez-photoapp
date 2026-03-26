@@ -2654,7 +2654,7 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
       return res.json({ ok: true, events: [] });
     }
 
-    const max = Math.min(parseInt(req.query.limit, 10) || 12, 50);
+    const max = Math.min(parseInt(req.query.limit, 10) || 12, 100);
 
     const apiRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SESSION_SHEET_ID,
