@@ -4237,15 +4237,6 @@ function hideGlobalLoader() {
     const settingsNewsletterEnabled = document.getElementById("settingsNewsletterEnabled");
     const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
     const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
-    const appToastStack = document.getElementById("appToastStack");
-    const appDialogOverlay = document.getElementById("appDialogOverlay");
-    const appDialogBand = document.getElementById("appDialogBand");
-    const appDialogIcon = document.getElementById("appDialogIcon");
-    const appDialogTitle = document.getElementById("appDialogTitle");
-    const appDialogMessage = document.getElementById("appDialogMessage");
-    const appDialogInput = document.getElementById("appDialogInput");
-    const appDialogCancelBtn = document.getElementById("appDialogCancelBtn");
-    const appDialogConfirmBtn = document.getElementById("appDialogConfirmBtn");
     function renderLucideIcons() {
       if (window.lucide && typeof window.lucide.createIcons === "function") {
         window.lucide.createIcons();
@@ -4254,6 +4245,23 @@ function hideGlobalLoader() {
 
     function lucideIcon(name) {
       return `<i data-lucide="${name}"></i>`;
+    }
+
+    function getAppToastStack() {
+      return document.getElementById("appToastStack");
+    }
+
+    function getAppDialogElements() {
+      return {
+        overlay: document.getElementById("appDialogOverlay"),
+        band: document.getElementById("appDialogBand"),
+        icon: document.getElementById("appDialogIcon"),
+        title: document.getElementById("appDialogTitle"),
+        message: document.getElementById("appDialogMessage"),
+        input: document.getElementById("appDialogInput"),
+        cancelBtn: document.getElementById("appDialogCancelBtn"),
+        confirmBtn: document.getElementById("appDialogConfirmBtn"),
+      };
     }
 
     function setButtonHtml(button, html) {
@@ -4287,6 +4295,7 @@ function hideGlobalLoader() {
     }
 
     function showToast(message, tone = "muted", duration = 2200) {
+      const appToastStack = getAppToastStack();
       if (!appToastStack || !message) return;
 
       const toast = document.createElement("div");
@@ -4316,12 +4325,15 @@ function hideGlobalLoader() {
     let activeDialogKeyHandler = null;
 
     function closeAppDialog(result = null) {
-      if (!appDialogOverlay) return;
+      const { overlay, input } = getAppDialogElements();
+      if (!overlay) return;
 
-      appDialogOverlay.classList.remove("visible");
-      appDialogOverlay.setAttribute("aria-hidden", "true");
-      appDialogInput.value = "";
-      appDialogInput.style.display = "none";
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
+      if (input) {
+        input.value = "";
+        input.style.display = "none";
+      }
 
       if (activeDialogKeyHandler) {
         document.removeEventListener("keydown", activeDialogKeyHandler);
@@ -4344,7 +4356,8 @@ function hideGlobalLoader() {
       confirmStyle = "primary",
       input = null,
     } = {}) {
-      if (!appDialogOverlay) {
+      const { overlay, band, icon, title: titleEl, message: messageEl, input: inputEl, cancelBtn, confirmBtn } = getAppDialogElements();
+      if (!overlay || !band || !icon || !titleEl || !messageEl || !cancelBtn || !confirmBtn) {
         return Promise.resolve(cancelLabel ? false : null);
       }
 
@@ -4352,42 +4365,44 @@ function hideGlobalLoader() {
         closeAppDialog(cancelLabel ? false : null);
       }
 
-      appDialogTitle.textContent = title;
-      appDialogMessage.textContent = message;
-      appDialogBand.className = `app-dialog-band ${tone}`;
-      appDialogIcon.className = `app-dialog-icon ${tone}`;
-      appDialogIcon.innerHTML =
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+      band.className = `app-dialog-band ${tone}`;
+      icon.className = `app-dialog-icon ${tone}`;
+      icon.innerHTML =
         tone === "error"
           ? lucideIcon("alert-triangle")
           : tone === "success"
             ? lucideIcon("badge-check")
             : lucideIcon("sparkles");
-      appDialogCancelBtn.style.display = cancelLabel ? "inline-flex" : "none";
-      appDialogCancelBtn.textContent = cancelLabel || "Cancel";
-      appDialogConfirmBtn.textContent = confirmLabel;
-      appDialogConfirmBtn.className = confirmStyle === "danger" ? "btn-reject" : "btn-primary";
+      cancelBtn.style.display = cancelLabel ? "inline-flex" : "none";
+      cancelBtn.textContent = cancelLabel || "Cancel";
+      confirmBtn.textContent = confirmLabel;
+      confirmBtn.className = confirmStyle === "danger" ? "btn-reject" : "btn-primary";
 
-      if (input) {
-        appDialogInput.style.display = "block";
-        appDialogInput.type = input.type || "text";
-        appDialogInput.placeholder = input.placeholder || "";
-        appDialogInput.value = input.value || "";
-      } else {
-        appDialogInput.style.display = "none";
-        appDialogInput.value = "";
+      if (inputEl) {
+        if (input) {
+          inputEl.style.display = "block";
+          inputEl.type = input.type || "text";
+          inputEl.placeholder = input.placeholder || "";
+          inputEl.value = input.value || "";
+        } else {
+          inputEl.style.display = "none";
+          inputEl.value = "";
+        }
       }
 
-      appDialogOverlay.classList.add("visible");
-      appDialogOverlay.setAttribute("aria-hidden", "false");
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
       renderLucideIcons();
 
       return new Promise((resolve) => {
         activeDialogResolver = resolve;
 
-        appDialogCancelBtn.onclick = () => closeAppDialog(cancelLabel ? false : null);
-        appDialogConfirmBtn.onclick = () => {
+        cancelBtn.onclick = () => closeAppDialog(cancelLabel ? false : null);
+        confirmBtn.onclick = () => {
           if (input) {
-            closeAppDialog(appDialogInput.value);
+            closeAppDialog(inputEl ? inputEl.value : "");
             return;
           }
           closeAppDialog(cancelLabel ? true : undefined);
@@ -4399,9 +4414,9 @@ function hideGlobalLoader() {
             event.preventDefault();
             closeAppDialog(cancelLabel ? false : null);
           } else if (event.key === "Enter") {
-            if (input || event.target === appDialogConfirmBtn || event.target === appDialogInput) {
+            if (input || event.target === confirmBtn || event.target === inputEl) {
               event.preventDefault();
-              appDialogConfirmBtn.click();
+              confirmBtn.click();
             }
           }
         };
@@ -4409,11 +4424,11 @@ function hideGlobalLoader() {
         document.addEventListener("keydown", activeDialogKeyHandler);
 
         requestAnimationFrame(() => {
-          if (input) {
-            appDialogInput.focus();
-            appDialogInput.select();
+          if (input && inputEl) {
+            inputEl.focus();
+            inputEl.select();
           } else {
-            appDialogConfirmBtn.focus();
+            confirmBtn.focus();
           }
         });
       });
@@ -4438,13 +4453,11 @@ function hideGlobalLoader() {
       });
     }
 
-    if (appDialogOverlay) {
-      appDialogOverlay.addEventListener("click", (event) => {
-        if (event.target === appDialogOverlay && activeDialogResolver) {
-          closeAppDialog(false);
-        }
-      });
-    }
+    document.addEventListener("click", (event) => {
+      if (activeDialogResolver && event.target && event.target.id === "appDialogOverlay") {
+        closeAppDialog(false);
+      }
+    });
 
 function showReportLoading() {
   if (reportLoading) {
