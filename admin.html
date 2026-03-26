@@ -408,6 +408,13 @@
     gap: 0.625rem;
   }
 
+  .nav-group-secondary {
+    margin-top: 1.4rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    gap: 0.45rem;
+  }
+
   .nav-label {
     font-size: 0.75rem;
     letter-spacing: 0.3em;
@@ -419,6 +426,10 @@
   }
 
   .nav-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     text-align: left;
     border: none;
     background: transparent;
@@ -432,6 +443,30 @@
     font-weight: 500; /* font-medium */
     transition: color 0.2s ease; /* duration-200 */
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .nav-item-label {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .nav-item-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    color: currentColor;
+    flex: 0 0 auto;
+    pointer-events: none;
+  }
+
+  .nav-item-icon svg {
+    width: 100%;
+    height: 100%;
   }
 
   /* Main nav items - QRC style guide fonts */
@@ -460,6 +495,12 @@
     color: var(--primary);
   }
 
+  .nav-item:hover .nav-item-icon,
+  .nav-item.active .nav-item-icon {
+    opacity: 0.92;
+    transform: translateX(0);
+  }
+
   .nav-item:hover::before,
   .nav-item.active::before {
     width: 22px;
@@ -468,6 +509,22 @@
   .nav-item.active {
     color: var(--primary);
     font-weight: 600;
+  }
+
+  .nav-item.nav-item-secondary {
+    font-size: 0.6875rem;
+    letter-spacing: 0.22em;
+    color: var(--muted-foreground);
+    padding: 0.375rem 0;
+  }
+
+  .nav-item.nav-item-secondary:hover {
+    color: var(--foreground);
+  }
+
+  .nav-item.nav-item-secondary:hover::before,
+  .nav-item.nav-item-secondary.active::before {
+    width: 16px;
   }
 
   .nav-item-lock {
@@ -3072,15 +3129,31 @@
       gap: 6px;
     }
 
+    .nav-group-secondary {
+      margin-top: 0.5rem;
+      padding-top: 0.75rem;
+    }
+
     .nav-item {
       padding: 0.625rem 0.875rem;
-      text-align: center;
+      text-align: left;
       border-radius: var(--radius);
       background: var(--card);
       border: 1px solid var(--border);
       font-size: 0.8125rem;
       width: 100%;
       min-width: 0;
+    }
+
+    .nav-item-icon {
+      opacity: 0.72;
+      transform: none;
+    }
+
+    .nav-item.nav-item-secondary {
+      font-size: 0.75rem;
+      padding: 0.55rem 0.875rem;
+      opacity: 0.9;
     }
 
     .nav-item::before {
@@ -3229,10 +3302,10 @@
           <i class="icon-moon" data-lucide="moon"></i>
           <i class="icon-sun" data-lucide="sun" style="display: none;"></i>
         </button>
-        <div class="app-toggle">
+        <div class="app-toggle" hidden aria-hidden="true">
           <span id="appStatusDot" class="status-dot off"></span>
           <label class="toggle" id="appToggleWrapper">
-            <input type="checkbox" id="appToggle" />
+            <input type="checkbox" id="appToggle" disabled />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -3247,12 +3320,15 @@
         <aside class="sidebar-left">
           <div class="nav-group">
             <div class="nav-label">Dashboard</div>
-            <button class="nav-item active" id="navDashboard">DASHBOARD</button>
-            <button class="nav-item" id="navApproved">APPROVED PHOTOS</button>
-            <button class="nav-item" id="navReports">EVENT REPORTS</button>
-            <button class="nav-item" id="navSettings">APP SETTINGS</button>
-            <button class="nav-item" id="navTemplates">MY TEMPLATES</button>
-            <button class="nav-item" id="navResetLogs">RESET LOGS</button>
+            <button class="nav-item active" id="navDashboard"><span class="nav-item-label">DASHBOARD</span><span class="nav-item-icon"><i data-lucide="layout-dashboard"></i></span></button>
+            <button class="nav-item" id="navApproved"><span class="nav-item-label">APPROVED PHOTOS</span><span class="nav-item-icon"><i data-lucide="images"></i></span></button>
+            <button class="nav-item" id="navTemplates"><span class="nav-item-label">MY TEMPLATES</span><span class="nav-item-icon"><i data-lucide="layers-3"></i></span></button>
+            <button class="nav-item" id="navReports"><span class="nav-item-label">EVENT REPORTS</span><span class="nav-item-icon"><i data-lucide="file-text"></i></span></button>
+          </div>
+          <div class="nav-group nav-group-secondary">
+            <div class="nav-label">Admin</div>
+            <button class="nav-item nav-item-secondary" id="navSettings"><span class="nav-item-label">APP SETTINGS</span><span class="nav-item-icon"><i data-lucide="settings-2"></i></span></button>
+            <button class="nav-item nav-item-secondary" id="navResetLogs"><span class="nav-item-label">RESET LOGS</span><span class="nav-item-icon"><i data-lucide="rotate-ccw"></i></span></button>
           </div>
           <button class="nav-item nav-item-lock" id="lockAdminBtn" title="Lock Admin" aria-label="Lock Admin">
             <i data-lucide="lock"></i>
