@@ -1384,13 +1384,13 @@
 
   .template-preview-container {
     position: relative;
-    width: 90%;
-    max-width: 1920px;
+    width: min(90vw, 1760px);
     aspect-ratio: 16 / 9;
-    background: #000;
-    border-radius: calc(var(--radius) - 2px);
+    background: rgba(0, 0, 0, 0.82);
+    border-radius: calc(var(--radius) + 10px);
     overflow: hidden;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .template-preview-close {
@@ -1440,6 +1440,80 @@
     height: 92.5926%;
     object-fit: cover;
     z-index: 2;
+  }
+
+  .template-preview-shell {
+    position: absolute;
+    inset: 0;
+    padding: 2.75%;
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 32%),
+      #020508;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .template-preview-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .template-preview-photo-window {
+    position: absolute;
+    top: 3.7037%;
+    left: 10.9375%;
+    width: 78.125%;
+    height: 92.5926%;
+    overflow: hidden;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .template-preview-photo-fill {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .template-preview-photo-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1c3f72 0%, #3f78c9 42%, #101a28 100%);
+    color: rgba(255, 255, 255, 0.96);
+    font-size: clamp(1rem, 1.5vw, 1.55rem);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 1.5rem;
+  }
+
+  .template-preview-ticket {
+    position: absolute;
+    top: 1.85%;
+    left: 1.4%;
+    z-index: 15;
+    padding: 0.65rem 1rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.82);
+    color: rgba(249, 250, 251, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: clamp(0.75rem, 1vw, 1.15rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
 
   .template-preview-logos {
@@ -9601,39 +9675,47 @@ function hideReportLoading() {
         }
       });
 
-      // Background
+      const shell = document.createElement("div");
+      shell.className = "template-preview-shell";
+
+      const stage = document.createElement("div");
+      stage.className = "template-preview-stage";
+
       const bgImg = document.createElement("img");
       bgImg.className = "template-preview-bg";
       bgImg.src = templateBackgroundImg.src;
 
-      // Sample photo (1500x1000) - behind logo, above BG
-      const samplePhoto = document.createElement("div");
-      samplePhoto.className = "template-preview-photo";
-      samplePhoto.style.cssText = `
-        position: absolute;
-        top: 3.7037%;
-        left: 10.9375%;
-        width: 78.125%;
-        height: 92.5926%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1.5rem;
-        font-weight: 600;
-        font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-      `;
-      samplePhoto.textContent = "SAMPLE PHOTO";
+      const photoWindow = document.createElement("div");
+      photoWindow.className = "template-preview-photo-window";
 
-      // Logos container
+      const availablePreviewPhoto = photoImg && photoImg.src ? photoImg.src : "";
+      if (availablePreviewPhoto) {
+        const previewPhoto = document.createElement("img");
+        previewPhoto.className = "template-preview-photo-fill";
+        previewPhoto.src = availablePreviewPhoto;
+        previewPhoto.alt = "Live template preview photo";
+        photoWindow.appendChild(previewPhoto);
+      } else {
+        const fallbackPhoto = document.createElement("div");
+        fallbackPhoto.className = "template-preview-photo-fallback";
+        fallbackPhoto.textContent = "Live Template Preview";
+        photoWindow.appendChild(fallbackPhoto);
+      }
+
+      const ticketBadge = document.createElement("div");
+      ticketBadge.className = "template-preview-ticket";
+      ticketBadge.textContent = "#084";
+
       const logosContainer = document.createElement("div");
       logosContainer.className = "template-preview-logos";
 
       container.appendChild(closeBtn);
-      container.appendChild(bgImg);
-      container.appendChild(samplePhoto);
-      container.appendChild(logosContainer);
+      stage.appendChild(bgImg);
+      stage.appendChild(photoWindow);
+      stage.appendChild(ticketBadge);
+      stage.appendChild(logosContainer);
+      shell.appendChild(stage);
+      container.appendChild(shell);
       overlay.appendChild(container);
       document.body.appendChild(overlay);
 
@@ -9643,8 +9725,8 @@ function hideReportLoading() {
         const editorWidth = editorCanvas.offsetWidth;
         const editorHeight = editorCanvas.offsetHeight;
         
-        const previewWidth = container.offsetWidth;
-        const previewHeight = container.offsetHeight;
+        const previewWidth = stage.offsetWidth;
+        const previewHeight = stage.offsetHeight;
         
         const logos = templateLogosContainer.querySelectorAll(".template-logo");
         logos.forEach((logo) => {
