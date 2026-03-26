@@ -144,9 +144,9 @@
 
   /* TOP HEADER BAR (logo + title + server status) - Full width like QR Code Studio */
   .admin-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
     padding: 0.75rem 2rem;
     background: var(--card);
     backdrop-filter: blur(24px);
@@ -168,7 +168,7 @@
     justify-content: center;
     gap: 0.12rem;
     min-width: 0;
-    flex: 1;
+    justify-self: center;
   }
 
   .header-brand {
@@ -202,7 +202,6 @@
   }
 
   .header-title {
-    flex: 1;
     text-align: center;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -214,6 +213,7 @@
     align-items: center;
     gap: 0.625rem;
     min-width: 0;
+    justify-self: end;
   }
 
   .status-pill {
@@ -3581,6 +3581,7 @@
     }
 
     .admin-header {
+      display: flex;
       flex-direction: column;
       align-items: stretch;
       text-align: center;
@@ -3980,9 +3981,7 @@ View report to see the most recent interactions
               <div class="metrics-placeholder-copy">
                 <div class="metrics-placeholder-eyebrow">Under Construction</div>
                 <div class="metrics-placeholder-title">Metrics workspace coming next</div>
-                <div class="metrics-placeholder-text">
-                  This area is intentionally parked so the data experience can be designed properly instead of rushed.
-                </div>
+                <div class="metrics-placeholder-text">This area is under construction.</div>
               </div>
             </div>
           </div>
@@ -4614,12 +4613,6 @@ function hideGlobalLoader() {
     const pendingCountEl = document.getElementById("pendingCount");
     const eventLogsPanel = document.getElementById("eventLogsPanel");
     const eventLogList = document.getElementById("eventLogList");
-    const eventLogExpandedList = document.getElementById("eventLogExpandedList");
-    const eventLogsOverlay = document.getElementById("eventLogsOverlay");
-    const eventLogsOverlayClose = document.getElementById("eventLogsOverlayClose");
-    const commandPaletteOverlay = document.getElementById("commandPaletteOverlay");
-    const commandPaletteInput = document.getElementById("commandPaletteInput");
-    const commandPaletteResults = document.getElementById("commandPaletteResults");
     const activityBars = document.getElementById("activityBars");
     const activityChart = document.getElementById("activityChart");
     const activityXAxis = document.getElementById("activityXAxis");
@@ -4709,6 +4702,22 @@ function hideGlobalLoader() {
       renderEventLogsList(eventLogList, events);
     }
 
+    function getEventLogsOverlayElements() {
+      return {
+        overlay: document.getElementById("eventLogsOverlay"),
+        closeBtn: document.getElementById("eventLogsOverlayClose"),
+        expandedList: document.getElementById("eventLogExpandedList"),
+      };
+    }
+
+    function getCommandPaletteElements() {
+      return {
+        overlay: document.getElementById("commandPaletteOverlay"),
+        input: document.getElementById("commandPaletteInput"),
+        results: document.getElementById("commandPaletteResults"),
+      };
+    }
+
     async function fetchEventLogs() {
       if (!adminToken) return;
 
@@ -4725,7 +4734,8 @@ function hideGlobalLoader() {
         const data = await res.json();
         if (data && Array.isArray(data.events)) {
           renderEventLogs(data.events);
-          if (eventLogsOverlay && eventLogsOverlay.classList.contains("visible")) {
+          const { overlay } = getEventLogsOverlayElements();
+          if (overlay && overlay.classList.contains("visible")) {
             await fetchExpandedEventLogs();
           }
         }
@@ -4735,7 +4745,8 @@ function hideGlobalLoader() {
     }
 
     async function fetchExpandedEventLogs() {
-      if (!adminToken || !eventLogExpandedList) return;
+      const { expandedList } = getEventLogsOverlayElements();
+      if (!adminToken || !expandedList) return;
 
       try {
         const res = await fetch(`${BASE_URL}/admin/event-logs?limit=100`, {
@@ -4748,7 +4759,7 @@ function hideGlobalLoader() {
 
         const data = await res.json();
         if (data && Array.isArray(data.events)) {
-          renderEventLogsList(eventLogExpandedList, data.events);
+          renderEventLogsList(expandedList, data.events);
         }
       } catch (err) {
         console.error("Error fetching expanded event logs", err);
@@ -4756,17 +4767,19 @@ function hideGlobalLoader() {
     }
 
     async function openExpandedEventLogs() {
-      if (!eventLogsOverlay) return;
-      eventLogsOverlay.classList.add("visible");
-      eventLogsOverlay.setAttribute("aria-hidden", "false");
+      const { overlay } = getEventLogsOverlayElements();
+      if (!overlay) return;
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
       await fetchExpandedEventLogs();
     }
 
     function closeExpandedEventLogs() {
-      if (!eventLogsOverlay) return;
-      eventLogsOverlay.classList.remove("visible");
-      eventLogsOverlay.setAttribute("aria-hidden", "true");
+      const { overlay } = getEventLogsOverlayElements();
+      if (!overlay) return;
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
     }
 
@@ -4988,6 +5001,14 @@ function hideGlobalLoader() {
           activeTemplateId: "",
           checkedAt: new Date().toISOString(),
         });
+      }
+    }
+
+    function clearTemplateListSkeleton() {
+      if (!templateList) return;
+      const skeleton = templateList.querySelector(".template-list-skeleton");
+      if (skeleton) {
+        templateList.innerHTML = "";
       }
     }
     // LEFT NAV
@@ -7462,7 +7483,8 @@ function hideReportLoading() {
     }
 
     function renderCommandPaletteResults(query = "") {
-      if (!commandPaletteResults) return;
+      const { results } = getCommandPaletteElements();
+      if (!results) return;
 
       const ranked = commandPaletteCatalog
         .map((item) => ({ item, score: getCommandPaletteItemScore(item, query) }))
@@ -7475,11 +7497,11 @@ function hideReportLoading() {
       commandPaletteActiveIndex = 0;
 
       if (!ranked.length) {
-        commandPaletteResults.innerHTML = '<div class="command-palette-empty">No quick actions found for that search.</div>';
+        results.innerHTML = '<div class="command-palette-empty">No quick actions found for that search.</div>';
         return;
       }
 
-      commandPaletteResults.innerHTML = ranked.map((item, index) => `
+      results.innerHTML = ranked.map((item, index) => `
         <button type="button" class="command-palette-item ${index === 0 ? "active" : ""}" data-command-id="${item.id}">
           <div class="command-palette-item-copy">
             <div class="command-palette-item-title">${item.title}</div>
@@ -7491,8 +7513,9 @@ function hideReportLoading() {
     }
 
     function syncCommandPaletteActiveItem() {
-      if (!commandPaletteResults) return;
-      const items = Array.from(commandPaletteResults.querySelectorAll(".command-palette-item"));
+      const { results } = getCommandPaletteElements();
+      if (!results) return;
+      const items = Array.from(results.querySelectorAll(".command-palette-item"));
       items.forEach((item, index) => {
         item.classList.toggle("active", index === commandPaletteActiveIndex);
       });
@@ -7503,28 +7526,30 @@ function hideReportLoading() {
     }
 
     function closeCommandPalette() {
-      if (!commandPaletteOverlay) return;
-      commandPaletteOverlay.classList.remove("visible");
-      commandPaletteOverlay.setAttribute("aria-hidden", "true");
+      const { overlay, input } = getCommandPaletteElements();
+      if (!overlay) return;
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
-      if (commandPaletteInput) {
-        commandPaletteInput.value = "";
+      if (input) {
+        input.value = "";
       }
     }
 
     function openCommandPalette() {
-      if (!commandPaletteOverlay || !adminToken) return;
-      commandPaletteOverlay.classList.add("visible");
-      commandPaletteOverlay.setAttribute("aria-hidden", "false");
+      const { overlay, input } = getCommandPaletteElements();
+      if (!overlay || !adminToken) return;
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
-      if (commandPaletteInput) {
-        commandPaletteInput.value = "";
+      if (input) {
+        input.value = "";
       }
       renderCommandPaletteResults("");
       requestAnimationFrame(() => {
-        if (commandPaletteInput) {
-          commandPaletteInput.focus();
-          commandPaletteInput.select();
+        if (input) {
+          input.focus();
+          input.select();
         }
       });
     }
@@ -7541,65 +7566,75 @@ function hideReportLoading() {
       }
     }
 
-    if (commandPaletteInput) {
-      commandPaletteInput.addEventListener("input", (event) => {
+    document.addEventListener("input", (event) => {
+      if (event.target && event.target.id === "commandPaletteInput") {
         renderCommandPaletteResults(event.target.value || "");
-      });
+      }
+    });
 
-      commandPaletteInput.addEventListener("keydown", async (event) => {
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          commandPaletteActiveIndex = Math.min(commandPaletteActiveIndex + 1, Math.max(commandPaletteResultsData.length - 1, 0));
-          syncCommandPaletteActiveItem();
-          return;
-        }
+    document.addEventListener("keydown", async (event) => {
+      if (!event.target || event.target.id !== "commandPaletteInput") return;
 
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          commandPaletteActiveIndex = Math.max(commandPaletteActiveIndex - 1, 0);
-          syncCommandPaletteActiveItem();
-          return;
-        }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        commandPaletteActiveIndex = Math.min(commandPaletteActiveIndex + 1, Math.max(commandPaletteResultsData.length - 1, 0));
+        syncCommandPaletteActiveItem();
+        return;
+      }
 
-        if (event.key === "Enter") {
-          event.preventDefault();
-          await executeCommandPaletteItem(commandPaletteResultsData[commandPaletteActiveIndex]);
-          return;
-        }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        commandPaletteActiveIndex = Math.max(commandPaletteActiveIndex - 1, 0);
+        syncCommandPaletteActiveItem();
+        return;
+      }
 
-        if (event.key === "Escape") {
-          event.preventDefault();
-          closeCommandPalette();
-        }
-      });
-    }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        await executeCommandPaletteItem(commandPaletteResultsData[commandPaletteActiveIndex]);
+        return;
+      }
 
-    if (commandPaletteResults) {
-      commandPaletteResults.addEventListener("mousemove", (event) => {
-        const itemEl = event.target.closest(".command-palette-item");
-        if (!itemEl) return;
-        const itemIndex = Array.from(commandPaletteResults.querySelectorAll(".command-palette-item")).indexOf(itemEl);
-        if (itemIndex >= 0) {
-          commandPaletteActiveIndex = itemIndex;
-          syncCommandPaletteActiveItem();
-        }
-      });
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCommandPalette();
+      }
+    });
 
-      commandPaletteResults.addEventListener("click", async (event) => {
-        const itemEl = event.target.closest(".command-palette-item");
-        if (!itemEl) return;
+    document.addEventListener("mousemove", (event) => {
+      const { results } = getCommandPaletteElements();
+      if (!results || !results.contains(event.target)) return;
+      const itemEl = event.target.closest(".command-palette-item");
+      if (!itemEl) return;
+      const itemIndex = Array.from(results.querySelectorAll(".command-palette-item")).indexOf(itemEl);
+      if (itemIndex >= 0) {
+        commandPaletteActiveIndex = itemIndex;
+        syncCommandPaletteActiveItem();
+      }
+    });
+
+    document.addEventListener("click", async (event) => {
+      const itemEl = event.target.closest(".command-palette-item");
+      if (itemEl) {
         const item = commandPaletteResultsData.find((entry) => entry.id === itemEl.dataset.commandId);
         await executeCommandPaletteItem(item);
-      });
-    }
+        return;
+      }
 
-    if (commandPaletteOverlay) {
-      commandPaletteOverlay.addEventListener("click", (event) => {
-        if (event.target === commandPaletteOverlay) {
-          closeCommandPalette();
-        }
-      });
-    }
+      const { overlay } = getCommandPaletteElements();
+      if (overlay && event.target === overlay) {
+        closeCommandPalette();
+      }
+
+      const { overlay: eventOverlay, closeBtn } = getEventLogsOverlayElements();
+      if (closeBtn && event.target === closeBtn) {
+        closeExpandedEventLogs();
+        return;
+      }
+      if (eventOverlay && event.target === eventOverlay) {
+        closeExpandedEventLogs();
+      }
+    });
 
     // --- TEMPLATE EDITOR FUNCTIONALITY ---
     const templateCreateBtn = document.getElementById("templateCreateBtn");
@@ -7839,6 +7874,7 @@ function hideReportLoading() {
         }
         const data = await res.json();
         const templates = (data.templates || []).filter((template) => template && template.isActive);
+        clearTemplateListSkeleton();
         const createButton = document.createElement("button");
         createButton.type = "button";
         createButton.className = "template-library-item template-library-item-create template-create-btn";
@@ -7852,6 +7888,7 @@ function hideReportLoading() {
         templateList.appendChild(createButton);
         if (!templates.length) {
           templateListEmpty.textContent = "No templates yet. Create one to get started.";
+          templateListEmpty.style.display = "block";
           return;
         }
         templateListEmpty.style.display = "none";
@@ -7873,7 +7910,9 @@ function hideReportLoading() {
         updateTemplateUiState();
       } catch (err) {
         console.error("Error loading template sidebar:", err);
+        clearTemplateListSkeleton();
         templateListEmpty.textContent = "Could not load templates.";
+        templateListEmpty.style.display = "block";
       }
     }
 
@@ -9557,23 +9596,12 @@ function hideReportLoading() {
       });
     }
 
-    if (eventLogsOverlayClose) {
-      eventLogsOverlayClose.addEventListener("click", closeExpandedEventLogs);
-    }
-
-    if (eventLogsOverlay) {
-      eventLogsOverlay.addEventListener("click", (event) => {
-        if (event.target === eventLogsOverlay) {
-          closeExpandedEventLogs();
-        }
-      });
-    }
-
     document.addEventListener("keydown", (event) => {
       const key = (event.key || "").toLowerCase();
       if ((event.metaKey || event.ctrlKey) && key === "k") {
         event.preventDefault();
-        if (commandPaletteOverlay && commandPaletteOverlay.classList.contains("visible")) {
+        const { overlay } = getCommandPaletteElements();
+        if (overlay && overlay.classList.contains("visible")) {
           closeCommandPalette();
         } else {
           openCommandPalette();
@@ -9581,7 +9609,8 @@ function hideReportLoading() {
         return;
       }
 
-      if (key === "escape" && commandPaletteOverlay && commandPaletteOverlay.classList.contains("visible")) {
+      const { overlay } = getCommandPaletteElements();
+      if (key === "escape" && overlay && overlay.classList.contains("visible")) {
         event.preventDefault();
         closeCommandPalette();
       }
@@ -9912,6 +9941,7 @@ reportViewBtn.addEventListener("click", async () => {
         .then(() => loadNextPhoto())
         .then(() => fetchEventLogs())
         .then(() => fetchActivityStats())
+        .then(() => fetchSystemHealth())
         .then(() => startAutoRefresh())
         .catch(() => {
           showLock();

@@ -2657,6 +2657,7 @@ app.get('/admin/system-health', ensureAdminAuth, async (req, res) => {
       return res.json({ ok: true, health: adminSystemHealthCache.value });
     }
 
+    const healthSheetRange = 'A1:A2';
     const [drivePending, driveApproved, sheetsStatus, pendingCount, approvedCount] = await Promise.all([
       drive.files.get({
         fileId: PENDING_FOLDER_ID,
@@ -2677,7 +2678,7 @@ app.get('/admin/system-health', ensureAdminAuth, async (req, res) => {
       SESSION_SHEET_ID
         ? sheets.spreadsheets.values.get({
             spreadsheetId: SESSION_SHEET_ID,
-            range: `${SESSION_SHEET_TAB_NAME}!A1:A2`,
+            range: healthSheetRange,
           }).then(() => true).catch((err) => {
             console.error('System health sheet check failed:', err);
             return false;
