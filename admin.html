@@ -398,7 +398,7 @@
     padding-right: 0.875rem;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
     min-width: 0;
   }
 
@@ -409,7 +409,7 @@
   }
 
   .nav-group-secondary {
-    margin-top: 1.4rem;
+    margin-top: auto;
     padding-top: 1rem;
     border-top: 1px solid var(--border);
     gap: 0.45rem;
@@ -528,7 +528,7 @@
   }
 
   .nav-item-lock {
-    margin-top: 1.5rem;
+    margin-top: 0.875rem;
     width: 2.5rem;
     height: 2.5rem;
     min-width: 2.5rem;
@@ -3315,7 +3315,7 @@
 
     .nav-item-lock {
       align-self: center;
-      margin-top: 4px;
+      margin-top: 0.875rem;
       font-size: 14px;
       letter-spacing: 0.18em;
     }
@@ -3449,13 +3449,6 @@
           <i class="icon-moon" data-lucide="moon"></i>
           <i class="icon-sun" data-lucide="sun" style="display: none;"></i>
         </button>
-        <div class="app-toggle" hidden aria-hidden="true">
-          <span id="appStatusDot" class="status-dot off"></span>
-          <label class="toggle" id="appToggleWrapper">
-            <input type="checkbox" id="appToggle" disabled />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
         <span id="statusPill" class="status-pill">SERVER STATUS: LOADING…</span>
       </div>
     </header>
@@ -3469,7 +3462,7 @@
             <div class="nav-label">Dashboard</div>
             <button class="nav-item active" id="navDashboard"><span class="nav-item-label">DASHBOARD</span><span class="nav-item-icon"><i data-lucide="layout-dashboard"></i></span></button>
             <button class="nav-item" id="navApproved"><span class="nav-item-label">APPROVED PHOTOS</span><span class="nav-item-icon"><i data-lucide="images"></i></span></button>
-            <button class="nav-item" id="navTemplates"><span class="nav-item-label">MY TEMPLATES</span><span class="nav-item-icon"><i data-lucide="layers-3"></i></span></button>
+            <button class="nav-item" id="navTemplates"><span class="nav-item-label">MY TEMPLATES</span><span class="nav-item-icon"><i data-lucide="palette"></i></span></button>
             <button class="nav-item" id="navReports"><span class="nav-item-label">EVENT REPORTS</span><span class="nav-item-icon"><i data-lucide="file-text"></i></span></button>
           </div>
           <div class="nav-group nav-group-secondary">
@@ -4855,15 +4848,17 @@ function hideReportLoading() {
 
     function updateAppToggleUI(enabled) {
       appServerEnabled = enabled;
-      if (enabled) {
-        appToggleWrapper.classList.add("is-on");
-        appToggleWrapper.classList.remove("disabled");
-        appStatusDot.classList.add("on");
-        appStatusDot.classList.remove("off");
-      } else {
-        appToggleWrapper.classList.remove("is-on");
-        appStatusDot.classList.remove("on");
-        appStatusDot.classList.add("off");
+      if (appToggleWrapper && appStatusDot) {
+        if (enabled) {
+          appToggleWrapper.classList.add("is-on");
+          appToggleWrapper.classList.remove("disabled");
+          appStatusDot.classList.add("on");
+          appStatusDot.classList.remove("off");
+        } else {
+          appToggleWrapper.classList.remove("is-on");
+          appStatusDot.classList.remove("on");
+          appStatusDot.classList.add("off");
+        }
       }
       updateStatusPill();
     }
@@ -4892,18 +4887,18 @@ function hideReportLoading() {
         const data = await res.json();
         if (data && typeof data.enabled === "boolean") {
           updateAppToggleUI(data.enabled);
-          appToggleInput.checked = data.enabled;
+          if (appToggleInput) appToggleInput.checked = data.enabled;
           if (!data.enabled) {
             disableAdminControlsForOffline();
           }
         } else {
           updateAppToggleUI(true);
-          appToggleInput.checked = true;
+          if (appToggleInput) appToggleInput.checked = true;
         }
       } catch (err) {
         console.error("Error fetching app status", err);
         updateAppToggleUI(true);
-        appToggleInput.checked = true;
+        if (appToggleInput) appToggleInput.checked = true;
       }
     }
 
@@ -6463,7 +6458,7 @@ function hideReportLoading() {
         return;
       }
 
-      if (!appToggleInput.checked) {
+      if (appToggleInput && !appToggleInput.checked) {
         appToggleInput.checked = true;
 
         const confirmShutdown = await appConfirm(
@@ -6476,7 +6471,7 @@ function hideReportLoading() {
           confirmStyle: "danger",
         });
         if (!confirmShutdown) {
-          appToggleInput.checked = true;
+          if (appToggleInput) appToggleInput.checked = true;
           return;
         }
 
@@ -6488,7 +6483,7 @@ function hideReportLoading() {
           placeholder: "Access code",
         });
         if (!code) {
-          appToggleInput.checked = true;
+          if (appToggleInput) appToggleInput.checked = true;
           return;
         }
 
@@ -6537,7 +6532,7 @@ function hideReportLoading() {
           URL.revokeObjectURL(url);
 
           updateAppToggleUI(false);
-          appToggleInput.checked = false;
+          if (appToggleInput) appToggleInput.checked = false;
           disableAdminControlsForOffline();
           photoImg.style.display = "none";
           emptyText.style.display = "block";
@@ -6575,7 +6570,7 @@ function hideReportLoading() {
           cancelLabel: "Cancel",
         });
         if (!confirmStart) {
-          appToggleInput.checked = false;
+          if (appToggleInput) appToggleInput.checked = false;
           return;
         }
 
@@ -6640,7 +6635,7 @@ function hideReportLoading() {
 
             if (res.status === 401 || res.status === 403) {
               showLock("Session expired. Enter the access code.");
-              appToggleInput.checked = false;
+              if (appToggleInput) appToggleInput.checked = false;
               return;
             }
 
@@ -6652,7 +6647,7 @@ function hideReportLoading() {
                 title: "Start Failed",
                 tone: "error",
               });
-              appToggleInput.checked = false;
+              if (appToggleInput) appToggleInput.checked = false;
 
               if (allowRetry) {
                 const cleared = await clearDriveForStart();
@@ -6664,8 +6659,8 @@ function hideReportLoading() {
             }
 
             updateAppToggleUI(true);
-            appToggleInput.checked = true;
-            appToggleWrapper.classList.remove("disabled");
+            if (appToggleInput) appToggleInput.checked = true;
+            if (appToggleWrapper) appToggleWrapper.classList.remove("disabled");
             emptyText.style.display = "block";
             emptyText.textContent = "No pending photos.";
             photoFrame.classList.add("empty");
@@ -6702,7 +6697,7 @@ function hideReportLoading() {
               title: "Start Failed",
               tone: "error",
             });
-            appToggleInput.checked = false;
+            if (appToggleInput) appToggleInput.checked = false;
           } finally {
             hideGlobalLoader();
             await fetchAppStatus();
@@ -6717,13 +6712,15 @@ function hideReportLoading() {
             title: "Start Failed",
             tone: "error",
           });
-          appToggleInput.checked = false;
+          if (appToggleInput) appToggleInput.checked = false;
           hideGlobalLoader();
         }
       }
     }
 
-    appToggleInput.addEventListener("change", handleToggleChange);
+    if (appToggleInput) {
+      appToggleInput.addEventListener("change", handleToggleChange);
+    }
 
     // --- LEFT NAV BEHAVIOR ---
 
