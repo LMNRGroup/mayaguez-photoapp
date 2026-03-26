@@ -212,6 +212,9 @@ const DEFAULT_APP_SETTINGS = {
 let appSettings = JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS));
 let settingsSheetReady = false;
 let settingsLoadedFromSheet = false;
+let settingsLastHydratedAt = 0;
+let settingsHydrationPromise = null;
+const SETTINGS_REFRESH_TTL_MS = 2000;
 
 const SETTINGS_FIELDS = [
   { key: 'Ticket Overlay Enabled', type: 'boolean', path: ['ticketEnabled'] },
@@ -511,6 +514,8 @@ async function writeSettingsToSheet(settings, enabledStatus, serverSessionId) {
       requestBody: { values }
     });
 
+    settingsLoadedFromSheet = true;
+    settingsLastHydratedAt = Date.now();
     return true;
   } catch (err) {
     console.warn('Unable to persist settings to sheet:', err.message || err);
@@ -518,22 +523,41 @@ async function writeSettingsToSheet(settings, enabledStatus, serverSessionId) {
   }
 }
 
-async function hydrateSettingsFromSheet() {
-  if (settingsLoadedFromSheet) return;
-  const sheetPayload = await readSettingsFromSheet();
-  if (sheetPayload && sheetPayload.settingsPatch) {
-    appSettings = mergeAppSettings(sheetPayload.settingsPatch);
+async function hydrateSettingsFromSheet(options = {}) {
+  const force = Boolean(options && options.force);
+  const now = Date.now();
+
+  if (!force && settingsLoadedFromSheet && settingsLastHydratedAt && (now - settingsLastHydratedAt) < SETTINGS_REFRESH_TTL_MS) {
+    return;
   }
-  if (sheetPayload && typeof sheetPayload.serverStatus === 'boolean') {
-    appEnabled = sheetPayload.serverStatus;
+
+  if (settingsHydrationPromise) {
+    return settingsHydrationPromise;
   }
-  if (sheetPayload && sheetPayload.serverSessionId) {
-    appSessionId = sheetPayload.serverSessionId;
+
+  settingsHydrationPromise = (async () => {
+    const sheetPayload = await readSettingsFromSheet();
+    if (sheetPayload && sheetPayload.settingsPatch) {
+      appSettings = mergeAppSettings(sheetPayload.settingsPatch);
+    }
+    if (sheetPayload && typeof sheetPayload.serverStatus === 'boolean') {
+      appEnabled = sheetPayload.serverStatus;
+    }
+    if (sheetPayload && sheetPayload.serverSessionId) {
+      appSessionId = sheetPayload.serverSessionId;
+    }
+    if (!appSessionId) {
+      appSessionId = generateServerSessionId();
+    }
+    settingsLoadedFromSheet = true;
+    settingsLastHydratedAt = Date.now();
+  })();
+
+  try {
+    await settingsHydrationPromise;
+  } finally {
+    settingsHydrationPromise = null;
   }
-  if (!appSessionId) {
-    appSessionId = generateServerSessionId();
-  }
-  settingsLoadedFromSheet = true;
 }
 
 // ---------- TEMPLATE SHEET HELPERS ----------
@@ -2079,7 +2103,7 @@ app.post('/admin/unblock', (req, res) => {
 // --------- ADMIN APP STATUS (for toggle) ----------
 
 app.get('/admin/app-status', ensureAdminAuth, (req, res) => {
-  hydrateSettingsFromSheet()
+  hydrateSettingsFromSheet({ force: true })
     .then(() => res.json({ ok: true, enabled: appEnabled }))
     .catch(() => res.json({ ok: true, enabled: appEnabled }));
 });
@@ -2131,7 +2155,7 @@ app.post('/admin/app-status', ensureAdminAuth, async (req, res) => {
 
 // Admin: get current app settings
 app.get('/admin/settings', ensureAdminAuth, (req, res) => {
-  hydrateSettingsFromSheet()
+  hydrateSettingsFromSheet({ force: true })
     .then(() => res.json({ ok: true, settings: appSettings }))
     .catch(() => res.json({ ok: true, settings: appSettings }));
 });
@@ -2953,7 +2977,8 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
 
 app.get('/gallery/active-template', async (req, res) => {
   try {
-    await hydrateSettingsFromSheet();
+    // Force a fresh settings read so gallery instances do not serve a stale live template.
+    await hydrateSettingsFromSheet({ force: true });
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
