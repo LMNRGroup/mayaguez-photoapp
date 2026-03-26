@@ -530,6 +530,74 @@
       transform: translateX(-50%) translateY(0);
     }
 
+    .app-confirm-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(7, 16, 32, 0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 1400;
+    }
+
+    .app-confirm-overlay.visible {
+      display: flex;
+    }
+
+    .app-confirm-card {
+      width: min(90vw, 360px);
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246,249,255,0.94));
+      border: 1px solid rgba(37, 99, 235, 0.14);
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.3);
+      color: #0f172a;
+    }
+
+    .app-confirm-band {
+      height: 4px;
+      background: linear-gradient(90deg, #0ea5e9, #2563eb);
+    }
+
+    .app-confirm-body {
+      padding: 22px 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .app-confirm-title {
+      margin: 0;
+      font-family: 'HelveticaNowTextExtraBold', Arial, sans-serif;
+      font-size: 14px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+
+    .app-confirm-message {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.55;
+      color: #334155;
+      white-space: pre-line;
+    }
+
+    .app-confirm-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .app-confirm-cancel {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
     .controls-column {
       display: flex;
       flex-direction: column;
@@ -767,6 +835,19 @@
       </div>
     </div>
   </div>
+  <div id="portraitConfirmOverlay" class="app-confirm-overlay" aria-hidden="true">
+    <div class="app-confirm-card" role="dialog" aria-modal="true" aria-labelledby="portraitConfirmTitle" aria-describedby="portraitConfirmMessage">
+      <div class="app-confirm-band"></div>
+      <div class="app-confirm-body">
+        <h3 id="portraitConfirmTitle" class="app-confirm-title">Photo Orientation</h3>
+        <p id="portraitConfirmMessage" class="app-confirm-message"></p>
+        <div class="app-confirm-actions">
+          <button id="portraitConfirmCancel" type="button" class="app-confirm-cancel">Cancel</button>
+          <button id="portraitConfirmContinue" type="button">Upload Anyway</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- Intro overlay -->
   <div id="introModal" style="display:none;">
     <div class="intro-backdrop">
@@ -930,6 +1011,11 @@
     const uploadStatus = document.getElementById('uploadStatus');
     const thankYouToast = document.getElementById('thankYouToast');
     const cameraArea = document.getElementById('cameraArea');
+    const portraitConfirmOverlay = document.getElementById('portraitConfirmOverlay');
+    const portraitConfirmTitle = document.getElementById('portraitConfirmTitle');
+    const portraitConfirmMessage = document.getElementById('portraitConfirmMessage');
+    const portraitConfirmCancel = document.getElementById('portraitConfirmCancel');
+    const portraitConfirmContinue = document.getElementById('portraitConfirmContinue');
 
     const ticketOverlay = document.getElementById('ticketOverlay');
     const ticketNumberEl = document.getElementById('ticketNumber');
@@ -1129,6 +1215,52 @@
 
     function t(key) {
       return COPY[currentLanguage]?.[key] || COPY.es[key] || '';
+    }
+
+    let portraitConfirmResolver = null;
+
+    function closePortraitConfirm(result = false) {
+      if (!portraitConfirmOverlay) return;
+      portraitConfirmOverlay.classList.remove('visible');
+      portraitConfirmOverlay.setAttribute('aria-hidden', 'true');
+      const resolver = portraitConfirmResolver;
+      portraitConfirmResolver = null;
+      if (resolver) resolver(result);
+    }
+
+    function showPortraitConfirmDialog() {
+      if (!portraitConfirmOverlay) return Promise.resolve(true);
+
+      portraitConfirmTitle.textContent =
+        currentLanguage === 'en' ? 'Photo Orientation' : 'Orientación de la Foto';
+      portraitConfirmMessage.textContent = t('portraitConfirm');
+      portraitConfirmCancel.textContent = currentLanguage === 'en' ? 'Retake' : 'Retomar';
+      portraitConfirmContinue.textContent = currentLanguage === 'en' ? 'Upload Anyway' : 'Subir Así';
+      portraitConfirmOverlay.classList.add('visible');
+      portraitConfirmOverlay.setAttribute('aria-hidden', 'false');
+
+      return new Promise((resolve) => {
+        portraitConfirmResolver = resolve;
+        requestAnimationFrame(() => {
+          portraitConfirmContinue.focus();
+        });
+      });
+    }
+
+    if (portraitConfirmCancel) {
+      portraitConfirmCancel.addEventListener('click', () => closePortraitConfirm(false));
+    }
+
+    if (portraitConfirmContinue) {
+      portraitConfirmContinue.addEventListener('click', () => closePortraitConfirm(true));
+    }
+
+    if (portraitConfirmOverlay) {
+      portraitConfirmOverlay.addEventListener('click', (event) => {
+        if (event.target === portraitConfirmOverlay) {
+          closePortraitConfirm(false);
+        }
+      });
     }
 
     function applyLanguage(lang) {
@@ -1924,7 +2056,7 @@ captureButton.addEventListener('click', () => {
       }
 
       if (lastCaptureWasPortrait && !hasShownPortraitWarning) {
-        const proceed = window.confirm(t('portraitConfirm'));
+        const proceed = await showPortraitConfirmDialog();
         if (!proceed) {
           uploadStatus.textContent = t('portraitCancel');
           return;
