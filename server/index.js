@@ -38,6 +38,15 @@ const TEMPLATES_SHEET_ID =
 const TEMPLATES_SHEET_NAME = process.env.TEMPLATES_SHEET_NAME || 'Templates';
 const TEMPLATES_SHEET_RANGE = `${TEMPLATES_SHEET_NAME}!A:D`; // Name, JSON, Created, Active
 
+const METRICS_SHEET_ID =
+  process.env.METRICS_SHEET_ID ||
+  '15hccG6-KL6gGaw08gqYGYM55GrgLB23mBD6fMRBpka0';
+const METRICS_EVENTS_SHEET_NAME = process.env.METRICS_EVENTS_SHEET_NAME || 'Events';
+const METRICS_DAILY_SHEET_NAME = process.env.METRICS_DAILY_SHEET_NAME || 'Daily Summary';
+const METRICS_NEWSLETTER_SHEET_NAME = process.env.METRICS_NEWSLETTER_SHEET_NAME || 'Newsletter Leads';
+const METRICS_SCHEMA_SHEET_NAME = process.env.METRICS_SCHEMA_SHEET_NAME || 'Schema';
+const METRICS_EVENTS_SHEET_RANGE = `${METRICS_EVENTS_SHEET_NAME}!A:X`;
+
 // Range with columns:
 // timestamp_utc, timestamp_pr, event_type, email, session_id,
 // country, region, last_name, newsletter, ticket
@@ -55,6 +64,57 @@ const SESSION_SHEET_HEADERS = [
   'last_name',
   'newsletter',
   'ticket'
+];
+const METRICS_EVENTS_HEADERS = [
+  'event_id',
+  'timestamp_utc',
+  'timestamp_pr',
+  'pr_date',
+  'pr_hour',
+  'event_type',
+  'event_family',
+  'session_id',
+  'server_session_id',
+  'email',
+  'email_normalized',
+  'country',
+  'region',
+  'location_label',
+  'last_name',
+  'newsletter',
+  'ticket',
+  'source',
+  'request_ip',
+  'user_agent',
+  'referrer',
+  'path',
+  'method',
+  'metadata_json'
+];
+const METRICS_DAILY_HEADERS = [
+  'pr_date',
+  'visits',
+  'forms',
+  'uploads',
+  'newsletter_opt_ins',
+  'unique_sessions',
+  'unique_emails',
+  'updated_at_utc'
+];
+const METRICS_NEWSLETTER_HEADERS = [
+  'timestamp_utc',
+  'timestamp_pr',
+  'pr_date',
+  'email',
+  'email_normalized',
+  'last_name',
+  'country',
+  'region',
+  'location_label',
+  'session_id',
+  'server_session_id',
+  'source',
+  'metadata_json'
 ];
 
 // ---------- ADMIN SECURITY ----------
@@ -216,6 +276,8 @@ let settingsLoadedFromSheet = false;
 let settingsLastHydratedAt = 0;
 let settingsHydrationPromise = null;
 const SETTINGS_REFRESH_TTL_MS = 2000;
+let metricsSheetsReady = false;
+let metricsSheetHeadersReady = false;
 
 const SETTINGS_FIELDS = [
   { key: 'Ticket Overlay Enabled', type: 'boolean', path: ['ticketEnabled'] },
@@ -967,6 +1029,47 @@ function formatPRDateTimeShort(prDate) {
   return `${dd}/${mm}/${yyyy} ${HH}:${MM}:${SS}`;
 }
 
+function formatPRDateIso(prDate) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = prDate.getFullYear();
+  const mm = pad(prDate.getMonth() + 1);
+  const dd = pad(prDate.getDate());
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatPRHourKey(prDate) {
+  return `${String(prDate.getHours()).padStart(2, '0')}:00`;
+}
+
+function prDateToUtc(dateString, hour = 0, minute = 0, second = 0, millisecond = 0) {
+  if (!dateString) return null;
+  const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  return new Date(Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour) + 4,
+    Number(minute),
+    Number(second),
+    Number(millisecond)
+  ));
+}
+
+function formatChartHourLabel(prDate) {
+  const hour = prDate.getHours();
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}${period}`;
+}
+
+function formatChartDateLabel(prDate) {
+  const month = String(prDate.getMonth() + 1).padStart(2, '0');
+  const day = String(prDate.getDate()).padStart(2, '0');
+  return `${month}/${day}`;
+}
+
 // For reports: "HH:00–HH:59"
 function formatHourRange(hour) {
   const h = String(hour).padStart(2, '0');
@@ -1068,6 +1171,499 @@ function buildSessionIdentifier(req) {
 
   const fallback = req.headers['x-session-id'];
   return fallback ? String(fallback) : '';
+}
+
+function getMetricsEventFamily(eventType) {
+  switch (eventType) {
+    case 'visit':
+    case 'form':
+    case 'upload':
+      return 'public';
+    case 'approve_photo':
+    case 'reject_photo':
+    case 'delete_approved_photo':
+    case 'batch_delete_approved_photos':
+    case 'clear_drive':
+    case 'reset_logs':
+      return 'admin';
+    default:
+      return 'system';
+  }
+}
+
+function extractLocationFromSessionId(sessionId = '') {
+  const match = String(sessionId || '').match(/^IP\s+[\d.:a-fA-F]+\s+(.+)$/);
+  return match && match[1] ? match[1].trim() : '';
+}
+
+function buildLocationLabel(country = '', region = '', sessionId = '') {
+  const direct = [region, country].filter(Boolean).join(', ').trim();
+  if (direct) return direct;
+  return extractLocationFromSessionId(sessionId);
+}
+
+function safeJsonStringify(value) {
+  try {
+    return JSON.stringify(value || {});
+  } catch (err) {
+    return '{}';
+  }
+}
+
+async function ensureMetricsSheets() {
+  if (metricsSheetsReady) return true;
+  if (!METRICS_SHEET_ID) return false;
+
+  try {
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: METRICS_SHEET_ID,
+      fields: 'sheets(properties(title))'
+    });
+
+    const existingTitles = new Set(
+      (meta.data.sheets || [])
+        .map((sheet) => sheet?.properties?.title)
+        .filter(Boolean)
+    );
+
+    const requiredTitles = [
+      METRICS_EVENTS_SHEET_NAME,
+      METRICS_DAILY_SHEET_NAME,
+      METRICS_NEWSLETTER_SHEET_NAME,
+      METRICS_SCHEMA_SHEET_NAME,
+    ];
+
+    const addSheetRequests = requiredTitles
+      .filter((title) => !existingTitles.has(title))
+      .map((title) => ({
+        addSheet: {
+          properties: { title }
+        }
+      }));
+
+    if (addSheetRequests.length) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: METRICS_SHEET_ID,
+        requestBody: {
+          requests: addSheetRequests
+        }
+      });
+    }
+
+    metricsSheetsReady = true;
+    return true;
+  } catch (err) {
+    console.warn('Unable to ensure metrics workbook:', err.message || err);
+    return false;
+  }
+}
+
+async function ensureMetricsSheetHeaders() {
+  if (metricsSheetHeadersReady) return true;
+  if (!METRICS_SHEET_ID) return false;
+
+  const ready = await ensureMetricsSheets();
+  if (!ready) return false;
+
+  try {
+    const sheetConfigs = [
+      {
+        name: METRICS_EVENTS_SHEET_NAME,
+        range: `${METRICS_EVENTS_SHEET_NAME}!A1:X`,
+        headers: METRICS_EVENTS_HEADERS,
+      },
+      {
+        name: METRICS_DAILY_SHEET_NAME,
+        range: `${METRICS_DAILY_SHEET_NAME}!A1:H`,
+        headers: METRICS_DAILY_HEADERS,
+      },
+      {
+        name: METRICS_NEWSLETTER_SHEET_NAME,
+        range: `${METRICS_NEWSLETTER_SHEET_NAME}!A1:M`,
+        headers: METRICS_NEWSLETTER_HEADERS,
+      },
+    ];
+
+    for (const config of sheetConfigs) {
+      const resp = await sheets.spreadsheets.values.get({
+        spreadsheetId: METRICS_SHEET_ID,
+        range: `${config.name}!1:1`
+      });
+      const headerRow = resp.data.values?.[0] || [];
+      if (headerRow[0] !== config.headers[0]) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: METRICS_SHEET_ID,
+          range: config.range,
+          valueInputOption: 'RAW',
+          requestBody: { values: [config.headers] }
+        });
+      }
+    }
+
+    const schemaRows = [
+      ['Section', 'Purpose', 'Fields'],
+      ['Events', 'Raw append-only metrics stream for every tracked interaction.', METRICS_EVENTS_HEADERS.join(', ')],
+      ['Daily Summary', 'Prepared daily rollups for future dashboard expansion.', METRICS_DAILY_HEADERS.join(', ')],
+      ['Newsletter Leads', 'Newsletter opt-ins prepared for reporting and export.', METRICS_NEWSLETTER_HEADERS.join(', ')],
+      ['Notes', 'Dates are stored in Puerto Rico time for grouping and UTC for canonical timestamps.', 'Timezone: America/Puerto_Rico (UTC-4 fixed)'],
+    ];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: METRICS_SHEET_ID,
+      range: `${METRICS_SCHEMA_SHEET_NAME}!A1:C${schemaRows.length}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: schemaRows }
+    });
+
+    metricsSheetHeadersReady = true;
+    return true;
+  } catch (err) {
+    console.warn('Unable to ensure metrics sheet headers:', err.message || err);
+    return false;
+  }
+}
+
+async function logMetricsEvent(
+  eventType,
+  req,
+  {
+    email = '',
+    sessionId = '',
+    country = '',
+    region = '',
+    lastName = '',
+    newsletter = null,
+    ticket = '',
+    timestampUtc = null,
+    source = '',
+    metadata = {},
+  } = {}
+) {
+  if (!METRICS_SHEET_ID) return;
+
+  try {
+    const ready = await ensureMetricsSheetHeaders();
+    if (!ready) return;
+
+    const utcStr = timestampUtc || new Date().toISOString();
+    const dateUtc = new Date(utcStr);
+    if (Number.isNaN(dateUtc.getTime())) return;
+
+    const prDate = toPR(dateUtc);
+    const normalizedSessionId = sessionId || buildSessionIdentifier(req);
+    const normalizedCountry = country || '';
+    const normalizedRegion = region || '';
+    const locationLabel = buildLocationLabel(normalizedCountry, normalizedRegion, normalizedSessionId);
+    const newsletterFlag = getNewsletterFlag(newsletter);
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const requestIp = normalizeIp(getClientIp(req));
+    const userAgent = String(req?.headers?.['user-agent'] || '').slice(0, 500);
+    const referrer = String(req?.headers?.referer || req?.headers?.referrer || '').slice(0, 500);
+    const pathLabel = req?.path || '';
+    const methodLabel = req?.method || '';
+    const family = getMetricsEventFamily(eventType);
+    const row = [[
+      crypto.randomUUID(),
+      utcStr,
+      formatPRDateTimeShort(prDate),
+      formatPRDateIso(prDate),
+      formatPRHourKey(prDate),
+      eventType,
+      family,
+      normalizedSessionId,
+      appSessionId || '',
+      email || '',
+      normalizedEmail,
+      normalizedCountry,
+      normalizedRegion,
+      locationLabel,
+      lastName || '',
+      newsletterFlag,
+      ticket || '',
+      source || family,
+      requestIp,
+      userAgent,
+      referrer,
+      pathLabel,
+      methodLabel,
+      safeJsonStringify(metadata),
+    ]];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: METRICS_SHEET_ID,
+      range: METRICS_EVENTS_SHEET_RANGE,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: row }
+    });
+
+    if (newsletterFlag === 'Y' && normalizedEmail) {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: METRICS_SHEET_ID,
+        range: `${METRICS_NEWSLETTER_SHEET_NAME}!A:M`,
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [[
+            utcStr,
+            formatPRDateTimeShort(prDate),
+            formatPRDateIso(prDate),
+            email || '',
+            normalizedEmail,
+            lastName || '',
+            normalizedCountry,
+            normalizedRegion,
+            locationLabel,
+            normalizedSessionId,
+            appSessionId || '',
+            source || family,
+            safeJsonStringify(metadata),
+          ]]
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Unable to log metrics event:', eventType, err.message || err);
+  }
+}
+
+function parseMetricsEventRow(row = []) {
+  const timestampUtc = row[1] || '';
+  const timestamp = new Date(timestampUtc);
+  if (!timestampUtc || Number.isNaN(timestamp.getTime())) return null;
+
+  return {
+    eventId: row[0] || '',
+    timestampUtc,
+    timestamp,
+    timestampPr: row[2] || '',
+    prDate: row[3] || '',
+    prHour: row[4] || '',
+    eventType: row[5] || '',
+    eventFamily: row[6] || '',
+    sessionId: row[7] || '',
+    serverSessionId: row[8] || '',
+    email: row[9] || '',
+    emailNormalized: row[10] || '',
+    country: row[11] || '',
+    region: row[12] || '',
+    locationLabel: row[13] || '',
+    lastName: row[14] || '',
+    newsletter: row[15] || '',
+    ticket: row[16] || '',
+    source: row[17] || '',
+  };
+}
+
+async function readMetricsEvents() {
+  if (!METRICS_SHEET_ID) return [];
+
+  const ready = await ensureMetricsSheetHeaders();
+  if (!ready) return [];
+
+  const resp = await sheets.spreadsheets.values.get({
+    spreadsheetId: METRICS_SHEET_ID,
+    range: METRICS_EVENTS_SHEET_RANGE
+  });
+
+  const rows = resp.data.values || [];
+  if (rows.length <= 1) return [];
+
+  return rows
+    .slice(1)
+    .map(parseMetricsEventRow)
+    .filter(Boolean);
+}
+
+function getMetricsRangeDefinition(query = {}) {
+  const preset = String(query.preset || '24h').trim();
+  const now = new Date();
+  const definitions = {
+    '1h': { startUtc: new Date(now.getTime() - (1 * 60 * 60 * 1000)), endUtc: now, label: 'Last hour', granularity: 'hour' },
+    '6h': { startUtc: new Date(now.getTime() - (6 * 60 * 60 * 1000)), endUtc: now, label: 'Last 6 hours', granularity: 'hour' },
+    '12h': { startUtc: new Date(now.getTime() - (12 * 60 * 60 * 1000)), endUtc: now, label: 'Last 12 hours', granularity: 'hour' },
+    '24h': { startUtc: new Date(now.getTime() - (24 * 60 * 60 * 1000)), endUtc: now, label: 'Last 24 hours', granularity: 'hour' },
+    '3d': { startUtc: new Date(now.getTime() - (3 * 24 * 60 * 60 * 1000)), endUtc: now, label: 'Last 3 days', granularity: 'day' },
+    '7d': { startUtc: new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000)), endUtc: now, label: 'Last 7 days', granularity: 'day' },
+    '15d': { startUtc: new Date(now.getTime() - (15 * 24 * 60 * 60 * 1000)), endUtc: now, label: 'Last 15 days', granularity: 'day' },
+    '30d': { startUtc: new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)), endUtc: now, label: 'Last 30 days', granularity: 'day' },
+  };
+
+  if (preset === 'today') {
+    const todayPr = getPRDate();
+    const startUtc = prDateToUtc(formatPRDateIso(todayPr), 0, 0, 0, 0);
+    return {
+      preset,
+      startUtc,
+      endUtc: now,
+      label: 'Today',
+      granularity: 'hour',
+    };
+  }
+
+  if (preset === 'this_week') {
+    const nowPr = getPRDate();
+    const dayOfWeek = nowPr.getDay();
+    const startPr = new Date(nowPr);
+    startPr.setDate(nowPr.getDate() - dayOfWeek);
+    startPr.setHours(0, 0, 0, 0);
+
+    return {
+      preset,
+      startUtc: new Date(startPr.getTime() + 4 * 60 * 60 * 1000),
+      endUtc: now,
+      label: 'This week',
+      granularity: 'day',
+    };
+  }
+
+  if (preset === 'custom') {
+    const startDate = String(query.startDate || '').trim();
+    const endDate = String(query.endDate || '').trim();
+    const startUtc = prDateToUtc(startDate, 0, 0, 0, 0);
+    const endUtc = prDateToUtc(endDate, 23, 59, 59, 999);
+    if (!startUtc || !endUtc || startUtc > endUtc) {
+      throw new Error('invalid_custom_range');
+    }
+
+    const diffMs = endUtc.getTime() - startUtc.getTime();
+    return {
+      preset,
+      startUtc,
+      endUtc,
+      label: `${startDate} to ${endDate}`,
+      granularity: diffMs <= (36 * 60 * 60 * 1000) ? 'hour' : 'day',
+    };
+  }
+
+  if (definitions[preset]) {
+    return { preset, ...definitions[preset] };
+  }
+
+  return { preset: '24h', ...definitions['24h'] };
+}
+
+function filterMetricsEventsByRange(events, rangeDef) {
+  return events.filter((event) => event.timestamp >= rangeDef.startUtc && event.timestamp <= rangeDef.endUtc);
+}
+
+function buildMetricsTimeseries(events, rangeDef) {
+  const buckets = [];
+  const bucketMap = new Map();
+
+  if (rangeDef.granularity === 'hour') {
+    const cursor = new Date(rangeDef.startUtc);
+    cursor.setMinutes(0, 0, 0);
+    const end = new Date(rangeDef.endUtc);
+    end.setMinutes(0, 0, 0);
+
+    while (cursor <= end) {
+      const prCursor = toPR(cursor);
+      const key = `${formatPRDateIso(prCursor)} ${formatPRHourKey(prCursor)}`;
+      const bucket = {
+        key,
+        label: formatChartHourLabel(prCursor),
+        visits: 0,
+        forms: 0,
+        uploads: 0,
+        newsletters: 0,
+      };
+      buckets.push(bucket);
+      bucketMap.set(key, bucket);
+      cursor.setHours(cursor.getHours() + 1);
+    }
+
+    events.forEach((event) => {
+      const prDate = toPR(event.timestamp);
+      const key = `${formatPRDateIso(prDate)} ${formatPRHourKey(prDate)}`;
+      const bucket = bucketMap.get(key);
+      if (!bucket) return;
+      if (event.eventType === 'visit') bucket.visits += 1;
+      if (event.eventType === 'form') bucket.forms += 1;
+      if (event.eventType === 'upload') bucket.uploads += 1;
+      if (event.eventType === 'form' && event.newsletter === 'Y') bucket.newsletters += 1;
+    });
+  } else {
+    const startPrIso = formatPRDateIso(toPR(rangeDef.startUtc));
+    const endPrIso = formatPRDateIso(toPR(rangeDef.endUtc));
+    let cursor = prDateToUtc(startPrIso, 0, 0, 0, 0);
+    const endCursor = prDateToUtc(endPrIso, 0, 0, 0, 0);
+
+    while (cursor && endCursor && cursor <= endCursor) {
+      const prCursor = toPR(cursor);
+      const key = formatPRDateIso(prCursor);
+      const bucket = {
+        key,
+        label: formatChartDateLabel(prCursor),
+        visits: 0,
+        forms: 0,
+        uploads: 0,
+        newsletters: 0,
+      };
+      buckets.push(bucket);
+      bucketMap.set(key, bucket);
+      cursor = new Date(cursor.getTime() + (24 * 60 * 60 * 1000));
+    }
+
+    events.forEach((event) => {
+      const key = event.prDate || formatPRDateIso(toPR(event.timestamp));
+      const bucket = bucketMap.get(key);
+      if (!bucket) return;
+      if (event.eventType === 'visit') bucket.visits += 1;
+      if (event.eventType === 'form') bucket.forms += 1;
+      if (event.eventType === 'upload') bucket.uploads += 1;
+      if (event.eventType === 'form' && event.newsletter === 'Y') bucket.newsletters += 1;
+    });
+  }
+
+  return buckets;
+}
+
+function convertMetricsEventsToCsv(events) {
+  const rows = [
+    [
+      'timestamp_utc',
+      'timestamp_pr',
+      'event_type',
+      'event_family',
+      'session_id',
+      'server_session_id',
+      'email',
+      'country',
+      'region',
+      'location_label',
+      'last_name',
+      'newsletter',
+      'ticket',
+      'source',
+    ],
+    ...events.map((event) => [
+      event.timestampUtc,
+      event.timestampPr,
+      event.eventType,
+      event.eventFamily,
+      event.sessionId,
+      event.serverSessionId,
+      event.email,
+      event.country,
+      event.region,
+      event.locationLabel,
+      event.lastName,
+      event.newsletter,
+      event.ticket,
+      event.source,
+    ])
+  ];
+
+  return rows
+    .map((row) => row.map((value) => {
+      const str = String(value || '');
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }).join(','))
+    .join('\n');
 }
 
 function isBlocked(ip) {
@@ -1833,7 +2429,16 @@ app.post('/ping', async (req, res) => {
   }
   try {
     const sessionId = buildSessionIdentifier(req);
-    await logEventToSheet('visit', { sessionId });
+    await Promise.allSettled([
+      logEventToSheet('visit', { sessionId }),
+      logMetricsEvent('visit', req, {
+        sessionId,
+        source: 'public_app',
+        metadata: {
+          trigger: 'page_load'
+        }
+      })
+    ]);
   } catch (e) {
     console.error('Error logging visit to sheet:', e);
   }
@@ -1866,10 +2471,23 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
     // Log to Sheet
     try {
       const sessionId = buildSessionIdentifier(req);
-      await logEventToSheet('upload', {
-        sessionId,
-        ticket: ticketLabel // e.g. "T015"
-      });
+      await Promise.allSettled([
+        logEventToSheet('upload', {
+          sessionId,
+          ticket: ticketLabel // e.g. "T015"
+        }),
+        logMetricsEvent('upload', req, {
+          sessionId,
+          ticket: ticketLabel,
+          source: 'public_app',
+          metadata: {
+            fileId,
+            finalName,
+            ticketIndex,
+            ticketDisplay
+          }
+        })
+      ]);
     } catch (e) {
       console.error('Error logging upload event to sheet:', e);
     }
@@ -1921,15 +2539,30 @@ app.post('/visit', async (req, res) => {
     // Log to Sheet as "form"
     try {
       const sessionId = buildSessionIdentifier(req);
-      await logEventToSheet('form', {
-        email,
-        sessionId,
-        timestampUtc,
-        country: countryClean,
-        region,
-        lastName,
-        newsletter
-      });
+      await Promise.allSettled([
+        logEventToSheet('form', {
+          email,
+          sessionId,
+          timestampUtc,
+          country: countryClean,
+          region,
+          lastName,
+          newsletter
+        }),
+        logMetricsEvent('form', req, {
+          email,
+          sessionId,
+          timestampUtc,
+          country: countryClean,
+          region,
+          lastName,
+          newsletter,
+          source: 'public_form',
+          metadata: {
+            newsletterEnabled: newsletter !== '',
+          }
+        })
+      ]);
     } catch (e) {
       console.error('Error logging form event to sheet:', e);
     }
@@ -2431,6 +3064,11 @@ app.post('/admin/approve', ensureAdminAuth, async (req, res) => {
     invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
     invalidateDriveFolderCaches(PENDING_FOLDER_ID);
 
+    logMetricsEvent('approve_photo', req, {
+      source: 'admin_review',
+      metadata: { fileId }
+    }).catch(() => {});
+
     res.json({ ok: true });
   } catch (err) {
     console.error('Error approving photo:', err);
@@ -2455,6 +3093,11 @@ app.post('/admin/reject', ensureAdminAuth, async (req, res) => {
 
     invalidateDriveFolderCaches(PENDING_FOLDER_ID);
     invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
+
+    logMetricsEvent('reject_photo', req, {
+      source: 'admin_review',
+      metadata: { fileId }
+    }).catch(() => {});
 
     res.json({ ok: true });
   } catch (err) {
@@ -2885,6 +3528,11 @@ app.post('/admin/delete-approved', ensureAdminAuth, async (req, res) => {
 
     invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
 
+    logMetricsEvent('delete_approved_photo', req, {
+      source: 'admin_gallery',
+      metadata: { fileId }
+    }).catch(() => {});
+
     res.json({ ok: true });
   } catch (err) {
     console.error('Error deleting approved photo:', err);
@@ -2925,6 +3573,16 @@ app.post('/admin/delete-approved-batch', ensureAdminAuth, async (req, res) => {
 
     invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
 
+    logMetricsEvent('batch_delete_approved_photos', req, {
+      source: 'admin_gallery',
+      metadata: {
+        requestedCount: fileIds.length,
+        deletedCount: deletedIds.length,
+        deletedIds,
+        failedIds,
+      }
+    }).catch(() => {});
+
     res.json({
       ok: failedIds.length === 0,
       deletedIds,
@@ -2941,6 +3599,13 @@ app.post('/admin/delete-approved-batch', ensureAdminAuth, async (req, res) => {
 app.post('/admin/clear-drive', ensureAdminAuth, async (req, res) => {
   try {
     const result = await clearDriveFolders();
+    logMetricsEvent('clear_drive', req, {
+      source: 'admin_maintenance',
+      metadata: {
+        trashedCount: result.trashedCount,
+        errors: result.errors
+      }
+    }).catch(() => {});
     res.json({ ok: true, trashedCount: result.trashedCount, errors: result.errors });
   } catch (err) {
     console.error('Error clearing Drive folders:', err);
@@ -2955,10 +3620,142 @@ app.post('/admin/reset-logs', ensureAdminAuth, async (req, res) => {
     if (!ok) {
       return res.status(500).json({ ok: false, error: 'reset_logs_failed' });
     }
+    logMetricsEvent('reset_logs', req, {
+      source: 'admin_maintenance',
+      metadata: {
+        resetTarget: 'session_logs'
+      }
+    }).catch(() => {});
     res.json({ ok: true, message: 'reset_logs_completed' });
   } catch (err) {
     console.error('Error in reset-logs:', err);
     res.status(500).json({ ok: false, error: 'reset_logs_failed' });
+  }
+});
+
+app.get('/admin/metrics/overview', ensureAdminAuth, async (req, res) => {
+  try {
+    const range = getMetricsRangeDefinition(req.query || {});
+    const allEvents = await readMetricsEvents();
+    const publicEvents = filterMetricsEventsByRange(
+      allEvents.filter((event) => event.eventFamily === 'public'),
+      range
+    ).sort((a, b) => a.timestamp - b.timestamp);
+
+    const visits = publicEvents.filter((event) => event.eventType === 'visit');
+    const forms = publicEvents.filter((event) => event.eventType === 'form');
+    const uploads = publicEvents.filter((event) => event.eventType === 'upload');
+    const newsletterLeads = forms.filter((event) => event.newsletter === 'Y' && event.emailNormalized);
+    const uniqueSessions = new Set(publicEvents.map((event) => event.sessionId).filter(Boolean));
+    const uniqueEmails = new Set(forms.map((event) => event.emailNormalized).filter(Boolean));
+    const locationCounts = new Map();
+
+    publicEvents.forEach((event) => {
+      const locationLabel = event.locationLabel || '';
+      if (!locationLabel) return;
+      locationCounts.set(locationLabel, (locationCounts.get(locationLabel) || 0) + 1);
+    });
+
+    const topLocations = Array.from(locationCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([label, count]) => ({ label, count }));
+
+    const newsletterRows = newsletterLeads
+      .slice()
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 12)
+      .map((event) => ({
+        timestampUtc: event.timestampUtc,
+        timestampPr: event.timestampPr,
+        email: event.email,
+        lastName: event.lastName,
+        locationLabel: event.locationLabel,
+      }));
+
+    const summary = {
+      visits: visits.length,
+      forms: forms.length,
+      uploads: uploads.length,
+      newsletterOptIns: newsletterLeads.length,
+      uniqueSessions: uniqueSessions.size,
+      uniqueEmails: uniqueEmails.size,
+      formConversionRate: visits.length ? Number(((forms.length / visits.length) * 100).toFixed(1)) : 0,
+      uploadConversionRate: forms.length ? Number(((uploads.length / forms.length) * 100).toFixed(1)) : 0,
+      newsletterRate: forms.length ? Number(((newsletterLeads.length / forms.length) * 100).toFixed(1)) : 0,
+    };
+
+    return res.json({
+      ok: true,
+      range: {
+        preset: range.preset,
+        label: range.label,
+        granularity: range.granularity,
+        startUtc: range.startUtc.toISOString(),
+        endUtc: range.endUtc.toISOString(),
+      },
+      summary,
+      series: buildMetricsTimeseries(publicEvents, range),
+      topLocations,
+      newsletterRows,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Error loading metrics overview:', err);
+    return res.status(500).json({ ok: false, error: 'metrics_overview_failed' });
+  }
+});
+
+app.get('/admin/metrics/export', ensureAdminAuth, async (req, res) => {
+  try {
+    const kind = String(req.query.kind || 'newsletter').trim().toLowerCase();
+    const range = getMetricsRangeDefinition(req.query || {});
+    const allEvents = await readMetricsEvents();
+    const publicEvents = filterMetricsEventsByRange(
+      allEvents.filter((event) => event.eventFamily === 'public'),
+      range
+    ).sort((a, b) => a.timestamp - b.timestamp);
+
+    let csv = '';
+    let filename = '';
+
+    if (kind === 'events') {
+      csv = convertMetricsEventsToCsv(publicEvents);
+      filename = `metrics_events_${range.preset}_${formatPRDateIso(getPRDate())}.csv`;
+    } else {
+      const newsletterEvents = publicEvents.filter((event) => event.eventType === 'form' && event.newsletter === 'Y');
+      const csvRows = [
+        ['timestamp_utc', 'timestamp_pr', 'email', 'last_name', 'country', 'region', 'location_label', 'session_id'],
+        ...newsletterEvents.map((event) => [
+          event.timestampUtc,
+          event.timestampPr,
+          event.email,
+          event.lastName,
+          event.country,
+          event.region,
+          event.locationLabel,
+          event.sessionId,
+        ])
+      ];
+
+      csv = csvRows
+        .map((row) => row.map((value) => {
+          const str = String(value || '');
+          if (/[",\n]/.test(str)) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(','))
+        .join('\n');
+      filename = `newsletter_report_${range.preset}_${formatPRDateIso(getPRDate())}.csv`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(csv);
+  } catch (err) {
+    console.error('Error exporting metrics report:', err);
+    return res.status(500).json({ ok: false, error: 'metrics_export_failed' });
   }
 });
 
@@ -3373,6 +4170,7 @@ async function ensureTemplatesSheetHeaders() {
 
 // Initialize templates sheet on startup
 ensureTemplatesSheetHeaders().catch(() => {});
+ensureMetricsSheetHeaders().catch(() => {});
 
 // List all templates
 app.get('/admin/templates', ensureAdminAuth, async (req, res) => {
