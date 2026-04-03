@@ -5035,19 +5035,8 @@ View report to see the most recent interactions
     const ADMIN_TOKEN_KEY = "lumi_admin_token_v1";
     const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
 
-    // Frame template used in gallery & downloads
     const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
-    // Template for admin downloads (horizontal 1920x1080)
-    const DOWNLOAD_TEMPLATE_URL = "Assets/NewLayout15_10.png";
-
-    // Stage + window specs (same as gallery CSS)
-    const STAGE_WIDTH = 1920;
-    const STAGE_HEIGHT = 1080;
-    // photo-window = 1350x900 inside 1920x1080, 20px from top, 550px from left
-    const WINDOW_X = (550 / 1920) * STAGE_WIDTH;
-    const WINDOW_Y = (20 / 1080) * STAGE_HEIGHT;
-    const WINDOW_WIDTH = (1350 / 1920) * STAGE_WIDTH;
-    const WINDOW_HEIGHT = (900 / 1080) * STAGE_HEIGHT;
+    const DOWNLOAD_FALLBACK_TEMPLATE_URL = "Assets/NewLayout15_10.png";
 
     // Download template specs (horizontal 1920x1080)
     const DOWNLOAD_TEMPLATE_WIDTH = 1920;
@@ -5081,23 +5070,169 @@ View report to see the most recent interactions
       return frameImagePromise;
     }
 
-    // Preload vertical download template
-    let downloadTemplateCache = null;
-    let downloadTemplatePromise = null;
+    let downloadFallbackTemplateCache = null;
+    let downloadFallbackTemplatePromise = null;
 
-    function preloadDownloadTemplate() {
-      if (downloadTemplatePromise) return downloadTemplatePromise;
-      downloadTemplatePromise = new Promise((resolve, reject) => {
+    function normalizeTemplateAssetUrl(url) {
+      if (!url) return "";
+      if (url.startsWith("http://") || url.startsWith("https://")) return url;
+      if (url.startsWith("/")) return `${BASE_URL}${url}`;
+      return url;
+    }
+
+    function loadImage(src, errorMessage = "Error loading image") {
+      return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
-        img.onload = () => {
-          downloadTemplateCache = img;
-          resolve(img);
-        };
-        img.onerror = () => reject(new Error("Error loading download template PNG"));
-        img.src = DOWNLOAD_TEMPLATE_URL;
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error(errorMessage));
+        img.src = src;
       });
-      return downloadTemplatePromise;
+    }
+
+    function preloadDownloadFallbackTemplate() {
+      if (downloadFallbackTemplatePromise) return downloadFallbackTemplatePromise;
+      downloadFallbackTemplatePromise = loadImage(
+        DOWNLOAD_FALLBACK_TEMPLATE_URL,
+        "Error loading fallback download template PNG"
+      ).then((img) => {
+        downloadFallbackTemplateCache = img;
+        return img;
+      });
+      return downloadFallbackTemplatePromise;
+    }
+
+    async function fetchActiveDownloadTemplate() {
+      const res = await fetch(`${BASE_URL}/gallery/active-template?ts=${Date.now()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        throw new Error(`active_template_http_${res.status}`);
+      }
+
+      const data = await res.json();
+      if (!data || data.ok !== true) {
+        throw new Error(data?.error || "active_template_failed");
+      }
+
+      return data.template || null;
+    }
+
+    function fitPhotoToArea(photoWidth, photoHeight, targetWidth, targetHeight) {
+      const photoAspect = photoWidth / photoHeight;
+      const targetAspect = targetWidth / targetHeight;
+
+      let sx = 0;
+      let sy = 0;
+      let sWidth = photoWidth;
+      let sHeight = photoHeight;
+
+      if (photoAspect > targetAspect) {
+        sHeight = photoHeight;
+        sWidth = sHeight * targetAspect;
+        sx = (photoWidth - sWidth) / 2;
+      } else {
+        sWidth = photoWidth;
+        sHeight = sWidth / targetAspect;
+        sy = (photoHeight - sHeight) / 2;
+      }
+
+      return { sx, sy, sWidth, sHeight };
+    }
+
+    function drawPhotoIntoTemplate(ctx, photoImgEl, stageWidth, stageHeight) {
+      const photoBounds = fitPhotoToArea(
+        photoImgEl.width,
+        photoImgEl.height,
+        DOWNLOAD_PHOTO_WIDTH,
+        DOWNLOAD_PHOTO_HEIGHT
+      );
+      const photoX = (stageWidth - DOWNLOAD_PHOTO_WIDTH) / 2;
+      const photoY = (stageHeight - DOWNLOAD_PHOTO_HEIGHT) / 2;
+
+      ctx.drawImage(
+        photoImgEl,
+        photoBounds.sx,
+        photoBounds.sy,
+        photoBounds.sWidth,
+        photoBounds.sHeight,
+        photoX,
+        photoY,
+        DOWNLOAD_PHOTO_WIDTH,
+        DOWNLOAD_PHOTO_HEIGHT
+      );
+    }
+
+    async function renderDownloadWithTemplate(photoImgEl, template) {
+      downloadCanvas.width = DOWNLOAD_TEMPLATE_WIDTH;
+      downloadCanvas.height = DOWNLOAD_TEMPLATE_HEIGHT;
+      downloadCtx.clearRect(0, 0, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
+
+      if (!photoImgEl.width || !photoImgEl.height) {
+        throw new Error("invalid_photo_dimensions");
+      }
+
+      if (!template) {
+        drawPhotoIntoTemplate(downloadCtx, photoImgEl, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
+        const fallbackTemplateImg = await preloadDownloadFallbackTemplate();
+        downloadCtx.drawImage(
+          fallbackTemplateImg,
+          0,
+          0,
+          DOWNLOAD_TEMPLATE_WIDTH,
+          DOWNLOAD_TEMPLATE_HEIGHT
+        );
+        return;
+      }
+
+      const backgroundUrl = normalizeTemplateAssetUrl(template.background?.url || template.background?.value || "");
+      if (backgroundUrl) {
+        const backgroundImg = await loadImage(backgroundUrl, "Error loading active template background");
+        downloadCtx.drawImage(backgroundImg, 0, 0, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
+      } else {
+        downloadCtx.fillStyle = "#000000";
+        downloadCtx.fillRect(0, 0, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
+      }
+
+      drawPhotoIntoTemplate(downloadCtx, photoImgEl, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
+
+      const baseWidth = Number(template.canvasWidth) || DOWNLOAD_TEMPLATE_WIDTH;
+      const baseHeight = Number(template.canvasHeight) || DOWNLOAD_TEMPLATE_HEIGHT;
+      const logos = Array.isArray(template.logos) ? template.logos : [];
+
+      for (const logo of logos) {
+        const logoUrl = normalizeTemplateAssetUrl(logo?.url || logo?.value || "");
+        if (!logoUrl) continue;
+
+        const logoWidth = ((Number(logo.width) || 0) / baseWidth) * DOWNLOAD_TEMPLATE_WIDTH;
+        const logoHeight = ((Number(logo.height) || 0) / baseHeight) * DOWNLOAD_TEMPLATE_HEIGHT;
+        if (!logoWidth || !logoHeight) continue;
+
+        const logoX = ((Number(logo.x) || 0) / baseWidth) * DOWNLOAD_TEMPLATE_WIDTH;
+        const logoY = ((Number(logo.y) || 0) / baseHeight) * DOWNLOAD_TEMPLATE_HEIGHT;
+        const logoImg = await loadImage(logoUrl, "Error loading active template overlay");
+        downloadCtx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
+      }
+    }
+
+    async function canvasToPngBlob(canvas) {
+      if (typeof canvas.toBlob === "function") {
+        return new Promise((resolve) => {
+          canvas.toBlob(async (blob) => {
+            if (blob) {
+              resolve(blob);
+              return;
+            }
+            const dataUrl = canvas.toDataURL("image/png");
+            const resp = await fetch(dataUrl);
+            resolve(await resp.blob());
+          }, "image/png");
+        });
+      }
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const resp = await fetch(dataUrl);
+      return resp.blob();
     }
 function showGlobalLoader() {
   const el = document.getElementById("globalLoader");
@@ -7179,81 +7314,15 @@ function hideReportLoading() {
         if (usingViewerButton) {
           setButtonLoading(viewerDownloadBtn, "Downloading...", true);
         }
-        const photoImgEl = new Image();
-        photoImgEl.crossOrigin = "anonymous";
+        const [photoImgEl, activeTemplate] = await Promise.all([
+          loadImage(photoUrl, "Error loading photo"),
+          fetchActiveDownloadTemplate().catch((err) => {
+            console.warn("Falling back to bundled download template:", err);
+            return null;
+          }),
+        ]);
 
-        const downloadTemplateImg = await preloadDownloadTemplate();
-
-        const photoPromise = new Promise((resolve, reject) => {
-          photoImgEl.onload = resolve;
-          photoImgEl.onerror = () => reject(new Error("Error loading photo"));
-        });
-
-        photoImgEl.src = photoUrl;
-
-        await Promise.all([photoPromise]);
-
-        // Set canvas to download template size (1080x1920)
-        downloadCanvas.width = DOWNLOAD_TEMPLATE_WIDTH;
-        downloadCanvas.height = DOWNLOAD_TEMPLATE_HEIGHT;
-        downloadCtx.clearRect(0, 0, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
-
-        const pw = photoImgEl.width;
-        const ph = photoImgEl.height;
-
-        if (!pw || !ph) {
-          await appAlert("Photo dimensions are invalid.", {
-            title: "Download Failed",
-            tone: "error",
-          });
-          return;
-        }
-
-        // Calculate how to fit the photo into 1000x666.666px area
-        const targetWidth = DOWNLOAD_PHOTO_WIDTH;
-        const targetHeight = DOWNLOAD_PHOTO_HEIGHT;
-        const photoAspect = pw / ph;
-        const targetAspect = targetWidth / targetHeight;
-
-        let sx, sy, sWidth, sHeight;
-
-        if (photoAspect > targetAspect) {
-          // Photo is wider - fit to height
-          sHeight = ph;
-          sWidth = sHeight * targetAspect;
-          sx = (pw - sWidth) / 2;
-          sy = 0;
-        } else {
-          // Photo is taller - fit to width
-          sWidth = pw;
-          sHeight = sWidth / targetAspect;
-          sx = 0;
-          sy = (ph - sHeight) / 2;
-        }
-
-        // Draw photo centered in the template (1000x666.666px area)
-        downloadCtx.drawImage(
-          photoImgEl,
-          sx,
-          sy,
-          sWidth,
-          sHeight,
-          DOWNLOAD_PHOTO_X,
-          DOWNLOAD_PHOTO_Y,
-          targetWidth,
-          targetHeight
-        );
-
-        // Draw template on top
-        if (downloadTemplateImg) {
-          downloadCtx.drawImage(
-            downloadTemplateImg,
-            0,
-            0,
-            DOWNLOAD_TEMPLATE_WIDTH,
-            DOWNLOAD_TEMPLATE_HEIGHT
-          );
-        }
+        await renderDownloadWithTemplate(photoImgEl, activeTemplate);
 
         function triggerDownloadFromBlob(blob) {
           const url = URL.createObjectURL(blob);
@@ -7266,23 +7335,8 @@ function hideReportLoading() {
           URL.revokeObjectURL(url);
         }
 
-        if (typeof downloadCanvas.toBlob === "function") {
-          downloadCanvas.toBlob(async (blob) => {
-            if (blob) {
-              triggerDownloadFromBlob(blob);
-            } else {
-              const dataUrl = downloadCanvas.toDataURL("image/png");
-              const resp = await fetch(dataUrl);
-              const fallbackBlob = await resp.blob();
-              triggerDownloadFromBlob(fallbackBlob);
-            }
-          }, "image/png");
-        } else {
-          const dataUrl = downloadCanvas.toDataURL("image/png");
-          const resp = await fetch(dataUrl);
-          const blob = await resp.blob();
-          triggerDownloadFromBlob(blob);
-        }
+        const blob = await canvasToPngBlob(downloadCanvas);
+        triggerDownloadFromBlob(blob);
       } catch (err) {
         console.error("Error generating download with template:", err);
         await appAlert("Could not create the download image. Please try again.", {
@@ -7566,6 +7620,33 @@ function hideReportLoading() {
       }
     });
 
+    async function downloadApprovedOriginal(fileId) {
+      if (!fileId) return;
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
+      const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
+        fileId
+      )}?token=${encodeURIComponent(adminToken || "")}`;
+
+      const response = await fetch(photoUrl);
+      if (!response.ok) {
+        throw new Error("Failed to fetch photo");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mayaguez_selfie_${fileId}_original.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     // Download original (clean photo)
     photoInfoDownloadOriginal.addEventListener("click", async () => {
       if (!currentPhotoInfo.fileId) return;
@@ -7576,24 +7657,7 @@ function hideReportLoading() {
 
       try {
         setButtonLoading(photoInfoDownloadOriginal, "Downloading...", true);
-        const photoUrl = `${BASE_URL}/admin/photo/${encodeURIComponent(
-          currentPhotoInfo.fileId
-        )}?token=${encodeURIComponent(adminToken || "")}`;
-
-        const response = await fetch(photoUrl);
-        if (!response.ok) {
-          throw new Error("Failed to fetch photo");
-        }
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `mayaguez_selfie_${currentPhotoInfo.fileId}_original.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        await downloadApprovedOriginal(currentPhotoInfo.fileId);
       } catch (err) {
         console.error("Error downloading original photo:", err);
         await appAlert("Could not download the photo. Please try again.", {
