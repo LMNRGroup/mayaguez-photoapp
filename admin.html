@@ -3640,6 +3640,16 @@
     background: linear-gradient(180deg, rgba(7, 12, 21, 0), rgba(7, 12, 21, 0.96) 82%);
     pointer-events: none;
     z-index: 2;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  #eventLogsOverlay .event-logs-modal-body.has-scroll-fade::after {
+    opacity: 1;
+  }
+
+  #eventLogsOverlay .event-logs-modal-body.at-bottom::after {
+    opacity: 0;
   }
 
   .event-log-list.expanded {
@@ -5420,6 +5430,7 @@ function hideGlobalLoader() {
       return {
         overlay: document.getElementById("eventLogsOverlay"),
         closeBtn: document.getElementById("eventLogsOverlayClose"),
+        body: document.querySelector("#eventLogsOverlay .event-logs-modal-body"),
         expandedList: document.getElementById("eventLogExpandedList"),
       };
     }
@@ -5475,7 +5486,7 @@ function hideGlobalLoader() {
     }
 
     async function fetchExpandedEventLogs() {
-      const { expandedList } = getEventLogsOverlayElements();
+      const { body, expandedList } = getEventLogsOverlayElements();
       if (!adminToken || !expandedList) return;
 
       try {
@@ -5490,6 +5501,9 @@ function hideGlobalLoader() {
         const data = await res.json();
         if (data && Array.isArray(data.events)) {
           renderEventLogsList(expandedList, data.events);
+          window.requestAnimationFrame(() => {
+            updateEventLogsScrollFade(body);
+          });
         }
       } catch (err) {
         console.error("Error fetching expanded event logs", err);
@@ -5497,20 +5511,41 @@ function hideGlobalLoader() {
     }
 
     async function openExpandedEventLogs() {
-      const { overlay } = getEventLogsOverlayElements();
+      const { body, overlay } = getEventLogsOverlayElements();
       if (!overlay) return;
       overlay.classList.add("visible");
       overlay.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
+      updateEventLogsScrollFade(body);
       await fetchExpandedEventLogs();
     }
 
+    document.addEventListener("scroll", (e) => {
+      const { body } = getEventLogsOverlayElements();
+      if (e.target === body) {
+        updateEventLogsScrollFade(body);
+      }
+    }, true);
+
     function closeExpandedEventLogs() {
-      const { overlay } = getEventLogsOverlayElements();
+      const { body, overlay } = getEventLogsOverlayElements();
       if (!overlay) return;
       overlay.classList.remove("visible");
       overlay.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
+      if (body) {
+        body.classList.remove("has-scroll-fade", "at-bottom");
+      }
+    }
+
+    function updateEventLogsScrollFade(container) {
+      if (!container) return;
+
+      const canScroll = container.scrollHeight - container.clientHeight > 10;
+      const reachedBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 6;
+
+      container.classList.toggle("has-scroll-fade", canScroll);
+      container.classList.toggle("at-bottom", !canScroll || reachedBottom);
     }
 
     function formatHourLabel(hour) {
