@@ -1500,12 +1500,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
-      inset 0 0 22px rgba(255, 255, 255, 0.08),
-      inset 0 0 72px rgba(0, 0, 0, 0.24),
-      inset 0 18px 34px rgba(0, 0, 0, 0.16),
-      inset 0 -18px 34px rgba(0, 0, 0, 0.18);
   }
 
   .template-preview-photo-fill {
@@ -5169,40 +5163,6 @@ View report to see the most recent interactions
       );
     }
 
-    function drawPhotoInsetShadow(ctx, stageWidth, stageHeight) {
-      const photoX = (stageWidth - DOWNLOAD_PHOTO_WIDTH) / 2;
-      const photoY = (stageHeight - DOWNLOAD_PHOTO_HEIGHT) / 2;
-      const edgeSize = 54;
-
-      const topGradient = ctx.createLinearGradient(0, photoY, 0, photoY + edgeSize);
-      topGradient.addColorStop(0, "rgba(0, 0, 0, 0.22)");
-      topGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = topGradient;
-      ctx.fillRect(photoX, photoY, DOWNLOAD_PHOTO_WIDTH, edgeSize);
-
-      const bottomGradient = ctx.createLinearGradient(0, photoY + DOWNLOAD_PHOTO_HEIGHT, 0, photoY + DOWNLOAD_PHOTO_HEIGHT - edgeSize);
-      bottomGradient.addColorStop(0, "rgba(0, 0, 0, 0.24)");
-      bottomGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = bottomGradient;
-      ctx.fillRect(photoX, photoY + DOWNLOAD_PHOTO_HEIGHT - edgeSize, DOWNLOAD_PHOTO_WIDTH, edgeSize);
-
-      const leftGradient = ctx.createLinearGradient(photoX, 0, photoX + edgeSize, 0);
-      leftGradient.addColorStop(0, "rgba(0, 0, 0, 0.18)");
-      leftGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = leftGradient;
-      ctx.fillRect(photoX, photoY, edgeSize, DOWNLOAD_PHOTO_HEIGHT);
-
-      const rightGradient = ctx.createLinearGradient(photoX + DOWNLOAD_PHOTO_WIDTH, 0, photoX + DOWNLOAD_PHOTO_WIDTH - edgeSize, 0);
-      rightGradient.addColorStop(0, "rgba(0, 0, 0, 0.18)");
-      rightGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = rightGradient;
-      ctx.fillRect(photoX + DOWNLOAD_PHOTO_WIDTH - edgeSize, photoY, edgeSize, DOWNLOAD_PHOTO_HEIGHT);
-
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(photoX + 1, photoY + 1, DOWNLOAD_PHOTO_WIDTH - 2, DOWNLOAD_PHOTO_HEIGHT - 2);
-    }
-
     async function renderDownloadWithTemplate(photoImgEl, template) {
       downloadCanvas.width = DOWNLOAD_TEMPLATE_WIDTH;
       downloadCanvas.height = DOWNLOAD_TEMPLATE_HEIGHT;
@@ -5214,7 +5174,6 @@ View report to see the most recent interactions
 
       if (!template) {
         drawPhotoIntoTemplate(downloadCtx, photoImgEl, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
-        drawPhotoInsetShadow(downloadCtx, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
         const fallbackTemplateImg = await preloadDownloadFallbackTemplate();
         downloadCtx.drawImage(
           fallbackTemplateImg,
@@ -5236,7 +5195,6 @@ View report to see the most recent interactions
       }
 
       drawPhotoIntoTemplate(downloadCtx, photoImgEl, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
-      drawPhotoInsetShadow(downloadCtx, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
 
       const baseWidth = Number(template.canvasWidth) || DOWNLOAD_TEMPLATE_WIDTH;
       const baseHeight = Number(template.canvasHeight) || DOWNLOAD_TEMPLATE_HEIGHT;
