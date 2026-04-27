@@ -181,8 +181,10 @@
 
     const DISPLAY_MS = 8000;
     const REFRESH_MS = 10000;
-    const REQUEST_TIMEOUT_MS = 8000;
-    const IMAGE_LOAD_TIMEOUT_MS = 10000;
+    /** Template changes are rare; polling less often reduces load and timeout risk on low-memory clients. */
+    const TEMPLATE_REFRESH_MS = 45000;
+    const REQUEST_TIMEOUT_MS = 12000;
+    const IMAGE_LOAD_TIMEOUT_MS = 15000;
     const imgA = document.getElementById("photoA");
     const imgB = document.getElementById("photoB");
     const emptyEl = document.getElementById("galleryEmpty");
@@ -192,6 +194,8 @@
 
     const imgSlots = [imgA, imgB];
     const slotObjectUrls = [null, null];
+    /** Which photo id is currently decoded in each slot (blob URLs cannot be compared to HTTP URLs). */
+    const slotPhotoIds = [null, null];
     let activeIndex = 0;
     let hasImage = false;
 
@@ -199,6 +203,7 @@
     let currentIndex = 0;
     let rotateTimer = null;
     let refreshTimer = null;
+    let templateRefreshTimer = null;
     let activeTemplateKey = "";
     const sortOrder = "oldest";
     let activeTemplateRequestId = 0;
@@ -247,7 +252,7 @@
       if (templateLogosEl) {
         templateLogosEl.innerHTML = "";
       }
-      activeTemplateKey = "emergency-fallback";
+      activeTemplateKey = "";
     }
 
     function buildTemplateKey(template) {
@@ -320,7 +325,6 @@
         });
         if (!res.ok) {
           console.error("Error fetching active template", res.status);
-          clearTemplateLayers();
           return;
         }
 
@@ -330,14 +334,12 @@
         }
         if (!data.ok) {
           console.error("Active template API returned not ok", data);
-          clearTemplateLayers();
           return;
         }
 
         renderTemplate(data.template || null);
       } catch (err) {
         console.error("Failed to fetch active template", err);
-        clearTemplateLayers();
       }
     }
 
@@ -391,6 +393,7 @@
         img.onload = null;
         img.onerror = null;
         img.removeAttribute("src");
+        slotPhotoIds[index] = null;
         if (slotObjectUrls[index]) {
           URL.revokeObjectURL(slotObjectUrls[index]);
           slotObjectUrls[index] = null;
@@ -402,7 +405,7 @@
       currentPhotoId = "";
     }
 
-    async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS) {
+    async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "") {
       const img = imgSlots[slotIndex];
       if (!img) {
         throw new Error("missing_image_slot");
@@ -439,6 +442,7 @@
             URL.revokeObjectURL(slotObjectUrls[slotIndex]);
           }
           slotObjectUrls[slotIndex] = objectUrl;
+          slotPhotoIds[slotIndex] = photoId ? String(photoId) : "";
           resolve(objectUrl);
         }
 
@@ -466,14 +470,13 @@
     }
 
     async function crossfadeTo(url, photoId = "") {
-      const normalizedTargetUrl = url ? new URL(url, window.location.href).href : "";
       const transitionToken = ++photoTransitionToken;
 
       if (!hasImage) {
         const img = imgSlots[activeIndex];
         try {
           img.classList.remove("visible");
-          await loadImageIntoSlot(activeIndex, url);
+          await loadImageIntoSlot(activeIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId);
           if (transitionToken !== photoTransitionToken) return;
 
           requestAnimationFrame(() => {
@@ -485,16 +488,15 @@
           });
         } catch (err) {
           console.error("Error loading first photo", err);
-          setGalleryStatus("Loading...");
         }
         return;
       }
 
       const currentImg = imgSlots[activeIndex];
-      const currentVisibleUrl = currentImg.currentSrc || currentImg.src || "";
-      if (normalizedTargetUrl && currentVisibleUrl === normalizedTargetUrl) {
+      const targetId = photoId ? String(photoId) : "";
+      if (targetId && slotPhotoIds[activeIndex] === targetId) {
         setGalleryStatus("");
-        currentPhotoId = photoId ? String(photoId) : currentPhotoId;
+        currentPhotoId = targetId;
         hasImage = true;
         return;
       }
@@ -502,9 +504,24 @@
       const nextIndex = 1 - activeIndex;
       const nextImg = imgSlots[nextIndex];
 
+      if (targetId && slotPhotoIds[nextIndex] === targetId && nextImg.getAttribute("src")) {
+        if (transitionToken !== photoTransitionToken) return;
+        requestAnimationFrame(() => {
+          if (transitionToken !== photoTransitionToken) return;
+          void nextImg.offsetWidth;
+          nextImg.classList.add("visible");
+          currentImg.classList.remove("visible");
+          activeIndex = nextIndex;
+          setGalleryStatus("");
+          hasImage = true;
+          currentPhotoId = targetId;
+        });
+        return;
+      }
+
       try {
         nextImg.classList.remove("visible");
-        await loadImageIntoSlot(nextIndex, url);
+        await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId);
         if (transitionToken !== photoTransitionToken) return;
 
         requestAnimationFrame(() => {
@@ -557,10 +574,6 @@
 
     async function fetchApproved() {
       try {
-        fetchActiveTemplate().catch((err) => {
-          console.error("Background template refresh failed", err);
-        });
-
         const res = await fetchWithTimeout(`${BASE_URL}/gallery/approved`);
         if (!res.ok) {
           console.error("Error fetching approved list", res.status);
@@ -606,6 +619,12 @@
       refreshTimer = setInterval(fetchApproved, REFRESH_MS);
     }
 
+    function startTemplateRefreshLoop() {
+      if (templateRefreshTimer) clearInterval(templateRefreshTimer);
+      fetchActiveTemplate();
+      templateRefreshTimer = setInterval(fetchActiveTemplate, TEMPLATE_REFRESH_MS);
+    }
+
     function sortPhotosList(list) {
       if (!Array.isArray(list) || !list.length) return list;
 
@@ -628,6 +647,7 @@
 
     clearTemplateLayers();
     setGalleryStatus("Loading...");
+    startTemplateRefreshLoop();
     startRefreshLoop();
     fetchApproved();
   </script>

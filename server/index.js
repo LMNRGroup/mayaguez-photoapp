@@ -3889,8 +3889,10 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
 
 app.get('/gallery/active-template', async (req, res) => {
   try {
-    // Force a fresh settings read so gallery instances do not serve a stale live template.
-    await hydrateSettingsFromSheet({ force: true });
+    // Use the same hydration throttling as other gallery routes. Forcing a sheet read on every
+    // poll overloads Google Sheets and increases latency — a common cause of client timeouts on
+    // low-memory / kiosk browsers while still refreshing within SETTINGS_REFRESH_TTL_MS.
+    await hydrateSettingsFromSheet();
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
