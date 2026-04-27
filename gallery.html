@@ -42,23 +42,28 @@
 
     /* 16:9 stage, scales but keeps AR, max 1920x1080 */
     .stage {
+      --stage-width: 1920;
+      --stage-height: 1080;
+      --stage-ratio: 1.7777777778;
+      --photo-top: 3.7037%;
+      --photo-left: 10.9375%;
+      --photo-width: 78.125%;
+      --photo-height: 92.5926%;
       position: relative;
-      width: 100vw;
-      max-width: 1920px;
-      aspect-ratio: 16 / 9;
-      max-height: 1080px;
+      width: min(100vw, calc(100vh * var(--stage-ratio)));
+      max-width: calc(var(--stage-width) * 1px);
+      aspect-ratio: var(--stage-width) / var(--stage-height);
+      max-height: calc(var(--stage-height) * 1px);
       background: #000000;
       overflow: hidden;
     }
 
-    /* Photo window = 1500x1000 centered within 1920x1080 stage */
     .photo-window {
       position: absolute;
-      /* Center 1500x1000 in 1920x1080: (1920-1500)/2 = 210px left, (1080-1000)/2 = 40px top */
-      top: 3.7037%;  /* 40/1080 */
-      left: 10.9375%; /* 210/1920 */
-      width: 78.125%;  /* 1500/1920 */
-      height: 92.5926%; /* 1000/1080 */
+      top: var(--photo-top);
+      left: var(--photo-left);
+      width: var(--photo-width);
+      height: var(--photo-height);
       overflow: hidden;
       z-index: 2;
       display: flex;
@@ -205,6 +210,7 @@
     const templateBackgroundEl = document.getElementById("templateBackground");
     const templateLogosEl = document.getElementById("templateLogos");
     const fallbackFrameImageEl = document.getElementById("fallbackFrameImage");
+    const stageEl = document.querySelector(".stage");
 
     const imgSlots = [imgA, imgB];
     let activeIndex = 0;
@@ -232,6 +238,7 @@
     }
 
     function clearTemplateLayers() {
+      applyTemplateLayout();
       if (templateBackgroundEl) {
         templateBackgroundEl.src = EMERGENCY_BACKGROUND_URL;
         templateBackgroundEl.style.display = "block";
@@ -249,6 +256,9 @@
       if (!template) return "";
       return JSON.stringify({
         id: template.id || "",
+        outputWidth: template.outputWidth || 1920,
+        outputHeight: template.outputHeight || 1080,
+        photoArea: template.photoArea || null,
         background: template.background ? template.background.url || template.background.value || "" : "",
         logos: Array.isArray(template.logos)
           ? template.logos.map((logo) => [
@@ -260,6 +270,24 @@
             ])
           : [],
       });
+    }
+
+    function applyTemplateLayout(template = null) {
+      const outputWidth = Number(template?.outputWidth) || 1920;
+      const outputHeight = Number(template?.outputHeight) || 1080;
+      const fallbackPhotoArea = outputWidth === 768 && outputHeight === 768
+        ? { x: 84, y: 84, width: 600, height: 600 }
+        : { x: 210, y: 40, width: 1500, height: 1000 };
+      const photoArea = template?.photoArea || fallbackPhotoArea;
+
+      if (!stageEl) return;
+      stageEl.style.setProperty("--stage-width", String(outputWidth));
+      stageEl.style.setProperty("--stage-height", String(outputHeight));
+      stageEl.style.setProperty("--stage-ratio", String(outputWidth / outputHeight));
+      stageEl.style.setProperty("--photo-top", `${(Number(photoArea.y) / outputHeight) * 100}%`);
+      stageEl.style.setProperty("--photo-left", `${(Number(photoArea.x) / outputWidth) * 100}%`);
+      stageEl.style.setProperty("--photo-width", `${(Number(photoArea.width) / outputWidth) * 100}%`);
+      stageEl.style.setProperty("--photo-height", `${(Number(photoArea.height) / outputHeight) * 100}%`);
     }
 
     function renderTemplate(template) {
@@ -274,6 +302,7 @@
       }
 
       activeTemplateKey = templateKey;
+      applyTemplateLayout(template);
 
       if (fallbackFrameImageEl) {
         fallbackFrameImageEl.style.display = "none";

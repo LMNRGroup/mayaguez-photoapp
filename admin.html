@@ -1054,6 +1054,12 @@
     border-radius: calc(var(--radius) - 2px);
     overflow: hidden;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    margin: 0 auto;
+  }
+
+  .template-canvas.is-square {
+    max-width: 768px;
+    aspect-ratio: 1 / 1;
   }
 
   .template-guide-line {
@@ -1130,11 +1136,10 @@
 
   .template-photo-area {
     position: absolute;
-    /* Center 1500x1000 in 1920x1080 */
-    top: 3.7037%;
-    left: 10.9375%;
-    width: 78.125%;
-    height: 92.5926%;
+    top: var(--template-photo-top, 3.7037%);
+    left: var(--template-photo-left, 10.9375%);
+    width: var(--template-photo-width, 78.125%);
+    height: var(--template-photo-height, 92.5926%);
     border: 2px dashed rgba(255, 255, 255, 0.3);
     background: rgba(0, 0, 0, 0.1);
     z-index: 2;
@@ -1491,10 +1496,10 @@
 
   .template-preview-photo-window {
     position: absolute;
-    top: 3.7037%;
-    left: 10.9375%;
-    width: 78.125%;
-    height: 92.5926%;
+    top: var(--template-photo-top, 3.7037%);
+    left: var(--template-photo-left, 10.9375%);
+    width: var(--template-photo-width, 78.125%);
+    height: var(--template-photo-height, 92.5926%);
     overflow: hidden;
     z-index: 2;
     display: flex;
@@ -5156,7 +5161,7 @@ View report to see the most recent interactions
                   <div id="templateGuideHorizontal" class="template-guide-line template-guide-line-horizontal"></div>
                   <div class="template-photo-area">
                     <div class="template-photo-grid"></div>
-                    <div class="template-photo-label">PHOTO AREA (1500×1000)</div>
+                    <div id="templatePhotoLabel" class="template-photo-label">PHOTO AREA (1500×1000)</div>
                   </div>
                   <div id="templateLogosContainer" class="template-logos-container"></div>
                   <div id="templateAddAssetMenu" class="template-add-asset-menu">
@@ -9201,6 +9206,7 @@ function hideReportLoading() {
     const templateDeleteBtn = document.getElementById("templateDeleteBtn");
     const templateCanvas = document.getElementById("templateCanvas");
     const templateLogosContainer = document.getElementById("templateLogosContainer");
+    const templatePhotoLabel = document.getElementById("templatePhotoLabel");
 
     let selectedLogo = null;
     let currentTemplateId = null; // Track if we're editing an existing template
@@ -9212,6 +9218,7 @@ function hideReportLoading() {
     let autoAlignEnabled = true;
     let isDragging = false;
     let isResizing = false;
+    let currentTemplateLayoutKey = "landscape";
     let dragStartX = 0;
     let dragStartY = 0;
     let logoStartX = 0;
@@ -9221,11 +9228,65 @@ function hideReportLoading() {
     let resizeHandle = null;
     let pointerMoveRaf = 0;
     let pendingPointerMove = null;
-    const TEMPLATE_STAGE_WIDTH = 1920;
-    const TEMPLATE_STAGE_HEIGHT = 1080;
-    const TEMPLATE_PHOTO_WIDTH = 1500;
-    const TEMPLATE_PHOTO_HEIGHT = 1000;
     const TEMPLATE_CENTER_SNAP_THRESHOLD = 14;
+    const TEMPLATE_LAYOUTS = {
+      landscape: {
+        key: "landscape",
+        label: "1920 × 1080",
+        canvasWidth: 1920,
+        canvasHeight: 1080,
+        photoWidth: 1500,
+        photoHeight: 1000,
+      },
+      square: {
+        key: "square",
+        label: "768 × 768",
+        canvasWidth: 768,
+        canvasHeight: 768,
+        photoWidth: 600,
+        photoHeight: 600,
+      },
+    };
+
+    function getTemplateLayoutByKey(layoutKey = "landscape") {
+      return TEMPLATE_LAYOUTS[layoutKey] || TEMPLATE_LAYOUTS.landscape;
+    }
+
+    function resolveTemplateLayoutFromData(templateData = {}) {
+      const outputWidth = Number(templateData.outputWidth);
+      const outputHeight = Number(templateData.outputHeight);
+      if (outputWidth === TEMPLATE_LAYOUTS.square.canvasWidth && outputHeight === TEMPLATE_LAYOUTS.square.canvasHeight) {
+        return TEMPLATE_LAYOUTS.square;
+      }
+      return TEMPLATE_LAYOUTS.landscape;
+    }
+
+    function buildTemplatePhotoArea(layout = getTemplateLayoutByKey(currentTemplateLayoutKey)) {
+      return {
+        x: Math.round((layout.canvasWidth - layout.photoWidth) / 2),
+        y: Math.round((layout.canvasHeight - layout.photoHeight) / 2),
+        width: layout.photoWidth,
+        height: layout.photoHeight,
+      };
+    }
+
+    function applyTemplateLayout(layoutKey = "landscape") {
+      const layout = getTemplateLayoutByKey(layoutKey);
+      const photoArea = buildTemplatePhotoArea(layout);
+      currentTemplateLayoutKey = layout.key;
+
+      if (templateCanvas) {
+        templateCanvas.classList.toggle("is-square", layout.key === "square");
+        templateCanvas.style.setProperty("--template-photo-top", `${(photoArea.y / layout.canvasHeight) * 100}%`);
+        templateCanvas.style.setProperty("--template-photo-left", `${(photoArea.x / layout.canvasWidth) * 100}%`);
+        templateCanvas.style.setProperty("--template-photo-width", `${(photoArea.width / layout.canvasWidth) * 100}%`);
+        templateCanvas.style.setProperty("--template-photo-height", `${(photoArea.height / layout.canvasHeight) * 100}%`);
+      }
+
+      if (templatePhotoLabel) {
+        templatePhotoLabel.textContent = `PHOTO AREA (${layout.photoWidth}×${layout.photoHeight})`;
+      }
+    }
 
     // Available logo assets
     const DEFAULT_BACKGROUND_ASSET = {
@@ -9423,7 +9484,7 @@ function hideReportLoading() {
           <span class="template-library-item-meta">Start a blank template from scratch.</span>
         `;
         createButton.addEventListener("click", () => {
-          beginCreateTemplate();
+          showTemplateSizeOverlay();
         });
         templateList.appendChild(createButton);
         if (!templates.length) {
@@ -9494,9 +9555,71 @@ function hideReportLoading() {
       updateTemplateUiState();
     }
 
+    function showTemplateSizeOverlay() {
+      const overlay = document.createElement("div");
+      overlay.className = "template-name-overlay";
+
+      const panel = document.createElement("div");
+      panel.className = "template-name-panel";
+
+      const title = document.createElement("div");
+      title.className = "template-name-title";
+      title.textContent = "Choose template size";
+
+      const copy = document.createElement("div");
+      copy.style.cssText = "margin-top: 0.75rem; color: var(--muted-foreground); font-size: 0.95rem; line-height: 1.5;";
+      copy.textContent = "Pick the screen format before you start building. The gallery will match this size when the template goes live.";
+
+      const actions = document.createElement("div");
+      actions.style.cssText = "display: grid; gap: 0.75rem; margin-top: 1.5rem;";
+
+      Object.values(TEMPLATE_LAYOUTS).forEach((layout) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn-ghost";
+        btn.style.cssText = "width: 100%; text-align: left; padding: 1rem; justify-content: flex-start;";
+        btn.innerHTML = `
+          <span style="display:flex; flex-direction:column; gap:0.25rem; align-items:flex-start;">
+            <span style="font-weight:600; color:var(--foreground);">${layout.label}</span>
+            <span style="font-size:0.875rem; color:var(--muted-foreground);">Photo area ${layout.photoWidth} × ${layout.photoHeight}, centered</span>
+          </span>
+        `;
+        btn.addEventListener("click", () => {
+          document.body.removeChild(overlay);
+          resetTemplateEditor(layout.key);
+          currentTemplateDirty = false;
+          isCreatingNewTemplate = true;
+          hideTemplateEntryOverlay();
+          updateTemplateUiState();
+        });
+        actions.appendChild(btn);
+      });
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "btn-ghost";
+      cancelBtn.textContent = "CANCEL";
+      cancelBtn.style.cssText = "margin-top: 1rem;";
+      cancelBtn.addEventListener("click", () => {
+        document.body.removeChild(overlay);
+      });
+
+      panel.appendChild(title);
+      panel.appendChild(copy);
+      panel.appendChild(actions);
+      panel.appendChild(cancelBtn);
+      overlay.appendChild(panel);
+      document.body.appendChild(overlay);
+
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay);
+        }
+      });
+    }
+
     if (templateCreateBtn) {
       templateCreateBtn.addEventListener("click", () => {
-        beginCreateTemplate();
+        showTemplateSizeOverlay();
       });
     }
 
@@ -9510,7 +9633,7 @@ function hideReportLoading() {
 
     if (templateEntryCreateBtn) {
       templateEntryCreateBtn.addEventListener("click", () => {
-        beginCreateTemplate();
+        showTemplateSizeOverlay();
       });
     }
 
@@ -9551,7 +9674,7 @@ function hideReportLoading() {
     }
 
     // Reset template editor to default state
-    function resetTemplateEditor() {
+    function resetTemplateEditor(layoutKey = currentTemplateLayoutKey || "landscape") {
       // Clear all logos
       if (templateLogosContainer) {
         templateLogosContainer.innerHTML = "";
@@ -9568,6 +9691,7 @@ function hideReportLoading() {
       }
 
       closeTemplateAddAssetMenu();
+      applyTemplateLayout(layoutKey);
       updateTemplateUiState();
     }
 
@@ -9609,7 +9733,8 @@ function hideReportLoading() {
         const templateData = template.data;
 
         // Reset editor first
-        resetTemplateEditor();
+        const templateLayout = resolveTemplateLayoutFromData(templateData);
+        resetTemplateEditor(templateLayout.key);
 
         // Set current template ID for editing
         currentTemplateId = templateId;
@@ -9770,6 +9895,7 @@ function hideReportLoading() {
     // Background Overlay
     async function showBackgroundOverlay() {
       await loadBackgroundAssets();
+      const layout = getTemplateLayoutByKey(currentTemplateLayoutKey);
       const overlay = document.createElement("div");
       overlay.className = "template-name-overlay";
       overlay.style.zIndex = "2000";
@@ -9787,7 +9913,7 @@ function hideReportLoading() {
 
       const requirements = document.createElement("div");
       requirements.style.cssText = "padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); background: var(--secondary); color: var(--muted-foreground); font-size: 0.875rem; line-height: 1.5;";
-      requirements.innerHTML = `Background requirements: upload a horizontal PNG or JPEG that is exactly ${TEMPLATE_STAGE_WIDTH} x ${TEMPLATE_STAGE_HEIGHT}. The user photo always sits in the centered ${TEMPLATE_PHOTO_WIDTH} x ${TEMPLATE_PHOTO_HEIGHT} photo layer above the background and below any logos.`;
+      requirements.innerHTML = `Background requirements: upload a PNG or JPEG that is exactly ${layout.canvasWidth} x ${layout.canvasHeight}. The user photo always sits in the centered ${layout.photoWidth} x ${layout.photoHeight} photo layer above the background and below any logos.`;
       content.appendChild(requirements);
 
       // Preloaded backgrounds
@@ -10095,12 +10221,13 @@ function hideReportLoading() {
     }
 
     async function validateTemplateBackgroundFile(file) {
+      const layout = getTemplateLayoutByKey(currentTemplateLayoutKey);
       await validateTemplateRasterAsset(file, {
         label: "Background",
         allowedTypes: ["image/png", "image/jpeg"],
         maxBytes: 12 * 1024 * 1024,
-        exactWidth: TEMPLATE_STAGE_WIDTH,
-        exactHeight: TEMPLATE_STAGE_HEIGHT,
+        exactWidth: layout.canvasWidth,
+        exactHeight: layout.canvasHeight,
       });
     }
 
@@ -10588,6 +10715,7 @@ function hideReportLoading() {
       }
     });
 
+    applyTemplateLayout("landscape");
     updateTemplateUiState();
 
     if (templateSaveBtn) {
@@ -10667,6 +10795,8 @@ function hideReportLoading() {
     }
 
     function collectTemplateData() {
+      const layout = getTemplateLayoutByKey(currentTemplateLayoutKey);
+      const photoArea = buildTemplatePhotoArea(layout);
       const backgroundType = templateBackgroundImg?.dataset.backgroundType || "";
       const backgroundValue = templateBackgroundImg?.dataset.backgroundValue || "";
       let background = null;
@@ -10695,6 +10825,9 @@ function hideReportLoading() {
       return {
         canvasWidth: templateCanvas ? templateCanvas.offsetWidth : 0,
         canvasHeight: templateCanvas ? templateCanvas.offsetHeight : 0,
+        outputWidth: layout.canvasWidth,
+        outputHeight: layout.canvasHeight,
+        photoArea,
         background,
         logos
       };
@@ -11008,11 +11141,15 @@ function hideReportLoading() {
 
 
     function showTemplatePreview(templateName, onClose) {
+      const layout = getTemplateLayoutByKey(currentTemplateLayoutKey);
+      const photoArea = buildTemplatePhotoArea(layout);
       const overlay = document.createElement("div");
       overlay.className = "template-preview-overlay";
 
       const container = document.createElement("div");
       container.className = "template-preview-container";
+      container.style.aspectRatio = `${layout.canvasWidth} / ${layout.canvasHeight}`;
+      container.style.width = layout.key === "square" ? "min(92vw, 900px)" : "min(92vw, 1700px)";
 
       const closeBtn = document.createElement("button");
       closeBtn.className = "template-preview-close";
@@ -11036,6 +11173,10 @@ function hideReportLoading() {
       const stage = document.createElement("div");
       stage.className = "template-preview-stage";
       stage.classList.add("is-loading");
+      stage.style.setProperty("--template-photo-top", `${(photoArea.y / layout.canvasHeight) * 100}%`);
+      stage.style.setProperty("--template-photo-left", `${(photoArea.x / layout.canvasWidth) * 100}%`);
+      stage.style.setProperty("--template-photo-width", `${(photoArea.width / layout.canvasWidth) * 100}%`);
+      stage.style.setProperty("--template-photo-height", `${(photoArea.height / layout.canvasHeight) * 100}%`);
 
       const bgImg = document.createElement("img");
       bgImg.className = "template-preview-bg";
