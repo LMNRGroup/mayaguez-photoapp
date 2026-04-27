@@ -91,17 +91,6 @@
       opacity: 1;
     }
 
-    /* Christmas frame PNG on top */
-    .frame-image {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: fill;
-      z-index: 10;
-      pointer-events: none;
-    }
-
     .template-logos-layer {
       position: absolute;
       inset: 0;
@@ -121,7 +110,7 @@
       display: block;
     }
 
-    /* Waiting text */
+    /* Gallery status text */
     .empty {
       position: absolute;
       inset: 0;
@@ -130,9 +119,13 @@
       justify-content: center;
       text-align: center;
       padding: 24px;
-      font-size: 20px;
-      color: #9ca3af;
-      z-index: 3;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #d1d5db;
+      z-index: 12;
+      background: rgba(0, 0, 0, 0.72);
     }
 
     .empty.hidden {
@@ -174,18 +167,10 @@
   <div id="ticketBadge" class="ticket-badge">#000</div>
 </div>
 
-<!-- Empty state -->
+<!-- Gallery status -->
 <div id="galleryEmpty" class="empty">
-  Esperando las primeras fotos aprobadas…
+  Loading...
 </div>
-
-      <!-- FRONT FRAME (transparent PNG) - 1920x1080 template on top -->
-      <img
-        id="fallbackFrameImage"
-        class="frame-image"
-        src="Assets/Templates/MayaguezColorBG.jpg"
-        alt="Gallery Layout Template"
-      />
 
       <div id="templateLogos" class="template-logos-layer"></div>
     </div>
@@ -196,15 +181,12 @@
 
     const DISPLAY_MS = 8000;
     const REFRESH_MS = 10000;
-    const EMERGENCY_BACKGROUND_URL = "Assets/Templates/MayaguezColorBG.jpg";
-
     const imgA = document.getElementById("photoA");
     const imgB = document.getElementById("photoB");
     const emptyEl = document.getElementById("galleryEmpty");
     const ticketBadgeEl = document.getElementById("ticketBadge");
     const templateBackgroundEl = document.getElementById("templateBackground");
     const templateLogosEl = document.getElementById("templateLogos");
-    const fallbackFrameImageEl = document.getElementById("fallbackFrameImage");
 
     const imgSlots = [imgA, imgB];
     let activeIndex = 0;
@@ -231,16 +213,19 @@
       return url;
     }
 
+    function setGalleryStatus(message = "") {
+      if (!emptyEl) return;
+      emptyEl.textContent = message;
+      emptyEl.classList.toggle("hidden", !message);
+    }
+
     function clearTemplateLayers() {
       if (templateBackgroundEl) {
-        templateBackgroundEl.src = EMERGENCY_BACKGROUND_URL;
-        templateBackgroundEl.style.display = "block";
+        templateBackgroundEl.removeAttribute("src");
+        templateBackgroundEl.style.display = "none";
       }
       if (templateLogosEl) {
         templateLogosEl.innerHTML = "";
-      }
-      if (fallbackFrameImageEl) {
-        fallbackFrameImageEl.style.display = "none";
       }
       activeTemplateKey = "emergency-fallback";
     }
@@ -275,17 +260,13 @@
 
       activeTemplateKey = templateKey;
 
-      if (fallbackFrameImageEl) {
-        fallbackFrameImageEl.style.display = "none";
-      }
-
       if (templateBackgroundEl) {
         if (template.background && template.background.url) {
           templateBackgroundEl.src = normalizeAssetUrl(template.background.url);
           templateBackgroundEl.style.display = "block";
         } else {
-          templateBackgroundEl.src = EMERGENCY_BACKGROUND_URL;
-          templateBackgroundEl.style.display = "block";
+          templateBackgroundEl.removeAttribute("src");
+          templateBackgroundEl.style.display = "none";
         }
       }
 
@@ -319,6 +300,7 @@
         });
         if (!res.ok) {
           console.error("Error fetching active template", res.status);
+          clearTemplateLayers();
           return;
         }
 
@@ -328,12 +310,14 @@
         }
         if (!data.ok) {
           console.error("Active template API returned not ok", data);
+          clearTemplateLayers();
           return;
         }
 
         renderTemplate(data.template || null);
       } catch (err) {
         console.error("Failed to fetch active template", err);
+        clearTemplateLayers();
       }
     }
 
@@ -388,7 +372,7 @@
         img.onerror = null;
         img.removeAttribute("src");
       });
-      emptyEl.classList.remove("hidden");
+      setGalleryStatus("Esperando las primeras fotos aprobadas…");
       hideTicketBadge();
       hasImage = false;
       currentPhotoId = "";
@@ -428,7 +412,7 @@
 
           requestAnimationFrame(() => {
             if (transitionToken !== photoTransitionToken) return;
-            emptyEl.classList.add("hidden");
+            setGalleryStatus("");
             img.classList.add("visible");
             hasImage = true;
             currentPhotoId = photoId ? String(photoId) : "";
@@ -442,7 +426,7 @@
       const currentImg = imgSlots[activeIndex];
       const currentVisibleUrl = currentImg.currentSrc || currentImg.src || "";
       if (normalizedTargetUrl && currentVisibleUrl === normalizedTargetUrl) {
-        emptyEl.classList.add("hidden");
+        setGalleryStatus("");
         currentPhotoId = photoId ? String(photoId) : currentPhotoId;
         hasImage = true;
         return;
@@ -466,7 +450,7 @@
           nextImg.classList.add("visible");
           currentImg.classList.remove("visible");
           activeIndex = nextIndex;
-          emptyEl.classList.add("hidden");
+          setGalleryStatus("");
           hasImage = true;
           currentPhotoId = photoId ? String(photoId) : "";
         });
@@ -509,7 +493,9 @@
 
     async function fetchApproved() {
       try {
-        await fetchActiveTemplate();
+        fetchActiveTemplate().catch((err) => {
+          console.error("Background template refresh failed", err);
+        });
 
         const res = await fetch(`${BASE_URL}/gallery/approved`);
         if (!res.ok) {
@@ -576,6 +562,8 @@
       return list;
     }
 
+    clearTemplateLayers();
+    setGalleryStatus("Loading...");
     fetchApproved().then(startRefreshLoop);
   </script>
 </body>
