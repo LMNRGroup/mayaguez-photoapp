@@ -778,20 +778,6 @@ function resolveTemplateAsset(asset) {
 function serializeTemplateForPublic(template) {
   if (!template || !template.data) return null;
 
-  const outputWidth = Number.isFinite(Number(template.data.outputWidth)) ? Number(template.data.outputWidth) : 1920;
-  const outputHeight = Number.isFinite(Number(template.data.outputHeight)) ? Number(template.data.outputHeight) : 1080;
-  const defaultPhotoArea = outputWidth === 768 && outputHeight === 768
-    ? { x: 84, y: 84, width: 600, height: 600 }
-    : { x: 210, y: 40, width: 1500, height: 1000 };
-  const photoArea = template.data.photoArea && typeof template.data.photoArea === 'object'
-    ? {
-        x: Number.isFinite(Number(template.data.photoArea.x)) ? Number(template.data.photoArea.x) : defaultPhotoArea.x,
-        y: Number.isFinite(Number(template.data.photoArea.y)) ? Number(template.data.photoArea.y) : defaultPhotoArea.y,
-        width: Number.isFinite(Number(template.data.photoArea.width)) ? Number(template.data.photoArea.width) : defaultPhotoArea.width,
-        height: Number.isFinite(Number(template.data.photoArea.height)) ? Number(template.data.photoArea.height) : defaultPhotoArea.height,
-      }
-    : defaultPhotoArea;
-
   const background = resolveTemplateAsset(template.data.background);
   const logos = Array.isArray(template.data.logos)
     ? template.data.logos
@@ -818,9 +804,6 @@ function serializeTemplateForPublic(template) {
     createdAt: template.createdAt || '',
     canvasWidth: Number.isFinite(Number(template.data.canvasWidth)) ? Number(template.data.canvasWidth) : 1920,
     canvasHeight: Number.isFinite(Number(template.data.canvasHeight)) ? Number(template.data.canvasHeight) : 1080,
-    outputWidth,
-    outputHeight,
-    photoArea,
     background,
     logos
   };
