@@ -185,6 +185,7 @@
     const TEMPLATE_REFRESH_MS = 45000;
     const REQUEST_TIMEOUT_MS = 12000;
     const IMAGE_LOAD_TIMEOUT_MS = 15000;
+    const TEMPLATE_RENDERING_ENABLED = false;
     const imgA = document.getElementById("photoA");
     const imgB = document.getElementById("photoB");
     const emptyEl = document.getElementById("galleryEmpty");
@@ -261,7 +262,27 @@
       );
     }
 
+    function disableTemplateLayerForLiveMode() {
+      if (templateBackgroundEl) {
+        templateBackgroundEl.removeAttribute("src");
+        templateBackgroundEl.style.display = "none";
+        templateBackgroundEl.style.pointerEvents = "none";
+      }
+      if (templateLogosEl) {
+        templateLogosEl.innerHTML = "";
+        templateLogosEl.style.pointerEvents = "none";
+      }
+      activeTemplateKey = "";
+      lastTemplateMetadata = null;
+      galleryDebug("template rendering disabled for live mode; template layer cleared once");
+    }
+
     function clearTemplateLayers(options = {}) {
+      if (!TEMPLATE_RENDERING_ENABLED) {
+        galleryDebug("clearTemplateLayers skipped because template rendering is disabled");
+        return false;
+      }
+
       const { force = false, reason = "unspecified" } = options;
       const committedTemplate = hasCommittedTemplate();
 
@@ -479,6 +500,11 @@
     }
 
     async function renderTemplate(template, options = {}) {
+      if (!TEMPLATE_RENDERING_ENABLED) {
+        galleryDebug("renderTemplate skipped because template rendering is disabled");
+        return false;
+      }
+
       const responseMeta = options && options.responseMeta ? options.responseMeta : {};
       const expectedRequestId = options && Number.isFinite(Number(options.requestId))
         ? Number(options.requestId)
@@ -537,6 +563,11 @@
     }
 
     async function fetchActiveTemplate() {
+      if (!TEMPLATE_RENDERING_ENABLED) {
+        galleryDebug("fetchActiveTemplate skipped because template rendering is disabled");
+        return;
+      }
+
       const requestId = ++activeTemplateRequestId;
       galleryDebug("template fetch start", {
         requestId,
@@ -946,6 +977,11 @@
     }
 
     function startTemplateRefreshLoop() {
+      if (!TEMPLATE_RENDERING_ENABLED) {
+        galleryDebug("template refresh loop not started because template rendering is disabled");
+        return;
+      }
+
       if (templateRefreshTimer) clearInterval(templateRefreshTimer);
       fetchActiveTemplate();
       templateRefreshTimer = setInterval(fetchActiveTemplate, TEMPLATE_REFRESH_MS);
@@ -971,9 +1007,15 @@
       return list;
     }
 
-    clearTemplateLayers({ force: true, reason: "initial_boot" });
+    if (TEMPLATE_RENDERING_ENABLED) {
+      clearTemplateLayers({ force: true, reason: "initial_boot" });
+    } else {
+      disableTemplateLayerForLiveMode();
+    }
     setGalleryStatus("Loading...");
-    startTemplateRefreshLoop();
+    if (TEMPLATE_RENDERING_ENABLED) {
+      startTemplateRefreshLoop();
+    }
     startRefreshLoop();
     fetchApproved();
   </script>
