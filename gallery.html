@@ -209,6 +209,15 @@
     let activeTemplateRequestId = 0;
     let currentPhotoId = "";
     let photoTransitionToken = 0;
+    let templateLoadAttempt = 0;
+    let approvedPollCount = 0;
+    let consecutiveEmptyApprovedResponses = 0;
+    const EMPTY_APPROVED_CLEAR_THRESHOLD = 3;
+    let lastTemplateMetadata = null;
+
+    function galleryDebug(...args) {
+      console.log("[gallery]", ...args);
+    }
 
     function buildPhotoUrl(fileId) {
       return `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
@@ -244,7 +253,33 @@
       emptyEl.classList.toggle("hidden", !message);
     }
 
-    function clearTemplateLayers() {
+    function hasCommittedTemplate() {
+      return Boolean(
+        activeTemplateKey ||
+        (templateBackgroundEl && templateBackgroundEl.getAttribute("src")) ||
+        (templateLogosEl && templateLogosEl.childElementCount > 0)
+      );
+    }
+
+    function clearTemplateLayers(options = {}) {
+      const { force = false, reason = "unspecified" } = options;
+      const committedTemplate = hasCommittedTemplate();
+
+      galleryDebug("clearTemplateLayers requested", {
+        force,
+        reason,
+        activeTemplateKey,
+        committedTemplate,
+      });
+
+      if (!force && committedTemplate) {
+        galleryDebug("clearTemplateLayers skipped to preserve last-known-good template", {
+          reason,
+          activeTemplateKey,
+        });
+        return false;
+      }
+
       if (templateBackgroundEl) {
         templateBackgroundEl.removeAttribute("src");
         templateBackgroundEl.style.display = "none";
@@ -253,6 +288,9 @@
         templateLogosEl.innerHTML = "";
       }
       activeTemplateKey = "";
+      lastTemplateMetadata = null;
+      galleryDebug("clearTemplateLayers applied", { reason });
+      return true;
     }
 
     function buildTemplateKey(template) {
@@ -272,22 +310,137 @@
       });
     }
 
-    function renderTemplate(template) {
-      if (!template) {
-        clearTemplateLayers();
-        return;
-      }
+    function describeTemplate(template, templateKey = "") {
+      return {
+        id: template && template.id ? String(template.id) : "",
+        key: templateKey || buildTemplateKey(template),
+        background: template && template.background ? template.background.url || template.background.value || "" : "",
+        logos: Array.isArray(template && template.logos)
+          ? template.logos.map((logo) => logo.url || logo.value || "")
+          : [],
+      };
+    }
 
-      const templateKey = buildTemplateKey(template);
-      if (templateKey === activeTemplateKey) {
-        return;
-      }
+    async function preloadImageAsset(src, label, timeoutMs = IMAGE_LOAD_TIMEOUT_MS) {
+      return await new Promise((resolve, reject) => {
+        const img = new Image();
+        let settled = false;
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error(`${label}_timeout`));
+        }, timeoutMs);
 
-      activeTemplateKey = templateKey;
+        function cleanup() {
+          clearTimeout(timer);
+          img.onload = null;
+          img.onerror = null;
+        }
+
+        function settleSuccess() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          galleryDebug("template asset loaded", {
+            label,
+            src,
+            naturalWidth: img.naturalWidth || 0,
+            naturalHeight: img.naturalHeight || 0,
+          });
+          resolve({
+            src,
+            naturalWidth: img.naturalWidth || 0,
+            naturalHeight: img.naturalHeight || 0,
+          });
+        }
+
+        img.onload = async () => {
+          try {
+            if (typeof img.decode === "function") {
+              await img.decode();
+            }
+          } catch (decodeErr) {
+            galleryDebug("template asset decode warning", {
+              label,
+              src,
+              error: decodeErr && decodeErr.message ? decodeErr.message : String(decodeErr),
+            });
+          }
+          settleSuccess();
+        };
+
+        img.onerror = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error(`${label}_load_failed`));
+        };
+
+        img.src = src;
+
+        if (img.complete && img.naturalWidth > 0) {
+          settleSuccess();
+        }
+      });
+    }
+
+    async function preloadTemplateAssets(template, templateKey) {
+      const normalizedBackgroundUrl = template && template.background && template.background.url
+        ? normalizeAssetUrl(template.background.url)
+        : "";
+      const baseWidth = Number(template && template.canvasWidth) || 1920;
+      const baseHeight = Number(template && template.canvasHeight) || 1080;
+      const logoEntries = Array.isArray(template && template.logos) ? template.logos : [];
+
+      galleryDebug("template preload start", {
+        attempt: templateLoadAttempt,
+        templateId: template && template.id ? String(template.id) : "",
+        templateKey,
+        backgroundUrl: normalizedBackgroundUrl,
+        logoCount: logoEntries.length,
+      });
+
+      const backgroundAsset = normalizedBackgroundUrl
+        ? await preloadImageAsset(normalizedBackgroundUrl, "background")
+        : null;
+
+      const logos = await Promise.all(logoEntries.map(async (logo, index) => {
+        const normalizedLogoUrl = normalizeAssetUrl(logo.url || logo.value || "");
+        if (!normalizedLogoUrl) {
+          throw new Error(`logo_${index}_missing_url`);
+        }
+        const asset = await preloadImageAsset(normalizedLogoUrl, `logo_${index}`);
+        return {
+          src: normalizedLogoUrl,
+          x: Number(logo.x) || 0,
+          y: Number(logo.y) || 0,
+          width: Number(logo.width) || 0,
+          height: Number(logo.height) || 0,
+          baseWidth,
+          baseHeight,
+          naturalWidth: asset.naturalWidth,
+          naturalHeight: asset.naturalHeight,
+        };
+      }));
+
+      return {
+        baseWidth,
+        baseHeight,
+        backgroundAsset,
+        logos,
+      };
+    }
+
+    function commitTemplateRender(template, templateKey, assets) {
+      galleryDebug("template commit", {
+        templateId: template && template.id ? String(template.id) : "",
+        templateKey,
+        backgroundUrl: assets.backgroundAsset ? assets.backgroundAsset.src : "",
+        logoCount: assets.logos.length,
+      });
 
       if (templateBackgroundEl) {
-        if (template.background && template.background.url) {
-          templateBackgroundEl.src = normalizeAssetUrl(template.background.url);
+        if (assets.backgroundAsset && assets.backgroundAsset.src) {
+          templateBackgroundEl.src = assets.backgroundAsset.src;
           templateBackgroundEl.style.display = "block";
         } else {
           templateBackgroundEl.removeAttribute("src");
@@ -296,50 +449,136 @@
       }
 
       if (templateLogosEl) {
-        templateLogosEl.innerHTML = "";
-        const baseWidth = Number(template.canvasWidth) || 1920;
-        const baseHeight = Number(template.canvasHeight) || 1080;
-
-        (template.logos || []).forEach((logo) => {
+        const nextFragment = document.createDocumentFragment();
+        assets.logos.forEach((logo, index) => {
           const logoEl = document.createElement("div");
           logoEl.className = "template-logo-layer";
-          logoEl.style.left = `${((Number(logo.x) || 0) / baseWidth) * 100}%`;
-          logoEl.style.top = `${((Number(logo.y) || 0) / baseHeight) * 100}%`;
-          logoEl.style.width = `${((Number(logo.width) || 0) / baseWidth) * 100}%`;
-          logoEl.style.height = `${((Number(logo.height) || 0) / baseHeight) * 100}%`;
+          logoEl.style.left = `${(logo.x / assets.baseWidth) * 100}%`;
+          logoEl.style.top = `${(logo.y / assets.baseHeight) * 100}%`;
+          logoEl.style.width = `${(logo.width / assets.baseWidth) * 100}%`;
+          logoEl.style.height = `${(logo.height / assets.baseHeight) * 100}%`;
 
           const img = document.createElement("img");
-          img.src = normalizeAssetUrl(logo.url || logo.value || "");
+          img.src = logo.src;
           img.alt = "";
+          img.dataset.logoIndex = String(index);
           logoEl.appendChild(img);
-          templateLogosEl.appendChild(logoEl);
+          nextFragment.appendChild(logoEl);
         });
+
+        templateLogosEl.innerHTML = "";
+        templateLogosEl.appendChild(nextFragment);
+      }
+
+      activeTemplateKey = templateKey;
+      lastTemplateMetadata = describeTemplate(template, templateKey);
+      galleryDebug("template commit complete", {
+        activeTemplateKey,
+        templateId: lastTemplateMetadata.id,
+      });
+    }
+
+    async function renderTemplate(template, options = {}) {
+      const responseMeta = options && options.responseMeta ? options.responseMeta : {};
+      const expectedRequestId = options && Number.isFinite(Number(options.requestId))
+        ? Number(options.requestId)
+        : 0;
+
+      if (!template) {
+        galleryDebug("template render skipped because payload is null", {
+          responseMeta,
+          lastTemplateMetadata,
+        });
+        if (responseMeta && responseMeta.disabled) {
+          clearTemplateLayers({ force: true, reason: "server_disabled_template" });
+        }
+        return false;
+      }
+
+      const templateKey = buildTemplateKey(template);
+      if (templateKey === activeTemplateKey) {
+        galleryDebug("template render skipped because template already active", {
+          templateId: template.id || "",
+          templateKey,
+        });
+        return true;
+      }
+
+      const templateSummary = describeTemplate(template, templateKey);
+      templateLoadAttempt += 1;
+      galleryDebug("template render requested", {
+        attempt: templateLoadAttempt,
+        ...templateSummary,
+        responseMeta,
+        expectedRequestId,
+      });
+
+      try {
+        const assets = await preloadTemplateAssets(template, templateKey);
+        if (expectedRequestId && expectedRequestId !== activeTemplateRequestId) {
+          galleryDebug("template render commit skipped because a newer request became active", {
+            expectedRequestId,
+            activeTemplateRequestId,
+            templateKey,
+          });
+          return false;
+        }
+        commitTemplateRender(template, templateKey, assets);
+        return true;
+      } catch (err) {
+        galleryDebug("template render failed; keeping last-known-good template", {
+          attempt: templateLoadAttempt,
+          ...templateSummary,
+          error: err && err.message ? err.message : String(err),
+          currentVisibleTemplateKey: activeTemplateKey,
+        });
+        return false;
       }
     }
 
     async function fetchActiveTemplate() {
       const requestId = ++activeTemplateRequestId;
+      galleryDebug("template fetch start", {
+        requestId,
+        currentVisibleTemplateKey: activeTemplateKey,
+      });
       try {
         const res = await fetchWithTimeout(`${BASE_URL}/gallery/active-template?ts=${Date.now()}`, {
           cache: "no-store",
         });
         if (!res.ok) {
           console.error("Error fetching active template", res.status);
+          galleryDebug("template fetch failed", { requestId, status: res.status });
           return;
         }
 
         const data = await res.json();
         if (requestId !== activeTemplateRequestId) {
+          galleryDebug("template fetch ignored because a newer request exists", { requestId });
           return;
         }
         if (!data.ok) {
           console.error("Active template API returned not ok", data);
+          galleryDebug("template fetch returned non-ok payload", { requestId, data });
           return;
         }
 
-        renderTemplate(data.template || null);
+        galleryDebug("template fetch success", {
+          requestId,
+          meta: data.meta || null,
+          template: data.template ? describeTemplate(data.template) : null,
+        });
+
+        await renderTemplate(data.template || null, {
+          responseMeta: data.meta || null,
+          requestId,
+        });
       } catch (err) {
         console.error("Failed to fetch active template", err);
+        galleryDebug("template fetch exception", {
+          requestId,
+          error: err && err.message ? err.message : String(err),
+        });
       }
     }
 
@@ -387,7 +626,24 @@
       ticketBadgeEl.textContent = "";
     }
 
-    function setEmptyState() {
+    function setEmptyState(options = {}) {
+      const { force = false, reason = "unspecified" } = options;
+      galleryDebug("setEmptyState requested", {
+        force,
+        reason,
+        consecutiveEmptyApprovedResponses,
+        hasImage,
+        currentPhotoId,
+      });
+
+      if (!force) {
+        galleryDebug("setEmptyState blocked to preserve last-known-good photo", {
+          reason,
+          currentPhotoId,
+        });
+        return false;
+      }
+
       imgSlots.forEach((img, index) => {
         img.classList.remove("visible");
         img.onload = null;
@@ -403,6 +659,8 @@
       hideTicketBadge();
       hasImage = false;
       currentPhotoId = "";
+      galleryDebug("setEmptyState applied", { reason });
+      return true;
     }
 
     async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "") {
@@ -443,6 +701,12 @@
           }
           slotObjectUrls[slotIndex] = objectUrl;
           slotPhotoIds[slotIndex] = photoId ? String(photoId) : "";
+          galleryDebug("photo asset loaded", {
+            slotIndex,
+            photoId: photoId ? String(photoId) : "",
+            naturalWidth: img.naturalWidth || 0,
+            naturalHeight: img.naturalHeight || 0,
+          });
           resolve(objectUrl);
         }
 
@@ -471,6 +735,11 @@
 
     async function crossfadeTo(url, photoId = "") {
       const transitionToken = ++photoTransitionToken;
+      galleryDebug("photo transition start", {
+        transitionToken,
+        targetPhotoId: photoId ? String(photoId) : "",
+        currentVisiblePhotoId: currentPhotoId,
+      });
 
       if (!hasImage) {
         const img = imgSlots[activeIndex];
@@ -485,9 +754,18 @@
             img.classList.add("visible");
             hasImage = true;
             currentPhotoId = photoId ? String(photoId) : "";
+            galleryDebug("photo transition committed (first photo)", {
+              transitionToken,
+              currentVisiblePhotoId: currentPhotoId,
+            });
           });
         } catch (err) {
           console.error("Error loading first photo", err);
+          galleryDebug("photo transition failed before any photo was visible", {
+            transitionToken,
+            targetPhotoId: photoId ? String(photoId) : "",
+            error: err && err.message ? err.message : String(err),
+          });
         }
         return;
       }
@@ -515,6 +793,10 @@
           setGalleryStatus("");
           hasImage = true;
           currentPhotoId = targetId;
+          galleryDebug("photo transition reused preloaded slot", {
+            transitionToken,
+            currentVisiblePhotoId: currentPhotoId,
+          });
         });
         return;
       }
@@ -533,16 +815,25 @@
           setGalleryStatus("");
           hasImage = true;
           currentPhotoId = photoId ? String(photoId) : "";
+          galleryDebug("photo transition committed", {
+            transitionToken,
+            currentVisiblePhotoId: currentPhotoId,
+          });
         });
       } catch (err) {
         console.error("Error loading photo", err);
-        nextImg.removeAttribute("src");
+        galleryDebug("photo transition failed; keeping current visible photo", {
+          transitionToken,
+          targetPhotoId: photoId ? String(photoId) : "",
+          currentVisiblePhotoId: currentPhotoId,
+          error: err && err.message ? err.message : String(err),
+        });
       }
     }
 
     function showCurrentPhoto() {
       if (!photos.length) {
-        setEmptyState();
+        setEmptyState({ force: false, reason: "show_current_photo_without_confirmed_empty" });
         return;
       }
 
@@ -556,7 +847,7 @@
     function startRotation() {
       if (rotateTimer) clearInterval(rotateTimer);
       if (!photos.length) {
-        setEmptyState();
+        setEmptyState({ force: false, reason: "start_rotation_without_confirmed_empty" });
         return;
       }
 
@@ -564,7 +855,7 @@
 
       rotateTimer = setInterval(() => {
         if (!photos.length) {
-          setEmptyState();
+          setEmptyState({ force: false, reason: "rotation_tick_without_confirmed_empty" });
           return;
         }
         currentIndex = (currentIndex + 1) % photos.length;
@@ -573,15 +864,29 @@
     }
 
     async function fetchApproved() {
+      approvedPollCount += 1;
+      galleryDebug("approved poll start", {
+        approvedPollCount,
+        currentVisiblePhotoId: currentPhotoId,
+        consecutiveEmptyApprovedResponses,
+      });
       try {
         const res = await fetchWithTimeout(`${BASE_URL}/gallery/approved`);
         if (!res.ok) {
           console.error("Error fetching approved list", res.status);
+          galleryDebug("approved poll failed", {
+            approvedPollCount,
+            status: res.status,
+          });
           return;
         }
         const data = await res.json();
         if (!data.ok) {
           console.error("API returned not ok", data);
+          galleryDebug("approved poll returned non-ok payload", {
+            approvedPollCount,
+            data,
+          });
           return;
         }
 
@@ -589,14 +894,31 @@
         sortPhotosList(newPhotos);
         const oldIds = photos.map((p) => p.id).join(",");
         const newIds = newPhotos.map((p) => p.id).join(",");
+        galleryDebug("approved poll success", {
+          approvedPollCount,
+          resultCount: newPhotos.length,
+          oldIds,
+          newIds,
+        });
 
-        photos = newPhotos;
-
-        if (!photos.length) {
-          currentIndex = 0;
-          setEmptyState();
+        if (!newPhotos.length) {
+          consecutiveEmptyApprovedResponses += 1;
+          galleryDebug("approved poll empty response", {
+            approvedPollCount,
+            consecutiveEmptyApprovedResponses,
+            threshold: EMPTY_APPROVED_CLEAR_THRESHOLD,
+            currentVisiblePhotoId: currentPhotoId,
+          });
+          if (consecutiveEmptyApprovedResponses >= EMPTY_APPROVED_CLEAR_THRESHOLD) {
+            photos = [];
+            currentIndex = 0;
+            setEmptyState({ force: true, reason: "confirmed_empty_approved_responses" });
+          }
           return;
         }
+
+        consecutiveEmptyApprovedResponses = 0;
+        photos = newPhotos;
 
         if (oldIds !== newIds || !hasImage) {
           const currentPhotoIndex = currentPhotoId
@@ -611,6 +933,10 @@
         }
       } catch (err) {
         console.error("Failed to fetch approved photos", err);
+        galleryDebug("approved poll exception", {
+          approvedPollCount,
+          error: err && err.message ? err.message : String(err),
+        });
       }
     }
 
@@ -645,7 +971,7 @@
       return list;
     }
 
-    clearTemplateLayers();
+    clearTemplateLayers({ force: true, reason: "initial_boot" });
     setGalleryStatus("Loading...");
     startTemplateRefreshLoop();
     startRefreshLoop();

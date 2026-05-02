@@ -832,6 +832,45 @@ function buildActiveTemplateSnapshotString(template) {
   });
 }
 
+function buildTemplateVersion(templateLike) {
+  if (!templateLike || !templateLike.data) return '';
+
+  try {
+    return crypto
+      .createHash('sha1')
+      .update(JSON.stringify({
+        id: templateLike.id ? String(templateLike.id) : '',
+        name: templateLike.name || '',
+        createdAt: templateLike.createdAt || '',
+        data: templateLike.data
+      }))
+      .digest('hex')
+      .slice(0, 12);
+  } catch (err) {
+    console.warn('Unable to build template version hash:', err.message || err);
+    return '';
+  }
+}
+
+function buildActiveTemplateResponse(template, meta = {}) {
+  const serializedTemplate = serializeTemplateForPublic(template);
+  const templateId = template && template.id ? String(template.id) : '';
+  const version = buildTemplateVersion(template);
+
+  return {
+    ok: true,
+    template: serializedTemplate,
+    meta: {
+      active: Boolean(serializedTemplate),
+      disabled: Boolean(meta.disabled),
+      reason: meta.reason || (serializedTemplate ? 'active_template_available' : 'template_unavailable'),
+      source: meta.source || 'unknown',
+      templateId,
+      version,
+    }
+  };
+}
+
 async function syncActiveTemplateSettings(settings) {
   const next = JSON.parse(JSON.stringify(settings || {}));
   const activeTemplateId = normalizeTemplateId(next.activeTemplateId);
@@ -3851,6 +3890,8 @@ app.get('/gallery/photo/:fileId', async (req, res) => {
 
 app.get('/gallery/template-asset/:fileId', async (req, res) => {
   const { fileId } = req.params;
+  const startedAt = Date.now();
+  let respondedStatus = 200;
 
   try {
     const driveRes = await drive.files.get(
@@ -3871,16 +3912,40 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
       res.setHeader('Content-Type', 'image/jpeg');
     }
 
+    console.log('Gallery template asset stream started', {
+      fileId,
+      contentType: res.getHeader('Content-Type'),
+    });
+
     driveRes.data
       .on('error', (err) => {
-        console.error('Drive stream error (gallery template asset):', err);
+        respondedStatus = res.headersSent ? respondedStatus : 502;
+        console.error('Drive stream error (gallery template asset):', {
+          fileId,
+          status: respondedStatus,
+          durationMs: Date.now() - startedAt,
+          error: err && err.message ? err.message : err,
+        });
         if (!res.headersSent) {
           res.end();
         }
       })
+      .on('end', () => {
+        console.log('Gallery template asset stream completed', {
+          fileId,
+          status: respondedStatus,
+          durationMs: Date.now() - startedAt,
+        });
+      })
       .pipe(res);
   } catch (err) {
-    console.error('Error streaming gallery template asset', err);
+    respondedStatus = 404;
+    console.error('Error streaming gallery template asset', {
+      fileId,
+      status: respondedStatus,
+      durationMs: Date.now() - startedAt,
+      error: err && err.message ? err.message : err,
+    });
     if (!res.headersSent) {
       res.status(404).end();
     }
@@ -3888,39 +3953,122 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
 });
 
 app.get('/gallery/active-template', async (req, res) => {
+  let settingsHydrated = false;
   try {
-    // Use the same hydration throttling as other gallery routes. Forcing a sheet read on every
-    // poll overloads Google Sheets and increases latency — a common cause of client timeouts on
-    // low-memory / kiosk browsers while still refreshing within SETTINGS_REFRESH_TTL_MS.
-    await hydrateSettingsFromSheet();
+    try {
+      // Use the same hydration throttling as other gallery routes. Forcing a sheet read on every
+      // poll overloads Google Sheets and increases latency — a common cause of client timeouts on
+      // low-memory / kiosk browsers while still refreshing within SETTINGS_REFRESH_TTL_MS.
+      await hydrateSettingsFromSheet();
+      settingsHydrated = true;
+    } catch (hydrateErr) {
+      console.warn('Active template settings hydration failed; using last in-memory state.', hydrateErr.message || hydrateErr);
+    }
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
 
     const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
     if (snapshot && String(snapshot.id || '') === String(appSettings.activeTemplateId || snapshot.id || '')) {
-      return res.json({
-        ok: true,
-        template: serializeTemplateForPublic({
-          id: snapshot.id || appSettings.activeTemplateId || '',
-          name: snapshot.name || '',
-          createdAt: snapshot.createdAt || '',
-          data: snapshot.data
-        })
+      const snapshotTemplate = {
+        id: snapshot.id || appSettings.activeTemplateId || '',
+        name: snapshot.name || '',
+        createdAt: snapshot.createdAt || '',
+        data: snapshot.data
+      };
+      console.log('Gallery active template served from snapshot', {
+        settingsHydrated,
+        templateId: String(snapshotTemplate.id || ''),
+        version: buildTemplateVersion(snapshotTemplate),
       });
+      return res.json(buildActiveTemplateResponse(snapshotTemplate, {
+        source: settingsHydrated ? 'settings_snapshot' : 'memory_snapshot_after_settings_failure',
+        reason: settingsHydrated ? 'active_template_snapshot' : 'settings_hydration_failed_using_snapshot',
+      }));
     }
 
     if (appSettings.activeTemplateId) {
       const liveTemplate = await getTemplateById(appSettings.activeTemplateId);
       if (liveTemplate) {
-        return res.json({ ok: true, template: serializeTemplateForPublic(liveTemplate) });
+        console.log('Gallery active template served from template row', {
+          settingsHydrated,
+          templateId: String(liveTemplate.id || ''),
+          version: buildTemplateVersion(liveTemplate),
+        });
+        return res.json(buildActiveTemplateResponse(liveTemplate, {
+          source: 'template_sheet_row',
+          reason: 'active_template_row_loaded',
+        }));
+      }
+      console.warn('Gallery active template row missing for activeTemplateId', {
+        settingsHydrated,
+        activeTemplateId: String(appSettings.activeTemplateId || ''),
+      });
+      if (snapshot) {
+        const fallbackTemplate = {
+          id: snapshot.id || appSettings.activeTemplateId || '',
+          name: snapshot.name || '',
+          createdAt: snapshot.createdAt || '',
+          data: snapshot.data
+        };
+        console.log('Gallery active template falling back to stale snapshot because row is missing', {
+          activeTemplateId: String(appSettings.activeTemplateId || ''),
+          templateId: String(fallbackTemplate.id || ''),
+          version: buildTemplateVersion(fallbackTemplate),
+        });
+        return res.json(buildActiveTemplateResponse(fallbackTemplate, {
+          source: 'stale_snapshot_fallback',
+          reason: 'template_row_missing_using_snapshot',
+        }));
       }
     }
 
-    return res.json({ ok: true, template: null });
+    console.log('Gallery active template unavailable', {
+      settingsHydrated,
+      activeTemplateId: String(appSettings.activeTemplateId || ''),
+      hasSnapshot: Boolean(snapshot),
+      reason: appSettings.activeTemplateId ? 'template_row_missing_no_snapshot' : 'no_active_template_id',
+    });
+
+    return res.json(buildActiveTemplateResponse(null, {
+      disabled: false,
+      source: settingsHydrated ? 'settings_state' : 'memory_state_after_settings_failure',
+      reason: appSettings.activeTemplateId ? 'template_row_missing_no_snapshot' : 'no_active_template_id',
+    }));
   } catch (err) {
     console.error('Error loading active gallery template', err);
-    return res.status(500).json({ ok: false, error: 'active_template_failed' });
+    const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
+    if (snapshot) {
+      const fallbackTemplate = {
+        id: snapshot.id || appSettings.activeTemplateId || '',
+        name: snapshot.name || '',
+        createdAt: snapshot.createdAt || '',
+        data: snapshot.data
+      };
+      console.warn('Gallery active template route failed; serving last in-memory snapshot fallback', {
+        activeTemplateId: String(appSettings.activeTemplateId || ''),
+        templateId: String(fallbackTemplate.id || ''),
+        version: buildTemplateVersion(fallbackTemplate),
+        error: err && err.message ? err.message : err,
+      });
+      return res.json(buildActiveTemplateResponse(fallbackTemplate, {
+        source: 'route_exception_snapshot_fallback',
+        reason: 'route_exception_using_snapshot',
+      }));
+    }
+
+    return res.status(500).json({
+      ok: false,
+      error: 'active_template_failed',
+      meta: {
+        active: false,
+        disabled: false,
+        reason: 'route_exception_no_snapshot',
+        source: 'route_exception',
+        templateId: String(appSettings.activeTemplateId || ''),
+        version: '',
+      }
+    });
   }
 });
 
