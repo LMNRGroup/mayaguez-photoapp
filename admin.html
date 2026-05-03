@@ -549,6 +549,17 @@
     font-weight: 600;
   }
 
+  .nav-item.is-temporarily-disabled {
+    opacity: 0.42;
+    filter: blur(0.6px);
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .nav-item.is-temporarily-disabled::before {
+    width: 0 !important;
+  }
+
   .nav-item.nav-item-secondary {
     font-size: 0.6875rem;
     letter-spacing: 0.22em;
@@ -5455,6 +5466,8 @@ View report to see the most recent interactions
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
     const ADMIN_TOKEN_KEY = "lumi_admin_token_v1";
     const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
+    const ADMIN_METRICS_UI_ENABLED = false;
+    const ADMIN_TEMPLATES_UI_ENABLED = false;
 
     const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
     const DOWNLOAD_FALLBACK_TEMPLATE_URL = "Assets/NewLayout15_10.png";
@@ -8809,10 +8822,49 @@ function hideReportLoading() {
       });
     }
 
+    function applyMetricsUiAvailability() {
+      if (!navMetrics) return;
+      if (ADMIN_METRICS_UI_ENABLED) {
+        navMetrics.disabled = false;
+        navMetrics.classList.remove("is-temporarily-disabled");
+        navMetrics.removeAttribute("aria-disabled");
+        navMetrics.title = "";
+        return;
+      }
+
+      navMetrics.disabled = true;
+      navMetrics.classList.add("is-temporarily-disabled");
+      navMetrics.setAttribute("aria-disabled", "true");
+      navMetrics.title = "Metrics & Data is temporarily disabled.";
+    }
+
+    function applyTemplatesUiAvailability() {
+      if (!navTemplates) return;
+      if (ADMIN_TEMPLATES_UI_ENABLED) {
+        navTemplates.disabled = false;
+        navTemplates.classList.remove("is-temporarily-disabled");
+        navTemplates.removeAttribute("aria-disabled");
+        navTemplates.title = "";
+        return;
+      }
+
+      navTemplates.disabled = true;
+      navTemplates.classList.add("is-temporarily-disabled");
+      navTemplates.setAttribute("aria-disabled", "true");
+      navTemplates.title = "My Templates is temporarily disabled.";
+    }
+
     // --- LEFT NAV BEHAVIOR ---
 
     // Switch to a specific view (global function for compatibility)
     window.switchView = function switchView(viewName) {
+      if (viewName === "metrics" && !ADMIN_METRICS_UI_ENABLED) {
+        viewName = "dashboard";
+      }
+      if (viewName === "templates" && !ADMIN_TEMPLATES_UI_ENABLED) {
+        viewName = "dashboard";
+      }
+
       if (pageWrapper) {
         pageWrapper.classList.toggle("settings-preview-mode", viewName === "settings");
       }
@@ -8908,6 +8960,10 @@ function hideReportLoading() {
 
     if (navMetrics) {
       navMetrics.addEventListener("click", () => {
+        if (!ADMIN_METRICS_UI_ENABLED) {
+          showToast("Metrics & Data is temporarily disabled.", "error");
+          return;
+        }
         setActiveNav(navMetrics);
         switchView("metrics");
       });
@@ -8922,6 +8978,10 @@ function hideReportLoading() {
 
     if (navTemplates) {
       navTemplates.addEventListener("click", () => {
+        if (!ADMIN_TEMPLATES_UI_ENABLED) {
+          showToast("My Templates is temporarily disabled.", "error");
+          return;
+        }
         setActiveNav(navTemplates);
         switchView("templates");
       });
@@ -8930,9 +8990,9 @@ function hideReportLoading() {
     const commandPaletteCatalog = [
       { id: "dashboard", title: "Dashboard", meta: "Review pending uploads", tag: "View", keywords: "dashboard pending review approve reject", run: () => { setActiveNav(navDashboard); switchView("dashboard"); } },
       { id: "approved", title: "Approved Photos", meta: "Browse, select, and delete approved images", tag: "View", keywords: "approved photos gallery delete selection", run: () => { setActiveNav(navApproved); switchView("approved"); } },
-      { id: "templates", title: "My Templates", meta: "Create and edit screen layouts", tag: "View", keywords: "templates editor backgrounds logos qr layout", run: () => { setActiveNav(navTemplates); switchView("templates"); } },
+      ...(ADMIN_TEMPLATES_UI_ENABLED ? [{ id: "templates", title: "My Templates", meta: "Create and edit screen layouts", tag: "View", keywords: "templates editor backgrounds logos qr layout", run: () => { setActiveNav(navTemplates); switchView("templates"); } }] : []),
       { id: "reports", title: "Event Reports", meta: "View session reports and email exports", tag: "View", keywords: "reports event report email summary", run: () => { setActiveNav(navReports); switchView("reports"); } },
-      { id: "metrics", title: "Metrics & Data", meta: "Analytics workspace placeholder", tag: "View", keywords: "metrics data analytics under construction", run: () => { setActiveNav(navMetrics); switchView("metrics"); } },
+      ...(ADMIN_METRICS_UI_ENABLED ? [{ id: "metrics", title: "Metrics & Data", meta: "Analytics workspace placeholder", tag: "View", keywords: "metrics data analytics under construction", run: () => { setActiveNav(navMetrics); switchView("metrics"); } }] : []),
       { id: "settings", title: "App Settings", meta: "Open the configuration panel", tag: "Admin", keywords: "settings app configuration fields", run: () => { setActiveNav(navSettings); switchView("settings"); } },
       { id: "logs", title: "Live Event Logs", meta: "Open the expanded event log view", tag: "Quick Action", keywords: "event logs live activity overlay", run: () => { openExpandedEventLogs(); } },
       { id: "settings_ticket", title: "Show Ticket Number After Upload", meta: "Ticket Overlay section", tag: "Setting", keywords: "ticket overlay show ticket number upload", fieldId: "settingsTicketEnabled" },
@@ -9067,6 +9127,9 @@ function hideReportLoading() {
         }
       });
     }
+
+    applyMetricsUiAvailability();
+    applyTemplatesUiAvailability();
 
     async function executeCommandPaletteItem(item) {
       if (!item) return;
