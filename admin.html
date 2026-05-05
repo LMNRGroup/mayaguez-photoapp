@@ -5467,7 +5467,7 @@ View report to see the most recent interactions
     const ADMIN_TOKEN_KEY = "lumi_admin_token_v1";
     const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
     const ADMIN_METRICS_UI_ENABLED = false;
-    const ADMIN_TEMPLATES_UI_ENABLED = false;
+    const ADMIN_TEMPLATES_UI_ENABLED = true;
 
     const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
     const DOWNLOAD_FALLBACK_TEMPLATE_URL = "Assets/NewLayout15_10.png";
@@ -5574,15 +5574,26 @@ View report to see the most recent interactions
       return { sx, sy, sWidth, sHeight };
     }
 
-    function drawPhotoIntoTemplate(ctx, photoImgEl, stageWidth, stageHeight) {
+    function drawPhotoIntoTemplate(ctx, photoImgEl, stageWidth, stageHeight, photoBox = null) {
+      const targetPhotoBox = photoBox && Number.isFinite(Number(photoBox.width)) && Number.isFinite(Number(photoBox.height))
+        ? {
+            x: Number(photoBox.x) || DOWNLOAD_PHOTO_X,
+            y: Number(photoBox.y) || DOWNLOAD_PHOTO_Y,
+            width: Number(photoBox.width) || DOWNLOAD_PHOTO_WIDTH,
+            height: Number(photoBox.height) || DOWNLOAD_PHOTO_HEIGHT,
+          }
+        : {
+            x: DOWNLOAD_PHOTO_X,
+            y: DOWNLOAD_PHOTO_Y,
+            width: DOWNLOAD_PHOTO_WIDTH,
+            height: DOWNLOAD_PHOTO_HEIGHT,
+          };
       const photoBounds = fitPhotoToArea(
         photoImgEl.width,
         photoImgEl.height,
-        DOWNLOAD_PHOTO_WIDTH,
-        DOWNLOAD_PHOTO_HEIGHT
+        targetPhotoBox.width,
+        targetPhotoBox.height
       );
-      const photoX = (stageWidth - DOWNLOAD_PHOTO_WIDTH) / 2;
-      const photoY = (stageHeight - DOWNLOAD_PHOTO_HEIGHT) / 2;
 
       ctx.drawImage(
         photoImgEl,
@@ -5590,10 +5601,10 @@ View report to see the most recent interactions
         photoBounds.sy,
         photoBounds.sWidth,
         photoBounds.sHeight,
-        photoX,
-        photoY,
-        DOWNLOAD_PHOTO_WIDTH,
-        DOWNLOAD_PHOTO_HEIGHT
+        targetPhotoBox.x,
+        targetPhotoBox.y,
+        targetPhotoBox.width,
+        targetPhotoBox.height
       );
     }
 
@@ -5628,13 +5639,15 @@ View report to see the most recent interactions
         downloadCtx.fillRect(0, 0, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
       }
 
-      drawPhotoIntoTemplate(downloadCtx, photoImgEl, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT);
+      drawPhotoIntoTemplate(downloadCtx, photoImgEl, DOWNLOAD_TEMPLATE_WIDTH, DOWNLOAD_TEMPLATE_HEIGHT, template.photoBox);
 
       const baseWidth = Number(template.canvasWidth) || DOWNLOAD_TEMPLATE_WIDTH;
       const baseHeight = Number(template.canvasHeight) || DOWNLOAD_TEMPLATE_HEIGHT;
       const logos = Array.isArray(template.logos) ? template.logos : [];
+      const qrLayers = Array.isArray(template.qrLayers) ? template.qrLayers : [];
+      const overlayLayers = [...logos, ...qrLayers].sort((a, b) => (Number(a?.order) || 0) - (Number(b?.order) || 0));
 
-      for (const logo of logos) {
+      for (const logo of overlayLayers) {
         const logoUrl = normalizeTemplateAssetUrl(logo?.url || logo?.value || "");
         if (!logoUrl) continue;
 
@@ -9305,8 +9318,13 @@ function hideReportLoading() {
     ];
 
     let backgroundAssets = [DEFAULT_BACKGROUND_ASSET];
+    let qrAssets = [];
     let pendingBackgroundFile = null;
     let pendingBackgroundObjectUrl = "";
+    let pendingQrReplaceTarget = null;
+    let currentOverlayFileId = "";
+    let currentOverlayUpdatedAt = "";
+    let currentOverlayVersion = "";
 
     function hideTemplateEntryOverlay() {
       if (templateEntryOverlay) {
@@ -9549,6 +9567,31 @@ function hideReportLoading() {
       }
     }
 
+    async function loadQrAssets() {
+      qrAssets = [];
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates/qr-assets`, {
+          headers: withAdminHeaders(),
+        });
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+        if (!res.ok) {
+          throw new Error("qr_assets_load_failed");
+        }
+        const data = await res.json();
+        qrAssets = (data.assets || []).map((asset) => ({
+          type: "uploaded",
+          value: asset.id,
+          label: asset.name || "Uploaded QR Code",
+          createdTime: asset.createdTime || "",
+        }));
+      } catch (err) {
+        console.error("Error loading QR assets:", err);
+      }
+    }
+
     function beginCreateTemplate() {
       resetTemplateEditor();
       currentTemplateDirty = false;
@@ -9607,9 +9650,7 @@ function hideReportLoading() {
     if (templateAddQrFab) {
       templateAddQrFab.addEventListener("click", () => {
         closeTemplateAddAssetMenu();
-        if (templateQrUpload) {
-          templateQrUpload.click();
-        }
+        showAddQrOverlay();
       });
     }
 
@@ -9622,6 +9663,10 @@ function hideReportLoading() {
       selectedLogo = null;
       currentTemplateId = null;
       currentTemplateName = "";
+      currentOverlayFileId = "";
+      currentOverlayUpdatedAt = "";
+      currentOverlayVersion = "";
+      pendingQrReplaceTarget = null;
       clearPendingBackgroundDraft();
       
       // Reset background to default
@@ -9679,6 +9724,9 @@ function hideReportLoading() {
         currentTemplateName = template.name || "";
         currentTemplateDirty = false;
         isCreatingNewTemplate = false;
+        currentOverlayFileId = templateData.overlayFileId ? String(templateData.overlayFileId) : "";
+        currentOverlayUpdatedAt = templateData.overlayUpdatedAt ? String(templateData.overlayUpdatedAt) : "";
+        currentOverlayVersion = templateData.overlayVersion ? String(templateData.overlayVersion) : "";
 
         // Load background
         if (templateData.background) {
@@ -9705,8 +9753,19 @@ function hideReportLoading() {
         }
 
         // Load logos
-        if (templateData.logos && Array.isArray(templateData.logos)) {
-          for (const logoData of templateData.logos) {
+        const overlayLayers = [
+          ...((Array.isArray(templateData.logos) ? templateData.logos : []).map((logoData) => ({
+            ...logoData,
+            assetRole: "logo",
+          }))),
+          ...((Array.isArray(templateData.qrLayers) ? templateData.qrLayers : []).map((qrData) => ({
+            ...qrData,
+            assetRole: "qr",
+          }))),
+        ].sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+
+        if (overlayLayers.length) {
+          for (const logoData of overlayLayers) {
             let logoSrc = null;
             
             if (logoData.type === "uploaded") {
@@ -9728,6 +9787,8 @@ function hideReportLoading() {
                 {
                   type: logoData.type || (logoData.value && String(logoData.value).startsWith("http") ? "uploaded" : "preloaded"),
                   value: logoData.value || "",
+                  assetRole: logoData.assetRole || "logo",
+                  label: logoData.label || "",
                 }
               );
             }
@@ -10036,6 +10097,93 @@ function hideReportLoading() {
       });
     }
 
+    async function showAddQrOverlay(replaceTarget = null) {
+      await loadQrAssets();
+
+      const overlay = document.createElement("div");
+      overlay.className = "template-name-overlay";
+      overlay.style.zIndex = "2000";
+
+      const panel = document.createElement("div");
+      panel.className = "template-name-panel";
+      panel.style.maxWidth = "600px";
+
+      const title = document.createElement("div");
+      title.className = "template-name-title";
+      title.textContent = replaceTarget ? "REPLACE QR CODE" : "ADD QR CODE";
+
+      const content = document.createElement("div");
+      content.style.cssText = "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;";
+
+      const requirements = document.createElement("div");
+      requirements.style.cssText = "padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); background: var(--secondary); color: var(--muted-foreground); font-size: 0.875rem; line-height: 1.5;";
+      requirements.innerHTML = "QR requirements: PNG, JPEG, or SVG. Keep it under 4 MB. You will be asked to name what the QR code is for before upload.";
+      content.appendChild(requirements);
+
+      qrAssets.forEach((asset) => {
+        const btn = document.createElement("button");
+        btn.className = "btn-ghost";
+        btn.style.cssText = "width: 100%; text-align: left; padding: 0.75rem 1rem;";
+        btn.textContent = asset.label;
+        btn.addEventListener("click", async () => {
+          const assetSrc = buildAdminTemplateAssetUrl(asset.value);
+          if (replaceTarget) {
+            applyOverlayAssetToElement(replaceTarget, assetSrc, {
+              type: "uploaded",
+              value: asset.value,
+              assetRole: "qr",
+              label: asset.label,
+            });
+          } else {
+            await addLogoToCanvas(assetSrc, null, null, null, null, {
+              type: "uploaded",
+              value: asset.value,
+              assetRole: "qr",
+              label: asset.label,
+            });
+          }
+          markTemplateDirty();
+          document.body.removeChild(overlay);
+        });
+        content.appendChild(btn);
+      });
+
+      const uploadBtn = document.createElement("button");
+      uploadBtn.className = "btn-primary";
+      uploadBtn.style.cssText = "width: 100%; margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;";
+      uploadBtn.innerHTML = `<span class="btn-inline-content">${lucideIcon("upload")}<span>${replaceTarget ? "UPLOAD REPLACEMENT QR" : "UPLOAD QR CODE"}</span></span>`;
+      uploadBtn.addEventListener("click", () => {
+        pendingQrReplaceTarget = replaceTarget || null;
+        if (templateQrUpload) {
+          templateQrUpload.click();
+        }
+        document.body.removeChild(overlay);
+      });
+      content.appendChild(uploadBtn);
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "btn-ghost";
+      cancelBtn.textContent = "CANCEL";
+      cancelBtn.style.cssText = "margin-top: 1rem;";
+      cancelBtn.addEventListener("click", () => {
+        pendingQrReplaceTarget = null;
+        document.body.removeChild(overlay);
+      });
+
+      panel.appendChild(title);
+      panel.appendChild(content);
+      panel.appendChild(cancelBtn);
+      overlay.appendChild(panel);
+      document.body.appendChild(overlay);
+
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          pendingQrReplaceTarget = null;
+          document.body.removeChild(overlay);
+        }
+      });
+    }
+
     // Change background (optimize loading - use lower resolution for editing)
     if (templateBackgroundSelect && templateBackgroundImg) {
       templateBackgroundSelect.addEventListener("change", (e) => {
@@ -10052,7 +10200,7 @@ function hideReportLoading() {
       });
     }
 
-    async function uploadTemplateAsset(file, assetType) {
+    async function uploadTemplateAsset(file, assetType, assetLabel = "") {
       if (!file) return null;
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
@@ -10062,6 +10210,9 @@ function hideReportLoading() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("assetType", assetType);
+      if (assetLabel) {
+        formData.append("assetLabel", assetLabel);
+      }
 
       const res = await fetch(`${BASE_URL}/admin/templates/upload-asset`, {
         method: "POST",
@@ -10275,14 +10426,35 @@ function hideReportLoading() {
 
         try {
           await validateTemplateQrFile(file);
-          const uploaded = await uploadTemplateAsset(file, "logo");
+          const qrLabel = await appPrompt("What is this QR Code for?", {
+            title: "Name QR Code",
+            tone: "primary",
+            confirmLabel: "Upload QR",
+            cancelLabel: "Cancel",
+            placeholder: "Example: WhatsApp RSVP",
+            value: file.name.replace(/\.[^.]+$/, ""),
+          });
+          if (!qrLabel) return;
+
+          const uploaded = await uploadTemplateAsset(file, "qr", qrLabel);
           if (!uploaded) return;
 
-          await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId), null, null, null, null, {
+          const assetSrc = buildAdminTemplateAssetUrl(uploaded.fileId);
+          const qrMetadata = {
             type: "uploaded",
             value: uploaded.fileId,
-          });
+            assetRole: "qr",
+            label: uploaded.label || qrLabel,
+          };
+
+          if (pendingQrReplaceTarget) {
+            applyOverlayAssetToElement(pendingQrReplaceTarget, assetSrc, qrMetadata);
+            pendingQrReplaceTarget = null;
+          } else {
+            await addLogoToCanvas(assetSrc, null, null, null, null, qrMetadata);
+          }
           markTemplateDirty();
+          await loadQrAssets();
         } catch (err) {
           console.error("Error uploading QR code overlay:", err);
           await appAlert(err && err.message ? err.message : "Failed to upload QR code image. Please try again.", {
@@ -10290,6 +10462,7 @@ function hideReportLoading() {
             tone: "error",
           });
         } finally {
+          pendingQrReplaceTarget = null;
           templateQrUpload.value = "";
         }
       });
@@ -10311,20 +10484,39 @@ function hideReportLoading() {
       return addLogoToCanvasWithPosition(logoPath, x, y, width, height, metadata);
     }
 
+    function applyOverlayAssetToElement(logoDiv, assetSrc, metadata = {}) {
+      if (!logoDiv) return;
+      const img = logoDiv.querySelector("img");
+      if (img && assetSrc) {
+        img.src = assetSrc;
+      }
+      logoDiv.dataset.logoPath = assetSrc || "";
+      logoDiv.dataset.logoType = metadata.type || "uploaded";
+      logoDiv.dataset.logoValue = metadata.value || "";
+      logoDiv.dataset.assetRole = metadata.assetRole || "logo";
+      logoDiv.dataset.assetLabel = metadata.label || "";
+      if (img) {
+        img.alt = (metadata.assetRole || "logo") === "qr" ? (metadata.label || "QR code") : "Logo";
+      }
+    }
+
     function addLogoToCanvasWithPosition(logoPath, x = null, y = null, width = null, height = null, metadata = {}) {
       const logoDiv = document.createElement("div");
       const resolvedLogoType = metadata.type || (logoPath.startsWith(BASE_URL) ? "uploaded" : "preloaded");
       const resolvedLogoValue =
         metadata.value ||
         (resolvedLogoType === "uploaded" ? extractTemplateAssetFileId(logoPath) : logoPath);
+      const assetRole = metadata.assetRole || "logo";
       logoDiv.className = "template-logo";
       logoDiv.dataset.logoPath = logoPath;
       logoDiv.dataset.logoType = resolvedLogoType;
       logoDiv.dataset.logoValue = resolvedLogoValue;
+      logoDiv.dataset.assetRole = assetRole;
+      logoDiv.dataset.assetLabel = metadata.label || "";
 
       const img = document.createElement("img");
       img.src = logoPath;
-      img.alt = "Logo";
+      img.alt = assetRole === "qr" ? (metadata.label || "QR code") : "Logo";
       img.loading = "lazy";
       
       logoDiv.appendChild(img);
@@ -10342,9 +10534,13 @@ function hideReportLoading() {
       const replaceBtn = document.createElement("button");
       replaceBtn.className = "template-logo-action-btn";
       replaceBtn.innerHTML = lucideIcon("refresh-cw");
-      replaceBtn.title = "Replace logo";
+      replaceBtn.title = assetRole === "qr" ? "Replace QR code" : "Replace logo";
       replaceBtn.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (assetRole === "qr") {
+          showAddQrOverlay(logoDiv);
+          return;
+        }
         showLogoReplaceMenu(logoDiv);
       });
 
@@ -10661,6 +10857,11 @@ function hideReportLoading() {
           return;
         }
 
+        if (!currentOverlayFileId) {
+          await saveCurrentTemplate(true);
+          return;
+        }
+
         const success = await setTemplateAsActive(currentTemplateId);
         if (success) {
           showToast(`"${currentTemplateName || currentTemplateId}" is live on screen.`, "success");
@@ -10739,27 +10940,50 @@ function hideReportLoading() {
           value: backgroundValue
         };
       }
-      
-      // Collect logos with type information
-      const logos = Array.from(templateLogosContainer.querySelectorAll(".template-logo")).map((logo) => {
+
+      const photoBox = {
+        x: (TEMPLATE_STAGE_WIDTH - TEMPLATE_PHOTO_WIDTH) / 2,
+        y: (TEMPLATE_STAGE_HEIGHT - TEMPLATE_PHOTO_HEIGHT) / 2,
+        width: TEMPLATE_PHOTO_WIDTH,
+        height: TEMPLATE_PHOTO_HEIGHT,
+      };
+
+      const logos = [];
+      const qrLayers = [];
+
+      Array.from(templateLogosContainer.querySelectorAll(".template-logo")).forEach((logo, index) => {
         const logoType = logo.dataset.logoType || (logo.dataset.logoPath && logo.dataset.logoPath.startsWith(BASE_URL) ? "uploaded" : "preloaded");
         const logoValue = logo.dataset.logoValue || logo.dataset.logoPath;
-        
-        return {
+        const assetRole = logo.dataset.assetRole || "logo";
+        const layer = {
           type: logoType,
           value: logoType === "uploaded" ? (logoValue.includes("/") ? logoValue.split("/").pop() : logoValue) : logoValue,
           x: parseFloat(logo.style.left) || 0,
           y: parseFloat(logo.style.top) || 0,
           width: parseFloat(logo.style.width) || logo.offsetWidth,
           height: parseFloat(logo.style.height) || logo.offsetHeight,
+          order: index,
         };
+
+        if (assetRole === "qr") {
+          layer.label = logo.dataset.assetLabel || "";
+          qrLayers.push(layer);
+          return;
+        }
+
+        logos.push(layer);
       });
-      
+
       return {
         canvasWidth: templateCanvas ? templateCanvas.offsetWidth : 0,
         canvasHeight: templateCanvas ? templateCanvas.offsetHeight : 0,
         background,
-        logos
+        logos,
+        qrLayers,
+        photoBox,
+        overlayFileId: currentOverlayFileId || "",
+        overlayUpdatedAt: currentOverlayUpdatedAt || "",
+        overlayVersion: currentOverlayVersion || "",
       };
     }
 
@@ -10775,6 +10999,11 @@ function hideReportLoading() {
     async function setTemplateAsActive(templateId, templateName = currentTemplateName, templateData = collectTemplateData()) {
       if (!templateId) {
         showToast("Save the template first, then set it live.", "error");
+        return false;
+      }
+
+      if (!templateData?.overlayFileId) {
+        showToast("This template does not have a live overlay yet. Save it first.", "error");
         return false;
       }
 
@@ -10834,6 +11063,90 @@ function hideReportLoading() {
         showToast("Failed to set the live template.", "error");
         return false;
       }
+    }
+
+    async function renderTemplateOverlayCanvas() {
+      const overlayCanvas = document.createElement("canvas");
+      overlayCanvas.width = TEMPLATE_STAGE_WIDTH;
+      overlayCanvas.height = TEMPLATE_STAGE_HEIGHT;
+      const overlayCtx = overlayCanvas.getContext("2d");
+      if (!overlayCtx) {
+        throw new Error("overlay_canvas_unavailable");
+      }
+
+      overlayCtx.clearRect(0, 0, TEMPLATE_STAGE_WIDTH, TEMPLATE_STAGE_HEIGHT);
+
+      if (templateBackgroundImg?.src) {
+        const backgroundImg = await loadImage(templateBackgroundImg.src, "Error loading template background");
+        overlayCtx.drawImage(backgroundImg, 0, 0, TEMPLATE_STAGE_WIDTH, TEMPLATE_STAGE_HEIGHT);
+      }
+
+      const photoBox = collectTemplateData().photoBox;
+      overlayCtx.clearRect(photoBox.x, photoBox.y, photoBox.width, photoBox.height);
+
+      const editorWidth = templateCanvas?.offsetWidth || TEMPLATE_STAGE_WIDTH;
+      const editorHeight = templateCanvas?.offsetHeight || TEMPLATE_STAGE_HEIGHT;
+      const scaleX = TEMPLATE_STAGE_WIDTH / editorWidth;
+      const scaleY = TEMPLATE_STAGE_HEIGHT / editorHeight;
+      const overlayLayers = Array.from(templateLogosContainer.querySelectorAll(".template-logo"));
+
+      for (const layer of overlayLayers) {
+        const imgEl = layer.querySelector("img");
+        const src = imgEl?.src || "";
+        if (!src) continue;
+
+        const assetImg = await loadImage(src, "Error loading overlay asset");
+        const drawX = (parseFloat(layer.style.left) || 0) * scaleX;
+        const drawY = (parseFloat(layer.style.top) || 0) * scaleY;
+        const drawWidth = (parseFloat(layer.style.width) || layer.offsetWidth || 0) * scaleX;
+        const drawHeight = (parseFloat(layer.style.height) || layer.offsetHeight || 0) * scaleY;
+        if (!drawWidth || !drawHeight) continue;
+
+        overlayCtx.drawImage(assetImg, drawX, drawY, drawWidth, drawHeight);
+      }
+
+      return {
+        canvas: overlayCanvas,
+        photoBox,
+      };
+    }
+
+    async function uploadFlattenedTemplateOverlay(templateId, templateName) {
+      const overlayVersion = new Date().toISOString();
+      const { canvas, photoBox } = await renderTemplateOverlayCanvas();
+      const overlayBlob = await canvasToPngBlob(canvas);
+      const formData = new FormData();
+      formData.append("file", overlayBlob, `${templateName || `template_${templateId}`}_overlay.png`);
+      formData.append("previousOverlayFileId", currentOverlayFileId || "");
+      formData.append("templateVersion", overlayVersion);
+      formData.append("photoBox", JSON.stringify(photoBox));
+
+      const res = await fetch(`${BASE_URL}/admin/templates/${encodeURIComponent(templateId)}/flattened-overlay`, {
+        method: "POST",
+        headers: withAdminHeaders(),
+        body: formData,
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        showLock("Session expired. Enter the access code.");
+        return null;
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data?.ok || !data.overlayFileId) {
+        throw new Error(data?.error || "flattened_overlay_upload_failed");
+      }
+
+      currentOverlayFileId = String(data.overlayFileId || "");
+      currentOverlayUpdatedAt = String(data.overlayUpdatedAt || "");
+      currentOverlayVersion = String(data.overlayVersion || overlayVersion);
+
+      return {
+        overlayFileId: currentOverlayFileId,
+        overlayUpdatedAt: currentOverlayUpdatedAt,
+        overlayVersion: currentOverlayVersion,
+        photoBox: data.photoBox || photoBox,
+      };
     }
 
     async function persistTemplate(name) {
@@ -10910,25 +11223,62 @@ function hideReportLoading() {
           const savedTemplateName = saved?.savedTemplateName || currentTemplateName || "";
           const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
           const wasLiveTemplate = savedTemplateId && String(savedTemplateId) === String(currentActiveTemplateId || "");
+          let overlayUploadWarning = "";
+
+          try {
+            const overlayResult = await uploadFlattenedTemplateOverlay(savedTemplateId, savedTemplateName);
+            if (overlayResult) {
+              savedTemplateData.overlayFileId = overlayResult.overlayFileId;
+              savedTemplateData.overlayUpdatedAt = overlayResult.overlayUpdatedAt;
+              savedTemplateData.overlayVersion = overlayResult.overlayVersion;
+              savedTemplateData.photoBox = overlayResult.photoBox;
+            }
+          } catch (overlayErr) {
+            console.error("Error generating/uploading flattened template overlay:", overlayErr);
+            overlayUploadWarning = overlayErr && overlayErr.message
+              ? overlayErr.message
+              : "flattened_overlay_upload_failed";
+          }
 
           if (setActiveAfterSave) {
+            if (overlayUploadWarning || !savedTemplateData.overlayFileId) {
+              await appAlert(
+                "The template was saved for editing, but the flattened live overlay failed to update. The gallery was not changed.",
+                {
+                  title: "Live Overlay Not Updated",
+                  tone: "error",
+                }
+              );
+              return false;
+            }
             const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData);
             if (success) {
               currentActiveTemplateId = String(savedTemplateId);
               updateTemplateUiState();
             }
-          } else if (wasLiveTemplate) {
+          } else if (wasLiveTemplate && savedTemplateData.overlayFileId) {
             currentActiveTemplateId = String(savedTemplateId);
             updateTemplateUiState();
           }
-          showToast(
-            setActiveAfterSave
-              ? `Template "${currentTemplateName}" saved and updated live.`
-              : wasLiveTemplate
-                ? `Template "${currentTemplateName}" saved and the live screen was updated.`
-                : `Template "${currentTemplateName}" saved.`,
-            "success"
-          );
+
+          if (overlayUploadWarning) {
+            await appAlert(
+              "The template was saved for editing, but the flattened overlay could not be updated for the live gallery. The previous live overlay remains in place.",
+              {
+                title: "Overlay Update Failed",
+                tone: "error",
+              }
+            );
+          } else {
+            showToast(
+              setActiveAfterSave
+                ? `Template "${currentTemplateName}" saved and updated live.`
+                : wasLiveTemplate
+                  ? `Template "${currentTemplateName}" saved and the live screen was updated.`
+                  : `Template "${currentTemplateName}" saved.`,
+              "success"
+            );
+          }
           return true;
         }
 
@@ -11009,26 +11359,62 @@ function hideReportLoading() {
           const savedTemplateName = saved?.savedTemplateName || currentTemplateName || "";
           const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
           const wasLiveTemplate = savedTemplateId && String(savedTemplateId) === String(currentActiveTemplateId || "");
+          let overlayUploadWarning = "";
+
+          try {
+            const overlayResult = await uploadFlattenedTemplateOverlay(savedTemplateId, savedTemplateName);
+            if (overlayResult) {
+              savedTemplateData.overlayFileId = overlayResult.overlayFileId;
+              savedTemplateData.overlayUpdatedAt = overlayResult.overlayUpdatedAt;
+              savedTemplateData.overlayVersion = overlayResult.overlayVersion;
+              savedTemplateData.photoBox = overlayResult.photoBox;
+            }
+          } catch (overlayErr) {
+            console.error("Error generating/uploading flattened template overlay:", overlayErr);
+            overlayUploadWarning = overlayErr && overlayErr.message
+              ? overlayErr.message
+              : "flattened_overlay_upload_failed";
+          }
 
           if (setActiveAfterSave) {
+            if (overlayUploadWarning || !savedTemplateData.overlayFileId) {
+              await appAlert(
+                "The template was saved for editing, but the flattened live overlay failed to update. The gallery was not changed.",
+                {
+                  title: "Live Overlay Not Updated",
+                  tone: "error",
+                }
+              );
+              return;
+            }
             const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData);
             if (success) {
               currentActiveTemplateId = String(savedTemplateId);
             }
-          } else if (wasLiveTemplate) {
+          } else if (wasLiveTemplate && savedTemplateData.overlayFileId) {
             currentActiveTemplateId = String(savedTemplateId);
           }
           if (overlay.parentNode) {
             document.body.removeChild(overlay);
           }
-          showToast(
-            setActiveAfterSave
-              ? `Template "${name}" saved and updated live.`
-              : wasLiveTemplate
-                ? `Template "${name}" saved and the live screen was updated.`
-                : `Template "${name}" saved.`,
-            "success"
-          );
+          if (overlayUploadWarning) {
+            await appAlert(
+              "The template was saved for editing, but the flattened overlay could not be updated for the live gallery. The previous live overlay remains in place.",
+              {
+                title: "Overlay Update Failed",
+                tone: "error",
+              }
+            );
+          } else {
+            showToast(
+              setActiveAfterSave
+                ? `Template "${name}" saved and updated live.`
+                : wasLiveTemplate
+                  ? `Template "${name}" saved and the live screen was updated.`
+                  : `Template "${name}" saved.`,
+              "success"
+            );
+          }
         } catch (err) {
           console.error("Error saving template:", err);
           showToast("Failed to save template.", "error");

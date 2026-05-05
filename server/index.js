@@ -21,6 +21,13 @@ const PENDING_FOLDER_ID  = '1n7AKxJ7Hc4QMVynY9C3d1fko6H_wT_qs'; // existing uplo
 const APPROVED_FOLDER_ID = '1blA55AfkUykFcYzgFzmvthXMvVFv6I0u'; // "Approved" folder
 const TEMPLATES_BG_FOLDER_ID = '1CcL_VNubTsran1Q8A8rJmgqwARi6asBp'; // Template backgrounds
 const TEMPLATES_LOGO_FOLDER_ID = '1YhfEJRXkbfpGcqkLnxFp8mkaCm_eOtrj'; // Template logos
+// Add both of these in Vercel Project Settings -> Environment Variables.
+const PHOTO_TEMPLATES_FOLDER_ID =
+  process.env.PHOTO_TEMPLATES_FOLDER_ID ||
+  '1X-JhUja-ifObDuNiL6a4pOUqjzhTpONE'; // flattened live overlay images
+const TEMPLATES_QR_FOLDER_ID =
+  process.env.TEMPLATES_QR_FOLDER_ID ||
+  '1X824xBfxPLJ6-mL-oxEw_dZhUiQ0IRrZ'; // uploaded QR assets for templates
 
 // Logs Google Sheet ID
 const SESSION_SHEET_ID =
@@ -53,6 +60,12 @@ const METRICS_EVENTS_SHEET_RANGE = `${METRICS_EVENTS_SHEET_NAME}!A:X`;
 const SESSION_SHEET_RANGE = 'A:J';
 const SETTINGS_SHEET_RANGE = `${SETTINGS_SHEET_NAME}!A:B`;
 const SETTINGS_SERVER_SESSION_KEY = 'Server Session';
+const DEFAULT_TEMPLATE_PHOTO_BOX = Object.freeze({
+  x: 210,
+  y: 40,
+  width: 1500,
+  height: 1000,
+});
 const SESSION_SHEET_HEADERS = [
   'timestamp_utc',
   'timestamp_pr',
@@ -734,6 +747,10 @@ function buildPublicTemplateAssetUrl(fileId) {
   return `/gallery/template-asset/${encodeURIComponent(fileId)}`;
 }
 
+function buildPublicTemplateOverlayUrl(fileId) {
+  return `/gallery/template-overlay/${encodeURIComponent(fileId)}`;
+}
+
 function normalizeTemplateAssetFileId(value) {
   if (value == null) return '';
   const raw = String(value).trim();
@@ -775,6 +792,29 @@ function resolveTemplateAsset(asset) {
   };
 }
 
+function normalizeTemplatePhotoBox(photoBox) {
+  const fallback = { ...DEFAULT_TEMPLATE_PHOTO_BOX };
+  if (!photoBox || typeof photoBox !== 'object') {
+    return fallback;
+  }
+
+  const x = Number(photoBox.x);
+  const y = Number(photoBox.y);
+  const width = Number(photoBox.width);
+  const height = Number(photoBox.height);
+
+  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+    return fallback;
+  }
+
+  return {
+    x: Math.max(0, Math.min(1920, Math.round(x))),
+    y: Math.max(0, Math.min(1080, Math.round(y))),
+    width: Math.max(1, Math.min(1920, Math.round(width))),
+    height: Math.max(1, Math.min(1080, Math.round(height))),
+  };
+}
+
 function serializeTemplateForPublic(template) {
   if (!template || !template.data) return null;
 
@@ -793,10 +833,32 @@ function serializeTemplateForPublic(template) {
             y: Number.isFinite(Number(logo.y)) ? Number(logo.y) : 0,
             width: Number.isFinite(Number(logo.width)) ? Number(logo.width) : 0,
             height: Number.isFinite(Number(logo.height)) ? Number(logo.height) : 0,
+            order: Number.isFinite(Number(logo.order)) ? Number(logo.order) : 0,
           };
         })
         .filter(Boolean)
     : [];
+  const qrLayers = Array.isArray(template.data.qrLayers)
+    ? template.data.qrLayers
+        .map((qrLayer) => {
+          const resolved = resolveTemplateAsset(qrLayer);
+          if (!resolved) return null;
+
+          return {
+            type: resolved.type,
+            value: resolved.value,
+            url: resolved.url,
+            x: Number.isFinite(Number(qrLayer.x)) ? Number(qrLayer.x) : 0,
+            y: Number.isFinite(Number(qrLayer.y)) ? Number(qrLayer.y) : 0,
+            width: Number.isFinite(Number(qrLayer.width)) ? Number(qrLayer.width) : 0,
+            height: Number.isFinite(Number(qrLayer.height)) ? Number(qrLayer.height) : 0,
+            label: qrLayer.label ? String(qrLayer.label) : '',
+            order: Number.isFinite(Number(qrLayer.order)) ? Number(qrLayer.order) : 0,
+          };
+        })
+        .filter(Boolean)
+    : [];
+  const photoBox = normalizeTemplatePhotoBox(template.data.photoBox);
 
   return {
     id: template.id,
@@ -805,7 +867,12 @@ function serializeTemplateForPublic(template) {
     canvasWidth: Number.isFinite(Number(template.data.canvasWidth)) ? Number(template.data.canvasWidth) : 1920,
     canvasHeight: Number.isFinite(Number(template.data.canvasHeight)) ? Number(template.data.canvasHeight) : 1080,
     background,
-    logos
+    logos,
+    qrLayers,
+    photoBox,
+    overlayFileId: template.data.overlayFileId ? String(template.data.overlayFileId) : '',
+    overlayUpdatedAt: template.data.overlayUpdatedAt ? String(template.data.overlayUpdatedAt) : '',
+    overlayVersion: template.data.overlayVersion ? String(template.data.overlayVersion) : '',
   };
 }
 
@@ -855,7 +922,10 @@ function buildTemplateVersion(templateLike) {
 function buildActiveTemplateResponse(template, meta = {}) {
   const serializedTemplate = serializeTemplateForPublic(template);
   const templateId = template && template.id ? String(template.id) : '';
-  const version = buildTemplateVersion(template);
+  const version =
+    serializedTemplate && serializedTemplate.overlayVersion
+      ? serializedTemplate.overlayVersion
+      : buildTemplateVersion(template);
 
   return {
     ok: true,
@@ -869,6 +939,51 @@ function buildActiveTemplateResponse(template, meta = {}) {
       version,
     }
   };
+}
+
+function buildActiveOverlayResponse(template, meta = {}) {
+  const serializedTemplate = serializeTemplateForPublic(template);
+  const enabled = Boolean(
+    serializedTemplate &&
+      serializedTemplate.overlayFileId
+  );
+  const overlayFileId = enabled ? String(serializedTemplate.overlayFileId) : '';
+  const overlayVersion = enabled
+    ? String(serializedTemplate.overlayVersion || buildTemplateVersion(template))
+    : '';
+  const photoBox = serializedTemplate
+    ? normalizeTemplatePhotoBox(serializedTemplate.photoBox)
+    : { ...DEFAULT_TEMPLATE_PHOTO_BOX };
+
+  return {
+    ok: true,
+    enabled,
+    templateId: serializedTemplate ? String(serializedTemplate.id || '') : '',
+    templateName: serializedTemplate ? serializedTemplate.name || '' : '',
+    templateVersion: overlayVersion,
+    overlayFileId,
+    overlayUrl: overlayFileId ? buildPublicTemplateOverlayUrl(overlayFileId) : '',
+    photoBox,
+    updatedAt: serializedTemplate ? serializedTemplate.overlayUpdatedAt || '' : '',
+    meta: {
+      reason: meta.reason || (enabled ? 'active_overlay_available' : 'overlay_unavailable'),
+      source: meta.source || 'unknown',
+      disabled: Boolean(meta.disabled),
+    }
+  };
+}
+
+function sanitizeDriveFileBaseName(value, fallback = 'asset') {
+  const normalized = String(value || '')
+    .normalize('NFKD')
+    .replace(/[^\w\s.-]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/[.]{2,}/g, '.')
+    .replace(/^[_\-.]+|[_\-.]+$/g, '')
+    .slice(0, 80);
+
+  return normalized || fallback;
 }
 
 async function syncActiveTemplateSettings(settings) {
@@ -948,7 +1063,16 @@ async function updateTemplateInSheet(templateId, name, templateData, isActive) {
     const row = parseInt(templateId, 10);
     if (isNaN(row) || row < 2) return false;
 
-    const values = [[name, JSON.stringify(templateData), '', String(isActive)]];
+    let createdAt = '';
+    try {
+      const existingRow = await sheets.spreadsheets.values.get({
+        spreadsheetId: TEMPLATES_SHEET_ID,
+        range: `${TEMPLATES_SHEET_NAME}!A${row}:D${row}`
+      });
+      createdAt = existingRow.data?.values?.[0]?.[2] || '';
+    } catch (_) {}
+
+    const values = [[name, JSON.stringify(templateData), createdAt, String(isActive)]];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: TEMPLATES_SHEET_ID,
@@ -3888,6 +4012,70 @@ app.get('/gallery/photo/:fileId', async (req, res) => {
   }
 });
 
+app.get('/gallery/template-overlay/:fileId', async (req, res) => {
+  const { fileId } = req.params;
+  const startedAt = Date.now();
+  let respondedStatus = 200;
+
+  try {
+    const driveRes = await drive.files.get(
+      {
+        fileId,
+        alt: 'media',
+      },
+      { responseType: 'stream' }
+    );
+
+    try {
+      const metadata = await drive.files.get({
+        fileId,
+        fields: 'mimeType'
+      });
+      res.setHeader('Content-Type', metadata.data.mimeType || 'image/png');
+    } catch {
+      res.setHeader('Content-Type', 'image/png');
+    }
+
+    console.log('Gallery template overlay stream started', {
+      fileId,
+      contentType: res.getHeader('Content-Type'),
+    });
+
+    driveRes.data
+      .on('error', (err) => {
+        respondedStatus = res.headersSent ? respondedStatus : 502;
+        console.error('Drive stream error (gallery template overlay):', {
+          fileId,
+          status: respondedStatus,
+          durationMs: Date.now() - startedAt,
+          error: err && err.message ? err.message : err,
+        });
+        if (!res.headersSent) {
+          res.end();
+        }
+      })
+      .on('end', () => {
+        console.log('Gallery template overlay stream completed', {
+          fileId,
+          status: respondedStatus,
+          durationMs: Date.now() - startedAt,
+        });
+      })
+      .pipe(res);
+  } catch (err) {
+    respondedStatus = 404;
+    console.error('Error streaming gallery template overlay', {
+      fileId,
+      status: respondedStatus,
+      durationMs: Date.now() - startedAt,
+      error: err && err.message ? err.message : err,
+    });
+    if (!res.headersSent) {
+      res.status(404).end();
+    }
+  }
+});
+
 app.get('/gallery/template-asset/:fileId', async (req, res) => {
   const { fileId } = req.params;
   const startedAt = Date.now();
@@ -3949,6 +4137,130 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
     if (!res.headersSent) {
       res.status(404).end();
     }
+  }
+});
+
+app.get('/gallery/active-overlay', async (req, res) => {
+  let settingsHydrated = false;
+  try {
+    try {
+      await hydrateSettingsFromSheet();
+      settingsHydrated = true;
+    } catch (hydrateErr) {
+      console.warn('Active overlay settings hydration failed; using last in-memory state.', hydrateErr.message || hydrateErr);
+    }
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
+    if (snapshot && String(snapshot.id || '') === String(appSettings.activeTemplateId || snapshot.id || '')) {
+      const snapshotTemplate = {
+        id: snapshot.id || appSettings.activeTemplateId || '',
+        name: snapshot.name || '',
+        createdAt: snapshot.createdAt || '',
+        data: snapshot.data
+      };
+      console.log('Gallery active overlay served from snapshot', {
+        settingsHydrated,
+        templateId: String(snapshotTemplate.id || ''),
+        overlayFileId: String(snapshotTemplate.data?.overlayFileId || ''),
+        version: String(snapshotTemplate.data?.overlayVersion || ''),
+      });
+      return res.json(buildActiveOverlayResponse(snapshotTemplate, {
+        source: settingsHydrated ? 'settings_snapshot' : 'memory_snapshot_after_settings_failure',
+        reason: settingsHydrated ? 'active_overlay_snapshot' : 'settings_hydration_failed_using_snapshot',
+      }));
+    }
+
+    if (appSettings.activeTemplateId) {
+      const liveTemplate = await getTemplateById(appSettings.activeTemplateId);
+      if (liveTemplate) {
+        console.log('Gallery active overlay served from template row', {
+          settingsHydrated,
+          templateId: String(liveTemplate.id || ''),
+          overlayFileId: String(liveTemplate.data?.overlayFileId || ''),
+          version: String(liveTemplate.data?.overlayVersion || ''),
+        });
+        return res.json(buildActiveOverlayResponse(liveTemplate, {
+          source: 'template_sheet_row',
+          reason: 'active_overlay_row_loaded',
+        }));
+      }
+
+      console.warn('Gallery active overlay row missing for activeTemplateId', {
+        settingsHydrated,
+        activeTemplateId: String(appSettings.activeTemplateId || ''),
+      });
+
+      if (snapshot) {
+        const fallbackTemplate = {
+          id: snapshot.id || appSettings.activeTemplateId || '',
+          name: snapshot.name || '',
+          createdAt: snapshot.createdAt || '',
+          data: snapshot.data
+        };
+        console.log('Gallery active overlay falling back to stale snapshot because row is missing', {
+          activeTemplateId: String(appSettings.activeTemplateId || ''),
+          templateId: String(fallbackTemplate.id || ''),
+          overlayFileId: String(fallbackTemplate.data?.overlayFileId || ''),
+          version: String(fallbackTemplate.data?.overlayVersion || ''),
+        });
+        return res.json(buildActiveOverlayResponse(fallbackTemplate, {
+          source: 'stale_snapshot_fallback',
+          reason: 'overlay_row_missing_using_snapshot',
+        }));
+      }
+    }
+
+    console.log('Gallery active overlay unavailable', {
+      settingsHydrated,
+      activeTemplateId: String(appSettings.activeTemplateId || ''),
+      hasSnapshot: Boolean(snapshot),
+      reason: appSettings.activeTemplateId ? 'overlay_row_missing_no_snapshot' : 'no_active_template_id',
+    });
+
+    return res.json(buildActiveOverlayResponse(null, {
+      disabled: false,
+      source: settingsHydrated ? 'settings_state' : 'memory_state_after_settings_failure',
+      reason: appSettings.activeTemplateId ? 'overlay_row_missing_no_snapshot' : 'no_active_template_id',
+    }));
+  } catch (err) {
+    console.error('Error loading active gallery overlay', err);
+    const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
+    if (snapshot) {
+      const fallbackTemplate = {
+        id: snapshot.id || appSettings.activeTemplateId || '',
+        name: snapshot.name || '',
+        createdAt: snapshot.createdAt || '',
+        data: snapshot.data
+      };
+      console.warn('Gallery active overlay route failed; serving last in-memory snapshot fallback', {
+        activeTemplateId: String(appSettings.activeTemplateId || ''),
+        templateId: String(fallbackTemplate.id || ''),
+        overlayFileId: String(fallbackTemplate.data?.overlayFileId || ''),
+        version: String(fallbackTemplate.data?.overlayVersion || ''),
+        error: err && err.message ? err.message : err,
+      });
+      return res.json(buildActiveOverlayResponse(fallbackTemplate, {
+        source: 'route_exception_snapshot_fallback',
+        reason: 'route_exception_using_snapshot',
+      }));
+    }
+
+    return res.status(500).json({
+      ok: false,
+      error: 'active_overlay_failed',
+      meta: {
+        active: false,
+        disabled: false,
+        reason: 'route_exception_no_snapshot',
+        source: 'route_exception',
+        templateId: String(appSettings.activeTemplateId || ''),
+        version: '',
+      }
+    });
   }
 });
 
@@ -4334,7 +4646,7 @@ app.get('/admin/templates', ensureAdminAuth, async (req, res) => {
 });
 
 // Get single template
-app.get('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
+app.get('/admin/templates/:id(\\d+)', ensureAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const templates = await readTemplatesFromSheet();
@@ -4374,7 +4686,7 @@ app.post('/admin/templates', ensureAdminAuth, async (req, res) => {
 });
 
 // Update template
-app.put('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
+app.put('/admin/templates/:id(\\d+)', ensureAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, data, isActive } = req.body || {};
@@ -4415,7 +4727,7 @@ app.put('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
 });
 
 // Delete template
-app.delete('/admin/templates/:id', ensureAdminAuth, async (req, res) => {
+app.delete('/admin/templates/:id(\\d+)', ensureAdminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const success = await deleteTemplateFromSheet(id);
@@ -4438,16 +4750,25 @@ app.post('/admin/templates/upload-asset', ensureAdminAuth, multer({ storage: mul
       return res.status(400).json({ ok: false, error: 'missing_file' });
     }
 
-    const { assetType } = req.body || {}; // 'background' or 'logo'
-    
-    if (!assetType || (assetType !== 'background' && assetType !== 'logo')) {
+    const { assetType, assetLabel } = req.body || {}; // 'background', 'logo', or 'qr'
+
+    if (!assetType || !['background', 'logo', 'qr'].includes(assetType)) {
       return res.status(400).json({ ok: false, error: 'invalid_asset_type' });
     }
 
-    const folderId = assetType === 'background' ? TEMPLATES_BG_FOLDER_ID : TEMPLATES_LOGO_FOLDER_ID;
+    const folderId = assetType === 'background'
+      ? TEMPLATES_BG_FOLDER_ID
+      : assetType === 'qr'
+        ? TEMPLATES_QR_FOLDER_ID
+        : TEMPLATES_LOGO_FOLDER_ID;
     const timestamp = Date.now();
-    const extension = req.file.originalname.split('.').pop() || 'jpg';
-    const filename = `template_${assetType}_${timestamp}.${extension}`;
+    const originalExtension = req.file.originalname.split('.').pop() || 'jpg';
+    const extension = sanitizeDriveFileBaseName(originalExtension, 'jpg').toLowerCase();
+    const safeLabel = sanitizeDriveFileBaseName(
+      assetType === 'qr' ? assetLabel : '',
+      `template_${assetType}_${timestamp}`
+    );
+    const filename = `${safeLabel}.${extension}`;
 
     const bufferStream = new stream.PassThrough();
     bufferStream.end(req.file.buffer);
@@ -4469,7 +4790,8 @@ app.post('/admin/templates/upload-asset', ensureAdminAuth, multer({ storage: mul
       ok: true,
       fileId: response.data.id,
       filename: response.data.name,
-      type: assetType
+      type: assetType,
+      label: assetType === 'qr' ? safeLabel.replace(/_/g, ' ') : ''
     });
   } catch (err) {
     console.error('Error uploading template asset:', err);
@@ -4501,6 +4823,30 @@ app.get('/admin/templates/background-assets', ensureAdminAuth, async (req, res) 
   }
 });
 
+app.get('/admin/templates/qr-assets', ensureAdminAuth, async (req, res) => {
+  try {
+    const response = await drive.files.list({
+      q: `'${TEMPLATES_QR_FOLDER_ID}' in parents and trashed = false`,
+      fields: 'files(id, name, createdTime)',
+      orderBy: 'createdTime desc',
+      pageSize: 200,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+
+    const assets = (response.data.files || []).map((file) => ({
+      id: file.id,
+      name: file.name,
+      createdTime: file.createdTime || '',
+    }));
+
+    res.json({ ok: true, assets });
+  } catch (err) {
+    console.error('Error listing template QR assets:', err);
+    res.status(500).json({ ok: false, error: 'list_qr_assets_failed' });
+  }
+});
+
 app.delete('/admin/templates/background-assets/:fileId', ensureAdminAuth, async (req, res) => {
   try {
     const { fileId } = req.params;
@@ -4518,6 +4864,133 @@ app.delete('/admin/templates/background-assets/:fileId', ensureAdminAuth, async 
   } catch (err) {
     console.error('Error deleting template background asset:', err);
     res.status(500).json({ ok: false, error: 'delete_background_asset_failed' });
+  }
+});
+
+app.post('/admin/templates/:id(\\d+)/flattened-overlay', ensureAdminAuth, multer({ storage: multer.memoryStorage() }).single('file'), async (req, res) => {
+  const { id } = req.params;
+  const startedAt = Date.now();
+
+  try {
+    if (!req.file || !req.file.buffer || !req.file.buffer.length) {
+      return res.status(400).json({ ok: false, error: 'missing_file' });
+    }
+
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(req.file.mimetype || '')) {
+      return res.status(400).json({ ok: false, error: 'invalid_overlay_type' });
+    }
+
+    const template = await getTemplateById(id);
+    if (!template) {
+      return res.status(404).json({ ok: false, error: 'template_not_found' });
+    }
+
+    const previousOverlayFileId = normalizeTemplateAssetFileId(
+      req.body?.previousOverlayFileId || template.data?.overlayFileId || ''
+    );
+    const requestedVersion = req.body?.templateVersion ? String(req.body.templateVersion).trim() : '';
+
+    let parsedPhotoBox = null;
+    if (req.body?.photoBox) {
+      try {
+        parsedPhotoBox = JSON.parse(req.body.photoBox);
+      } catch (err) {
+        console.warn('Invalid photoBox payload for flattened overlay upload:', err.message || err);
+      }
+    }
+
+    const nextPhotoBox = normalizeTemplatePhotoBox(parsedPhotoBox || template.data?.photoBox);
+    const overlayUpdatedAt = new Date().toISOString();
+    const overlayVersion = requestedVersion || overlayUpdatedAt;
+    const extension = req.file.mimetype === 'image/jpeg' ? 'jpg' : req.file.mimetype === 'image/webp' ? 'webp' : 'png';
+    const filename = `${sanitizeDriveFileBaseName(template.name || `template_${id}`, `template_${id}`)}_overlay.${extension}`;
+
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(req.file.buffer);
+
+    const uploadResponse = await drive.files.create({
+      requestBody: {
+        name: filename,
+        mimeType: req.file.mimetype,
+        parents: [PHOTO_TEMPLATES_FOLDER_ID]
+      },
+      media: {
+        mimeType: req.file.mimetype,
+        body: bufferStream
+      },
+      supportsAllDrives: true
+    });
+
+    const overlayFileId = String(uploadResponse.data.id || '');
+    if (!overlayFileId) {
+      return res.status(500).json({ ok: false, error: 'missing_overlay_file_id' });
+    }
+
+    const nextTemplateData = {
+      ...(template.data || {}),
+      photoBox: nextPhotoBox,
+      overlayFileId,
+      overlayUpdatedAt,
+      overlayVersion,
+    };
+
+    const updateOk = await updateTemplateInSheet(template.id, template.name, nextTemplateData, template.isActive !== false);
+    if (!updateOk) {
+      await drive.files.update({
+        fileId: overlayFileId,
+        requestBody: { trashed: true },
+        supportsAllDrives: true,
+      }).catch(() => {});
+      return res.status(500).json({ ok: false, error: 'overlay_sheet_update_failed' });
+    }
+
+    if (previousOverlayFileId && previousOverlayFileId !== overlayFileId) {
+      drive.files.update({
+        fileId: previousOverlayFileId,
+        requestBody: { trashed: true },
+        supportsAllDrives: true,
+      }).catch((err) => {
+        console.warn('Unable to trash previous overlay file after replacement:', previousOverlayFileId, err.message || err);
+      });
+    }
+
+    if (String(appSettings.activeTemplateId || '') === String(template.id)) {
+      appSettings = await syncActiveTemplateSettings({
+        ...appSettings,
+        activeTemplateId: String(template.id),
+        activeTemplateSnapshot: buildActiveTemplateSnapshotString({
+          id: String(template.id),
+          name: template.name || '',
+          createdAt: template.createdAt || overlayUpdatedAt,
+          data: nextTemplateData
+        })
+      });
+      const persisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
+      if (!persisted) {
+        console.warn('Active template settings sync failed after flattened overlay upload for template', template.id);
+      }
+    }
+
+    console.log('Flattened template overlay uploaded', {
+      templateId: String(template.id),
+      overlayFileId,
+      previousOverlayFileId,
+      overlayVersion,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return res.json({
+      ok: true,
+      templateId: String(template.id),
+      overlayFileId,
+      overlayUpdatedAt,
+      overlayVersion,
+      overlayUrl: buildPublicTemplateOverlayUrl(overlayFileId),
+      photoBox: nextPhotoBox,
+    });
+  } catch (err) {
+    console.error('Error uploading flattened template overlay:', err);
+    return res.status(500).json({ ok: false, error: 'upload_flattened_overlay_failed' });
   }
 });
 

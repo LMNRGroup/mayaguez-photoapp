@@ -98,6 +98,17 @@
       pointer-events: none;
     }
 
+    .template-overlay-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 11;
+      pointer-events: none;
+      display: none;
+    }
+
     .template-logo-layer {
       position: absolute;
       overflow: hidden;
@@ -159,13 +170,15 @@
       <img id="templateBackground" class="template-background-layer" alt="Template Background" />
 
       <!-- PHOTO WINDOW -->
-<div class="photo-window">
+<div id="photoWindow" class="photo-window">
   <img id="photoA" class="photo" alt="Selfie aprobado A" />
   <img id="photoB" class="photo" alt="Selfie aprobado B" />
 
   <!-- Ticket number overlay INSIDE the photo window -->
   <div id="ticketBadge" class="ticket-badge">#000</div>
 </div>
+
+      <img id="templateOverlay" class="template-overlay-layer" alt="Template Overlay" />
 
 <!-- Gallery status -->
 <div id="galleryEmpty" class="empty">
@@ -183,13 +196,22 @@
     const REFRESH_MS = 10000;
     /** Template changes are rare; polling less often reduces load and timeout risk on low-memory clients. */
     const TEMPLATE_REFRESH_MS = 45000;
+    const OVERLAY_REFRESH_MS = 45000;
     const REQUEST_TIMEOUT_MS = 12000;
     const IMAGE_LOAD_TIMEOUT_MS = 15000;
     const TEMPLATE_RENDERING_ENABLED = false;
+    const DEFAULT_PHOTO_BOX = Object.freeze({
+      x: 210,
+      y: 40,
+      width: 1500,
+      height: 1000,
+    });
     const imgA = document.getElementById("photoA");
     const imgB = document.getElementById("photoB");
     const emptyEl = document.getElementById("galleryEmpty");
     const ticketBadgeEl = document.getElementById("ticketBadge");
+    const photoWindowEl = document.getElementById("photoWindow");
+    const templateOverlayEl = document.getElementById("templateOverlay");
     const templateBackgroundEl = document.getElementById("templateBackground");
     const templateLogosEl = document.getElementById("templateLogos");
 
@@ -205,16 +227,23 @@
     let rotateTimer = null;
     let refreshTimer = null;
     let templateRefreshTimer = null;
+    let overlayRefreshTimer = null;
     let activeTemplateKey = "";
     const sortOrder = "oldest";
     let activeTemplateRequestId = 0;
+    let activeOverlayRequestId = 0;
     let currentPhotoId = "";
     let photoTransitionToken = 0;
     let templateLoadAttempt = 0;
+    let overlayLoadAttempt = 0;
     let approvedPollCount = 0;
     let consecutiveEmptyApprovedResponses = 0;
     const EMPTY_APPROVED_CLEAR_THRESHOLD = 3;
     let lastTemplateMetadata = null;
+    let activeOverlayKey = "";
+    let currentOverlayFileId = "";
+    let currentOverlayVersion = "";
+    let lastGoodOverlayMeta = null;
 
     function galleryDebug(...args) {
       console.log("[gallery]", ...args);
@@ -248,6 +277,178 @@
       ]);
     }
 
+    function normalizePhotoBox(photoBox) {
+      const fallback = { ...DEFAULT_PHOTO_BOX };
+      if (!photoBox || typeof photoBox !== "object") {
+        return fallback;
+      }
+
+      const x = Number(photoBox.x);
+      const y = Number(photoBox.y);
+      const width = Number(photoBox.width);
+      const height = Number(photoBox.height);
+      if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+        return fallback;
+      }
+
+      return {
+        x: Math.max(0, Math.min(1920, Math.round(x))),
+        y: Math.max(0, Math.min(1080, Math.round(y))),
+        width: Math.max(1, Math.min(1920, Math.round(width))),
+        height: Math.max(1, Math.min(1080, Math.round(height))),
+      };
+    }
+
+    function applyPhotoBox(photoBox) {
+      if (!photoWindowEl) return;
+      const nextPhotoBox = normalizePhotoBox(photoBox);
+      photoWindowEl.style.left = `${(nextPhotoBox.x / 1920) * 100}%`;
+      photoWindowEl.style.top = `${(nextPhotoBox.y / 1080) * 100}%`;
+      photoWindowEl.style.width = `${(nextPhotoBox.width / 1920) * 100}%`;
+      photoWindowEl.style.height = `${(nextPhotoBox.height / 1080) * 100}%`;
+      galleryDebug("photo box applied", nextPhotoBox);
+    }
+
+    function clearOverlayLayer(reason = "unspecified") {
+      if (templateOverlayEl) {
+        templateOverlayEl.removeAttribute("src");
+        templateOverlayEl.style.display = "none";
+      }
+      activeOverlayKey = "";
+      currentOverlayFileId = "";
+      currentOverlayVersion = "";
+      lastGoodOverlayMeta = null;
+      applyPhotoBox(DEFAULT_PHOTO_BOX);
+      galleryDebug("overlay cleared", { reason });
+    }
+
+    function disableDynamicTemplateLayer() {
+      if (templateBackgroundEl) {
+        templateBackgroundEl.removeAttribute("src");
+        templateBackgroundEl.style.display = "none";
+        templateBackgroundEl.style.pointerEvents = "none";
+      }
+      if (templateLogosEl) {
+        templateLogosEl.innerHTML = "";
+        templateLogosEl.style.pointerEvents = "none";
+      }
+      galleryDebug("dynamic template layer disabled");
+    }
+
+    function buildOverlayKey(data) {
+      if (!data || !data.enabled || !data.overlayFileId) return "";
+      const photoBox = normalizePhotoBox(data.photoBox);
+      return JSON.stringify({
+        templateId: String(data.templateId || ""),
+        overlayFileId: String(data.overlayFileId || ""),
+        templateVersion: String(data.templateVersion || ""),
+        photoBox,
+      });
+    }
+
+    function describeOverlay(data, overlayKey = "") {
+      return {
+        templateId: data && data.templateId ? String(data.templateId) : "",
+        templateName: data && data.templateName ? String(data.templateName) : "",
+        overlayFileId: data && data.overlayFileId ? String(data.overlayFileId) : "",
+        templateVersion: data && data.templateVersion ? String(data.templateVersion) : "",
+        overlayUrl: data && data.overlayUrl ? normalizeAssetUrl(data.overlayUrl) : "",
+        overlayKey: overlayKey || buildOverlayKey(data),
+        photoBox: normalizePhotoBox(data && data.photoBox),
+      };
+    }
+
+    async function preloadOverlayImage(src, timeoutMs = IMAGE_LOAD_TIMEOUT_MS) {
+      return await new Promise((resolve, reject) => {
+        const img = new Image();
+        let settled = false;
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error("overlay_load_timeout"));
+        }, timeoutMs);
+
+        function cleanup() {
+          clearTimeout(timer);
+          img.onload = null;
+          img.onerror = null;
+        }
+
+        async function settleSuccess() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          try {
+            if (typeof img.decode === "function") {
+              await img.decode();
+            }
+          } catch (decodeErr) {
+            galleryDebug("overlay decode warning", {
+              src,
+              error: decodeErr && decodeErr.message ? decodeErr.message : String(decodeErr),
+            });
+          }
+          resolve({
+            src,
+            naturalWidth: img.naturalWidth || 0,
+            naturalHeight: img.naturalHeight || 0,
+          });
+        }
+
+        img.onload = settleSuccess;
+        img.onerror = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error("overlay_load_failed"));
+        };
+        img.src = src;
+
+        if (img.complete && img.naturalWidth > 0) {
+          void settleSuccess();
+        }
+      });
+    }
+
+    async function commitOverlay(data, overlayKey, requestId) {
+      const overlaySummary = describeOverlay(data, overlayKey);
+      overlayLoadAttempt += 1;
+      galleryDebug("overlay load start", {
+        requestId,
+        attempt: overlayLoadAttempt,
+        ...overlaySummary,
+        currentOverlayFileId,
+        lastGoodOverlay: lastGoodOverlayMeta,
+      });
+
+      const overlayAsset = await preloadOverlayImage(overlaySummary.overlayUrl);
+      if (requestId !== activeOverlayRequestId) {
+        galleryDebug("overlay commit skipped because a newer request is active", {
+          requestId,
+          activeOverlayRequestId,
+          overlayKey,
+        });
+        return false;
+      }
+
+      if (templateOverlayEl) {
+        templateOverlayEl.src = overlayAsset.src;
+        templateOverlayEl.style.display = "block";
+      }
+
+      applyPhotoBox(overlaySummary.photoBox);
+      activeOverlayKey = overlayKey;
+      currentOverlayFileId = overlaySummary.overlayFileId;
+      currentOverlayVersion = overlaySummary.templateVersion;
+      lastGoodOverlayMeta = overlaySummary;
+      galleryDebug("overlay load success", {
+        requestId,
+        ...overlaySummary,
+        naturalWidth: overlayAsset.naturalWidth,
+        naturalHeight: overlayAsset.naturalHeight,
+      });
+      return true;
+    }
+
     function setGalleryStatus(message = "") {
       if (!emptyEl) return;
       emptyEl.textContent = message;
@@ -263,18 +464,10 @@
     }
 
     function disableTemplateLayerForLiveMode() {
-      if (templateBackgroundEl) {
-        templateBackgroundEl.removeAttribute("src");
-        templateBackgroundEl.style.display = "none";
-        templateBackgroundEl.style.pointerEvents = "none";
-      }
-      if (templateLogosEl) {
-        templateLogosEl.innerHTML = "";
-        templateLogosEl.style.pointerEvents = "none";
-      }
+      disableDynamicTemplateLayer();
       activeTemplateKey = "";
       lastTemplateMetadata = null;
-      galleryDebug("template rendering disabled for live mode; template layer cleared once");
+      galleryDebug("template rendering disabled for live mode; dynamic template layer cleared once");
     }
 
     function clearTemplateLayers(options = {}) {
@@ -987,6 +1180,98 @@
       templateRefreshTimer = setInterval(fetchActiveTemplate, TEMPLATE_REFRESH_MS);
     }
 
+    async function fetchActiveOverlay() {
+      const requestId = ++activeOverlayRequestId;
+      galleryDebug("overlay fetch start", {
+        requestId,
+        activeOverlayKey,
+        currentOverlayFileId,
+        currentOverlayVersion,
+      });
+
+      try {
+        const res = await fetchWithTimeout(`${BASE_URL}/gallery/active-overlay?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          console.error("Error fetching active overlay", res.status);
+          galleryDebug("overlay fetch failed", { requestId, status: res.status });
+          return;
+        }
+
+        const data = await res.json();
+        if (requestId !== activeOverlayRequestId) {
+          galleryDebug("overlay fetch ignored because a newer request exists", { requestId });
+          return;
+        }
+        if (!data.ok) {
+          console.error("Active overlay API returned not ok", data);
+          galleryDebug("overlay fetch returned non-ok payload", { requestId, data });
+          return;
+        }
+
+        const overlayKey = buildOverlayKey(data);
+        galleryDebug("overlay fetch success", {
+          requestId,
+          enabled: Boolean(data.enabled),
+          templateId: String(data.templateId || ""),
+          overlayFileId: String(data.overlayFileId || ""),
+          templateVersion: String(data.templateVersion || ""),
+          overlayKey,
+          photoBox: normalizePhotoBox(data.photoBox),
+          lastGoodOverlay: lastGoodOverlayMeta,
+        });
+
+        if (!data.enabled || !data.overlayFileId || !data.overlayUrl) {
+          if (lastGoodOverlayMeta) {
+            galleryDebug("overlay disabled by active-overlay response; clearing current overlay", {
+              requestId,
+              reason: data?.meta?.reason || "overlay_disabled",
+            });
+            clearOverlayLayer(data?.meta?.reason || "overlay_disabled");
+          } else {
+            applyPhotoBox(DEFAULT_PHOTO_BOX);
+          }
+          return;
+        }
+
+        if (overlayKey === activeOverlayKey) {
+          applyPhotoBox(data.photoBox || DEFAULT_PHOTO_BOX);
+          galleryDebug("overlay fetch skipped because overlay already active", {
+            requestId,
+            overlayKey,
+          });
+          return;
+        }
+
+        try {
+          await commitOverlay(data, overlayKey, requestId);
+        } catch (err) {
+          galleryDebug("overlay load failed; keeping last-known-good overlay", {
+            requestId,
+            templateId: String(data.templateId || ""),
+            overlayFileId: String(data.overlayFileId || ""),
+            templateVersion: String(data.templateVersion || ""),
+            error: err && err.message ? err.message : String(err),
+            lastGoodOverlay: lastGoodOverlayMeta,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch active overlay", err);
+        galleryDebug("overlay fetch exception", {
+          requestId,
+          error: err && err.message ? err.message : String(err),
+          lastGoodOverlay: lastGoodOverlayMeta,
+        });
+      }
+    }
+
+    function startOverlayRefreshLoop() {
+      if (overlayRefreshTimer) clearInterval(overlayRefreshTimer);
+      fetchActiveOverlay();
+      overlayRefreshTimer = setInterval(fetchActiveOverlay, OVERLAY_REFRESH_MS);
+    }
+
     function sortPhotosList(list) {
       if (!Array.isArray(list) || !list.length) return list;
 
@@ -1012,10 +1297,12 @@
     } else {
       disableTemplateLayerForLiveMode();
     }
+    clearOverlayLayer("initial_boot");
     setGalleryStatus("Loading...");
     if (TEMPLATE_RENDERING_ENABLED) {
       startTemplateRefreshLoop();
     }
+    startOverlayRefreshLoop();
     startRefreshLoop();
     fetchApproved();
   </script>
