@@ -13,6 +13,16 @@
       font-style: normal;
     }
 
+    :root {
+      --space-xs: 8px;
+      --space-sm: 12px;
+      --space-md: 16px;
+      --space-lg: 20px;
+      --radius-md: 18px;
+      --radius-lg: 25px;
+      --control-height: 44px;
+    }
+
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -24,21 +34,23 @@
       justify-content: flex-start;
       min-height: 100vh;
       color: #f8fafc;
+      overflow-x: hidden;
     }
 
     .container {
       width: 85vw;
       max-width: 400px;
-      padding: 20px 15px;
-      margin-top: 20px;
+      padding: var(--space-lg) var(--space-sm);
+      margin-top: var(--space-lg);
       background: rgba(255, 255, 255, 0.78);
       backdrop-filter: blur(6px);
       position: relative;
-      border-radius: 25px;
+      border-radius: var(--radius-lg);
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
       color: #0f172a;
+      gap: var(--space-xs);
     }
 
     /* GOLD OUTLINE AS FRAME, NO FILL */
@@ -46,7 +58,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      border-radius: 25px;
+      border-radius: var(--radius-lg);
       padding: 4px;
       background: linear-gradient(
         135deg,
@@ -68,7 +80,7 @@
       .container {
         width: 90vw;
         max-width: none;
-        padding: 15px 5px;
+        padding: var(--space-md) var(--space-xs);
       }
     }
 
@@ -77,6 +89,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: var(--space-sm);
+      width: 100%;
     }
 
     /* Camera frame: default 2:3 portrait box (live camera) */
@@ -115,6 +129,7 @@
     }
 
     button {
+      min-height: var(--control-height);
       padding: 10px 20px;
       margin: 5px;
       font-size: 14px;
@@ -228,16 +243,21 @@
 
     .button-group {
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
       width: 100%;
     }
 
     .btn-slot {
       position: relative;
+      flex: 1 1 150px;
+      display: flex;
+      justify-content: center;
     }
 
     .btn-slot button {
-      width: 150px;
+      width: min(100%, 150px);
     }
 
     .logo-wrapper {
@@ -276,6 +296,10 @@
 
       .camera-area {
         margin-top: 18px;
+      }
+
+      .button-group {
+        gap: var(--space-xs);
       }
     }
 
