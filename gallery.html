@@ -234,11 +234,6 @@
     const slotObjectUrls = [null, null];
     /** Which photo id is currently decoded in each slot (blob URLs cannot be compared to HTTP URLs). */
     const slotPhotoIds = [null, null];
-    imgSlots.forEach((img) => {
-      if (!img) return;
-      img.decoding = "async";
-      img.loading = "eager";
-    });
     let activeIndex = 0;
     let hasImage = false;
 
@@ -921,8 +916,13 @@
         throw new Error("missing_image_slot");
       }
 
-      const resolvedUrl = String(url || "");
-      const resolvedPhotoId = photoId ? String(photoId) : "";
+      const response = await fetchWithTimeout(url, { cache: "no-store" }, timeoutMs);
+      if (!response.ok) {
+        throw new Error(`image_http_${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
 
       return await new Promise((resolve, reject) => {
         let settled = false;
@@ -943,16 +943,18 @@
           if (settled) return;
           settled = true;
           cleanup();
-          slotObjectUrls[slotIndex] = null;
-          slotPhotoIds[slotIndex] = resolvedPhotoId;
+          if (slotObjectUrls[slotIndex]) {
+            URL.revokeObjectURL(slotObjectUrls[slotIndex]);
+          }
+          slotObjectUrls[slotIndex] = objectUrl;
+          slotPhotoIds[slotIndex] = photoId ? String(photoId) : "";
           galleryDebug("photo asset loaded", {
             slotIndex,
-            photoId: resolvedPhotoId,
-            src: img.currentSrc || resolvedUrl,
+            photoId: photoId ? String(photoId) : "",
             naturalWidth: img.naturalWidth || 0,
             naturalHeight: img.naturalHeight || 0,
           });
-          resolve(resolvedUrl);
+          resolve(objectUrl);
         }
 
         img.onload = commit;
@@ -960,22 +962,10 @@
           if (settled) return;
           settled = true;
           cleanup();
+          URL.revokeObjectURL(objectUrl);
           reject(new Error("image_load_failed"));
         };
-
-        const hasReadyImage = img.complete && img.naturalWidth > 0;
-        const currentSrcAttr = img.getAttribute("src") || "";
-        const shouldReload =
-          currentSrcAttr !== resolvedUrl ||
-          slotPhotoIds[slotIndex] !== resolvedPhotoId ||
-          !hasReadyImage;
-
-        if (shouldReload) {
-          if (currentSrcAttr === resolvedUrl && !hasReadyImage) {
-            img.removeAttribute("src");
-          }
-          img.src = resolvedUrl;
-        }
+        img.src = objectUrl;
 
         if (img.complete && img.naturalWidth > 0) {
           commit();
@@ -988,40 +978,6 @@
           }
         }, 250);
       });
-    }
-
-    async function preloadUpcomingPhoto() {
-      if (!photos.length || !hasImage) return false;
-
-      const nextPhoto = photos[(currentIndex + 1) % photos.length];
-      if (!nextPhoto || !nextPhoto.id) return false;
-
-      const nextPhotoId = String(nextPhoto.id);
-      const preloadSlotIndex = 1 - activeIndex;
-      const preloadSlot = imgSlots[preloadSlotIndex];
-      if (!preloadSlot) return false;
-      if (slotPhotoIds[preloadSlotIndex] === nextPhotoId && preloadSlot.getAttribute("src")) {
-        return true;
-      }
-      if (slotPhotoIds[activeIndex] === nextPhotoId) {
-        return true;
-      }
-
-      try {
-        await loadImageIntoSlot(preloadSlotIndex, buildPhotoUrl(nextPhoto.id), IMAGE_LOAD_TIMEOUT_MS, nextPhoto.id);
-        galleryDebug("upcoming photo preloaded", {
-          slotIndex: preloadSlotIndex,
-          targetPhotoId: nextPhotoId,
-        });
-        return true;
-      } catch (err) {
-        galleryDebug("upcoming photo preload failed", {
-          slotIndex: preloadSlotIndex,
-          targetPhotoId: nextPhotoId,
-          error: err && err.message ? err.message : String(err),
-        });
-        return false;
-      }
     }
 
     async function crossfadeTo(url, photoId = "") {
@@ -1151,7 +1107,6 @@
       const didShow = await crossfadeTo(url, file.id);
       if (didShow) {
         updateTicketBadge(file.name);
-        void preloadUpcomingPhoto();
       }
       return didShow;
     }

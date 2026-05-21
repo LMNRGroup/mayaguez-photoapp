@@ -4022,92 +4022,31 @@ app.get('/gallery/approved', async (req, res) => {
 });
 
 // Stream a single approved photo (no admin token, for public gallery)
-function buildSizedDriveThumbnailUrl(thumbnailLink, maxSize = 1600) {
-  const rawUrl = String(thumbnailLink || '').trim();
-  if (!rawUrl) return '';
-
-  const size = Math.max(64, Math.min(2048, Math.round(Number(maxSize) || 1600)));
-  if (/[?&]sz=[^&]+/i.test(rawUrl)) {
-    return rawUrl.replace(/([?&]sz=)[^&]+/i, `$1s${size}`);
-  }
-  if (/=s\d+/i.test(rawUrl)) {
-    return rawUrl.replace(/=s\d+/i, `=s${size}`);
-  }
-
-  const joiner = rawUrl.includes('?') ? '&' : '?';
-  return `${rawUrl}${joiner}sz=s${size}`;
-}
-
 app.get('/gallery/photo/:fileId', async (req, res) => {
   const { fileId } = req.params;
-  const startedAt = Date.now();
-  let respondedStatus = 200;
 
   try {
-    const metadata = await drive.files.get({
-      fileId,
-      fields: 'thumbnailLink, mimeType',
-      supportsAllDrives: true,
-    });
-
-    const mimeType = metadata.data?.mimeType || 'image/jpeg';
-    const thumbnailUrl = buildSizedDriveThumbnailUrl(metadata.data?.thumbnailLink, 1600);
-
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
-
-    if (thumbnailUrl) {
-      try {
-        const thumbRes = await fetch(thumbnailUrl);
-        if (thumbRes.ok) {
-          const contentType = thumbRes.headers.get('content-type') || mimeType || 'image/jpeg';
-          const thumbBuffer = Buffer.from(await thumbRes.arrayBuffer());
-          res.setHeader('Content-Type', contentType);
-          return res.end(thumbBuffer);
-        }
-        console.warn('Gallery thumbnail fetch failed; falling back to full stream', {
-          fileId,
-          status: thumbRes.status,
-        });
-      } catch (thumbErr) {
-        console.warn('Gallery thumbnail fetch errored; falling back to full stream', {
-          fileId,
-          error: thumbErr && thumbErr.message ? thumbErr.message : thumbErr,
-        });
-      }
-    }
-
     const driveRes = await drive.files.get(
       {
         fileId,
         alt: 'media',
-        supportsAllDrives: true,
       },
       { responseType: 'stream' }
     );
 
+    // You can refine Content-Type by querying file metadata if needed
+    res.setHeader('Content-Type', 'image/jpeg');
+
     driveRes.data
       .on('error', (err) => {
-        respondedStatus = res.headersSent ? respondedStatus : 502;
-        console.error('Drive stream error (gallery)', {
-          fileId,
-          status: respondedStatus,
-          durationMs: Date.now() - startedAt,
-          error: err && err.message ? err.message : err,
-        });
+        console.error('Drive stream error (gallery)', err);
         if (!res.headersSent) {
           res.end();
         }
       })
       .pipe(res);
   } catch (err) {
-    respondedStatus = 404;
-    console.error('Error streaming gallery photo', {
-      fileId,
-      status: respondedStatus,
-      durationMs: Date.now() - startedAt,
-      error: err && err.message ? err.message : err,
-    });
+    console.error('Error streaming gallery photo', err);
     if (!res.headersSent) {
       res.status(404).end();
     }
