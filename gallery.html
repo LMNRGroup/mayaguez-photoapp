@@ -1298,20 +1298,31 @@
       overlayRefreshTimer = setInterval(fetchActiveOverlay, OVERLAY_REFRESH_MS);
     }
 
+    function getPhotoPlaybackTime(photo) {
+      if (!photo || typeof photo !== "object") return 0;
+      const rawTime = String(photo.approvedTime || photo.modifiedTime || photo.createdTime || "").trim();
+      if (!rawTime) return 0;
+
+      const ms = Date.parse(rawTime);
+      return Number.isFinite(ms) ? ms : 0;
+    }
+
     function sortPhotosList(list) {
       if (!Array.isArray(list) || !list.length) return list;
 
       if (sortOrder === 'newest') {
         list.sort((a, b) => {
-          const timeA = new Date(a.createdTime || 0).getTime();
-          const timeB = new Date(b.createdTime || 0).getTime();
-          return timeB - timeA;
+          const timeA = getPhotoPlaybackTime(a);
+          const timeB = getPhotoPlaybackTime(b);
+          if (timeB !== timeA) return timeB - timeA;
+          return String(b.id || "").localeCompare(String(a.id || ""));
         });
       } else {
         list.sort((a, b) => {
-          const timeA = new Date(a.createdTime || 0).getTime();
-          const timeB = new Date(b.createdTime || 0).getTime();
-          return timeA - timeB;
+          const timeA = getPhotoPlaybackTime(a);
+          const timeB = getPhotoPlaybackTime(b);
+          if (timeA !== timeB) return timeA - timeB;
+          return String(a.id || "").localeCompare(String(b.id || ""));
         });
       }
 

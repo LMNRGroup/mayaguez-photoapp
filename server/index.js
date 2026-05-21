@@ -751,6 +751,29 @@ function buildPublicTemplateOverlayUrl(fileId) {
   return `/gallery/template-overlay/${encodeURIComponent(fileId)}`;
 }
 
+function getApprovedPlaybackTimestamp(file) {
+  if (!file || typeof file !== 'object') return '';
+
+  const approvedAt =
+    file.appProperties && typeof file.appProperties === 'object'
+      ? String(file.appProperties.approvedAt || '').trim()
+      : '';
+  if (approvedAt) return approvedAt;
+
+  const modifiedTime = String(file.modifiedTime || '').trim();
+  if (modifiedTime) return modifiedTime;
+
+  return String(file.createdTime || '').trim();
+}
+
+function getApprovedPlaybackTimeMs(file) {
+  const timestamp = getApprovedPlaybackTimestamp(file);
+  if (!timestamp) return 0;
+
+  const ms = Date.parse(timestamp);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
 function normalizeTemplateAssetFileId(value) {
   if (value == null) return '';
   const raw = String(value).trim();
@@ -3216,12 +3239,19 @@ app.post('/admin/approve', ensureAdminAuth, async (req, res) => {
       return res.status(400).json({ error: 'missing_fileId' });
     }
 
+    const approvedAt = new Date().toISOString();
+
     await drive.files.update({
       fileId,
       addParents: APPROVED_FOLDER_ID,
       removeParents: PENDING_FOLDER_ID,
-      fields: 'id, parents',
-      supportsAllDrives: true
+      fields: 'id, parents, appProperties, modifiedTime',
+      supportsAllDrives: true,
+      requestBody: {
+        appProperties: {
+          approvedAt,
+        },
+      },
     });
 
     invalidateDriveFolderCaches(APPROVED_FOLDER_ID);
@@ -3932,14 +3962,23 @@ app.get('/gallery/approved', async (req, res) => {
 
     const response = await drive.files.list({
       q: `'${APPROVED_FOLDER_ID}' in parents and trashed = false`,
-      fields: 'files(id, name, createdTime)',
-      orderBy: 'createdTime asc',
+      fields: 'files(id, name, createdTime, modifiedTime, appProperties)',
       pageSize: 1000,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
     });
 
-    const all = response.data.files || [];
+    const all = [...(response.data.files || [])].sort((a, b) => {
+      const playbackTimeDiff = getApprovedPlaybackTimeMs(a) - getApprovedPlaybackTimeMs(b);
+      if (playbackTimeDiff !== 0) return playbackTimeDiff;
+
+      const createdTimeDiff =
+        (Date.parse(String(a.createdTime || '')) || 0) -
+        (Date.parse(String(b.createdTime || '')) || 0);
+      if (createdTimeDiff !== 0) return createdTimeDiff;
+
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
     const displayLimit = appSettings.galleryDisplayLimit || 'all';
 
     let selected;
@@ -3970,7 +4009,9 @@ app.get('/gallery/approved', async (req, res) => {
     const files = selected.map((f) => ({
       id: f.id,
       name: f.name,
-      createdTime: f.createdTime,
+      createdTime: f.createdTime || '',
+      modifiedTime: f.modifiedTime || '',
+      approvedTime: getApprovedPlaybackTimestamp(f),
     }));
 
     res.json({ ok: true, files });
