@@ -142,7 +142,8 @@
       text-transform: uppercase;
       color: #d1d5db;
       z-index: 12;
-      background: rgba(0, 0, 0, 0.72);
+      pointer-events: none;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
     }
 
     .empty.hidden {
@@ -195,7 +196,7 @@
 
 <!-- Gallery status -->
 <div id="galleryEmpty" class="empty">
-  Loading...
+  ESCANEA EL CODIGO QR
 </div>
 
       <div id="templateLogos" class="template-logos-layer"></div>
@@ -207,6 +208,7 @@
 
     const DISPLAY_MS = 8000;
     const REFRESH_MS = 10000;
+    const EMPTY_GALLERY_MESSAGE = "ESCANEA EL CODIGO QR";
     /** Template changes are rare; polling less often reduces load and timeout risk on low-memory clients. */
     const TEMPLATE_REFRESH_MS = 45000;
     const OVERLAY_REFRESH_MS = 45000;
@@ -881,6 +883,11 @@
         return false;
       }
 
+      if (rotateTimer) {
+        clearInterval(rotateTimer);
+        rotateTimer = null;
+      }
+
       imgSlots.forEach((img, index) => {
         img.classList.remove("visible");
         img.onload = null;
@@ -892,7 +899,7 @@
           slotObjectUrls[index] = null;
         }
       });
-      setGalleryStatus("Esperando las primeras fotos aprobadas…");
+      setGalleryStatus(EMPTY_GALLERY_MESSAGE);
       hideTicketBadge();
       hasImage = false;
       currentPhotoId = "";
@@ -1146,6 +1153,12 @@
             threshold: EMPTY_APPROVED_CLEAR_THRESHOLD,
             currentVisiblePhotoId: currentPhotoId,
           });
+          if (!hasImage) {
+            photos = [];
+            currentIndex = 0;
+            setEmptyState({ force: true, reason: "no_approved_photos_available" });
+            return;
+          }
           if (consecutiveEmptyApprovedResponses >= EMPTY_APPROVED_CLEAR_THRESHOLD) {
             photos = [];
             currentIndex = 0;
@@ -1311,7 +1324,7 @@
       disableTemplateLayerForLiveMode();
     }
     clearOverlayLayer("initial_boot");
-    setGalleryStatus("Loading...");
+    setGalleryStatus(EMPTY_GALLERY_MESSAGE);
     if (TEMPLATE_RENDERING_ENABLED) {
       startTemplateRefreshLoop();
     }
