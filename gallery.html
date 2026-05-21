@@ -240,6 +240,7 @@
     let photos = [];
     let currentIndex = 0;
     let rotateTimer = null;
+    let rotationLoopToken = 0;
     let refreshTimer = null;
     let templateRefreshTimer = null;
     let overlayRefreshTimer = null;
@@ -883,8 +884,10 @@
         return false;
       }
 
+      rotationLoopToken += 1;
+      photoTransitionToken += 1;
       if (rotateTimer) {
-        clearInterval(rotateTimer);
+        clearTimeout(rotateTimer);
         rotateTimer = null;
       }
 
@@ -990,17 +993,23 @@
         try {
           img.classList.remove("visible");
           await loadImageIntoSlot(activeIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId);
-          if (transitionToken !== photoTransitionToken) return;
+          if (transitionToken !== photoTransitionToken) return false;
 
-          requestAnimationFrame(() => {
-            if (transitionToken !== photoTransitionToken) return;
-            setGalleryStatus("");
-            img.classList.add("visible");
-            hasImage = true;
-            currentPhotoId = photoId ? String(photoId) : "";
-            galleryDebug("photo transition committed (first photo)", {
-              transitionToken,
-              currentVisiblePhotoId: currentPhotoId,
+          return await new Promise((resolve) => {
+            requestAnimationFrame(() => {
+              if (transitionToken !== photoTransitionToken) {
+                resolve(false);
+                return;
+              }
+              setGalleryStatus("");
+              img.classList.add("visible");
+              hasImage = true;
+              currentPhotoId = photoId ? String(photoId) : "";
+              galleryDebug("photo transition committed (first photo)", {
+                transitionToken,
+                currentVisiblePhotoId: currentPhotoId,
+              });
+              resolve(true);
             });
           });
         } catch (err) {
@@ -1010,8 +1019,8 @@
             targetPhotoId: photoId ? String(photoId) : "",
             error: err && err.message ? err.message : String(err),
           });
+          return false;
         }
-        return;
       }
 
       const currentImg = imgSlots[activeIndex];
@@ -1020,48 +1029,59 @@
         setGalleryStatus("");
         currentPhotoId = targetId;
         hasImage = true;
-        return;
+        return true;
       }
 
       const nextIndex = 1 - activeIndex;
       const nextImg = imgSlots[nextIndex];
 
       if (targetId && slotPhotoIds[nextIndex] === targetId && nextImg.getAttribute("src")) {
-        if (transitionToken !== photoTransitionToken) return;
-        requestAnimationFrame(() => {
-          if (transitionToken !== photoTransitionToken) return;
-          void nextImg.offsetWidth;
-          nextImg.classList.add("visible");
-          currentImg.classList.remove("visible");
-          activeIndex = nextIndex;
-          setGalleryStatus("");
-          hasImage = true;
-          currentPhotoId = targetId;
-          galleryDebug("photo transition reused preloaded slot", {
-            transitionToken,
-            currentVisiblePhotoId: currentPhotoId,
+        if (transitionToken !== photoTransitionToken) return false;
+        return await new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            if (transitionToken !== photoTransitionToken) {
+              resolve(false);
+              return;
+            }
+            void nextImg.offsetWidth;
+            nextImg.classList.add("visible");
+            currentImg.classList.remove("visible");
+            activeIndex = nextIndex;
+            setGalleryStatus("");
+            hasImage = true;
+            currentPhotoId = targetId;
+            galleryDebug("photo transition reused preloaded slot", {
+              transitionToken,
+              currentVisiblePhotoId: currentPhotoId,
+            });
+            resolve(true);
           });
         });
-        return;
       }
 
       try {
         nextImg.classList.remove("visible");
         await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId);
-        if (transitionToken !== photoTransitionToken) return;
+        if (transitionToken !== photoTransitionToken) return false;
 
-        requestAnimationFrame(() => {
-          if (transitionToken !== photoTransitionToken) return;
-          void nextImg.offsetWidth;
-          nextImg.classList.add("visible");
-          currentImg.classList.remove("visible");
-          activeIndex = nextIndex;
-          setGalleryStatus("");
-          hasImage = true;
-          currentPhotoId = photoId ? String(photoId) : "";
-          galleryDebug("photo transition committed", {
-            transitionToken,
-            currentVisiblePhotoId: currentPhotoId,
+        return await new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            if (transitionToken !== photoTransitionToken) {
+              resolve(false);
+              return;
+            }
+            void nextImg.offsetWidth;
+            nextImg.classList.add("visible");
+            currentImg.classList.remove("visible");
+            activeIndex = nextIndex;
+            setGalleryStatus("");
+            hasImage = true;
+            currentPhotoId = photoId ? String(photoId) : "";
+            galleryDebug("photo transition committed", {
+              transitionToken,
+              currentVisiblePhotoId: currentPhotoId,
+            });
+            resolve(true);
           });
         });
       } catch (err) {
@@ -1072,39 +1092,64 @@
           currentVisiblePhotoId: currentPhotoId,
           error: err && err.message ? err.message : String(err),
         });
+        return false;
       }
     }
 
-    function showCurrentPhoto() {
+    async function showCurrentPhoto() {
       if (!photos.length) {
         setEmptyState({ force: false, reason: "show_current_photo_without_confirmed_empty" });
-        return;
+        return false;
       }
 
       const file = photos[currentIndex];
       const url = buildPhotoUrl(file.id);
-
-      updateTicketBadge(file.name);
-      crossfadeTo(url, file.id);
+      const didShow = await crossfadeTo(url, file.id);
+      if (didShow) {
+        updateTicketBadge(file.name);
+      }
+      return didShow;
     }
 
-    function startRotation() {
-      if (rotateTimer) clearInterval(rotateTimer);
-      if (!photos.length) {
-        setEmptyState({ force: false, reason: "start_rotation_without_confirmed_empty" });
-        return;
+    function scheduleNextRotation(loopToken, delayMs = DISPLAY_MS) {
+      if (rotateTimer) {
+        clearTimeout(rotateTimer);
       }
-
-      showCurrentPhoto();
-
-      rotateTimer = setInterval(() => {
+      rotateTimer = setTimeout(async () => {
+        rotateTimer = null;
+        if (loopToken !== rotationLoopToken) return;
         if (!photos.length) {
           setEmptyState({ force: false, reason: "rotation_tick_without_confirmed_empty" });
           return;
         }
         currentIndex = (currentIndex + 1) % photos.length;
-        showCurrentPhoto();
-      }, DISPLAY_MS);
+        const didShow = await showCurrentPhoto();
+        if (loopToken !== rotationLoopToken) return;
+        scheduleNextRotation(loopToken, didShow ? DISPLAY_MS : 1500);
+      }, delayMs);
+    }
+
+    async function startRotation(options = {}) {
+      const { preserveCurrentVisible = false } = options;
+      rotationLoopToken += 1;
+      const loopToken = rotationLoopToken;
+      if (rotateTimer) clearTimeout(rotateTimer);
+      rotateTimer = null;
+      if (!photos.length) {
+        setEmptyState({ force: false, reason: "start_rotation_without_confirmed_empty" });
+        return;
+      }
+
+      if (!preserveCurrentVisible || !hasImage) {
+        const didShow = await showCurrentPhoto();
+        if (loopToken !== rotationLoopToken) return;
+        if (!didShow) {
+          scheduleNextRotation(loopToken, 1500);
+          return;
+        }
+      }
+
+      scheduleNextRotation(loopToken, DISPLAY_MS);
     }
 
     async function fetchApproved() {
@@ -1170,7 +1215,7 @@
         consecutiveEmptyApprovedResponses = 0;
         photos = newPhotos;
 
-        if (oldIds !== newIds || !hasImage) {
+        if (!hasImage) {
           const currentPhotoIndex = currentPhotoId
             ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
             : -1;
@@ -1179,7 +1224,21 @@
           } else if (currentIndex >= photos.length) {
             currentIndex = photos.length - 1;
           }
-          startRotation();
+          void startRotation();
+        } else if (oldIds !== newIds) {
+          const currentPhotoIndex = currentPhotoId
+            ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
+            : -1;
+          if (currentPhotoIndex >= 0) {
+            currentIndex = currentPhotoIndex;
+          } else if (currentIndex >= photos.length) {
+            currentIndex = photos.length - 1;
+          }
+          if (currentPhotoIndex < 0) {
+            void startRotation();
+          } else if (!rotateTimer) {
+            void startRotation({ preserveCurrentVisible: true });
+          }
         }
       } catch (err) {
         console.error("Failed to fetch approved photos", err);
