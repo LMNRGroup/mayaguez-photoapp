@@ -225,6 +225,20 @@
     const SOFT_RECOVERY_COOLDOWN_MS = 45000;
     const HARD_RELOAD_AFTER_SOFT_RECOVERY_ATTEMPTS = 3;
     const HARD_RELOAD_DELAY_MS = 250;
+    const RUNTIME_WATCHDOG_INTERVAL_MS = 15000;
+    const RUNTIME_HEARTBEAT_STALE_MS = 60000;
+    const RUNTIME_POLL_STALE_MS = 60000;
+    const RUNTIME_PHOTO_CHANGE_STALE_MS = 120000;
+    const RUNTIME_BOOT_GRACE_MS = 90000;
+    const RUNTIME_STAGE1_COOLDOWN_MS = 120000;
+    const RUNTIME_STAGE2_AFTER_DEGRADED_MS = 90000;
+    const RUNTIME_STAGE2_AFTER_STAGE1_MS = 90000;
+    const STALE_IN_FLIGHT_MS = REQUEST_TIMEOUT_MS + 5000;
+    const MAX_KIOSK_RELOAD_COUNT = 3;
+    const MIN_KIOSK_RELOAD_COOLDOWN_MS = 10 * 60 * 1000;
+    const RUNTIME_LOG_MAX = 15;
+    const GALLERY_KIOSK_RELOAD_COUNT_KEY = "galleryKioskReloadCount";
+    const GALLERY_KIOSK_LAST_RELOAD_AT_KEY = "galleryKioskLastReloadAt";
     const TEMPLATE_RENDERING_ENABLED = false;
     const DEFAULT_PHOTO_BOX = Object.freeze({
       x: 210,
@@ -302,7 +316,23 @@
     let lastRecordedTelemetryErrorSignature = "";
     let lastRecordedTelemetryErrorAtMs = 0;
     let approvedFetchInFlight = false;
+    let approvedFetchStartedAtMs = 0;
     let overlayFetchInFlight = false;
+    let overlayFetchStartedAtMs = 0;
+    let telemetryHeartbeatStartedAtMs = 0;
+    let runtimeDegraded = false;
+    let runtimeDegradedSinceMs = 0;
+    let watchdogTriggered = false;
+    let watchdogReason = "";
+    let reloadCount = 0;
+    let lastReloadAt = "";
+    let lastRecoveryStage = "";
+    let lastStage1RecoveryAtMs = 0;
+    let lastRuntimeWatchdogAtMs = 0;
+    let runtimeWatchdogTimer = null;
+    let recentRuntimeLogs = [];
+    let documentVisibilityState = "";
+    let navigatorOnline = true;
     let recentFetchFailureEvents = [];
     let fetchFailureBackoffUntilMs = 0;
     let lastSoftRecoveryAttemptAtMs = 0;
@@ -406,6 +436,304 @@
     }
 
     let keptCurrentPhotoLogCount = 0;
+
+    try {
+      reloadCount = Math.max(0, Number(window.sessionStorage.getItem(GALLERY_KIOSK_RELOAD_COUNT_KEY)) || 0);
+      lastReloadAt = String(window.sessionStorage.getItem(GALLERY_KIOSK_LAST_RELOAD_AT_KEY) || "");
+    } catch (_) {}
+
+    function getMsSinceIsoTimestamp(isoValue) {
+      if (!isoValue) return Infinity;
+      const parsed = Date.parse(String(isoValue));
+      if (!Number.isFinite(parsed)) return Infinity;
+      const ageMs = Date.now() - parsed;
+      return ageMs > 0 ? ageMs : 0;
+    }
+
+    function appendRuntimeLog(type, message, details = null) {
+      try {
+        const entry = {
+          at: new Date().toISOString(),
+          type: clampMonitorString(type || "runtime", 40),
+          message: clampMonitorString(message || "", 200),
+        };
+        if (details && typeof details === "object") {
+          entry.details = details;
+        }
+        recentRuntimeLogs.push(entry);
+        if (recentRuntimeLogs.length > RUNTIME_LOG_MAX) {
+          recentRuntimeLogs = recentRuntimeLogs.slice(-RUNTIME_LOG_MAX);
+        }
+        galleryDebug("[runtime]", entry.type, entry.message, entry.details || "");
+      } catch (_) {}
+    }
+
+    function getRuntimeHealthSnapshot(now = Date.now()) {
+      const uptimeMs = now - telemetryStartedAtMs;
+      const heartbeatAgeMs = getMsSinceIsoTimestamp(lastSuccessfulHeartbeatAt);
+      const pollAgeMs = getMsSinceIsoTimestamp(lastSuccessfulPollAt);
+      const photoChangeAgeMs = hasImage && lastPhotoChangeAt ? getMsSinceIsoTimestamp(lastPhotoChangeAt) : 0;
+      const imageLoadAgeMs = getMsSinceIsoTimestamp(lastSuccessfulImageLoadAt);
+
+      if (uptimeMs < RUNTIME_BOOT_GRACE_MS) {
+        return {
+          isDegraded: false,
+          reason: "",
+          heartbeatAgeMs,
+          pollAgeMs,
+          photoChangeAgeMs,
+          imageLoadAgeMs,
+        };
+      }
+
+      const reasons = [];
+      if (heartbeatAgeMs > RUNTIME_HEARTBEAT_STALE_MS) reasons.push("heartbeat_stale");
+      if (pollAgeMs > RUNTIME_POLL_STALE_MS) reasons.push("poll_stale");
+      if (photos.length && hasImage && photoChangeAgeMs > RUNTIME_PHOTO_CHANGE_STALE_MS) {
+        reasons.push("photo_change_stale");
+      }
+
+      return {
+        isDegraded: reasons.length > 0,
+        reason: reasons.join(","),
+        heartbeatAgeMs,
+        pollAgeMs,
+        photoChangeAgeMs,
+        imageLoadAgeMs,
+      };
+    }
+
+    function clearStaleInFlightLocks(now = Date.now()) {
+      const staleThresholdMs = STALE_IN_FLIGHT_MS;
+      if (approvedFetchInFlight && approvedFetchStartedAtMs && (now - approvedFetchStartedAtMs) > staleThresholdMs) {
+        approvedFetchInFlight = false;
+        approvedFetchStartedAtMs = 0;
+        const message = "stale_request_timeout:/gallery/approved";
+        recordRecentError("watchdog", message, {
+          type: "stale_in_flight",
+          route: "/gallery/approved",
+          includeCurrentPhoto: false,
+        });
+        appendRuntimeLog("stale_in_flight", "cleared stale approved fetch lock", { route: "/gallery/approved" });
+        void sendDeviceLog("warn", "stale_in_flight", message, { route: "/gallery/approved" });
+      }
+
+      if (overlayFetchInFlight && overlayFetchStartedAtMs && (now - overlayFetchStartedAtMs) > staleThresholdMs) {
+        overlayFetchInFlight = false;
+        overlayFetchStartedAtMs = 0;
+        const message = "stale_request_timeout:/gallery/active-overlay";
+        recordRecentError("watchdog", message, {
+          type: "stale_in_flight",
+          route: "/gallery/active-overlay",
+          includeCurrentPhoto: false,
+        });
+        appendRuntimeLog("stale_in_flight", "cleared stale overlay fetch lock", { route: "/gallery/active-overlay" });
+        void sendDeviceLog("warn", "stale_in_flight", message, { route: "/gallery/active-overlay" });
+      }
+
+      if (telemetryHeartbeatInFlight && telemetryHeartbeatStartedAtMs && (now - telemetryHeartbeatStartedAtMs) > staleThresholdMs) {
+        telemetryHeartbeatInFlight = false;
+        telemetryHeartbeatStartedAtMs = 0;
+        const message = "stale_request_timeout:/api/device-heartbeat";
+        recordRecentError("watchdog", message, {
+          type: "stale_in_flight",
+          route: "/api/device-heartbeat",
+          includeCurrentPhoto: false,
+        });
+        appendRuntimeLog("stale_in_flight", "cleared stale heartbeat lock", { route: "/api/device-heartbeat" });
+        void sendDeviceLog("warn", "stale_in_flight", message, { route: "/api/device-heartbeat" });
+      }
+    }
+
+    function performRuntimeStage1Recovery(reason) {
+      const now = Date.now();
+      lastRecoveryStage = "stage1_soft";
+      lastStage1RecoveryAtMs = now;
+      setRecoveryAction(`runtime_stage1:${reason}`);
+      appendRuntimeLog("recovery", `stage1_soft:${reason}`, { reason });
+      void sendDeviceLog("warn", "runtime_stage1_recovery", `Runtime stage-1 recovery (${reason})`, {
+        reason,
+        watchdogReason: watchdogReason || reason,
+        reloadCount,
+      });
+
+      clearStaleInFlightLocks(now);
+      rescheduleManagedPollingLoops(`runtime_watchdog_stage1:${reason}`);
+      if (!approvedFetchInFlight) void fetchApproved();
+      if (!overlayFetchInFlight) void fetchActiveOverlay();
+      void sendTelemetryHeartbeat();
+      if (photos.length) {
+        void startRotation({ preserveCurrentVisible: hasImage });
+      }
+      return true;
+    }
+
+    function canPerformKioskReload(now = Date.now()) {
+      if (hardReloadScheduled) return false;
+      if (reloadCount >= MAX_KIOSK_RELOAD_COUNT) return false;
+      const lastReloadMs = lastReloadAt ? Date.parse(lastReloadAt) : 0;
+      if (Number.isFinite(lastReloadMs) && lastReloadMs > 0 && (now - lastReloadMs) < MIN_KIOSK_RELOAD_COOLDOWN_MS) {
+        return false;
+      }
+      return true;
+    }
+
+    function performRuntimeStage2Reload(reason) {
+      const now = Date.now();
+      if (!canPerformKioskReload(now)) {
+        appendRuntimeLog("reload_blocked", `stage2_reload_blocked:${reason}`, {
+          reloadCount,
+          lastReloadAt,
+        });
+        return false;
+      }
+
+      hardReloadScheduled = true;
+      reloadCount += 1;
+      lastReloadAt = new Date().toISOString();
+      lastRecoveryStage = "stage2_reload";
+      watchdogTriggered = true;
+      watchdogReason = reason || watchdogReason || "runtime_reload";
+      setRecoveryAction(`runtime_stage2_reload:${reason}`);
+      appendRuntimeLog("reload", `stage2_reload:${reason}`, {
+        reloadCount,
+        lastReloadAt,
+      });
+      try {
+        window.sessionStorage.setItem(GALLERY_KIOSK_RELOAD_COUNT_KEY, String(reloadCount));
+        window.sessionStorage.setItem(GALLERY_KIOSK_LAST_RELOAD_AT_KEY, lastReloadAt);
+      } catch (_) {}
+
+      void sendDeviceLog("error", "kiosk_runtime_reload", `Runtime stage-2 reload (${reason})`, {
+        reason,
+        reloadCount,
+        lastReloadAt,
+        watchdogReason: watchdogReason || reason,
+      });
+      void sendTelemetryHeartbeat();
+      setTimeout(() => {
+        try {
+          window.location.reload();
+        } catch (_) {}
+      }, HARD_RELOAD_DELAY_MS);
+      return true;
+    }
+
+    function evaluateRuntimeWatchdog() {
+      try {
+        const now = Date.now();
+        lastRuntimeWatchdogAtMs = now;
+        clearStaleInFlightLocks(now);
+        const health = getRuntimeHealthSnapshot(now);
+        const wasDegraded = runtimeDegraded;
+
+        runtimeDegraded = Boolean(health.isDegraded);
+        if (runtimeDegraded) {
+          if (!runtimeDegradedSinceMs) runtimeDegradedSinceMs = now;
+          watchdogTriggered = true;
+          watchdogReason = health.reason || "runtime_degraded";
+          if (!wasDegraded) {
+            appendRuntimeLog("watchdog", `runtime_degraded:${watchdogReason}`, health);
+          }
+        } else {
+          runtimeDegradedSinceMs = 0;
+          watchdogTriggered = false;
+          watchdogReason = "";
+          if (wasDegraded) {
+            appendRuntimeLog("watchdog", "runtime_recovered", health);
+            lastRecoveryStage = "";
+          }
+          return;
+        }
+
+        const sinceDegradedMs = runtimeDegradedSinceMs ? (now - runtimeDegradedSinceMs) : 0;
+        const sinceStage1Ms = lastStage1RecoveryAtMs ? (now - lastStage1RecoveryAtMs) : Infinity;
+        const canRunStage1 = !lastStage1RecoveryAtMs || sinceStage1Ms >= RUNTIME_STAGE1_COOLDOWN_MS;
+
+        if (canRunStage1) {
+          performRuntimeStage1Recovery(watchdogReason);
+          return;
+        }
+
+        if (
+          sinceDegradedMs >= RUNTIME_STAGE2_AFTER_DEGRADED_MS &&
+          sinceStage1Ms >= RUNTIME_STAGE2_AFTER_STAGE1_MS
+        ) {
+          performRuntimeStage2Reload(watchdogReason);
+        } else {
+          appendRuntimeLog("watchdog_wait", `awaiting_stage2:${watchdogReason}`, {
+            sinceDegradedMs,
+            sinceStage1Ms,
+            reloadCount,
+          });
+        }
+      } catch (err) {
+        galleryDebug("runtime watchdog evaluation failed", {
+          error: err && err.message ? err.message : String(err),
+        });
+      }
+    }
+
+    function startRuntimeWatchdog() {
+      if (runtimeWatchdogTimer) clearInterval(runtimeWatchdogTimer);
+      runtimeWatchdogTimer = setInterval(evaluateRuntimeWatchdog, RUNTIME_WATCHDOG_INTERVAL_MS);
+      appendRuntimeLog("watchdog", "runtime_watchdog_started");
+      evaluateRuntimeWatchdog();
+    }
+
+    function recordRuntimeLifecycleEvent(eventName, details = {}) {
+      const message = clampMonitorString(eventName || "lifecycle", 80);
+      appendRuntimeLog("lifecycle", message, details);
+      recordRecentError("lifecycle", message, {
+        type: "runtime_lifecycle",
+        includeCurrentPhoto: false,
+        route: "",
+      });
+      void sendDeviceLog("info", "runtime_lifecycle", message, details);
+    }
+
+    function installRuntimeLifecycleHandlers() {
+      try {
+        documentVisibilityState = document.visibilityState || "";
+        navigatorOnline = navigator.onLine !== false;
+
+        document.addEventListener("visibilitychange", () => {
+          documentVisibilityState = document.visibilityState || "";
+          recordRuntimeLifecycleEvent(`visibilitychange:${documentVisibilityState}`, {
+            visibilityState: documentVisibilityState,
+          });
+          if (document.visibilityState === "visible") {
+            rescheduleManagedPollingLoops("visibility_visible");
+            void sendTelemetryHeartbeat();
+          }
+        });
+
+        window.addEventListener("pageshow", (event) => {
+          recordRuntimeLifecycleEvent("pageshow", {
+            persisted: Boolean(event && event.persisted),
+          });
+          rescheduleManagedPollingLoops("pageshow");
+        });
+
+        window.addEventListener("pagehide", (event) => {
+          recordRuntimeLifecycleEvent("pagehide", {
+            persisted: Boolean(event && event.persisted),
+          });
+        });
+
+        window.addEventListener("online", () => {
+          navigatorOnline = true;
+          recordRuntimeLifecycleEvent("online");
+          rescheduleManagedPollingLoops("online");
+          void sendTelemetryHeartbeat();
+        });
+
+        window.addEventListener("offline", () => {
+          navigatorOnline = false;
+          recordRuntimeLifecycleEvent("offline");
+        });
+      } catch (_) {}
+    }
 
     function sanitizeMonitorRoute(routeOrUrl) {
       const rawValue = String(routeOrUrl || "").trim();
@@ -945,6 +1273,7 @@
 
     function buildTelemetryPayload() {
       try {
+        const runtimeHealth = getRuntimeHealthSnapshot();
         return {
           deviceId: galleryDeviceId,
           status: {
@@ -994,6 +1323,22 @@
               activeTemplateKey: activeTemplateKey || "",
             },
             debugTestMode: DEBUG_TEST_ENABLED,
+            runtimeStatus: {
+              runtimeDegraded: Boolean(runtimeDegraded),
+              watchdogTriggered: Boolean(watchdogTriggered),
+              watchdogReason: watchdogReason || "",
+              reloadCount: Math.max(0, Number(reloadCount) || 0),
+              lastReloadAt: lastReloadAt || "",
+              lastRecoveryStage: lastRecoveryStage || "",
+              heartbeatAgeSec: Math.round((runtimeHealth.heartbeatAgeMs || 0) / 1000),
+              pollAgeSec: Math.round((runtimeHealth.pollAgeMs || 0) / 1000),
+              photoChangeAgeSec: Math.round((runtimeHealth.photoChangeAgeMs || 0) / 1000),
+              imageLoadAgeSec: Math.round((runtimeHealth.imageLoadAgeMs || 0) / 1000),
+              documentVisibility: documentVisibilityState || (document.visibilityState || ""),
+              navigatorOnLine: navigatorOnline,
+              lastWatchdogAt: lastRuntimeWatchdogAtMs ? new Date(lastRuntimeWatchdogAtMs).toISOString() : "",
+              recentRuntimeLogs: recentRuntimeLogs.slice(-8),
+            },
           },
           recentErrors: recentErrors.slice(-20),
         };
@@ -1051,6 +1396,7 @@
     async function sendTelemetryHeartbeat() {
       if (telemetryHeartbeatInFlight) return;
       telemetryHeartbeatInFlight = true;
+      telemetryHeartbeatStartedAtMs = Date.now();
       try {
         const response = await postMonitorJson(`${BASE_URL}/api/device-heartbeat`, buildTelemetryPayload());
         if (!response || !response.ok) {
@@ -1062,6 +1408,7 @@
         // Monitoring must stay silent.
       } finally {
         telemetryHeartbeatInFlight = false;
+        telemetryHeartbeatStartedAtMs = 0;
       }
     }
 
@@ -2183,6 +2530,7 @@
         return false;
       }
       approvedFetchInFlight = true;
+      approvedFetchStartedAtMs = Date.now();
       approvedPollCount += 1;
       const pollStartedAt = Date.now();
       galleryDebug("approved poll start", {
@@ -2304,6 +2652,7 @@
         return false;
       } finally {
         approvedFetchInFlight = false;
+        approvedFetchStartedAtMs = 0;
       }
     }
 
@@ -2331,6 +2680,7 @@
         return false;
       }
       overlayFetchInFlight = true;
+      overlayFetchStartedAtMs = Date.now();
       const requestId = ++activeOverlayRequestId;
       galleryDebug("overlay fetch start", {
         requestId,
@@ -2444,6 +2794,7 @@
         return false;
       } finally {
         overlayFetchInFlight = false;
+        overlayFetchStartedAtMs = 0;
       }
     }
 
@@ -2488,6 +2839,7 @@
       disableTemplateLayerForLiveMode();
     }
     installTelemetryErrorCapture();
+    installRuntimeLifecycleHandlers();
     clearOverlayLayer("initial_boot");
     setGalleryStatus(EMPTY_GALLERY_MESSAGE);
     if (TEMPLATE_RENDERING_ENABLED) {
@@ -2496,6 +2848,7 @@
     startOverlayRefreshLoop();
     startRefreshLoop();
     startTelemetryHeartbeatLoop();
+    startRuntimeWatchdog();
     runDebugTelemetryTestIfNeeded();
   </script>
 </body>
