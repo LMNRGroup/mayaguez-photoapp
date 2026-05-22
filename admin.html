@@ -6368,6 +6368,7 @@ function hideGlobalLoader() {
     function getDeviceDetailOverlayElements() {
       return {
         overlay: document.getElementById("deviceDetailOverlay"),
+        downloadBtn: document.getElementById("deviceDetailOverlayDownload"),
         refreshBtn: document.getElementById("deviceDetailOverlayRefresh"),
         closeBtn: document.getElementById("deviceDetailOverlayClose"),
         content: document.getElementById("deviceDetailContent"),
@@ -6385,7 +6386,9 @@ function hideGlobalLoader() {
     let latestLiveGalleryDevices = [];
     let latestLiveGalleryDevicesMeta = {};
     let selectedLiveGalleryDeviceId = "";
+    let isDownloadingLiveGalleryDeviceReport = false;
     let isRefreshingLiveGalleryDeviceDetail = false;
+    const LIVE_GALLERY_REPORT_TIMEZONE = "America/Puerto_Rico";
 
     function escapeHtml(value) {
       return String(value == null ? "" : value)
@@ -6444,6 +6447,300 @@ function hideGlobalLoader() {
       const dpr = Number(status.devicePixelRatio);
       if (!Number.isFinite(width) || !Number.isFinite(height)) return "—";
       return `${width}×${height}${Number.isFinite(dpr) ? ` @ ${dpr}x` : ""}`;
+    }
+
+    function formatPuertoRicoDateTime(value, includeSeconds = true) {
+      try {
+        const date = value instanceof Date ? value : new Date(value);
+        if (!Number.isFinite(date.getTime())) return "—";
+        const options = {
+          timeZone: LIVE_GALLERY_REPORT_TIMEZONE,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        };
+        if (includeSeconds) {
+          options.second = "2-digit";
+        }
+        return `${new Intl.DateTimeFormat("en-US", options).format(date).replace(",", "")} PR`;
+      } catch (_) {
+        return "—";
+      }
+    }
+
+    function buildPuertoRicoFilenameStamp(value) {
+      try {
+        const date = value instanceof Date ? value : new Date(value);
+        if (!Number.isFinite(date.getTime())) return String(Date.now());
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: LIVE_GALLERY_REPORT_TIMEZONE,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).formatToParts(date);
+        const map = {};
+        parts.forEach((part) => {
+          if (part.type !== "literal") {
+            map[part.type] = part.value;
+          }
+        });
+        return `${map.year || "0000"}-${map.month || "00"}-${map.day || "00"}_${map.hour || "00"}-${map.minute || "00"}-${map.second || "00"}_PR`;
+      } catch (_) {
+        return String(Date.now());
+      }
+    }
+
+    function sanitizeReportFilenamePart(value) {
+      return String(value || "device")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9_-]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 64) || "device";
+    }
+
+    function getLiveGalleryDeviceById(deviceId) {
+      return latestLiveGalleryDevices.find((entry) => String(entry.deviceId) === String(deviceId));
+    }
+
+    function buildLiveGalleryDeviceRawTelemetry(device) {
+      const status = device && device.status ? device.status : {};
+      return {
+        deviceId: device?.deviceId || "",
+        deviceName: device?.deviceName || status.deviceName || "",
+        createdAt: device?.createdAt || "",
+        lastSeenAt: device?.lastSeenAt || "",
+        lastSeenAgoMs: device?.lastSeenAgoMs,
+        online: Boolean(device?.online),
+        timing: device?.timing || {},
+        status,
+        recentErrors: device?.recentErrors || [],
+        recentLogs: device?.recentLogs || [],
+      };
+    }
+
+    function toPdfAsciiText(value) {
+      return String(value == null ? "" : value)
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\r/g, "")
+        .replace(/[^\x20-\x7E\n]/g, "?");
+    }
+
+    function escapePdfLiteral(value) {
+      return toPdfAsciiText(value)
+        .replace(/\\/g, "\\\\")
+        .replace(/\(/g, "\\(")
+        .replace(/\)/g, "\\)");
+    }
+
+    function wrapPdfReportLine(line, maxChars = 96) {
+      const text = toPdfAsciiText(line).replace(/\t/g, "  ");
+      if (!text) return [""];
+      if (text.length <= maxChars) return [text];
+      const continuationIndent = (text.match(/^\s*/) || [""])[0];
+      const lines = [];
+      let remaining = text;
+      while (remaining.length > maxChars) {
+        let breakIndex = remaining.lastIndexOf(" ", maxChars);
+        if (breakIndex <= continuationIndent.length + 2) {
+          breakIndex = maxChars;
+        }
+        lines.push(remaining.slice(0, breakIndex).trimEnd());
+        remaining = continuationIndent + remaining.slice(breakIndex).trimStart();
+      }
+      lines.push(remaining);
+      return lines;
+    }
+
+    function buildLiveGalleryDeviceReportLines(device, generatedAt = new Date()) {
+      const status = device && device.status ? device.status : {};
+      const timing = device && device.timing ? device.timing : {};
+      const health = getLiveGalleryDeviceHealth(device);
+      const rawTelemetry = buildLiveGalleryDeviceRawTelemetry(device);
+      const overlayStatus = status.overlayStatus || {};
+      const templateStatus = status.templateStatus || {};
+      const lines = [
+        "Mayaguez Photo App - Live Gallery Device Report",
+        `Generated: ${formatPuertoRicoDateTime(generatedAt)}`,
+        `Report Time Zone: ${LIVE_GALLERY_REPORT_TIMEZONE}`,
+        "",
+        "Device Summary",
+        `  Device Name: ${device?.deviceName || status.deviceName || "—"}`,
+        `  Device ID: ${device?.deviceId || "—"}`,
+        `  Health: ${health.label}`,
+        `  Online: ${device?.online ? "Yes" : "No"}`,
+        `  Created At: ${formatPuertoRicoDateTime(device?.createdAt)}`,
+        `  Last Seen: ${formatPuertoRicoDateTime(device?.lastSeenAt)}${Number.isFinite(Number(device?.lastSeenAgoMs)) ? ` (${formatRelativeMs(Number(device.lastSeenAgoMs))})` : ""}`,
+        `  Page Uptime: ${formatDurationShort(status.pageUptimeSec)}`,
+        `  Current Photo: ${status.currentPhotoName || status.currentPhotoId || "Waiting"}`,
+        `  Current Photo ID: ${status.currentPhotoId || "—"}`,
+        `  Current Photo Index: ${Number.isFinite(Number(status.currentPhotoIndex)) ? Number(status.currentPhotoIndex) : "—"}`,
+        `  Current Photo Age: ${formatDurationShort(status.visibleImageAgeSec)}`,
+        `  Slideshow Stalled: ${status.slideshowStalled ? "Yes" : "No"}`,
+        `  Last Photo Change: ${formatPuertoRicoDateTime(status.lastPhotoChangeAt)}`,
+        `  Last Successful Image Load: ${formatPuertoRicoDateTime(status.lastSuccessfulImageLoadAt)}${Number.isFinite(Number(timing.lastSuccessfulImageLoadAgoMs)) ? ` (${formatRelativeMs(Number(timing.lastSuccessfulImageLoadAgoMs))})` : ""}`,
+        `  Last Successful Poll: ${formatPuertoRicoDateTime(status.lastSuccessfulPollAt)}${Number.isFinite(Number(timing.lastSuccessfulPollAgoMs)) ? ` (${formatRelativeMs(Number(timing.lastSuccessfulPollAgoMs))})` : ""}`,
+        `  Last Poll Duration: ${status.lastPollDurationMs != null ? `${status.lastPollDurationMs} ms` : "—"}`,
+        `  Poll Failures: consecutive ${Number(status.consecutivePollFailures) || 0}, total ${Number(status.totalPollFailures) || 0}`,
+        `  Image Failures: consecutive ${Number(status.consecutiveImageFailures) || 0}, total ${Number(status.totalImageFailures) || 0}`,
+        `  Browser: ${getBrowserLabelFromUserAgent(status.userAgent)}`,
+        `  User Agent: ${status.userAgent || "—"}`,
+        `  Platform: ${status.platform || "—"}`,
+        `  Screen: ${formatDeviceResolution(status)}`,
+        `  Memory: ${formatDeviceMemory(status.memory)}`,
+        `  Object URL Count: ${Number(status.objectUrlCount) || 0}`,
+        `  Last Error: ${status.lastErrorMessage || "None"}`,
+        `  Last Recovery Action: ${status.lastRecoveryAction || "None"}`,
+        `  Overlay Status: enabled=${overlayStatus.enabled ? "yes" : "no"}, file=${overlayStatus.overlayFileId || "—"}, version=${overlayStatus.overlayVersion || "—"}`,
+        `  Template Status: enabled=${templateStatus.enabled ? "yes" : "no"}, key=${templateStatus.activeTemplateKey || "—"}`,
+        "",
+        `Recent Errors (${Array.isArray(device?.recentErrors) ? device.recentErrors.length : 0})`,
+      ];
+
+      if (Array.isArray(device?.recentErrors) && device.recentErrors.length) {
+        device.recentErrors.forEach((entry, index) => {
+          lines.push(`  ${index + 1}. [${entry.type || entry.level || "error"}] ${formatPuertoRicoDateTime(entry.at)} - ${entry.message || "No message"}`);
+        });
+      } else {
+        lines.push("  None");
+      }
+
+      lines.push("");
+      lines.push(`Recent Device Logs (${Array.isArray(device?.recentLogs) ? device.recentLogs.length : 0})`);
+
+      if (Array.isArray(device?.recentLogs) && device.recentLogs.length) {
+        device.recentLogs.forEach((entry, index) => {
+          lines.push(`  ${index + 1}. [${entry.type || entry.level || entry.event || "log"}] ${formatPuertoRicoDateTime(entry.at)} - ${entry.message || entry.event || "No message"}`);
+        });
+      } else {
+        lines.push("  None");
+      }
+
+      lines.push("");
+      lines.push("Raw Telemetry JSON");
+      JSON.stringify(rawTelemetry, null, 2).split("\n").forEach((line) => {
+        lines.push(line);
+      });
+
+      return lines.flatMap((line) => wrapPdfReportLine(line));
+    }
+
+    function buildSimplePdfBlobFromLines(lines, title = "Live Gallery Device Report", generatedAt = new Date()) {
+      const normalizedLines = Array.isArray(lines) && lines.length ? lines : ["No report data."];
+      const pageWidth = 612;
+      const pageHeight = 792;
+      const marginX = 40;
+      const marginY = 42;
+      const lineHeight = 12;
+      const startY = pageHeight - marginY;
+      const linesPerPage = Math.max(1, Math.floor((pageHeight - marginY * 2) / lineHeight));
+      const pages = [];
+      for (let index = 0; index < normalizedLines.length; index += linesPerPage) {
+        pages.push(normalizedLines.slice(index, index + linesPerPage));
+      }
+
+      const fontObjectId = 1;
+      const pagesObjectId = 2;
+      let nextObjectId = 3;
+      const pageObjectIds = [];
+      const contentObjectIds = [];
+
+      pages.forEach(() => {
+        pageObjectIds.push(nextObjectId++);
+        contentObjectIds.push(nextObjectId++);
+      });
+
+      const catalogObjectId = nextObjectId++;
+      const infoObjectId = nextObjectId++;
+      const objects = [];
+
+      objects.push({
+        id: fontObjectId,
+        body: "<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>",
+      });
+
+      objects.push({
+        id: pagesObjectId,
+        body: `<< /Type /Pages /Count ${pages.length} /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(" ")}] >>`,
+      });
+
+      pages.forEach((pageLines, pageIndex) => {
+        const streamLines = [
+          "BT",
+          "/F1 9 Tf",
+          `${lineHeight} TL`,
+          `1 0 0 1 ${marginX} ${startY} Tm`,
+        ];
+
+        pageLines.forEach((line, lineIndex) => {
+          streamLines.push(`(${escapePdfLiteral(line)}) Tj`);
+          if (lineIndex < pageLines.length - 1) {
+            streamLines.push("T*");
+          }
+        });
+
+        streamLines.push("ET");
+        const stream = `${streamLines.join("\n")}\n`;
+
+        objects.push({
+          id: contentObjectIds[pageIndex],
+          body: `<< /Length ${stream.length} >>\nstream\n${stream}endstream`,
+        });
+
+        objects.push({
+          id: pageObjectIds[pageIndex],
+          body: `<< /Type /Page /Parent ${pagesObjectId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontObjectId} 0 R >> >> /Contents ${contentObjectIds[pageIndex]} 0 R >>`,
+        });
+      });
+
+      objects.push({
+        id: catalogObjectId,
+        body: `<< /Type /Catalog /Pages ${pagesObjectId} 0 R >>`,
+      });
+
+      const pdfDateStamp = buildPuertoRicoFilenameStamp(generatedAt).replace(/[^0-9]/g, "");
+      objects.push({
+        id: infoObjectId,
+        body: `<< /Title (${escapePdfLiteral(title)}) /Producer (Mayaguez Photo App) /CreationDate (D:${pdfDateStamp.slice(0, 14) || "20260101000000"}-04'00') >>`,
+      });
+
+      objects.sort((a, b) => a.id - b.id);
+
+      let pdf = "%PDF-1.4\n";
+      const offsets = [0];
+      objects.forEach((object) => {
+        offsets[object.id] = pdf.length;
+        pdf += `${object.id} 0 obj\n${object.body}\nendobj\n`;
+      });
+
+      const xrefStart = pdf.length;
+      pdf += `xref\n0 ${infoObjectId + 1}\n`;
+      pdf += "0000000000 65535 f \n";
+      for (let objectId = 1; objectId <= infoObjectId; objectId += 1) {
+        pdf += `${String(offsets[objectId] || 0).padStart(10, "0")} 00000 n \n`;
+      }
+      pdf += `trailer\n<< /Size ${infoObjectId + 1} /Root ${catalogObjectId} 0 R /Info ${infoObjectId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+      return new Blob([pdf], { type: "application/pdf" });
+    }
+
+    function triggerBlobDownload(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     function getBrowserLabelFromUserAgent(userAgent = "") {
@@ -6610,7 +6907,7 @@ function hideGlobalLoader() {
       const { content } = getDeviceDetailOverlayElements();
       if (!content) return;
 
-      const device = latestLiveGalleryDevices.find((entry) => String(entry.deviceId) === String(deviceId));
+      const device = getLiveGalleryDeviceById(deviceId);
       if (!device) {
         content.innerHTML = `<div class="device-monitor-empty">This device is no longer in the recent telemetry window.</div>`;
         return;
@@ -6618,18 +6915,7 @@ function hideGlobalLoader() {
 
       const status = device.status || {};
       const health = getLiveGalleryDeviceHealth(device);
-      const rawTelemetry = {
-        deviceId: device.deviceId,
-        deviceName: device.deviceName,
-        createdAt: device.createdAt,
-        lastSeenAt: device.lastSeenAt,
-        lastSeenAgoMs: device.lastSeenAgoMs,
-        online: device.online,
-        timing: device.timing || {},
-        status,
-        recentErrors: device.recentErrors || [],
-        recentLogs: device.recentLogs || [],
-      };
+      const rawTelemetry = buildLiveGalleryDeviceRawTelemetry(device);
 
       content.innerHTML = `
         <div class="device-detail-layout">
@@ -6732,6 +7018,15 @@ function hideGlobalLoader() {
       refreshBtn.setAttribute("title", isLoading ? "Refreshing telemetry..." : "Refresh telemetry");
     }
 
+    function setLiveGalleryDeviceDetailDownloadState(isLoading) {
+      const { downloadBtn } = getDeviceDetailOverlayElements();
+      if (!downloadBtn) return;
+      downloadBtn.disabled = Boolean(isLoading);
+      downloadBtn.classList.toggle("btn-loading", Boolean(isLoading));
+      downloadBtn.setAttribute("aria-busy", isLoading ? "true" : "false");
+      downloadBtn.setAttribute("title", isLoading ? "Generating PDF report..." : "Download PDF report");
+    }
+
     async function refreshSelectedLiveGalleryDeviceDetail() {
       if (isRefreshingLiveGalleryDeviceDetail) return;
       isRefreshingLiveGalleryDeviceDetail = true;
@@ -6744,6 +7039,38 @@ function hideGlobalLoader() {
       } finally {
         isRefreshingLiveGalleryDeviceDetail = false;
         setLiveGalleryDeviceDetailRefreshState(false);
+      }
+    }
+
+    async function downloadSelectedLiveGalleryDeviceReport() {
+      if (isDownloadingLiveGalleryDeviceReport) return;
+      const device = getLiveGalleryDeviceById(selectedLiveGalleryDeviceId);
+      if (!device) {
+        await appAlert("This device is no longer in the recent telemetry window.", {
+          title: "Device Unavailable",
+          tone: "error",
+        });
+        return;
+      }
+
+      isDownloadingLiveGalleryDeviceReport = true;
+      setLiveGalleryDeviceDetailDownloadState(true);
+      try {
+        const generatedAt = new Date();
+        const lines = buildLiveGalleryDeviceReportLines(device, generatedAt);
+        const pdfBlob = buildSimplePdfBlobFromLines(lines, "Live Gallery Device Report", generatedAt);
+        const deviceLabel = sanitizeReportFilenamePart(device.deviceName || device.deviceId || "device");
+        const fileName = `live_gallery_device_${deviceLabel}_${buildPuertoRicoFilenameStamp(generatedAt)}.pdf`;
+        triggerBlobDownload(pdfBlob, fileName);
+      } catch (err) {
+        console.error("Error generating live gallery device report", err);
+        await appAlert("Could not create the PDF report for this device. Please try again.", {
+          title: "Report Download Failed",
+          tone: "error",
+        });
+      } finally {
+        isDownloadingLiveGalleryDeviceReport = false;
+        setLiveGalleryDeviceDetailDownloadState(false);
       }
     }
 
@@ -10147,7 +10474,11 @@ function hideReportLoading() {
         return;
       }
 
-      const { overlay: deviceOverlay, refreshBtn: deviceRefreshBtn, closeBtn: deviceCloseBtn } = getDeviceDetailOverlayElements();
+      const { overlay: deviceOverlay, downloadBtn: deviceDownloadBtn, refreshBtn: deviceRefreshBtn, closeBtn: deviceCloseBtn } = getDeviceDetailOverlayElements();
+      if (deviceDownloadBtn && event.target.closest("#deviceDetailOverlayDownload")) {
+        await downloadSelectedLiveGalleryDeviceReport();
+        return;
+      }
       if (deviceRefreshBtn && event.target.closest("#deviceDetailOverlayRefresh")) {
         await refreshSelectedLiveGalleryDeviceDetail();
         return;
@@ -13372,6 +13703,13 @@ reportViewBtn.addEventListener("click", async () => {
           <p class="event-logs-modal-subtitle">Recent errors, recent device logs, and the raw telemetry payload for a single gallery screen.</p>
         </div>
         <div class="event-logs-modal-actions">
+          <button id="deviceDetailOverlayDownload" type="button" class="event-logs-modal-icon-button" aria-label="Download device report PDF" title="Download PDF report">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <path d="M7 10l5 5 5-5"></path>
+              <path d="M12 15V3"></path>
+            </svg>
+          </button>
           <button id="deviceDetailOverlayRefresh" type="button" class="event-logs-modal-icon-button" aria-label="Refresh device telemetry" title="Refresh telemetry">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 2v6h-6"></path>
