@@ -208,6 +208,7 @@
 
     const DISPLAY_MS = 8000;
     const REFRESH_MS = 10000;
+    const GALLERY_HEARTBEAT_MS = 5000;
     const EMPTY_GALLERY_MESSAGE = "ESCANEA EL CODIGO QR";
     /** Template changes are rare; polling less often reduces load and timeout risk on low-memory clients. */
     const TEMPLATE_REFRESH_MS = 45000;
@@ -260,9 +261,379 @@
     let currentOverlayFileId = "";
     let currentOverlayVersion = "";
     let lastGoodOverlayMeta = null;
+    let currentPhotoName = "";
+    let currentDisplayedPhotoIndex = -1;
+    let lastPhotoChangeAt = "";
+    let lastSuccessfulImageLoadAt = "";
+    let lastSuccessfulPollAt = "";
+    let lastPollDurationMs = 0;
+    let consecutivePollFailures = 0;
+    let consecutiveImageFailures = 0;
+    let totalImageFailures = 0;
+    let totalPollFailures = 0;
+    let telemetryLastErrorMessage = "";
+    let lastRecoveryAction = "";
+    let recentErrors = [];
+    let telemetryHeartbeatTimer = null;
+    let telemetryHeartbeatInFlight = false;
+    let debugTestTriggered = false;
+    const telemetryStartedAtMs = Date.now();
+    const GALLERY_DEVICE_ID_KEY = "galleryDeviceId";
+    const GALLERY_DEVICE_NAME_KEY = "galleryDeviceName";
+    const DEBUG_TEST_ENABLED = (() => {
+      try {
+        return new URLSearchParams(window.location.search).get("debugTest") === "1";
+      } catch (_) {
+        return false;
+      }
+    })();
+    const galleryDeviceId = (() => {
+      try {
+        const existingId = window.localStorage.getItem(GALLERY_DEVICE_ID_KEY);
+        if (existingId) return existingId;
+        const generatedId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `gallery-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+        window.localStorage.setItem(GALLERY_DEVICE_ID_KEY, generatedId);
+        return generatedId;
+      } catch (_) {
+        return `gallery-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+      }
+    })();
+    const galleryDeviceName = (() => {
+      function detectBrowserName() {
+        const ua = navigator.userAgent || "";
+        if (/Edg\//i.test(ua)) return "Edge";
+        if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return "Chrome";
+        if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) return "Safari";
+        if (/Firefox\//i.test(ua)) return "Firefox";
+        return "Browser";
+      }
+
+      try {
+        const existingName = window.localStorage.getItem(GALLERY_DEVICE_NAME_KEY);
+        if (existingName) return existingName;
+        const platformName = navigator.userAgentData?.platform || navigator.platform || "Unknown Platform";
+        const defaultName = `${detectBrowserName()} on ${platformName}`;
+        window.localStorage.setItem(GALLERY_DEVICE_NAME_KEY, defaultName);
+        return defaultName;
+      } catch (_) {
+        const platformName = navigator.userAgentData?.platform || navigator.platform || "Unknown Platform";
+        return `${detectBrowserName()} on ${platformName}`;
+      }
+    })();
 
     function galleryDebug(...args) {
       console.log("[gallery]", ...args);
+    }
+
+    function formatMonitorValue(value) {
+      if (value instanceof Error) {
+        return value.stack || value.message || String(value);
+      }
+      if (typeof value === "string") return value;
+      if (value == null) return "";
+      try {
+        return JSON.stringify(value);
+      } catch (_) {
+        return String(value);
+      }
+    }
+
+    function clampMonitorString(value, maxLength = 500) {
+      const normalized = String(value || "").trim();
+      return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
+    }
+
+    function recordRecentError(type, value) {
+      try {
+        const message = clampMonitorString(formatMonitorValue(value), 500);
+        if (!message) return;
+        recentErrors.push({
+          at: new Date().toISOString(),
+          type: clampMonitorString(type || "error", 80),
+          message,
+        });
+        if (recentErrors.length > 20) {
+          recentErrors = recentErrors.slice(-20);
+        }
+        telemetryLastErrorMessage = message;
+      } catch (_) {}
+    }
+
+    function setRecoveryAction(action) {
+      try {
+        lastRecoveryAction = clampMonitorString(action || "", 200);
+      } catch (_) {}
+    }
+
+    function recordPollFailure(errorMessage) {
+      try {
+        consecutivePollFailures += 1;
+        totalPollFailures += 1;
+        recordRecentError("poll", errorMessage);
+        if (consecutivePollFailures === 1 || consecutivePollFailures % 5 === 0) {
+          void sendDeviceLog("warn", "poll_failure", errorMessage, {
+            consecutivePollFailures,
+            totalPollFailures,
+          });
+        }
+      } catch (_) {}
+    }
+
+    function recordImageFailure(errorMessage) {
+      try {
+        consecutiveImageFailures += 1;
+        totalImageFailures += 1;
+        recordRecentError("image", errorMessage);
+        if (consecutiveImageFailures === 1 || consecutiveImageFailures % 5 === 0) {
+          void sendDeviceLog("warn", "image_failure", errorMessage, {
+            consecutiveImageFailures,
+            totalImageFailures,
+          });
+        }
+      } catch (_) {}
+    }
+
+    function recordSuccessfulPoll(durationMs) {
+      try {
+        lastSuccessfulPollAt = new Date().toISOString();
+        lastPollDurationMs = Number.isFinite(durationMs) ? Math.max(0, Math.round(durationMs)) : 0;
+        consecutivePollFailures = 0;
+      } catch (_) {}
+    }
+
+    function recordSuccessfulImageLoad() {
+      try {
+        lastSuccessfulImageLoadAt = new Date().toISOString();
+        consecutiveImageFailures = 0;
+      } catch (_) {}
+    }
+
+    function markVisiblePhoto(file) {
+      try {
+        currentPhotoId = file && file.id ? String(file.id) : currentPhotoId;
+        currentPhotoName = file && file.name ? String(file.name) : "";
+        currentDisplayedPhotoIndex = Number.isFinite(currentIndex) ? currentIndex : -1;
+        lastPhotoChangeAt = new Date().toISOString();
+      } catch (_) {}
+    }
+
+    function getVisibleImageAgeSec() {
+      try {
+        if (!lastPhotoChangeAt) return 0;
+        const ageMs = Date.now() - Date.parse(lastPhotoChangeAt);
+        return ageMs > 0 ? Math.round(ageMs / 1000) : 0;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function getSlideshowStalled() {
+      try {
+        if (!hasImage || !lastPhotoChangeAt) return false;
+        const visibleAgeSec = getVisibleImageAgeSec();
+        const staleThresholdSec = Math.max(Math.round((DISPLAY_MS * 3) / 1000), 30);
+        return visibleAgeSec >= staleThresholdSec;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function getPerformanceMemorySnapshot() {
+      try {
+        const memory = performance && performance.memory ? performance.memory : null;
+        if (!memory) return null;
+        return {
+          usedJSHeapSize: Number(memory.usedJSHeapSize) || 0,
+          totalJSHeapSize: Number(memory.totalJSHeapSize) || 0,
+          jsHeapSizeLimit: Number(memory.jsHeapSizeLimit) || 0,
+        };
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function buildTelemetryPayload() {
+      try {
+        return {
+          deviceId: galleryDeviceId,
+          status: {
+            deviceName: galleryDeviceName,
+            pageUptimeSec: Math.max(0, Math.round((Date.now() - telemetryStartedAtMs) / 1000)),
+            currentPhotoId: currentPhotoId || "",
+            currentPhotoName: currentPhotoName || "",
+            currentPhotoIndex: Number.isFinite(currentDisplayedPhotoIndex) ? currentDisplayedPhotoIndex : currentIndex,
+            lastPhotoChangeAt,
+            lastSuccessfulImageLoadAt,
+            lastSuccessfulPollAt,
+            lastPollDurationMs,
+            consecutivePollFailures,
+            consecutiveImageFailures,
+            totalImageFailures,
+            totalPollFailures,
+            visibleImageAgeSec: getVisibleImageAgeSec(),
+            slideshowStalled: getSlideshowStalled(),
+            userAgent: navigator.userAgent || "",
+            platform: navigator.userAgentData?.platform || navigator.platform || "",
+            screenWidth: window.screen ? Number(window.screen.width) || 0 : 0,
+            screenHeight: window.screen ? Number(window.screen.height) || 0 : 0,
+            devicePixelRatio: Number(window.devicePixelRatio) || 1,
+            memory: getPerformanceMemorySnapshot(),
+            objectUrlCount: slotObjectUrls.filter(Boolean).length,
+            lastErrorMessage: telemetryLastErrorMessage || "",
+            lastRecoveryAction: lastRecoveryAction || "",
+            overlayStatus: {
+              enabled: Boolean(currentOverlayFileId || activeOverlayKey || lastGoodOverlayMeta),
+              overlayFileId: currentOverlayFileId || "",
+              overlayVersion: currentOverlayVersion || "",
+            },
+            templateStatus: {
+              enabled: Boolean(TEMPLATE_RENDERING_ENABLED),
+              activeTemplateKey: activeTemplateKey || "",
+            },
+            debugTestMode: DEBUG_TEST_ENABLED,
+          },
+          recentErrors: recentErrors.slice(-20),
+        };
+      } catch (_) {
+        return {
+          deviceId: galleryDeviceId,
+          status: {
+            deviceName: galleryDeviceName,
+          },
+          recentErrors: recentErrors.slice(-20),
+        };
+      }
+    }
+
+    async function postMonitorJson(url, payload, timeoutMs = 4000) {
+      if (typeof AbortController === "function") {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          return await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            keepalive: true,
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      return await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
+    }
+
+    async function sendTelemetryHeartbeat() {
+      if (telemetryHeartbeatInFlight) return;
+      telemetryHeartbeatInFlight = true;
+      try {
+        await postMonitorJson(`${BASE_URL}/api/device-heartbeat`, buildTelemetryPayload());
+      } catch (_) {
+        // Monitoring must stay silent.
+      } finally {
+        telemetryHeartbeatInFlight = false;
+      }
+    }
+
+    async function sendDeviceLog(level, event, message, details = null) {
+      try {
+        await postMonitorJson(`${BASE_URL}/api/device-log`, {
+          deviceId: galleryDeviceId,
+          deviceName: galleryDeviceName,
+          level: clampMonitorString(level || "info", 20),
+          event: clampMonitorString(event || "gallery_event", 80),
+          message: clampMonitorString(message || "", 500),
+          details: details && typeof details === "object" ? details : null,
+        }, 3000);
+      } catch (_) {
+        // Monitoring must stay silent.
+      }
+    }
+
+    function installTelemetryErrorCapture() {
+      try {
+        const previousOnError = window.onerror;
+        window.onerror = function onGalleryError(message, source, lineno, colno, error) {
+          try {
+            const formattedMessage = error && error.message
+              ? `${error.message}${source ? ` @ ${source}:${lineno || 0}:${colno || 0}` : ""}`
+              : `${message || "window_error"}${source ? ` @ ${source}:${lineno || 0}:${colno || 0}` : ""}`;
+            recordRecentError("window.onerror", formattedMessage);
+            void sendDeviceLog("error", "window_error", formattedMessage, {
+              source: source || "",
+              line: lineno || 0,
+              column: colno || 0,
+            });
+          } catch (_) {}
+          if (typeof previousOnError === "function") {
+            return previousOnError.apply(this, arguments);
+          }
+          return false;
+        };
+
+        const previousUnhandledRejection = window.onunhandledrejection;
+        window.onunhandledrejection = function onGalleryUnhandledRejection(event) {
+          try {
+            const reason = event && "reason" in event ? event.reason : event;
+            const formattedMessage = clampMonitorString(formatMonitorValue(reason), 500) || "unhandled_rejection";
+            recordRecentError("unhandledrejection", formattedMessage);
+            void sendDeviceLog("error", "unhandled_rejection", formattedMessage);
+          } catch (_) {}
+          if (typeof previousUnhandledRejection === "function") {
+            return previousUnhandledRejection.apply(this, arguments);
+          }
+          return false;
+        };
+
+        if (console && typeof console.error === "function" && !console.__galleryHealthWrapped) {
+          const originalConsoleError = console.error.bind(console);
+          const wrappedConsoleError = function wrappedGalleryConsoleError(...args) {
+            try {
+              const formattedMessage = clampMonitorString(args.map((arg) => formatMonitorValue(arg)).join(" "), 500);
+              if (formattedMessage) {
+                recordRecentError("console.error", formattedMessage);
+              }
+            } catch (_) {}
+            return originalConsoleError(...args);
+          };
+          wrappedConsoleError.__galleryHealthWrapped = true;
+          console.error = wrappedConsoleError;
+          console.__galleryHealthWrapped = true;
+        }
+      } catch (_) {}
+    }
+
+    function startTelemetryHeartbeatLoop() {
+      try {
+        if (telemetryHeartbeatTimer) {
+          clearInterval(telemetryHeartbeatTimer);
+        }
+        void sendTelemetryHeartbeat();
+        telemetryHeartbeatTimer = setInterval(() => {
+          void sendTelemetryHeartbeat();
+        }, GALLERY_HEARTBEAT_MS);
+      } catch (_) {}
+    }
+
+    function runDebugTelemetryTestIfNeeded() {
+      try {
+        if (!DEBUG_TEST_ENABLED || debugTestTriggered) return;
+        debugTestTriggered = true;
+        recordRecentError("debugTest", "debugTest simulated gallery error");
+        recordImageFailure("debugTest simulated image failure");
+        setRecoveryAction("debug_test_mode");
+        void sendDeviceLog("warn", "debug_test", "debugTest simulated gallery telemetry event");
+        void sendTelemetryHeartbeat();
+      } catch (_) {}
     }
 
     function buildPhotoUrl(fileId) {
@@ -335,6 +706,7 @@
       currentOverlayVersion = "";
       lastGoodOverlayMeta = null;
       applyPhotoBox(DEFAULT_PHOTO_BOX);
+      setRecoveryAction(`overlay_cleared:${reason}`);
       galleryDebug("overlay cleared", { reason });
     }
 
@@ -761,6 +1133,7 @@
         commitTemplateRender(template, templateKey, assets);
         return true;
       } catch (err) {
+        setRecoveryAction("kept_last_template_after_render_failure");
         galleryDebug("template render failed; keeping last-known-good template", {
           attempt: templateLoadAttempt,
           ...templateSummary,
@@ -906,6 +1279,9 @@
       hideTicketBadge();
       hasImage = false;
       currentPhotoId = "";
+      currentPhotoName = "";
+      currentDisplayedPhotoIndex = -1;
+      setRecoveryAction(`set_empty_state:${reason}`);
       galleryDebug("setEmptyState applied", { reason });
       return true;
     }
@@ -913,11 +1289,13 @@
     async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "") {
       const img = imgSlots[slotIndex];
       if (!img) {
+        recordImageFailure("missing_image_slot");
         throw new Error("missing_image_slot");
       }
 
       const response = await fetchWithTimeout(url, { cache: "no-store" }, timeoutMs);
       if (!response.ok) {
+        recordImageFailure(`image_http_${response.status}`);
         throw new Error(`image_http_${response.status}`);
       }
 
@@ -929,6 +1307,7 @@
         let readinessProbe = 0;
         const timer = setTimeout(() => {
           cleanup();
+          recordImageFailure("image_load_timeout");
           reject(new Error("image_load_timeout"));
         }, timeoutMs);
 
@@ -948,6 +1327,7 @@
           }
           slotObjectUrls[slotIndex] = objectUrl;
           slotPhotoIds[slotIndex] = photoId ? String(photoId) : "";
+          recordSuccessfulImageLoad();
           galleryDebug("photo asset loaded", {
             slotIndex,
             photoId: photoId ? String(photoId) : "",
@@ -962,6 +1342,7 @@
           if (settled) return;
           settled = true;
           cleanup();
+          recordImageFailure("image_load_failed");
           URL.revokeObjectURL(objectUrl);
           reject(new Error("image_load_failed"));
         };
@@ -1013,6 +1394,7 @@
             });
           });
         } catch (err) {
+          setRecoveryAction("first_photo_load_failed");
           console.error("Error loading first photo", err);
           galleryDebug("photo transition failed before any photo was visible", {
             transitionToken,
@@ -1085,6 +1467,7 @@
           });
         });
       } catch (err) {
+        setRecoveryAction("kept_current_photo_after_load_failure");
         console.error("Error loading photo", err);
         galleryDebug("photo transition failed; keeping current visible photo", {
           transitionToken,
@@ -1106,6 +1489,7 @@
       const url = buildPhotoUrl(file.id);
       const didShow = await crossfadeTo(url, file.id);
       if (didShow) {
+        markVisiblePhoto(file);
         updateTicketBadge(file.name);
       }
       return didShow;
@@ -1154,6 +1538,7 @@
 
     async function fetchApproved() {
       approvedPollCount += 1;
+      const pollStartedAt = Date.now();
       galleryDebug("approved poll start", {
         approvedPollCount,
         currentVisiblePhotoId: currentPhotoId,
@@ -1162,6 +1547,8 @@
       try {
         const res = await fetchWithTimeout(`${BASE_URL}/gallery/approved`);
         if (!res.ok) {
+          lastPollDurationMs = Date.now() - pollStartedAt;
+          recordPollFailure(`approved_poll_http_${res.status}`);
           console.error("Error fetching approved list", res.status);
           galleryDebug("approved poll failed", {
             approvedPollCount,
@@ -1171,6 +1558,8 @@
         }
         const data = await res.json();
         if (!data.ok) {
+          lastPollDurationMs = Date.now() - pollStartedAt;
+          recordPollFailure("approved_poll_payload_not_ok");
           console.error("API returned not ok", data);
           galleryDebug("approved poll returned non-ok payload", {
             approvedPollCount,
@@ -1180,6 +1569,7 @@
         }
 
         const newPhotos = Array.isArray(data.files) ? [...data.files] : [];
+        recordSuccessfulPoll(Date.now() - pollStartedAt);
         sortPhotosList(newPhotos);
         const oldIds = photos.map((p) => p.id).join(",");
         const newIds = newPhotos.map((p) => p.id).join(",");
@@ -1241,6 +1631,8 @@
           }
         }
       } catch (err) {
+        lastPollDurationMs = Date.now() - pollStartedAt;
+        recordPollFailure(err && err.message ? err.message : String(err));
         console.error("Failed to fetch approved photos", err);
         galleryDebug("approved poll exception", {
           approvedPollCount,
@@ -1332,6 +1724,7 @@
         try {
           await commitOverlay(data, overlayKey, requestId);
         } catch (err) {
+          setRecoveryAction("kept_last_overlay_after_load_failure");
           galleryDebug("overlay load failed; keeping last-known-good overlay", {
             requestId,
             templateId: String(data.templateId || ""),
@@ -1393,6 +1786,7 @@
     } else {
       disableTemplateLayerForLiveMode();
     }
+    installTelemetryErrorCapture();
     clearOverlayLayer("initial_boot");
     setGalleryStatus(EMPTY_GALLERY_MESSAGE);
     if (TEMPLATE_RENDERING_ENABLED) {
@@ -1400,6 +1794,8 @@
     }
     startOverlayRefreshLoop();
     startRefreshLoop();
+    startTelemetryHeartbeatLoop();
+    runDebugTelemetryTestIfNeeded();
     fetchApproved();
   </script>
 </body>

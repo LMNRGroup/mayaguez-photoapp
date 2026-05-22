@@ -291,6 +291,13 @@ let settingsHydrationPromise = null;
 const SETTINGS_REFRESH_TTL_MS = 2000;
 let metricsSheetsReady = false;
 let metricsSheetHeadersReady = false;
+const DEVICE_ONLINE_WINDOW_MS = 2 * 60 * 1000;
+const DEVICE_WARNING_WINDOW_MS = 15 * 1000;
+const DEVICE_OFFLINE_WINDOW_MS = 30 * 1000;
+const DEVICE_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MAX_DEVICE_ERRORS = 20;
+const MAX_DEVICE_LOGS = 200;
+const liveGalleryDevices = new Map();
 
 const SETTINGS_FIELDS = [
   { key: 'Ticket Overlay Enabled', type: 'boolean', path: ['ticketEnabled'] },
@@ -338,6 +345,183 @@ function parseBooleanLabel(value, fallback) {
   if (['enabled', 'on', 'true', '1', 'yes', 'y'].includes(lower)) return true;
   if (['disabled', 'off', 'false', '0', 'no', 'n'].includes(lower)) return false;
   return fallback;
+}
+
+function clampString(value, maxLength = 300) {
+  if (value == null) return '';
+  const str = String(value);
+  return str.length > maxLength ? str.slice(0, maxLength) : str;
+}
+
+function clampNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function clampBoolean(value) {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function clampIsoTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+}
+
+function sanitizeDeviceMemory(rawMemory) {
+  if (!rawMemory || typeof rawMemory !== 'object') return null;
+  const usedJSHeapSize = clampNumber(rawMemory.usedJSHeapSize);
+  const totalJSHeapSize = clampNumber(rawMemory.totalJSHeapSize);
+  const jsHeapSizeLimit = clampNumber(rawMemory.jsHeapSizeLimit);
+
+  if (usedJSHeapSize == null && totalJSHeapSize == null && jsHeapSizeLimit == null) {
+    return null;
+  }
+
+  return {
+    usedJSHeapSize,
+    totalJSHeapSize,
+    jsHeapSizeLimit,
+  };
+}
+
+function sanitizeDeviceErrors(rawErrors) {
+  if (!Array.isArray(rawErrors)) return [];
+
+  return rawErrors
+    .slice(-MAX_DEVICE_ERRORS)
+    .map((entry) => {
+      const item = entry && typeof entry === 'object' ? entry : {};
+      return {
+        at: clampIsoTimestamp(item.at) || new Date().toISOString(),
+        type: clampString(item.type || item.kind || 'error', 80),
+        message: clampString(item.message || item.error || '', 500),
+      };
+    })
+    .filter((entry) => entry.message);
+}
+
+function sanitizeDeviceStatus(rawStatus) {
+  const status = rawStatus && typeof rawStatus === 'object' ? rawStatus : {};
+  const overlayStatus = status.overlayStatus && typeof status.overlayStatus === 'object'
+    ? {
+        enabled: clampBoolean(status.overlayStatus.enabled),
+        overlayFileId: clampString(status.overlayStatus.overlayFileId || '', 120),
+        overlayVersion: clampString(status.overlayStatus.overlayVersion || '', 120),
+      }
+    : null;
+  const templateStatus = status.templateStatus && typeof status.templateStatus === 'object'
+    ? {
+        enabled: clampBoolean(status.templateStatus.enabled),
+        activeTemplateKey: clampString(status.templateStatus.activeTemplateKey || '', 200),
+      }
+    : null;
+
+  return {
+    deviceName: clampString(status.deviceName || '', 120),
+    pageUptimeSec: clampNumber(status.pageUptimeSec),
+    currentPhotoId: clampString(status.currentPhotoId || '', 120),
+    currentPhotoName: clampString(status.currentPhotoName || '', 200),
+    currentPhotoIndex: clampNumber(status.currentPhotoIndex),
+    lastPhotoChangeAt: clampIsoTimestamp(status.lastPhotoChangeAt),
+    lastSuccessfulImageLoadAt: clampIsoTimestamp(status.lastSuccessfulImageLoadAt),
+    lastSuccessfulPollAt: clampIsoTimestamp(status.lastSuccessfulPollAt),
+    lastPollDurationMs: clampNumber(status.lastPollDurationMs),
+    consecutivePollFailures: clampNumber(status.consecutivePollFailures),
+    consecutiveImageFailures: clampNumber(status.consecutiveImageFailures),
+    totalImageFailures: clampNumber(status.totalImageFailures),
+    totalPollFailures: clampNumber(status.totalPollFailures),
+    visibleImageAgeSec: clampNumber(status.visibleImageAgeSec),
+    slideshowStalled: clampBoolean(status.slideshowStalled),
+    userAgent: clampString(status.userAgent || '', 400),
+    platform: clampString(status.platform || '', 120),
+    screenWidth: clampNumber(status.screenWidth),
+    screenHeight: clampNumber(status.screenHeight),
+    devicePixelRatio: clampNumber(status.devicePixelRatio),
+    memory: sanitizeDeviceMemory(status.memory),
+    objectUrlCount: clampNumber(status.objectUrlCount),
+    lastErrorMessage: clampString(status.lastErrorMessage || '', 500),
+    lastRecoveryAction: clampString(status.lastRecoveryAction || '', 200),
+    overlayStatus,
+    templateStatus,
+    debugTestMode: Boolean(status.debugTestMode),
+  };
+}
+
+function sanitizeDeviceLogEntry(rawEntry = {}) {
+  const entry = rawEntry && typeof rawEntry === 'object' ? rawEntry : {};
+  return {
+    at: clampIsoTimestamp(entry.at) || new Date().toISOString(),
+    level: clampString(entry.level || 'info', 20),
+    event: clampString(entry.event || 'device_event', 80),
+    message: clampString(entry.message || '', 500),
+    details: entry.details && typeof entry.details === 'object'
+      ? JSON.parse(JSON.stringify(entry.details, (_, value) => {
+          if (typeof value === 'string') return clampString(value, 300);
+          if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+          if (typeof value === 'boolean' || value == null) return value;
+          return value;
+        }))
+      : null,
+  };
+}
+
+function getOrCreateLiveGalleryDevice(deviceId, deviceName = '') {
+  const now = new Date().toISOString();
+  const existing = liveGalleryDevices.get(deviceId);
+  if (existing) {
+    return existing;
+  }
+
+  const created = {
+    deviceId,
+    createdAt: now,
+    lastSeenAt: now,
+    deviceName: deviceName || deviceId,
+    status: {},
+    recentErrors: [],
+    recentLogs: [],
+  };
+  liveGalleryDevices.set(deviceId, created);
+  return created;
+}
+
+function pruneLiveGalleryDevices() {
+  const cutoff = Date.now() - DEVICE_HISTORY_WINDOW_MS;
+  for (const [deviceId, device] of liveGalleryDevices.entries()) {
+    const lastSeenAtMs = Date.parse(device.lastSeenAt || '') || 0;
+    if (lastSeenAtMs < cutoff) {
+      liveGalleryDevices.delete(deviceId);
+    }
+  }
+}
+
+function buildLiveGalleryDeviceSummary(device) {
+  const now = Date.now();
+  const lastSeenAtMs = Date.parse(device.lastSeenAt || '') || 0;
+  const lastSuccessfulImageLoadAtMs = Date.parse(device.status?.lastSuccessfulImageLoadAt || '') || 0;
+  const lastSuccessfulPollAtMs = Date.parse(device.status?.lastSuccessfulPollAt || '') || 0;
+  const online = lastSeenAtMs > 0 && (now - lastSeenAtMs) <= DEVICE_ONLINE_WINDOW_MS;
+
+  return {
+    deviceId: device.deviceId,
+    createdAt: device.createdAt,
+    lastSeenAt: device.lastSeenAt,
+    lastSeenAgoMs: lastSeenAtMs > 0 ? Math.max(0, now - lastSeenAtMs) : null,
+    online,
+    status: device.status || {},
+    deviceName: clampString(device.deviceName || device.status?.deviceName || device.deviceId, 120),
+    recentErrors: Array.isArray(device.recentErrors) ? device.recentErrors : [],
+    recentLogs: Array.isArray(device.recentLogs) ? device.recentLogs : [],
+    timing: {
+      warningAfterMs: DEVICE_WARNING_WINDOW_MS,
+      offlineAfterMs: DEVICE_OFFLINE_WINDOW_MS,
+      onlineWindowMs: DEVICE_ONLINE_WINDOW_MS,
+      lastSuccessfulImageLoadAgoMs: lastSuccessfulImageLoadAtMs > 0 ? Math.max(0, now - lastSuccessfulImageLoadAtMs) : null,
+      lastSuccessfulPollAgoMs: lastSuccessfulPollAtMs > 0 ? Math.max(0, now - lastSuccessfulPollAtMs) : null,
+    },
+  };
 }
 
 function normalizeStatusLabel(enabled) {
@@ -2629,6 +2813,99 @@ app.post('/ping', async (req, res) => {
     console.error('Error logging visit to sheet:', e);
   }
   res.json({ ok: true });
+});
+
+app.post('/api/device-heartbeat', (req, res) => {
+  try {
+    pruneLiveGalleryDevices();
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const deviceId = clampString(body.deviceId || '', 120);
+    if (!deviceId) {
+      return res.status(400).json({ ok: false, error: 'missing_device_id' });
+    }
+
+    const status = sanitizeDeviceStatus(body.status);
+    const recentErrors = sanitizeDeviceErrors(body.recentErrors);
+    const device = getOrCreateLiveGalleryDevice(deviceId, status.deviceName);
+    const now = new Date().toISOString();
+
+    device.lastSeenAt = now;
+    device.deviceName = status.deviceName || device.deviceName || deviceId;
+    device.status = status;
+    device.recentErrors = recentErrors;
+
+    return res.json({ ok: true, deviceId, lastSeenAt: now });
+  } catch (err) {
+    console.error('Error processing device heartbeat:', err);
+    return res.status(500).json({ ok: false, error: 'device_heartbeat_failed' });
+  }
+});
+
+app.post('/api/device-log', (req, res) => {
+  try {
+    pruneLiveGalleryDevices();
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const deviceId = clampString(body.deviceId || '', 120);
+    if (!deviceId) {
+      return res.status(400).json({ ok: false, error: 'missing_device_id' });
+    }
+
+    const deviceName = clampString(body.deviceName || '', 120);
+    const device = getOrCreateLiveGalleryDevice(deviceId, deviceName);
+    const logEntry = sanitizeDeviceLogEntry(body);
+
+    device.lastSeenAt = clampIsoTimestamp(body.lastSeenAt) || device.lastSeenAt || new Date().toISOString();
+    if (deviceName) {
+      device.deviceName = deviceName;
+    }
+    device.recentLogs.push(logEntry);
+    if (device.recentLogs.length > MAX_DEVICE_LOGS) {
+      device.recentLogs = device.recentLogs.slice(-MAX_DEVICE_LOGS);
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Error storing device log:', err);
+    return res.status(500).json({ ok: false, error: 'device_log_failed' });
+  }
+});
+
+app.get('/api/devices/live', ensureAdminAuth, (req, res) => {
+  try {
+    pruneLiveGalleryDevices();
+
+    const now = Date.now();
+    const devices = Array.from(liveGalleryDevices.values())
+      .map((device) => buildLiveGalleryDeviceSummary(device))
+      .filter((device) => {
+        const lastSeenAtMs = Date.parse(device.lastSeenAt || '') || 0;
+        if (!lastSeenAtMs) return false;
+        if ((now - lastSeenAtMs) <= DEVICE_ONLINE_WINDOW_MS) return true;
+        return (now - lastSeenAtMs) <= DEVICE_HISTORY_WINDOW_MS;
+      })
+      .sort((a, b) => {
+        if (a.online !== b.online) return a.online ? -1 : 1;
+        const aSeen = Date.parse(a.lastSeenAt || '') || 0;
+        const bSeen = Date.parse(b.lastSeenAt || '') || 0;
+        return bSeen - aSeen;
+      });
+
+    return res.json({
+      ok: true,
+      devices,
+      meta: {
+        onlineWindowMs: DEVICE_ONLINE_WINDOW_MS,
+        warningWindowMs: DEVICE_WARNING_WINDOW_MS,
+        offlineWindowMs: DEVICE_OFFLINE_WINDOW_MS,
+        historyWindowMs: DEVICE_HISTORY_WINDOW_MS,
+      },
+    });
+  } catch (err) {
+    console.error('Error listing live gallery devices:', err);
+    return res.status(500).json({ ok: false, error: 'list_devices_failed' });
+  }
 });
 
 // Photo upload (counts as "upload")

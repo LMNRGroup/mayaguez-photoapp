@@ -2050,6 +2050,240 @@
     color: var(--destructive);
   }
 
+  .device-monitor-summary {
+    font-size: 0.72rem;
+    color: var(--muted-foreground);
+  }
+
+  .device-monitor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .device-monitor-empty {
+    border: 1px dashed var(--border);
+    border-radius: calc(var(--radius) - 4px);
+    padding: 0.85rem;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
+  .device-card {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 4px);
+    background: color-mix(in srgb, var(--card) 88%, var(--secondary) 12%);
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    text-align: left;
+    color: var(--foreground);
+    cursor: pointer;
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .device-card:hover,
+  .device-card:focus-visible {
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+    outline: none;
+  }
+
+  .device-card.device-status-ok {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border) 55%);
+  }
+
+  .device-card.device-status-warn {
+    border-color: rgba(251, 191, 36, 0.65);
+  }
+
+  .device-card.device-status-error {
+    border-color: color-mix(in srgb, var(--destructive) 58%, var(--border) 42%);
+  }
+
+  .device-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .device-card-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .device-card-meta {
+    font-size: 0.68rem;
+    color: var(--muted-foreground);
+    line-height: 1.45;
+  }
+
+  .device-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .device-status-pill.device-status-ok {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border) 45%);
+    background: color-mix(in srgb, var(--accent) 14%, transparent 86%);
+  }
+
+  .device-status-pill.device-status-warn {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.65);
+    background: rgba(251, 191, 36, 0.09);
+  }
+
+  .device-status-pill.device-status-error {
+    color: #fda4af;
+    border-color: rgba(244, 63, 94, 0.45);
+    background: rgba(244, 63, 94, 0.1);
+  }
+
+  .device-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .device-card-metric {
+    border: 1px solid color-mix(in srgb, var(--border) 75%, transparent 25%);
+    border-radius: calc(var(--radius) - 6px);
+    padding: 0.5rem;
+    min-width: 0;
+  }
+
+  .device-card-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 0.25rem;
+  }
+
+  .device-card-value {
+    font-size: 0.76rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .device-card-footer {
+    font-size: 0.68rem;
+    color: var(--muted-foreground);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .device-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .device-detail-main,
+  .device-detail-side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    min-width: 0;
+  }
+
+  .device-detail-block {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 4px);
+    background: color-mix(in srgb, var(--card) 88%, var(--secondary) 12%);
+    padding: 0.9rem;
+    min-width: 0;
+  }
+
+  .device-detail-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 0.65rem;
+  }
+
+  .device-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .device-detail-item {
+    min-width: 0;
+  }
+
+  .device-detail-item .device-card-label {
+    margin-bottom: 0.18rem;
+  }
+
+  .device-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .device-detail-entry {
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent 22%);
+    border-radius: calc(var(--radius) - 6px);
+    padding: 0.65rem 0.75rem;
+    min-width: 0;
+  }
+
+  .device-detail-entry-meta {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 0.3rem;
+  }
+
+  .device-detail-entry-text {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .device-detail-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--foreground);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (max-width: 900px) {
+    .device-detail-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .device-detail-grid,
+    .device-card-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   .activity-line {
     fill: none;
     stroke: var(--primary);
@@ -5318,6 +5552,14 @@ View report to see the most recent interactions
             <div class="event-log-hint">Click to expand system status</div>
           </div>
 
+          <div id="liveGalleryDevicesPanel" class="panel-box" aria-live="polite">
+            <div class="panel-title">Live Gallery Devices</div>
+            <div id="liveGalleryDevicesSummary" class="device-monitor-summary">Waiting for gallery telemetry…</div>
+            <div id="liveGalleryDevicesList" class="device-monitor-list">
+              <div class="device-monitor-empty">No gallery devices have reported in yet.</div>
+            </div>
+          </div>
+
           <div id="settingsLivePanel" class="panel-box" aria-live="polite">
             <div class="panel-title">Live App Mockup</div>
             <div class="settings-live-eyebrow">Instant preview while editing</div>
@@ -5832,6 +6074,9 @@ function hideGlobalLoader() {
     const activityYAxis = document.getElementById("activityYAxis");
     const activityPanel = document.getElementById("activityPanel");
     const systemHealthGrid = document.getElementById("systemHealthGrid");
+    const liveGalleryDevicesPanel = document.getElementById("liveGalleryDevicesPanel");
+    const liveGalleryDevicesSummary = document.getElementById("liveGalleryDevicesSummary");
+    const liveGalleryDevicesList = document.getElementById("liveGalleryDevicesList");
     const settingsLivePanel = document.getElementById("settingsLivePanel");
     const settingsLiveTicket = document.getElementById("settingsLiveTicket");
     const settingsLiveTitle = document.getElementById("settingsLiveTitle");
@@ -5966,12 +6211,364 @@ function hideGlobalLoader() {
       };
     }
 
+    function getDeviceDetailOverlayElements() {
+      return {
+        overlay: document.getElementById("deviceDetailOverlay"),
+        closeBtn: document.getElementById("deviceDetailOverlayClose"),
+        content: document.getElementById("deviceDetailContent"),
+      };
+    }
+
     function getReportOverlayElements() {
       return {
         overlay: document.getElementById("reportOverlay"),
         closeBtn: document.getElementById("reportOverlayClose"),
         preview: document.getElementById("reportOverlayPreview"),
       };
+    }
+
+    let latestLiveGalleryDevices = [];
+    let latestLiveGalleryDevicesMeta = {};
+    let selectedLiveGalleryDeviceId = "";
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatRelativeMs(ms) {
+      const value = Number(ms);
+      if (!Number.isFinite(value) || value < 0) return "—";
+      if (value < 1000) return "now";
+      const seconds = Math.round(value / 1000);
+      if (seconds < 60) return `${seconds}s ago`;
+      const minutes = Math.round(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.round(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.round(hours / 24);
+      return `${days}d ago`;
+    }
+
+    function formatDurationShort(seconds) {
+      const value = Number(seconds);
+      if (!Number.isFinite(value) || value < 0) return "—";
+      if (value < 60) return `${Math.round(value)}s`;
+      const mins = Math.floor(value / 60);
+      const secs = Math.round(value % 60);
+      if (mins < 60) return `${mins}m ${secs}s`;
+      const hours = Math.floor(mins / 60);
+      return `${hours}h ${mins % 60}m`;
+    }
+
+    function formatDeviceTimestamp(iso) {
+      if (!iso) return "—";
+      const timestamp = Date.parse(iso);
+      if (!Number.isFinite(timestamp)) return "—";
+      return `${new Date(timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} · ${formatRelativeMs(Date.now() - timestamp)}`;
+    }
+
+    function formatDeviceMemory(memory) {
+      if (!memory || typeof memory !== "object") return "—";
+      const used = Number(memory.usedJSHeapSize);
+      const total = Number(memory.totalJSHeapSize);
+      if (!Number.isFinite(used) && !Number.isFinite(total)) return "—";
+      const usedMb = Number.isFinite(used) ? `${(used / (1024 * 1024)).toFixed(1)} MB` : "—";
+      const totalMb = Number.isFinite(total) ? `${(total / (1024 * 1024)).toFixed(1)} MB` : "";
+      return totalMb && totalMb !== "—" ? `${usedMb} / ${totalMb}` : usedMb;
+    }
+
+    function formatDeviceResolution(status = {}) {
+      const width = Number(status.screenWidth);
+      const height = Number(status.screenHeight);
+      const dpr = Number(status.devicePixelRatio);
+      if (!Number.isFinite(width) || !Number.isFinite(height)) return "—";
+      return `${width}×${height}${Number.isFinite(dpr) ? ` @ ${dpr}x` : ""}`;
+    }
+
+    function getBrowserLabelFromUserAgent(userAgent = "") {
+      const ua = String(userAgent || "");
+      if (/Edg\//i.test(ua)) return "Edge";
+      if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return "Chrome";
+      if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) return "Safari";
+      if (/Firefox\//i.test(ua)) return "Firefox";
+      return ua ? "Browser" : "—";
+    }
+
+    function getLiveGalleryDeviceHealth(device) {
+      const status = device && device.status ? device.status : {};
+      const lastSeenAgoMs = Number(device && device.lastSeenAgoMs);
+      const visibleImageAgeSec = Number(status.visibleImageAgeSec);
+      const consecutivePollFailures = Number(status.consecutivePollFailures) || 0;
+      const consecutiveImageFailures = Number(status.consecutiveImageFailures) || 0;
+      const lastImageAgoMs = Number(device?.timing?.lastSuccessfulImageLoadAgoMs);
+      const isOffline = Number.isFinite(lastSeenAgoMs) && lastSeenAgoMs > 30000;
+      const isStalled = Boolean(status.slideshowStalled);
+      const imageTooOld = Number.isFinite(lastImageAgoMs) && lastImageAgoMs > 30000;
+
+      if (isOffline || isStalled || imageTooOld) {
+        return {
+          tone: "device-status-error",
+          label: isOffline ? "Offline" : "Stalled",
+        };
+      }
+
+      if (
+        (Number.isFinite(visibleImageAgeSec) && visibleImageAgeSec > 20) ||
+        consecutivePollFailures > 0 ||
+        consecutiveImageFailures > 0 ||
+        (Number.isFinite(lastSeenAgoMs) && lastSeenAgoMs > 15000)
+      ) {
+        return {
+          tone: "device-status-warn",
+          label: "Warning",
+        };
+      }
+
+      return {
+        tone: "device-status-ok",
+        label: "Healthy",
+      };
+    }
+
+    function buildLiveGalleryDeviceCardMarkup(device) {
+      const status = device && device.status ? device.status : {};
+      const health = getLiveGalleryDeviceHealth(device);
+      const currentPhotoLabel = status.currentPhotoName || status.currentPhotoId || "Waiting";
+      const browserLabel = status.platform
+        ? `${status.platform} · ${getBrowserLabelFromUserAgent(status.userAgent)}`
+        : getBrowserLabelFromUserAgent(status.userAgent);
+
+      return `
+        <button type="button" class="device-card ${health.tone}" data-device-id="${escapeHtml(device.deviceId)}">
+          <div class="device-card-head">
+            <div>
+              <div class="device-card-title">${escapeHtml(device.deviceName || device.deviceId)}</div>
+              <div class="device-card-meta">Last seen ${escapeHtml(formatDeviceTimestamp(device.lastSeenAt))}</div>
+            </div>
+            <span class="device-status-pill ${health.tone}">${escapeHtml(health.label)}</span>
+          </div>
+          <div class="device-card-grid">
+            <div class="device-card-metric">
+              <div class="device-card-label">Current Photo</div>
+              <div class="device-card-value">${escapeHtml(currentPhotoLabel)}</div>
+            </div>
+            <div class="device-card-metric">
+              <div class="device-card-label">Photo Age</div>
+              <div class="device-card-value">${escapeHtml(formatDurationShort(status.visibleImageAgeSec))}</div>
+            </div>
+            <div class="device-card-metric">
+              <div class="device-card-label">Uptime</div>
+              <div class="device-card-value">${escapeHtml(formatDurationShort(status.pageUptimeSec))}</div>
+            </div>
+            <div class="device-card-metric">
+              <div class="device-card-label">Failures</div>
+              <div class="device-card-value">Poll ${escapeHtml(String(status.consecutivePollFailures || 0))} · Img ${escapeHtml(String(status.consecutiveImageFailures || 0))}</div>
+            </div>
+            <div class="device-card-metric">
+              <div class="device-card-label">Poll Time</div>
+              <div class="device-card-value">${escapeHtml(status.lastPollDurationMs != null ? `${status.lastPollDurationMs} ms` : "—")}</div>
+            </div>
+            <div class="device-card-metric">
+              <div class="device-card-label">Screen</div>
+              <div class="device-card-value">${escapeHtml(formatDeviceResolution(status))}</div>
+            </div>
+          </div>
+          <div class="device-card-footer">
+            <div>Stalled: ${escapeHtml(status.slideshowStalled ? "Yes" : "No")} · Memory: ${escapeHtml(formatDeviceMemory(status.memory))}</div>
+            <div>${escapeHtml(browserLabel)}</div>
+            <div>Last error: ${escapeHtml(status.lastErrorMessage || "None")}</div>
+            <div>Recovery: ${escapeHtml(status.lastRecoveryAction || "None")}</div>
+          </div>
+        </button>
+      `;
+    }
+
+    function renderLiveGalleryDevices(devices = [], meta = {}) {
+      latestLiveGalleryDevices = Array.isArray(devices) ? devices : [];
+      latestLiveGalleryDevicesMeta = meta && typeof meta === "object" ? meta : {};
+
+      if (!liveGalleryDevicesSummary || !liveGalleryDevicesList) return;
+
+      const onlineCount = latestLiveGalleryDevices.filter((device) => (Number(device.lastSeenAgoMs) || 0) <= 30000).length;
+      const offlineCount = latestLiveGalleryDevices.filter((device) => (Number(device.lastSeenAgoMs) || 0) > 30000).length;
+      liveGalleryDevicesSummary.textContent = latestLiveGalleryDevices.length
+        ? `${onlineCount} active · ${offlineCount} offline/recent`
+        : "No gallery devices reported in the last 24 hours.";
+
+      if (!latestLiveGalleryDevices.length) {
+        liveGalleryDevicesList.innerHTML = `<div class="device-monitor-empty">No gallery devices have reported in yet.</div>`;
+      } else {
+        liveGalleryDevicesList.innerHTML = latestLiveGalleryDevices.map((device) => buildLiveGalleryDeviceCardMarkup(device)).join("");
+      }
+
+      const { overlay } = getDeviceDetailOverlayElements();
+      if (overlay && overlay.classList.contains("visible") && selectedLiveGalleryDeviceId) {
+        renderLiveGalleryDeviceDetail(selectedLiveGalleryDeviceId);
+      }
+    }
+
+    function buildDeviceDetailEntries(entries = [], emptyLabel = "No recent entries.") {
+      if (!Array.isArray(entries) || !entries.length) {
+        return `<div class="device-monitor-empty">${escapeHtml(emptyLabel)}</div>`;
+      }
+
+      return `
+        <div class="device-detail-list">
+          ${entries.map((entry) => `
+            <div class="device-detail-entry">
+              <div class="device-detail-entry-meta">${escapeHtml(entry.type || entry.level || entry.event || "entry")} · ${escapeHtml(formatDeviceTimestamp(entry.at))}</div>
+              <div class="device-detail-entry-text">${escapeHtml(entry.message || entry.event || "No message")}</div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderLiveGalleryDeviceDetail(deviceId) {
+      const { content } = getDeviceDetailOverlayElements();
+      if (!content) return;
+
+      const device = latestLiveGalleryDevices.find((entry) => String(entry.deviceId) === String(deviceId));
+      if (!device) {
+        content.innerHTML = `<div class="device-monitor-empty">This device is no longer in the recent telemetry window.</div>`;
+        return;
+      }
+
+      const status = device.status || {};
+      const health = getLiveGalleryDeviceHealth(device);
+      const rawTelemetry = {
+        deviceId: device.deviceId,
+        deviceName: device.deviceName,
+        createdAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt,
+        lastSeenAgoMs: device.lastSeenAgoMs,
+        online: device.online,
+        timing: device.timing || {},
+        status,
+        recentErrors: device.recentErrors || [],
+        recentLogs: device.recentLogs || [],
+      };
+
+      content.innerHTML = `
+        <div class="device-detail-layout">
+          <div class="device-detail-main">
+            <div class="device-detail-block">
+              <div class="device-card-head">
+                <div>
+                  <div class="device-card-title">${escapeHtml(device.deviceName || device.deviceId)}</div>
+                  <div class="device-card-meta">Created ${escapeHtml(formatDeviceTimestamp(device.createdAt))}</div>
+                </div>
+                <span class="device-status-pill ${health.tone}">${escapeHtml(health.label)}</span>
+              </div>
+              <div class="device-detail-grid" style="margin-top: 0.9rem;">
+                <div class="device-detail-item">
+                  <div class="device-card-label">Last Seen</div>
+                  <div class="device-card-value">${escapeHtml(formatDeviceTimestamp(device.lastSeenAt))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Uptime</div>
+                  <div class="device-card-value">${escapeHtml(formatDurationShort(status.pageUptimeSec))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Current Photo</div>
+                  <div class="device-card-value">${escapeHtml(status.currentPhotoName || status.currentPhotoId || "Waiting")}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Current Photo Age</div>
+                  <div class="device-card-value">${escapeHtml(formatDurationShort(status.visibleImageAgeSec))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Failures</div>
+                  <div class="device-card-value">Poll ${escapeHtml(String(status.consecutivePollFailures || 0))}/${escapeHtml(String(status.totalPollFailures || 0))} · Img ${escapeHtml(String(status.consecutiveImageFailures || 0))}/${escapeHtml(String(status.totalImageFailures || 0))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Poll Duration</div>
+                  <div class="device-card-value">${escapeHtml(status.lastPollDurationMs != null ? `${status.lastPollDurationMs} ms` : "—")}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Browser / Platform</div>
+                  <div class="device-card-value">${escapeHtml(status.userAgent || "—")}<br>${escapeHtml(status.platform || "—")}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Screen / Memory</div>
+                  <div class="device-card-value">${escapeHtml(formatDeviceResolution(status))}<br>${escapeHtml(formatDeviceMemory(status.memory))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Last Error</div>
+                  <div class="device-card-value">${escapeHtml(status.lastErrorMessage || "None")}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Last Recovery Action</div>
+                  <div class="device-card-value">${escapeHtml(status.lastRecoveryAction || "None")}</div>
+                </div>
+              </div>
+            </div>
+            <div class="device-detail-block">
+              <div class="device-detail-title">Recent Errors</div>
+              ${buildDeviceDetailEntries(device.recentErrors || [], "No recent gallery errors.")}
+            </div>
+            <div class="device-detail-block">
+              <div class="device-detail-title">Recent Device Logs</div>
+              ${buildDeviceDetailEntries(device.recentLogs || [], "No recent device logs.")}
+            </div>
+          </div>
+          <div class="device-detail-side">
+            <div class="device-detail-block">
+              <div class="device-detail-title">Raw Telemetry JSON</div>
+              <pre class="device-detail-pre">${escapeHtml(JSON.stringify(rawTelemetry, null, 2))}</pre>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function openLiveGalleryDeviceDetail(deviceId) {
+      const { overlay } = getDeviceDetailOverlayElements();
+      if (!overlay) return;
+      selectedLiveGalleryDeviceId = String(deviceId || "");
+      renderLiveGalleryDeviceDetail(selectedLiveGalleryDeviceId);
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeLiveGalleryDeviceDetail() {
+      const { overlay } = getDeviceDetailOverlayElements();
+      if (!overlay) return;
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    async function fetchLiveGalleryDevices() {
+      if (!adminToken || !liveGalleryDevicesList) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/api/devices/live`, {
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          return;
+        }
+
+        const data = await res.json();
+        if (data && data.ok) {
+          renderLiveGalleryDevices(Array.isArray(data.devices) ? data.devices : [], data.meta || {});
+        }
+      } catch (err) {
+        console.error("Error fetching live gallery devices", err);
+        if (liveGalleryDevicesSummary) {
+          liveGalleryDevicesSummary.textContent = latestLiveGalleryDevices.length
+            ? `${latestLiveGalleryDevices.length} cached device(s) shown · refresh failed`
+            : "Could not load gallery telemetry right now.";
+        }
+      }
     }
 
     async function fetchEventLogs() {
@@ -7252,6 +7849,7 @@ function hideReportLoading() {
             await fetchEventLogs();
             await fetchActivityStats();
             await fetchSystemHealth();
+            await fetchLiveGalleryDevices();
             startAutoRefresh();
           }, 850);
         } else if (res.status === 401 && data.remainingAttempts != null) {
@@ -7505,6 +8103,7 @@ function hideReportLoading() {
         await fetchEventLogs();
         await fetchActivityStats();
         await fetchSystemHealth();
+        await fetchLiveGalleryDevices();
       } catch (err) {
         console.error("Auto-refresh error", err);
       }
@@ -11887,6 +12486,28 @@ function hideReportLoading() {
       });
     }
 
+    if (liveGalleryDevicesList) {
+      liveGalleryDevicesList.addEventListener("click", (event) => {
+        const deviceCard = event.target.closest("[data-device-id]");
+        if (!deviceCard) return;
+        openLiveGalleryDeviceDetail(deviceCard.dataset.deviceId || "");
+      });
+    }
+
+    {
+      const { overlay: deviceOverlay, closeBtn: deviceCloseBtn } = getDeviceDetailOverlayElements();
+      if (deviceCloseBtn) {
+        deviceCloseBtn.addEventListener("click", closeLiveGalleryDeviceDetail);
+      }
+      if (deviceOverlay) {
+        deviceOverlay.addEventListener("click", (event) => {
+          if (event.target === deviceOverlay) {
+            closeLiveGalleryDeviceDetail();
+          }
+        });
+      }
+    }
+
     document.addEventListener("keydown", (event) => {
       const key = (event.key || "").toLowerCase();
       if ((event.metaKey || event.ctrlKey) && key === "k") {
@@ -11918,6 +12539,13 @@ function hideReportLoading() {
       if (key === "escape" && healthOverlay && healthOverlay.classList.contains("visible")) {
         event.preventDefault();
         closeSystemHealthOverlay();
+        return;
+      }
+
+      const { overlay: deviceOverlay } = getDeviceDetailOverlayElements();
+      if (key === "escape" && deviceOverlay && deviceOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeLiveGalleryDeviceDetail();
         return;
       }
 
@@ -12376,6 +13004,7 @@ reportViewBtn.addEventListener("click", async () => {
         .then(() => fetchEventLogs())
         .then(() => fetchActivityStats())
         .then(() => fetchSystemHealth())
+        .then(() => fetchLiveGalleryDevices())
         .then(() => startAutoRefresh())
         .catch(() => {
           showLock();
@@ -12455,6 +13084,26 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
       <div class="event-logs-modal-body">
         <div id="systemHealthExpandedGrid" class="system-health-grid expanded"></div>
+      </div>
+    </div>
+  </div>
+  <div id="deviceDetailOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="deviceDetailOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="deviceDetailOverlayTitle" class="event-logs-modal-title">Live Gallery Device</h3>
+          <p class="event-logs-modal-subtitle">Recent errors, recent device logs, and the raw telemetry payload for a single gallery screen.</p>
+        </div>
+        <button id="deviceDetailOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close device detail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div id="deviceDetailContent" class="device-monitor-empty">Select a gallery device to inspect its telemetry.</div>
       </div>
     </div>
   </div>
