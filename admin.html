@@ -2050,9 +2050,66 @@
     color: var(--destructive);
   }
 
+  .device-monitor-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+  }
+
+  .device-monitor-copy {
+    min-width: 0;
+  }
+
+  .device-monitor-title {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
   .device-monitor-summary {
     font-size: 0.72rem;
     color: var(--muted-foreground);
+    line-height: 1.45;
+    margin-top: 0.2rem;
+  }
+
+  .device-monitor-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--card) 84%, var(--secondary) 16%);
+  }
+
+  .device-monitor-icon svg {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .device-monitor-icon.device-status-ok {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border) 45%);
+    background: color-mix(in srgb, var(--accent) 12%, transparent 88%);
+  }
+
+  .device-monitor-icon.device-status-warn {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.65);
+    background: rgba(251, 191, 36, 0.09);
+  }
+
+  .device-monitor-icon.device-status-error {
+    color: #fda4af;
+    border-color: rgba(244, 63, 94, 0.45);
+    background: rgba(244, 63, 94, 0.1);
   }
 
   .device-monitor-list {
@@ -2189,6 +2246,14 @@
     color: var(--muted-foreground);
     line-height: 1.45;
     overflow-wrap: anywhere;
+  }
+
+  #liveGalleryDevicesPanel .device-monitor-trigger,
+  #liveGalleryDevicesPanel .device-monitor-title,
+  #liveGalleryDevicesPanel .device-monitor-summary,
+  #liveGalleryDevicesPanel .device-monitor-icon,
+  #liveGalleryDevicesPanel .event-log-hint {
+    pointer-events: none;
   }
 
   .device-detail-layout {
@@ -5552,12 +5617,20 @@ View report to see the most recent interactions
             <div class="event-log-hint">Click to expand system status</div>
           </div>
 
-          <div id="liveGalleryDevicesPanel" class="panel-box" aria-live="polite">
-            <div class="panel-title">Live Gallery Devices</div>
-            <div id="liveGalleryDevicesSummary" class="device-monitor-summary">Waiting for gallery telemetry…</div>
-            <div id="liveGalleryDevicesList" class="device-monitor-list">
-              <div class="device-monitor-empty">No gallery devices have reported in yet.</div>
+          <div id="liveGalleryDevicesPanel" class="panel-box panel-interactive" role="button" tabindex="0" aria-label="Open live gallery devices">
+            <div class="device-monitor-trigger">
+              <div class="device-monitor-copy">
+                <div id="liveGalleryDevicesTitle" class="device-monitor-title">Live Gallery Devices (0)</div>
+                <div id="liveGalleryDevicesSummary" class="device-monitor-summary">Click to inspect gallery screens and health telemetry.</div>
+              </div>
+              <div id="liveGalleryDevicesHealthIcon" class="device-monitor-icon device-status-ok" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19.5 13.5c1.4-1.4 2.5-3.1 2.5-5.5A5.5 5.5 0 0 0 12 4.5 5.5 5.5 0 0 0 2 8c0 5 4.7 8.9 10 13 1.3-1 2.5-1.9 3.6-2.9"></path>
+                  <path d="M13 10h2l1 2 2-4 1 2h2"></path>
+                </svg>
+              </div>
             </div>
+            <div class="event-log-hint">Click to expand live gallery devices</div>
           </div>
 
           <div id="settingsLivePanel" class="panel-box" aria-live="polite">
@@ -6075,8 +6148,9 @@ function hideGlobalLoader() {
     const activityPanel = document.getElementById("activityPanel");
     const systemHealthGrid = document.getElementById("systemHealthGrid");
     const liveGalleryDevicesPanel = document.getElementById("liveGalleryDevicesPanel");
+    const liveGalleryDevicesTitle = document.getElementById("liveGalleryDevicesTitle");
     const liveGalleryDevicesSummary = document.getElementById("liveGalleryDevicesSummary");
-    const liveGalleryDevicesList = document.getElementById("liveGalleryDevicesList");
+    const liveGalleryDevicesHealthIcon = document.getElementById("liveGalleryDevicesHealthIcon");
     const settingsLivePanel = document.getElementById("settingsLivePanel");
     const settingsLiveTicket = document.getElementById("settingsLiveTicket");
     const settingsLiveTitle = document.getElementById("settingsLiveTitle");
@@ -6208,6 +6282,14 @@ function hideGlobalLoader() {
         overlay: document.getElementById("systemHealthOverlay"),
         closeBtn: document.getElementById("systemHealthOverlayClose"),
         expandedGrid: document.getElementById("systemHealthExpandedGrid"),
+      };
+    }
+
+    function getLiveGalleryDevicesOverlayElements() {
+      return {
+        overlay: document.getElementById("liveGalleryDevicesOverlay"),
+        closeBtn: document.getElementById("liveGalleryDevicesOverlayClose"),
+        list: document.getElementById("liveGalleryDevicesOverlayList"),
       };
     }
 
@@ -6392,22 +6474,43 @@ function hideGlobalLoader() {
       latestLiveGalleryDevices = Array.isArray(devices) ? devices : [];
       latestLiveGalleryDevicesMeta = meta && typeof meta === "object" ? meta : {};
 
-      if (!liveGalleryDevicesSummary || !liveGalleryDevicesList) return;
+      if (!liveGalleryDevicesSummary) return;
 
       const onlineCount = latestLiveGalleryDevices.filter((device) => (Number(device.lastSeenAgoMs) || 0) <= 30000).length;
       const offlineCount = latestLiveGalleryDevices.filter((device) => (Number(device.lastSeenAgoMs) || 0) > 30000).length;
-      liveGalleryDevicesSummary.textContent = latestLiveGalleryDevices.length
-        ? `${onlineCount} active · ${offlineCount} offline/recent`
-        : "No gallery devices reported in the last 24 hours.";
+      const worstTone = latestLiveGalleryDevices.some((device) => getLiveGalleryDeviceHealth(device).tone === "device-status-error")
+        ? "device-status-error"
+        : latestLiveGalleryDevices.some((device) => getLiveGalleryDeviceHealth(device).tone === "device-status-warn")
+          ? "device-status-warn"
+          : "device-status-ok";
 
-      if (!latestLiveGalleryDevices.length) {
-        liveGalleryDevicesList.innerHTML = `<div class="device-monitor-empty">No gallery devices have reported in yet.</div>`;
-      } else {
-        liveGalleryDevicesList.innerHTML = latestLiveGalleryDevices.map((device) => buildLiveGalleryDeviceCardMarkup(device)).join("");
+      if (liveGalleryDevicesTitle) {
+        liveGalleryDevicesTitle.textContent = `Live Gallery Devices (${latestLiveGalleryDevices.length})`;
       }
 
-      const { overlay } = getDeviceDetailOverlayElements();
-      if (overlay && overlay.classList.contains("visible") && selectedLiveGalleryDeviceId) {
+      liveGalleryDevicesSummary.textContent = latestLiveGalleryDevices.length
+        ? `${onlineCount} active · ${offlineCount} offline/recent · Click to inspect`
+        : "No gallery devices reported in the last 24 hours.";
+
+      if (liveGalleryDevicesHealthIcon) {
+        liveGalleryDevicesHealthIcon.classList.remove("device-status-ok", "device-status-warn", "device-status-error");
+        liveGalleryDevicesHealthIcon.classList.add(worstTone);
+      }
+
+      const { overlay: devicesOverlay, list } = getLiveGalleryDevicesOverlayElements();
+      if (list) {
+        if (!latestLiveGalleryDevices.length) {
+          list.innerHTML = `<div class="device-monitor-empty">No gallery devices have reported in yet.</div>`;
+        } else {
+          list.innerHTML = latestLiveGalleryDevices.map((device) => buildLiveGalleryDeviceCardMarkup(device)).join("");
+        }
+      }
+
+      if (devicesOverlay && devicesOverlay.classList.contains("visible") && !latestLiveGalleryDevices.length) {
+        selectedLiveGalleryDeviceId = "";
+      }
+      const { overlay: detailOverlay } = getDeviceDetailOverlayElements();
+      if (detailOverlay && detailOverlay.classList.contains("visible") && selectedLiveGalleryDeviceId) {
         renderLiveGalleryDeviceDetail(selectedLiveGalleryDeviceId);
       }
     }
@@ -6542,11 +6645,35 @@ function hideGlobalLoader() {
       if (!overlay) return;
       overlay.classList.remove("visible");
       overlay.setAttribute("aria-hidden", "true");
+      const { overlay: liveDevicesOverlay } = getLiveGalleryDevicesOverlayElements();
+      document.body.style.overflow = liveDevicesOverlay && liveDevicesOverlay.classList.contains("visible") ? "hidden" : "";
+    }
+
+    function openLiveGalleryDevicesOverlay() {
+      const { overlay, list } = getLiveGalleryDevicesOverlayElements();
+      if (!overlay) return;
+      if (list) {
+        if (!latestLiveGalleryDevices.length) {
+          list.innerHTML = `<div class="device-monitor-empty">No gallery devices have reported in yet.</div>`;
+        } else {
+          list.innerHTML = latestLiveGalleryDevices.map((device) => buildLiveGalleryDeviceCardMarkup(device)).join("");
+        }
+      }
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeLiveGalleryDevicesOverlay() {
+      const { overlay } = getLiveGalleryDevicesOverlayElements();
+      if (!overlay) return;
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
     }
 
     async function fetchLiveGalleryDevices() {
-      if (!adminToken || !liveGalleryDevicesList) return;
+      if (!adminToken || !liveGalleryDevicesSummary) return;
 
       try {
         const res = await fetch(`${BASE_URL}/api/devices/live`, {
@@ -9881,13 +10008,19 @@ function hideReportLoading() {
         return;
       }
 
+      const deviceCard = event.target.closest("[data-device-id]");
+      if (deviceCard) {
+        openLiveGalleryDeviceDetail(deviceCard.dataset.deviceId || "");
+        return;
+      }
+
       const { overlay } = getCommandPaletteElements();
       if (overlay && event.target === overlay) {
         closeCommandPalette();
       }
 
       const { overlay: eventOverlay, closeBtn } = getEventLogsOverlayElements();
-      if (closeBtn && event.target === closeBtn) {
+      if (closeBtn && event.target.closest("#eventLogsOverlayClose")) {
         closeExpandedEventLogs();
         return;
       }
@@ -9897,7 +10030,7 @@ function hideReportLoading() {
       }
 
       const { overlay: healthOverlay, closeBtn: healthCloseBtn } = getSystemHealthOverlayElements();
-      if (healthCloseBtn && event.target === healthCloseBtn) {
+      if (healthCloseBtn && event.target.closest("#systemHealthOverlayClose")) {
         closeSystemHealthOverlay();
         return;
       }
@@ -9906,8 +10039,28 @@ function hideReportLoading() {
         return;
       }
 
+      const { overlay: liveDevicesOverlay, closeBtn: liveDevicesCloseBtn } = getLiveGalleryDevicesOverlayElements();
+      if (liveDevicesCloseBtn && event.target.closest("#liveGalleryDevicesOverlayClose")) {
+        closeLiveGalleryDevicesOverlay();
+        return;
+      }
+      if (liveDevicesOverlay && event.target === liveDevicesOverlay) {
+        closeLiveGalleryDevicesOverlay();
+        return;
+      }
+
+      const { overlay: deviceOverlay, closeBtn: deviceCloseBtn } = getDeviceDetailOverlayElements();
+      if (deviceCloseBtn && event.target.closest("#deviceDetailOverlayClose")) {
+        closeLiveGalleryDeviceDetail();
+        return;
+      }
+      if (deviceOverlay && event.target === deviceOverlay) {
+        closeLiveGalleryDeviceDetail();
+        return;
+      }
+
       const { overlay: reportOverlay, closeBtn: reportCloseBtn } = getReportOverlayElements();
-      if (reportCloseBtn && event.target === reportCloseBtn) {
+      if (reportCloseBtn && event.target.closest("#reportOverlayClose")) {
         closeReportOverlay();
         return;
       }
@@ -12486,26 +12639,18 @@ function hideReportLoading() {
       });
     }
 
-    if (liveGalleryDevicesList) {
-      liveGalleryDevicesList.addEventListener("click", (event) => {
-        const deviceCard = event.target.closest("[data-device-id]");
-        if (!deviceCard) return;
-        openLiveGalleryDeviceDetail(deviceCard.dataset.deviceId || "");
+    if (liveGalleryDevicesPanel) {
+      liveGalleryDevicesPanel.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openLiveGalleryDevicesOverlay();
       });
-    }
-
-    {
-      const { overlay: deviceOverlay, closeBtn: deviceCloseBtn } = getDeviceDetailOverlayElements();
-      if (deviceCloseBtn) {
-        deviceCloseBtn.addEventListener("click", closeLiveGalleryDeviceDetail);
-      }
-      if (deviceOverlay) {
-        deviceOverlay.addEventListener("click", (event) => {
-          if (event.target === deviceOverlay) {
-            closeLiveGalleryDeviceDetail();
-          }
-        });
-      }
+      liveGalleryDevicesPanel.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openLiveGalleryDevicesOverlay();
+        }
+      });
     }
 
     document.addEventListener("keydown", (event) => {
@@ -12546,6 +12691,13 @@ function hideReportLoading() {
       if (key === "escape" && deviceOverlay && deviceOverlay.classList.contains("visible")) {
         event.preventDefault();
         closeLiveGalleryDeviceDetail();
+        return;
+      }
+
+      const { overlay: liveDevicesOverlay } = getLiveGalleryDevicesOverlayElements();
+      if (key === "escape" && liveDevicesOverlay && liveDevicesOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeLiveGalleryDevicesOverlay();
         return;
       }
 
@@ -13084,6 +13236,28 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
       <div class="event-logs-modal-body">
         <div id="systemHealthExpandedGrid" class="system-health-grid expanded"></div>
+      </div>
+    </div>
+  </div>
+  <div id="liveGalleryDevicesOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="liveGalleryDevicesOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="liveGalleryDevicesOverlayTitle" class="event-logs-modal-title">Live Gallery Devices</h3>
+          <p class="event-logs-modal-subtitle">Active and recently seen gallery screens. Click any device to inspect errors, logs, and raw telemetry.</p>
+        </div>
+        <button id="liveGalleryDevicesOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close live gallery devices">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div id="liveGalleryDevicesOverlayList" class="device-monitor-list">
+          <div class="device-monitor-empty">No gallery devices have reported in yet.</div>
+        </div>
       </div>
     </div>
   </div>
