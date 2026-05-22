@@ -2328,6 +2328,48 @@
     overflow-wrap: anywhere;
   }
 
+  .device-detail-entry-subtext {
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+    overflow-wrap: anywhere;
+  }
+
+  .device-diagnosis-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .device-diagnosis-item {
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent 22%);
+    border-radius: calc(var(--radius) - 6px);
+    padding: 0.65rem 0.75rem;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .device-diagnosis-item strong {
+    display: block;
+    margin-bottom: 0.16rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  .device-diagnosis-item.device-status-warn {
+    border-color: rgba(251, 191, 36, 0.55);
+    background: rgba(251, 191, 36, 0.08);
+  }
+
+  .device-diagnosis-item.device-status-error {
+    border-color: rgba(244, 63, 94, 0.38);
+    background: rgba(244, 63, 94, 0.09);
+  }
+
   .device-detail-pre {
     margin: 0;
     white-space: pre-wrap;
@@ -6449,6 +6491,128 @@ function hideGlobalLoader() {
       return `${width}×${height}${Number.isFinite(dpr) ? ` @ ${dpr}x` : ""}`;
     }
 
+    function getChromeMajorVersionFromUserAgent(userAgent = "") {
+      const match = String(userAgent || "").match(/Chrome\/(\d+)/i);
+      if (!match) return null;
+      const value = Number(match[1]);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function getLiveGalleryDeviceAnalysis(device) {
+      const rawAnalysis = device && device.analysis && typeof device.analysis === "object" ? device.analysis : {};
+      const status = device && device.status ? device.status : {};
+      const lastSeenAgoMs = Number(device && device.lastSeenAgoMs);
+      const fallbackFetchFailuresDetected = (
+        (Number(status.totalPollFailures) || 0) > 0 ||
+        (Number(status.totalImageFailures) || 0) > 0 ||
+        (Number(status.totalOverlayFailures) || 0) > 0
+      );
+      const chromeMajorVersion = Number.isFinite(Number(rawAnalysis.chromeMajorVersion))
+        ? Number(rawAnalysis.chromeMajorVersion)
+        : getChromeMajorVersionFromUserAgent(status.userAgent);
+      const browserVersionWarning = rawAnalysis.browserVersionWarning
+        || (Number.isFinite(chromeMajorVersion) && chromeMajorVersion < 110
+          ? "Old Chromium detected. Test compatibility and consider updating player/browser."
+          : "");
+      const browserHeartbeatOffline = typeof rawAnalysis.browserHeartbeatOffline === "boolean"
+        ? rawAnalysis.browserHeartbeatOffline
+        : Number.isFinite(lastSeenAgoMs) && lastSeenAgoMs > 30000;
+      const fetchFailuresDetected = typeof rawAnalysis.fetchFailuresDetected === "boolean"
+        ? rawAnalysis.fetchFailuresDetected
+        : fallbackFetchFailuresDetected;
+      const staleDataWarning = rawAnalysis.staleDataWarning
+        || ((browserHeartbeatOffline && fetchFailuresDetected)
+          ? "Device stopped reporting after repeated fetch errors. Pi may still be powered on, but gallery/browser may be frozen or network fetches may be failing."
+          : "");
+      const fetchFailureBurstRaw = rawAnalysis.fetchFailureBurst && typeof rawAnalysis.fetchFailureBurst === "object"
+        ? rawAnalysis.fetchFailureBurst
+        : {};
+      const fetchFailureBurst = {
+        detected: Boolean(fetchFailureBurstRaw.detected),
+        count: Number(fetchFailureBurstRaw.count) || 0,
+        threshold: Number(fetchFailureBurstRaw.threshold) || 5,
+        windowMs: Number(fetchFailureBurstRaw.windowMs) || 60000,
+        firstAt: fetchFailureBurstRaw.firstAt || "",
+        lastAt: fetchFailureBurstRaw.lastAt || "",
+        label: fetchFailureBurstRaw.label || "",
+      };
+      const failureCategoryCounts = rawAnalysis.failureCategoryCounts && typeof rawAnalysis.failureCategoryCounts === "object"
+        ? rawAnalysis.failureCategoryCounts
+        : {
+            poll: 0,
+            image: 0,
+            overlay: 0,
+            template: 0,
+            heartbeat: 0,
+            unknown: 0,
+          };
+
+      return {
+        browserHeartbeatOffline,
+        lastKnownState: rawAnalysis.lastKnownState || (fetchFailuresDetected ? "Fetch failures detected" : "No recent fetch failures detected"),
+        likelyDiagnosis: rawAnalysis.likelyDiagnosis || "",
+        staleDataWarning,
+        fetchFailuresDetected,
+        fetchFailureBurst,
+        shouldRecommendWatchdog: Boolean(rawAnalysis.shouldRecommendWatchdog),
+        recommendedNextAction: rawAnalysis.recommendedNextAction || "",
+        browserVersionWarning,
+        chromeMajorVersion,
+        lastHealthyAt: rawAnalysis.lastHealthyAt || "",
+        firstFailureAt: rawAnalysis.firstFailureAt || "",
+        lastFailureAt: rawAnalysis.lastFailureAt || "",
+        failureCategoryCounts,
+        lastKnownRecoveryAction: rawAnalysis.lastKnownRecoveryAction || status.lastRecoveryAction || "",
+      };
+    }
+
+    function formatFailureCategoryCountsText(counts = {}) {
+      const order = [
+        ["poll", "Poll"],
+        ["image", "Image"],
+        ["overlay", "Overlay"],
+        ["template", "Template"],
+        ["heartbeat", "Heartbeat"],
+        ["unknown", "Unknown"],
+      ];
+      const parts = order
+        .map(([key, label]) => {
+          const value = Number(counts && counts[key]);
+          return value > 0 ? `${label} ${value}` : "";
+        })
+        .filter(Boolean);
+      return parts.length ? parts.join(" · ") : "None";
+    }
+
+    function formatDeviceFetchStatus(flag, errorMessage = "") {
+      const normalized = String(flag || "").toLowerCase();
+      if (normalized === "success") return "Success";
+      if (normalized === "fail") {
+        return errorMessage ? `Fail · ${errorMessage}` : "Fail";
+      }
+      return "—";
+    }
+
+    function formatDeviceEntryDetails(details = {}) {
+      if (!details || typeof details !== "object") return "";
+      const parts = [];
+      if (details.category) parts.push(`Category: ${details.category}`);
+      if (details.route) parts.push(`Route: ${details.route}`);
+      if (details.currentPhotoName || details.currentPhotoId) {
+        parts.push(`Photo: ${details.currentPhotoName || details.currentPhotoId}`);
+      }
+      if (Number.isFinite(Number(details.consecutivePollFailures)) || Number.isFinite(Number(details.totalPollFailures))) {
+        parts.push(`Poll failures: ${Number(details.consecutivePollFailures) || 0}/${Number(details.totalPollFailures) || 0}`);
+      }
+      if (Number.isFinite(Number(details.consecutiveImageFailures)) || Number.isFinite(Number(details.totalImageFailures))) {
+        parts.push(`Image failures: ${Number(details.consecutiveImageFailures) || 0}/${Number(details.totalImageFailures) || 0}`);
+      }
+      if (Number.isFinite(Number(details.consecutiveOverlayFailures)) || Number.isFinite(Number(details.totalOverlayFailures))) {
+        parts.push(`Overlay failures: ${Number(details.consecutiveOverlayFailures) || 0}/${Number(details.totalOverlayFailures) || 0}`);
+      }
+      return parts.join(" · ");
+    }
+
     function formatPuertoRicoDateTime(value, includeSeconds = true) {
       try {
         const date = value instanceof Date ? value : new Date(value);
@@ -6521,6 +6685,7 @@ function hideGlobalLoader() {
         online: Boolean(device?.online),
         timing: device?.timing || {},
         status,
+        analysis: getLiveGalleryDeviceAnalysis(device),
         recentErrors: device?.recentErrors || [],
         recentLogs: device?.recentLogs || [],
       };
@@ -6564,6 +6729,7 @@ function hideGlobalLoader() {
       const status = device && device.status ? device.status : {};
       const timing = device && device.timing ? device.timing : {};
       const health = getLiveGalleryDeviceHealth(device);
+      const analysis = getLiveGalleryDeviceAnalysis(device);
       const rawTelemetry = buildLiveGalleryDeviceRawTelemetry(device);
       const overlayStatus = status.overlayStatus || {};
       const templateStatus = status.templateStatus || {};
@@ -6576,7 +6742,8 @@ function hideGlobalLoader() {
         `  Device Name: ${device?.deviceName || status.deviceName || "—"}`,
         `  Device ID: ${device?.deviceId || "—"}`,
         `  Health: ${health.label}`,
-        `  Online: ${device?.online ? "Yes" : "No"}`,
+        `  Seen In Live API Window (2m): ${device?.online ? "Yes" : "No"}`,
+        `  Browser Heartbeat Offline: ${analysis.browserHeartbeatOffline ? "Yes" : "No"}`,
         `  Created At: ${formatPuertoRicoDateTime(device?.createdAt)}`,
         `  Last Seen: ${formatPuertoRicoDateTime(device?.lastSeenAt)}${Number.isFinite(Number(device?.lastSeenAgoMs)) ? ` (${formatRelativeMs(Number(device.lastSeenAgoMs))})` : ""}`,
         `  Page Uptime: ${formatDurationShort(status.pageUptimeSec)}`,
@@ -6588,9 +6755,17 @@ function hideGlobalLoader() {
         `  Last Photo Change: ${formatPuertoRicoDateTime(status.lastPhotoChangeAt)}`,
         `  Last Successful Image Load: ${formatPuertoRicoDateTime(status.lastSuccessfulImageLoadAt)}${Number.isFinite(Number(timing.lastSuccessfulImageLoadAgoMs)) ? ` (${formatRelativeMs(Number(timing.lastSuccessfulImageLoadAgoMs))})` : ""}`,
         `  Last Successful Poll: ${formatPuertoRicoDateTime(status.lastSuccessfulPollAt)}${Number.isFinite(Number(timing.lastSuccessfulPollAgoMs)) ? ` (${formatRelativeMs(Number(timing.lastSuccessfulPollAgoMs))})` : ""}`,
+        `  Last Successful Overlay Fetch: ${formatPuertoRicoDateTime(status.lastSuccessfulOverlayAt)}${Number.isFinite(Number(timing.lastSuccessfulOverlayAgoMs)) ? ` (${formatRelativeMs(Number(timing.lastSuccessfulOverlayAgoMs))})` : ""}`,
+        `  Last Successful Heartbeat: ${formatPuertoRicoDateTime(status.lastSuccessfulHeartbeatAt)}${Number.isFinite(Number(timing.lastSuccessfulHeartbeatAgoMs)) ? ` (${formatRelativeMs(Number(timing.lastSuccessfulHeartbeatAgoMs))})` : ""}`,
         `  Last Poll Duration: ${status.lastPollDurationMs != null ? `${status.lastPollDurationMs} ms` : "—"}`,
         `  Poll Failures: consecutive ${Number(status.consecutivePollFailures) || 0}, total ${Number(status.totalPollFailures) || 0}`,
         `  Image Failures: consecutive ${Number(status.consecutiveImageFailures) || 0}, total ${Number(status.totalImageFailures) || 0}`,
+        `  Overlay Failures: consecutive ${Number(status.consecutiveOverlayFailures) || 0}, total ${Number(status.totalOverlayFailures) || 0}`,
+        `  Approved Fetch Status: ${formatDeviceFetchStatus(status.lastApprovedFetchStatus, status.lastApprovedFetchError)}`,
+        `  Photo Fetch Status: ${formatDeviceFetchStatus(status.lastPhotoFetchStatus, status.lastPhotoFetchError)}`,
+        `  Overlay Fetch Status: ${formatDeviceFetchStatus(status.lastOverlayFetchStatus, status.lastOverlayFetchError)}`,
+        `  Heartbeat Failure Count: ${Number(status.heartbeatFailureCount) || 0}`,
+        `  Last Heartbeat Error: ${status.lastHeartbeatError || "None"}`,
         `  Browser: ${getBrowserLabelFromUserAgent(status.userAgent)}`,
         `  User Agent: ${status.userAgent || "—"}`,
         `  Platform: ${status.platform || "—"}`,
@@ -6602,12 +6777,38 @@ function hideGlobalLoader() {
         `  Overlay Status: enabled=${overlayStatus.enabled ? "yes" : "no"}, file=${overlayStatus.overlayFileId || "—"}, version=${overlayStatus.overlayVersion || "—"}`,
         `  Template Status: enabled=${templateStatus.enabled ? "yes" : "no"}, key=${templateStatus.activeTemplateKey || "—"}`,
         "",
-        `Recent Errors (${Array.isArray(device?.recentErrors) ? device.recentErrors.length : 0})`,
+        "Failure Summary",
+        `  Last Known State: ${analysis.lastKnownState || "—"}`,
+        `  Most Likely Diagnosis: ${analysis.likelyDiagnosis || "None"}`,
+        `  Last Healthy Timestamp: ${formatPuertoRicoDateTime(analysis.lastHealthyAt)}`,
+        `  First Failure Timestamp: ${formatPuertoRicoDateTime(analysis.firstFailureAt)}`,
+        `  Last Failure Timestamp: ${formatPuertoRicoDateTime(analysis.lastFailureAt)}`,
+        `  Failure Categories Count: ${formatFailureCategoryCountsText(analysis.failureCategoryCounts)}`,
+        `  Fetch Failure Burst: ${analysis.fetchFailureBurst.detected ? `${analysis.fetchFailureBurst.label || "WARNING: FETCH FAILURE BURST"} (${analysis.fetchFailureBurst.count} failures in 60s)` : "No"}`,
+        `  Recommended Next Action: ${analysis.recommendedNextAction || "None"}`,
       ];
+
+      if (analysis.staleDataWarning) {
+        lines.push(`  Stale Data Warning: ${analysis.staleDataWarning}`);
+      }
+
+      if (analysis.browserVersionWarning) {
+        lines.push(`  Browser Version Warning: ${analysis.browserVersionWarning}`);
+      }
+
+      lines.push(
+        "",
+        `Recent Errors (${Array.isArray(device?.recentErrors) ? device.recentErrors.length : 0})`,
+      );
 
       if (Array.isArray(device?.recentErrors) && device.recentErrors.length) {
         device.recentErrors.forEach((entry, index) => {
-          lines.push(`  ${index + 1}. [${entry.type || entry.level || "error"}] ${formatPuertoRicoDateTime(entry.at)} - ${entry.message || "No message"}`);
+          const label = entry.category || entry.type || entry.level || "error";
+          const route = entry.route ? ` @ ${entry.route}` : "";
+          const photoContext = entry.currentPhotoName || entry.currentPhotoId
+            ? ` [photo: ${entry.currentPhotoName || entry.currentPhotoId}]`
+            : "";
+          lines.push(`  ${index + 1}. [${label}] ${formatPuertoRicoDateTime(entry.at)}${route}${photoContext} - ${entry.message || "No message"}`);
         });
       } else {
         lines.push("  None");
@@ -6618,7 +6819,11 @@ function hideGlobalLoader() {
 
       if (Array.isArray(device?.recentLogs) && device.recentLogs.length) {
         device.recentLogs.forEach((entry, index) => {
+          const detailsText = formatDeviceEntryDetails(entry.details || {});
           lines.push(`  ${index + 1}. [${entry.type || entry.level || entry.event || "log"}] ${formatPuertoRicoDateTime(entry.at)} - ${entry.message || entry.event || "No message"}`);
+          if (detailsText) {
+            lines.push(`      ${detailsText}`);
+          }
         });
       } else {
         lines.push("  None");
@@ -6754,19 +6959,27 @@ function hideGlobalLoader() {
 
     function getLiveGalleryDeviceHealth(device) {
       const status = device && device.status ? device.status : {};
+      const analysis = getLiveGalleryDeviceAnalysis(device);
       const lastSeenAgoMs = Number(device && device.lastSeenAgoMs);
       const visibleImageAgeSec = Number(status.visibleImageAgeSec);
       const consecutivePollFailures = Number(status.consecutivePollFailures) || 0;
       const consecutiveImageFailures = Number(status.consecutiveImageFailures) || 0;
+      const consecutiveOverlayFailures = Number(status.consecutiveOverlayFailures) || 0;
       const lastImageAgoMs = Number(device?.timing?.lastSuccessfulImageLoadAgoMs);
-      const isOffline = Number.isFinite(lastSeenAgoMs) && lastSeenAgoMs > 30000;
       const isStalled = Boolean(status.slideshowStalled);
       const imageTooOld = Number.isFinite(lastImageAgoMs) && lastImageAgoMs > 30000;
 
-      if (isOffline || isStalled || imageTooOld) {
+      if (analysis.browserHeartbeatOffline || isStalled || imageTooOld) {
         return {
           tone: "device-status-error",
-          label: isOffline ? "Offline" : "Stalled",
+          label: analysis.browserHeartbeatOffline ? "Heartbeat Offline" : "Stalled",
+        };
+      }
+
+      if (analysis.fetchFailureBurst.detected) {
+        return {
+          tone: "device-status-warn",
+          label: "Fetch Failure Burst",
         };
       }
 
@@ -6774,7 +6987,9 @@ function hideGlobalLoader() {
         (Number.isFinite(visibleImageAgeSec) && visibleImageAgeSec > 20) ||
         consecutivePollFailures > 0 ||
         consecutiveImageFailures > 0 ||
-        (Number.isFinite(lastSeenAgoMs) && lastSeenAgoMs > 15000)
+        consecutiveOverlayFailures > 0 ||
+        (Number.isFinite(lastSeenAgoMs) && lastSeenAgoMs > 15000) ||
+        Boolean(analysis.browserVersionWarning)
       ) {
         return {
           tone: "device-status-warn",
@@ -6791,6 +7006,7 @@ function hideGlobalLoader() {
     function buildLiveGalleryDeviceCardMarkup(device) {
       const status = device && device.status ? device.status : {};
       const health = getLiveGalleryDeviceHealth(device);
+      const analysis = getLiveGalleryDeviceAnalysis(device);
       const currentPhotoLabel = status.currentPhotoName || status.currentPhotoId || "Waiting";
       const browserLabel = status.platform
         ? `${status.platform} · ${getBrowserLabelFromUserAgent(status.userAgent)}`
@@ -6820,7 +7036,7 @@ function hideGlobalLoader() {
             </div>
             <div class="device-card-metric">
               <div class="device-card-label">Failures</div>
-              <div class="device-card-value">Poll ${escapeHtml(String(status.consecutivePollFailures || 0))} · Img ${escapeHtml(String(status.consecutiveImageFailures || 0))}</div>
+              <div class="device-card-value">Poll ${escapeHtml(String(status.consecutivePollFailures || 0))} · Img ${escapeHtml(String(status.consecutiveImageFailures || 0))} · Ovr ${escapeHtml(String(status.consecutiveOverlayFailures || 0))}</div>
             </div>
             <div class="device-card-metric">
               <div class="device-card-label">Poll Time</div>
@@ -6834,6 +7050,11 @@ function hideGlobalLoader() {
           <div class="device-card-footer">
             <div>Stalled: ${escapeHtml(status.slideshowStalled ? "Yes" : "No")} · Memory: ${escapeHtml(formatDeviceMemory(status.memory))}</div>
             <div>${escapeHtml(browserLabel)}</div>
+            <div>${escapeHtml(analysis.browserHeartbeatOffline ? "Browser heartbeat offline" : health.label)} · Last known state: ${escapeHtml(analysis.lastKnownState || "—")}</div>
+            ${analysis.fetchFailureBurst.detected ? `<div>${escapeHtml(`${analysis.fetchFailureBurst.label || "WARNING: FETCH FAILURE BURST"} (${analysis.fetchFailureBurst.count} failures in 60s)`)}</div>` : ""}
+            ${analysis.staleDataWarning ? `<div>${escapeHtml(analysis.staleDataWarning)}</div>` : analysis.likelyDiagnosis ? `<div>${escapeHtml(analysis.likelyDiagnosis)}</div>` : ""}
+            ${analysis.shouldRecommendWatchdog && analysis.recommendedNextAction ? `<div>${escapeHtml(analysis.recommendedNextAction)}</div>` : ""}
+            ${analysis.browserVersionWarning ? `<div>${escapeHtml(analysis.browserVersionWarning)}</div>` : ""}
             <div>Last error: ${escapeHtml(status.lastErrorMessage || "None")}</div>
             <div>Recovery: ${escapeHtml(status.lastRecoveryAction || "None")}</div>
           </div>
@@ -6895,8 +7116,13 @@ function hideGlobalLoader() {
         <div class="device-detail-list">
           ${entries.map((entry) => `
             <div class="device-detail-entry">
-              <div class="device-detail-entry-meta">${escapeHtml(entry.type || entry.level || entry.event || "entry")} · ${escapeHtml(formatDeviceTimestamp(entry.at))}</div>
+              <div class="device-detail-entry-meta">${escapeHtml(entry.category || entry.type || entry.level || entry.event || "entry")}${entry.route ? ` · ${escapeHtml(entry.route)}` : ""} · ${escapeHtml(formatDeviceTimestamp(entry.at))}</div>
               <div class="device-detail-entry-text">${escapeHtml(entry.message || entry.event || "No message")}</div>
+              ${(entry.currentPhotoName || entry.currentPhotoId || formatDeviceEntryDetails(entry.details || {})) ? `<div class="device-detail-entry-subtext">${escapeHtml(
+                (entry.currentPhotoName || entry.currentPhotoId)
+                  ? `Photo: ${entry.currentPhotoName || entry.currentPhotoId}`
+                  : formatDeviceEntryDetails(entry.details || {})
+              )}</div>` : ""}
             </div>
           `).join("")}
         </div>
@@ -6915,11 +7141,83 @@ function hideGlobalLoader() {
 
       const status = device.status || {};
       const health = getLiveGalleryDeviceHealth(device);
+      const analysis = getLiveGalleryDeviceAnalysis(device);
       const rawTelemetry = buildLiveGalleryDeviceRawTelemetry(device);
+      const diagnosisItems = [
+        {
+          label: "Classification",
+          text: analysis.browserHeartbeatOffline ? "Browser heartbeat offline" : health.label,
+          tone: analysis.browserHeartbeatOffline ? "device-status-error" : health.tone,
+        },
+        {
+          label: "Last Known State",
+          text: analysis.lastKnownState || "—",
+          tone: analysis.fetchFailureBurst.detected ? "device-status-warn" : "",
+        },
+        {
+          label: "Likely Diagnosis",
+          text: analysis.likelyDiagnosis || "No active diagnosis.",
+          tone: analysis.browserHeartbeatOffline && analysis.fetchFailuresDetected
+            ? "device-status-error"
+            : analysis.fetchFailureBurst.detected
+              ? "device-status-warn"
+              : "",
+        },
+        {
+          label: "Failure Summary",
+          text: `Categories: ${formatFailureCategoryCountsText(analysis.failureCategoryCounts)}${analysis.fetchFailureBurst.detected ? ` · ${analysis.fetchFailureBurst.label || "WARNING: FETCH FAILURE BURST"} (${analysis.fetchFailureBurst.count} failures in 60s)` : ""}`,
+          tone: analysis.fetchFailureBurst.detected ? "device-status-warn" : "",
+        },
+        {
+          label: "Last Healthy Timestamp",
+          text: formatDeviceTimestamp(analysis.lastHealthyAt),
+          tone: "",
+        },
+        {
+          label: "First / Last Failure",
+          text: `${formatDeviceTimestamp(analysis.firstFailureAt)} · ${formatDeviceTimestamp(analysis.lastFailureAt)}`,
+          tone: "",
+        },
+      ];
+
+      if (analysis.staleDataWarning) {
+        diagnosisItems.push({
+          label: "Stale Data Warning",
+          text: analysis.staleDataWarning,
+          tone: "device-status-error",
+        });
+      }
+
+      if (analysis.browserVersionWarning) {
+        diagnosisItems.push({
+          label: "Browser Version Warning",
+          text: analysis.browserVersionWarning,
+          tone: "device-status-warn",
+        });
+      }
+
+      if (analysis.recommendedNextAction) {
+        diagnosisItems.push({
+          label: "Recommended Next Action",
+          text: analysis.recommendedNextAction,
+          tone: analysis.shouldRecommendWatchdog ? "device-status-warn" : "",
+        });
+      }
 
       content.innerHTML = `
         <div class="device-detail-layout">
           <div class="device-detail-main">
+            <div class="device-detail-block">
+              <div class="device-detail-title">Diagnosis</div>
+              <div class="device-diagnosis-list">
+                ${diagnosisItems.map((item) => `
+                  <div class="device-diagnosis-item ${item.tone || ""}">
+                    <strong>${escapeHtml(item.label)}</strong>
+                    <span>${escapeHtml(item.text || "—")}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
             <div class="device-detail-block">
               <div class="device-card-head">
                 <div>
@@ -6947,11 +7245,27 @@ function hideGlobalLoader() {
                 </div>
                 <div class="device-detail-item">
                   <div class="device-card-label">Failures</div>
-                  <div class="device-card-value">Poll ${escapeHtml(String(status.consecutivePollFailures || 0))}/${escapeHtml(String(status.totalPollFailures || 0))} · Img ${escapeHtml(String(status.consecutiveImageFailures || 0))}/${escapeHtml(String(status.totalImageFailures || 0))}</div>
+                  <div class="device-card-value">Poll ${escapeHtml(String(status.consecutivePollFailures || 0))}/${escapeHtml(String(status.totalPollFailures || 0))} · Img ${escapeHtml(String(status.consecutiveImageFailures || 0))}/${escapeHtml(String(status.totalImageFailures || 0))} · Ovr ${escapeHtml(String(status.consecutiveOverlayFailures || 0))}/${escapeHtml(String(status.totalOverlayFailures || 0))}</div>
                 </div>
                 <div class="device-detail-item">
                   <div class="device-card-label">Poll Duration</div>
                   <div class="device-card-value">${escapeHtml(status.lastPollDurationMs != null ? `${status.lastPollDurationMs} ms` : "—")}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Approved Fetch</div>
+                  <div class="device-card-value">${escapeHtml(formatDeviceFetchStatus(status.lastApprovedFetchStatus, status.lastApprovedFetchError))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Photo Fetch</div>
+                  <div class="device-card-value">${escapeHtml(formatDeviceFetchStatus(status.lastPhotoFetchStatus, status.lastPhotoFetchError))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Overlay Fetch</div>
+                  <div class="device-card-value">${escapeHtml(formatDeviceFetchStatus(status.lastOverlayFetchStatus, status.lastOverlayFetchError))}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Heartbeat</div>
+                  <div class="device-card-value">${escapeHtml(formatDeviceTimestamp(status.lastSuccessfulHeartbeatAt))}<br>${escapeHtml(`Failures ${Number(status.heartbeatFailureCount) || 0}`)}</div>
                 </div>
                 <div class="device-detail-item">
                   <div class="device-card-label">Browser / Platform</div>
@@ -6964,6 +7278,10 @@ function hideGlobalLoader() {
                 <div class="device-detail-item">
                   <div class="device-card-label">Last Error</div>
                   <div class="device-card-value">${escapeHtml(status.lastErrorMessage || "None")}</div>
+                </div>
+                <div class="device-detail-item">
+                  <div class="device-card-label">Last Heartbeat Error</div>
+                  <div class="device-card-value">${escapeHtml(status.lastHeartbeatError || "None")}</div>
                 </div>
                 <div class="device-detail-item">
                   <div class="device-card-label">Last Recovery Action</div>

@@ -295,6 +295,9 @@ const DEVICE_ONLINE_WINDOW_MS = 2 * 60 * 1000;
 const DEVICE_WARNING_WINDOW_MS = 15 * 1000;
 const DEVICE_OFFLINE_WINDOW_MS = 30 * 1000;
 const DEVICE_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const DEVICE_FETCH_FAILURE_BURST_THRESHOLD = 5;
+const DEVICE_FETCH_FAILURE_BURST_WINDOW_MS = 60 * 1000;
+const DEVICE_OLD_CHROMIUM_WARNING_VERSION = 110;
 const MAX_DEVICE_ERRORS = 20;
 const MAX_DEVICE_LOGS = 200;
 const liveGalleryDevices = new Map();
@@ -369,6 +372,18 @@ function clampIsoTimestamp(value) {
   return date.toISOString();
 }
 
+function clampRoutePath(value, maxLength = 240) {
+  const raw = clampString(value, maxLength);
+  if (!raw) return '';
+  const trimmed = raw.split('?')[0].trim();
+  return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+}
+
+function clampDeviceStatusFlag(value) {
+  const normalized = clampString(value || '', 20).toLowerCase();
+  return normalized === 'success' || normalized === 'fail' ? normalized : '';
+}
+
 function sanitizeDeviceMemory(rawMemory) {
   if (!rawMemory || typeof rawMemory !== 'object') return null;
   const usedJSHeapSize = clampNumber(rawMemory.usedJSHeapSize);
@@ -396,7 +411,11 @@ function sanitizeDeviceErrors(rawErrors) {
       return {
         at: clampIsoTimestamp(item.at) || new Date().toISOString(),
         type: clampString(item.type || item.kind || 'error', 80),
+        category: clampString(item.category || item.type || 'unknown', 20).toLowerCase() || 'unknown',
+        route: clampRoutePath(item.route || item.url || item.path || '', 240),
         message: clampString(item.message || item.error || '', 500),
+        currentPhotoId: clampString(item.currentPhotoId || '', 120),
+        currentPhotoName: clampString(item.currentPhotoName || '', 200),
       };
     })
     .filter((entry) => entry.message);
@@ -427,11 +446,23 @@ function sanitizeDeviceStatus(rawStatus) {
     lastPhotoChangeAt: clampIsoTimestamp(status.lastPhotoChangeAt),
     lastSuccessfulImageLoadAt: clampIsoTimestamp(status.lastSuccessfulImageLoadAt),
     lastSuccessfulPollAt: clampIsoTimestamp(status.lastSuccessfulPollAt),
+    lastSuccessfulOverlayAt: clampIsoTimestamp(status.lastSuccessfulOverlayAt),
     lastPollDurationMs: clampNumber(status.lastPollDurationMs),
     consecutivePollFailures: clampNumber(status.consecutivePollFailures),
     consecutiveImageFailures: clampNumber(status.consecutiveImageFailures),
+    consecutiveOverlayFailures: clampNumber(status.consecutiveOverlayFailures),
     totalImageFailures: clampNumber(status.totalImageFailures),
     totalPollFailures: clampNumber(status.totalPollFailures),
+    totalOverlayFailures: clampNumber(status.totalOverlayFailures),
+    lastApprovedFetchStatus: clampDeviceStatusFlag(status.lastApprovedFetchStatus),
+    lastPhotoFetchStatus: clampDeviceStatusFlag(status.lastPhotoFetchStatus),
+    lastOverlayFetchStatus: clampDeviceStatusFlag(status.lastOverlayFetchStatus),
+    lastApprovedFetchError: clampString(status.lastApprovedFetchError || '', 500),
+    lastPhotoFetchError: clampString(status.lastPhotoFetchError || '', 500),
+    lastOverlayFetchError: clampString(status.lastOverlayFetchError || '', 500),
+    lastSuccessfulHeartbeatAt: clampIsoTimestamp(status.lastSuccessfulHeartbeatAt),
+    lastHeartbeatError: clampString(status.lastHeartbeatError || '', 500),
+    heartbeatFailureCount: clampNumber(status.heartbeatFailureCount),
     visibleImageAgeSec: clampNumber(status.visibleImageAgeSec),
     slideshowStalled: clampBoolean(status.slideshowStalled),
     userAgent: clampString(status.userAgent || '', 400),
@@ -446,6 +477,171 @@ function sanitizeDeviceStatus(rawStatus) {
     overlayStatus,
     templateStatus,
     debugTestMode: Boolean(status.debugTestMode),
+  };
+}
+
+function parseChromeMajorVersion(userAgent = '') {
+  const match = String(userAgent || '').match(/Chrome\/(\d+)/i);
+  if (!match) return null;
+  const major = Number(match[1]);
+  return Number.isFinite(major) ? major : null;
+}
+
+function buildDeviceFailureCategoryCounts(errors = []) {
+  const counts = {
+    poll: 0,
+    image: 0,
+    overlay: 0,
+    template: 0,
+    heartbeat: 0,
+    unknown: 0,
+  };
+
+  errors.forEach((entry) => {
+    const category = clampString(entry && entry.category ? entry.category : '', 20).toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(counts, category)) {
+      counts[category] += 1;
+    } else {
+      counts.unknown += 1;
+    }
+  });
+
+  return counts;
+}
+
+function detectDeviceFetchFailureBurst(errors = []) {
+  const fetchErrors = errors
+    .filter((entry) => ['poll', 'image', 'overlay', 'template'].includes(String(entry && entry.category ? entry.category : '').toLowerCase()))
+    .map((entry) => {
+      const atMs = Date.parse(entry && entry.at ? entry.at : '') || 0;
+      return atMs > 0 ? { at: new Date(atMs).toISOString(), atMs } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.atMs - b.atMs);
+
+  let bestCount = 0;
+  let bestFirstAt = '';
+  let bestLastAt = '';
+  let endIndex = 0;
+
+  for (let startIndex = 0; startIndex < fetchErrors.length; startIndex += 1) {
+    while (
+      endIndex < fetchErrors.length &&
+      (fetchErrors[endIndex].atMs - fetchErrors[startIndex].atMs) <= DEVICE_FETCH_FAILURE_BURST_WINDOW_MS
+    ) {
+      endIndex += 1;
+    }
+
+    const count = endIndex - startIndex;
+    if (count > bestCount) {
+      bestCount = count;
+      bestFirstAt = fetchErrors[startIndex].at;
+      bestLastAt = fetchErrors[endIndex - 1] ? fetchErrors[endIndex - 1].at : fetchErrors[startIndex].at;
+    }
+  }
+
+  return {
+    detected: bestCount >= DEVICE_FETCH_FAILURE_BURST_THRESHOLD,
+    count: bestCount,
+    threshold: DEVICE_FETCH_FAILURE_BURST_THRESHOLD,
+    windowMs: DEVICE_FETCH_FAILURE_BURST_WINDOW_MS,
+    firstAt: bestFirstAt,
+    lastAt: bestLastAt,
+  };
+}
+
+function getLatestIsoTimestamp(values = []) {
+  let latestMs = 0;
+  let latestIso = '';
+
+  values.forEach((value) => {
+    const iso = clampIsoTimestamp(value);
+    if (!iso) return;
+    const atMs = Date.parse(iso) || 0;
+    if (atMs > latestMs) {
+      latestMs = atMs;
+      latestIso = iso;
+    }
+  });
+
+  return latestIso;
+}
+
+function buildLiveGalleryDeviceAnalysis(device, context = {}) {
+  const status = device && device.status ? device.status : {};
+  const recentErrors = Array.isArray(device && device.recentErrors) ? device.recentErrors : [];
+  const lastSeenAgoMs = Number.isFinite(context.lastSeenAgoMs) ? context.lastSeenAgoMs : null;
+  const browserHeartbeatOffline = lastSeenAgoMs != null && lastSeenAgoMs > DEVICE_OFFLINE_WINDOW_MS;
+  const failureCategoryCounts = buildDeviceFailureCategoryCounts(recentErrors);
+  const fetchFailureBurst = detectDeviceFetchFailureBurst(recentErrors);
+  const fetchFailuresDetected = (
+    (Number(status.totalPollFailures) || 0) > 0 ||
+    (Number(status.totalImageFailures) || 0) > 0 ||
+    (Number(status.totalOverlayFailures) || 0) > 0 ||
+    failureCategoryCounts.template > 0
+  );
+  const firstFailureAt = recentErrors.length ? clampIsoTimestamp(recentErrors[0].at) : '';
+  const lastFailureAt = recentErrors.length ? clampIsoTimestamp(recentErrors[recentErrors.length - 1].at) : '';
+  const lastHealthyAt = getLatestIsoTimestamp([
+    status.lastSuccessfulImageLoadAt,
+    status.lastSuccessfulPollAt,
+    status.lastSuccessfulOverlayAt,
+    status.lastSuccessfulHeartbeatAt,
+  ]);
+  const chromeMajorVersion = parseChromeMajorVersion(status.userAgent || '');
+  const browserVersionWarning = chromeMajorVersion != null && chromeMajorVersion < DEVICE_OLD_CHROMIUM_WARNING_VERSION
+    ? 'Old Chromium detected. Test compatibility and consider updating player/browser.'
+    : '';
+  const staleDataWarning = browserHeartbeatOffline && fetchFailuresDetected
+    ? 'Device stopped reporting after repeated fetch errors. Pi may still be powered on, but gallery/browser may be frozen or network fetches may be failing.'
+    : '';
+
+  let lastKnownState = fetchFailuresDetected ? 'Fetch failures detected' : 'No recent fetch failures detected';
+  if (fetchFailureBurst.detected) {
+    lastKnownState = 'Fetch failure burst detected';
+  }
+
+  let likelyDiagnosis = '';
+  if (browserHeartbeatOffline && fetchFailuresDetected) {
+    likelyDiagnosis = 'Gallery/browser stuck after repeated network fetch failures.';
+  } else if (fetchFailureBurst.detected) {
+    likelyDiagnosis = 'Repeated network fetch failures are occurring.';
+  } else if (status.slideshowStalled) {
+    likelyDiagnosis = 'Slideshow appears stalled.';
+  } else if (
+    status.lastApprovedFetchStatus === 'fail' ||
+    status.lastPhotoFetchStatus === 'fail' ||
+    status.lastOverlayFetchStatus === 'fail'
+  ) {
+    likelyDiagnosis = 'Network fetch failures detected while browser heartbeat is still active.';
+  }
+
+  const shouldRecommendWatchdog = fetchFailureBurst.detected && lastSeenAgoMs != null && lastSeenAgoMs > DEVICE_ONLINE_WINDOW_MS;
+  const recommendedNextAction = shouldRecommendWatchdog
+    ? 'Recommended next step: Pi-level watchdog or browser auto-reload.'
+    : browserVersionWarning || (fetchFailuresDetected
+      ? 'Inspect gallery network fetches and browser stability before changing slideshow behavior.'
+      : '');
+
+  return {
+    browserHeartbeatOffline,
+    lastKnownState,
+    likelyDiagnosis,
+    staleDataWarning,
+    fetchFailuresDetected,
+    fetchFailureBurst: {
+      ...fetchFailureBurst,
+      label: fetchFailureBurst.detected ? 'WARNING: FETCH FAILURE BURST' : '',
+    },
+    shouldRecommendWatchdog,
+    recommendedNextAction,
+    browserVersionWarning,
+    chromeMajorVersion,
+    lastHealthyAt,
+    firstFailureAt,
+    lastFailureAt,
+    failureCategoryCounts,
+    lastKnownRecoveryAction: clampString(status.lastRecoveryAction || '', 200),
   };
 }
 
@@ -502,24 +698,35 @@ function buildLiveGalleryDeviceSummary(device) {
   const lastSeenAtMs = Date.parse(device.lastSeenAt || '') || 0;
   const lastSuccessfulImageLoadAtMs = Date.parse(device.status?.lastSuccessfulImageLoadAt || '') || 0;
   const lastSuccessfulPollAtMs = Date.parse(device.status?.lastSuccessfulPollAt || '') || 0;
+  const lastSuccessfulOverlayAtMs = Date.parse(device.status?.lastSuccessfulOverlayAt || '') || 0;
+  const lastSuccessfulHeartbeatAtMs = Date.parse(device.status?.lastSuccessfulHeartbeatAt || '') || 0;
   const online = lastSeenAtMs > 0 && (now - lastSeenAtMs) <= DEVICE_ONLINE_WINDOW_MS;
+  const lastSeenAgoMs = lastSeenAtMs > 0 ? Math.max(0, now - lastSeenAtMs) : null;
+  const analysis = buildLiveGalleryDeviceAnalysis(device, {
+    now,
+    lastSeenAgoMs,
+    online,
+  });
 
   return {
     deviceId: device.deviceId,
     createdAt: device.createdAt,
     lastSeenAt: device.lastSeenAt,
-    lastSeenAgoMs: lastSeenAtMs > 0 ? Math.max(0, now - lastSeenAtMs) : null,
+    lastSeenAgoMs,
     online,
     status: device.status || {},
     deviceName: clampString(device.deviceName || device.status?.deviceName || device.deviceId, 120),
     recentErrors: Array.isArray(device.recentErrors) ? device.recentErrors : [],
     recentLogs: Array.isArray(device.recentLogs) ? device.recentLogs : [],
+    analysis,
     timing: {
       warningAfterMs: DEVICE_WARNING_WINDOW_MS,
       offlineAfterMs: DEVICE_OFFLINE_WINDOW_MS,
       onlineWindowMs: DEVICE_ONLINE_WINDOW_MS,
       lastSuccessfulImageLoadAgoMs: lastSuccessfulImageLoadAtMs > 0 ? Math.max(0, now - lastSuccessfulImageLoadAtMs) : null,
       lastSuccessfulPollAgoMs: lastSuccessfulPollAtMs > 0 ? Math.max(0, now - lastSuccessfulPollAtMs) : null,
+      lastSuccessfulOverlayAgoMs: lastSuccessfulOverlayAtMs > 0 ? Math.max(0, now - lastSuccessfulOverlayAtMs) : null,
+      lastSuccessfulHeartbeatAgoMs: lastSuccessfulHeartbeatAtMs > 0 ? Math.max(0, now - lastSuccessfulHeartbeatAtMs) : null,
     },
   };
 }
