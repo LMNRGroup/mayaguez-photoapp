@@ -295,6 +295,7 @@ const DEVICE_ONLINE_WINDOW_MS = 2 * 60 * 1000;
 const DEVICE_WARNING_WINDOW_MS = 15 * 1000;
 const DEVICE_OFFLINE_WINDOW_MS = 30 * 1000;
 const DEVICE_HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const NON_FAILURE_DEVICE_ERROR_CATEGORIES = new Set(['lifecycle', 'watchdog']);
 const DEVICE_FETCH_FAILURE_BURST_THRESHOLD = 5;
 const DEVICE_FETCH_FAILURE_BURST_WINDOW_MS = 60 * 1000;
 const DEVICE_OLD_CHROMIUM_WARNING_VERSION = 110;
@@ -418,7 +419,7 @@ function sanitizeDeviceErrors(rawErrors) {
         currentPhotoName: clampString(item.currentPhotoName || '', 200),
       };
     })
-    .filter((entry) => entry.message);
+    .filter((entry) => entry.message && !NON_FAILURE_DEVICE_ERROR_CATEGORIES.has(entry.category));
 }
 
 function sanitizeDeviceStatus(rawStatus) {
@@ -477,6 +478,19 @@ function sanitizeDeviceStatus(rawStatus) {
     overlayStatus,
     templateStatus,
     debugTestMode: Boolean(status.debugTestMode),
+    runtimeStatus: status.runtimeStatus && typeof status.runtimeStatus === 'object'
+      ? {
+          runtimeDegraded: clampBoolean(status.runtimeStatus.runtimeDegraded),
+          watchdogTriggered: clampBoolean(status.runtimeStatus.watchdogTriggered),
+          watchdogReason: clampString(status.runtimeStatus.watchdogReason || '', 200),
+          reloadCount: clampNumber(status.runtimeStatus.reloadCount),
+          lastReloadAt: clampIsoTimestamp(status.runtimeStatus.lastReloadAt),
+          lastRecoveryStage: clampString(status.runtimeStatus.lastRecoveryStage || '', 80),
+          documentVisibility: clampString(status.runtimeStatus.documentVisibility || '', 40),
+          navigatorOnLine: clampBoolean(status.runtimeStatus.navigatorOnLine),
+          documentBackgrounded: clampBoolean(status.runtimeStatus.documentBackgrounded),
+        }
+      : null,
   };
 }
 
@@ -499,6 +513,9 @@ function buildDeviceFailureCategoryCounts(errors = []) {
 
   errors.forEach((entry) => {
     const category = clampString(entry && entry.category ? entry.category : '', 20).toLowerCase();
+    if (NON_FAILURE_DEVICE_ERROR_CATEGORIES.has(category)) {
+      return;
+    }
     if (Object.prototype.hasOwnProperty.call(counts, category)) {
       counts[category] += 1;
     } else {
@@ -567,6 +584,15 @@ function getLatestIsoTimestamp(values = []) {
   return latestIso;
 }
 
+function isLikelyYodeckChromiumFreeze(userAgent = '', browserHeartbeatOffline = false) {
+  const ua = String(userAgent || '');
+  return Boolean(
+    browserHeartbeatOffline &&
+    /Linux armv7l/i.test(ua) &&
+    /Chrome\/92/i.test(ua)
+  );
+}
+
 function buildLiveGalleryDeviceAnalysis(device, context = {}) {
   const status = device && device.status ? device.status : {};
   const recentErrors = Array.isArray(device && device.recentErrors) ? device.recentErrors : [];
@@ -617,11 +643,16 @@ function buildLiveGalleryDeviceAnalysis(device, context = {}) {
   }
 
   const shouldRecommendWatchdog = fetchFailureBurst.detected && lastSeenAgoMs != null && lastSeenAgoMs > DEVICE_ONLINE_WINDOW_MS;
-  const recommendedNextAction = shouldRecommendWatchdog
+  const yodeckChromiumFreezeLikely = isLikelyYodeckChromiumFreeze(status.userAgent || '', browserHeartbeatOffline);
+  let recommendedNextAction = shouldRecommendWatchdog
     ? 'Recommended next step: Pi-level watchdog or browser auto-reload.'
     : browserVersionWarning || (fetchFailuresDetected
       ? 'Inspect gallery network fetches and browser stability before changing slideshow behavior.'
       : '');
+  if (yodeckChromiumFreezeLikely) {
+    likelyDiagnosis = likelyDiagnosis || 'Likely Chromium/Yodeck runtime freeze on Raspberry Pi (Linux armv7l, Chrome 92).';
+    recommendedNextAction = 'Update or reflash the Yodeck player browser, and add a Pi-level watchdog that restarts Chromium if heartbeats stop.';
+  }
 
   return {
     browserHeartbeatOffline,
@@ -642,6 +673,10 @@ function buildLiveGalleryDeviceAnalysis(device, context = {}) {
     lastFailureAt,
     failureCategoryCounts,
     lastKnownRecoveryAction: clampString(status.lastRecoveryAction || '', 200),
+    yodeckChromiumFreezeLikely,
+    yodeckFreezeRecommendedAction: yodeckChromiumFreezeLikely
+      ? 'Update/reflash Yodeck player browser or add Pi-level watchdog.'
+      : '',
   };
 }
 
@@ -714,6 +749,8 @@ function buildLiveGalleryDeviceSummary(device) {
     lastSeenAt: device.lastSeenAt,
     lastSeenAgoMs,
     online,
+    heartbeatOffline: !online && lastSeenAtMs > 0 && (now - lastSeenAtMs) <= DEVICE_HISTORY_WINDOW_MS,
+    retainedInHistory: lastSeenAtMs > 0 && (now - lastSeenAtMs) <= DEVICE_HISTORY_WINDOW_MS,
     status: device.status || {},
     deviceName: clampString(device.deviceName || device.status?.deviceName || device.deviceId, 120),
     recentErrors: Array.isArray(device.recentErrors) ? device.recentErrors : [],

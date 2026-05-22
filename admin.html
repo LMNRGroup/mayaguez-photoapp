@@ -6427,6 +6427,8 @@ function hideGlobalLoader() {
 
     let latestLiveGalleryDevices = [];
     let latestLiveGalleryDevicesMeta = {};
+    const LIVE_GALLERY_DEVICE_RETENTION_MS = 24 * 60 * 60 * 1000;
+    const liveGalleryDeviceRetentionCache = new Map();
     let selectedLiveGalleryDeviceId = "";
     let isDownloadingLiveGalleryDeviceReport = false;
     let isRefreshingLiveGalleryDeviceDetail = false;
@@ -6563,7 +6565,26 @@ function hideGlobalLoader() {
         lastFailureAt: rawAnalysis.lastFailureAt || "",
         failureCategoryCounts,
         lastKnownRecoveryAction: rawAnalysis.lastKnownRecoveryAction || status.lastRecoveryAction || "",
+        yodeckChromiumFreezeLikely: Boolean(rawAnalysis.yodeckChromiumFreezeLikely),
+        yodeckFreezeRecommendedAction: rawAnalysis.yodeckFreezeRecommendedAction || "",
       };
+    }
+
+    function hasActionableGalleryFailures(analysis = {}, status = {}) {
+      const counts = analysis.failureCategoryCounts || {};
+      const categoryTotal = (
+        (Number(counts.poll) || 0) +
+        (Number(counts.image) || 0) +
+        (Number(counts.overlay) || 0) +
+        (Number(counts.template) || 0) +
+        (Number(counts.heartbeat) || 0)
+      );
+      const statusTotals = (
+        (Number(status.totalPollFailures) || 0) +
+        (Number(status.totalImageFailures) || 0) +
+        (Number(status.totalOverlayFailures) || 0)
+      );
+      return categoryTotal > 0 || statusTotals > 0 || Boolean(analysis.fetchFailureBurst?.detected);
     }
 
     function formatFailureCategoryCountsText(counts = {}) {
@@ -6671,7 +6692,50 @@ function hideGlobalLoader() {
     }
 
     function getLiveGalleryDeviceById(deviceId) {
-      return latestLiveGalleryDevices.find((entry) => String(entry.deviceId) === String(deviceId));
+      const match = latestLiveGalleryDevices.find((entry) => String(entry.deviceId) === String(deviceId));
+      if (match) return match;
+      const cached = liveGalleryDeviceRetentionCache.get(String(deviceId));
+      return cached || null;
+    }
+
+    function mergeLiveGalleryDevicesWithRetention(incomingDevices = []) {
+      const now = Date.now();
+      const incoming = Array.isArray(incomingDevices) ? incomingDevices : [];
+      const mergedById = new Map();
+
+      incoming.forEach((device) => {
+        if (!device || !device.deviceId) return;
+        const normalized = {
+          ...device,
+          online: Boolean(device.online),
+          retainedOffline: Boolean(device.retainedOffline) || !device.online,
+        };
+        mergedById.set(String(device.deviceId), normalized);
+        liveGalleryDeviceRetentionCache.set(String(device.deviceId), normalized);
+      });
+
+      liveGalleryDeviceRetentionCache.forEach((cached, deviceId) => {
+        if (mergedById.has(deviceId)) return;
+        const lastSeenMs = Date.parse(cached.lastSeenAt || "") || 0;
+        if (!lastSeenMs || (now - lastSeenMs) > LIVE_GALLERY_DEVICE_RETENTION_MS) {
+          liveGalleryDeviceRetentionCache.delete(deviceId);
+          return;
+        }
+        mergedById.set(deviceId, {
+          ...cached,
+          online: false,
+          heartbeatOffline: true,
+          retainedOffline: true,
+          lastSeenAgoMs: Math.max(0, now - lastSeenMs),
+        });
+      });
+
+      return Array.from(mergedById.values()).sort((a, b) => {
+        if (Boolean(a.online) !== Boolean(b.online)) return a.online ? -1 : 1;
+        const aSeen = Date.parse(a.lastSeenAt || "") || 0;
+        const bSeen = Date.parse(b.lastSeenAt || "") || 0;
+        return bSeen - aSeen;
+      });
     }
 
     function buildLiveGalleryDeviceRawTelemetry(device) {
@@ -6832,6 +6896,8 @@ function hideGlobalLoader() {
         `  Last Failure Timestamp: ${formatPuertoRicoDateTime(analysis.lastFailureAt)}`,
         `  Failure Categories Count: ${formatFailureCategoryCountsText(analysis.failureCategoryCounts)}`,
         `  Fetch Failure Burst: ${analysis.fetchFailureBurst.detected ? `${analysis.fetchFailureBurst.label || "WARNING: FETCH FAILURE BURST"} (${analysis.fetchFailureBurst.count} failures in 60s)` : "No"}`,
+        `  Yodeck Chromium Freeze Likely: ${analysis.yodeckChromiumFreezeLikely ? "Yes" : "No"}`,
+        `  Yodeck Freeze Action: ${analysis.yodeckFreezeRecommendedAction || "None"}`,
         `  Recommended Next Action: ${analysis.recommendedNextAction || "None"}`,
       ];
 
@@ -7016,10 +7082,12 @@ function hideGlobalLoader() {
       const isStalled = Boolean(status.slideshowStalled);
       const imageTooOld = Number.isFinite(lastImageAgoMs) && lastImageAgoMs > 30000;
 
-      if (analysis.browserHeartbeatOffline || isStalled || imageTooOld) {
+      if (analysis.browserHeartbeatOffline || device.heartbeatOffline || device.retainedOffline || isStalled || imageTooOld) {
         return {
           tone: "device-status-error",
-          label: analysis.browserHeartbeatOffline ? "Heartbeat Offline" : "Stalled",
+          label: (analysis.browserHeartbeatOffline || device.heartbeatOffline || device.retainedOffline)
+            ? "Heartbeat Offline"
+            : "Stalled",
         };
       }
 
@@ -7031,11 +7099,9 @@ function hideGlobalLoader() {
       }
 
       if (
-        (Number.isFinite(visibleImageAgeSec) && visibleImageAgeSec > 20) ||
-        consecutivePollFailures > 0 ||
-        consecutiveImageFailures > 0 ||
-        consecutiveOverlayFailures > 0 ||
-        (Number.isFinite(lastSeenAgoMs) && lastSeenAgoMs > 15000) ||
+        hasActionableGalleryFailures(analysis, status) ||
+        ((Number.isFinite(visibleImageAgeSec) && visibleImageAgeSec > 20) &&
+          (consecutivePollFailures > 0 || consecutiveImageFailures > 0 || consecutiveOverlayFailures > 0)) ||
         Boolean(analysis.browserVersionWarning)
       ) {
         return {
@@ -7110,7 +7176,7 @@ function hideGlobalLoader() {
     }
 
     function renderLiveGalleryDevices(devices = [], meta = {}) {
-      latestLiveGalleryDevices = Array.isArray(devices) ? devices : [];
+      latestLiveGalleryDevices = mergeLiveGalleryDevicesWithRetention(devices);
       latestLiveGalleryDevicesMeta = meta && typeof meta === "object" ? meta : {};
 
       if (!liveGalleryDevicesSummary) return;
@@ -7127,8 +7193,9 @@ function hideGlobalLoader() {
         liveGalleryDevicesTitle.textContent = `Live Gallery Devices (${latestLiveGalleryDevices.length})`;
       }
 
+      const retainedCount = latestLiveGalleryDevices.filter((device) => device.retainedOffline).length;
       liveGalleryDevicesSummary.textContent = latestLiveGalleryDevices.length
-        ? `${onlineCount} active · ${offlineCount} offline/recent · Click to inspect`
+        ? `${onlineCount} active · ${offlineCount} offline/recent${retainedCount ? ` · ${retainedCount} retained` : ""} · Click to inspect`
         : "No gallery devices reported in the last 24 hours.";
 
       if (liveGalleryDevicesHealthIcon) {
@@ -7241,6 +7308,14 @@ function hideGlobalLoader() {
           label: "Browser Version Warning",
           text: analysis.browserVersionWarning,
           tone: "device-status-warn",
+        });
+      }
+
+      if (analysis.yodeckChromiumFreezeLikely) {
+        diagnosisItems.push({
+          label: "Yodeck / Pi Runtime Freeze",
+          text: analysis.yodeckFreezeRecommendedAction || "Likely Chromium/Yodeck runtime freeze on Raspberry Pi (Linux armv7l, Chrome 92).",
+          tone: "device-status-error",
         });
       }
 

@@ -226,17 +226,40 @@
     const HARD_RELOAD_AFTER_SOFT_RECOVERY_ATTEMPTS = 3;
     const HARD_RELOAD_DELAY_MS = 250;
     const RUNTIME_WATCHDOG_INTERVAL_MS = 15000;
-    const RUNTIME_HEARTBEAT_STALE_MS = 60000;
-    const RUNTIME_POLL_STALE_MS = 60000;
-    const RUNTIME_PHOTO_CHANGE_STALE_MS = 120000;
-    const RUNTIME_BOOT_GRACE_MS = 90000;
-    const RUNTIME_STAGE1_COOLDOWN_MS = 120000;
-    const RUNTIME_STAGE2_AFTER_DEGRADED_MS = 90000;
-    const RUNTIME_STAGE2_AFTER_STAGE1_MS = 90000;
+    const RUNTIME_HEARTBEAT_STALE_MS = 90000;
+    const RUNTIME_POLL_STALE_MS = 90000;
+    const RUNTIME_PHOTO_CHANGE_STALE_MS = 180000;
+    const RUNTIME_BOOT_GRACE_MS = 120000;
+    const RUNTIME_STAGE1_COOLDOWN_MS = 180000;
+    const RUNTIME_STAGE2_AFTER_DEGRADED_MS = 180000;
+    const RUNTIME_STAGE2_AFTER_STAGE1_MS = 180000;
     const STALE_IN_FLIGHT_MS = REQUEST_TIMEOUT_MS + 5000;
     const MAX_KIOSK_RELOAD_COUNT = 3;
     const MIN_KIOSK_RELOAD_COOLDOWN_MS = 10 * 60 * 1000;
     const RUNTIME_LOG_MAX = 15;
+    const SLIDESHOW_STALL_THRESHOLD_MS = Math.max(DISPLAY_MS * 2.5, 20000);
+    const SLIDESHOW_RECOVERING_RETRY_MS = 60000;
+    const SLIDESHOW_STUCK_INDEX_THRESHOLD = 3;
+    const SLIDESHOW_STATES = Object.freeze({
+      booting: "booting",
+      empty: "empty",
+      ready: "ready",
+      loading: "loading",
+      displaying: "displaying",
+      transitioning: "transitioning",
+      degraded: "degraded",
+      recovering: "recovering",
+    });
+    const ALLOWED_SLIDESHOW_TRANSITIONS = {
+      booting: ["empty", "ready", "loading", "displaying"],
+      empty: ["ready", "loading", "booting"],
+      ready: ["loading", "displaying", "empty", "degraded"],
+      loading: ["displaying", "transitioning", "ready", "degraded", "empty"],
+      displaying: ["transitioning", "loading", "ready", "degraded", "empty", "recovering"],
+      transitioning: ["displaying", "loading", "degraded", "recovering", "ready"],
+      degraded: ["recovering", "displaying", "loading", "ready", "transitioning"],
+      recovering: ["ready", "loading", "displaying", "degraded", "transitioning"],
+    };
     const GALLERY_KIOSK_RELOAD_COUNT_KEY = "galleryKioskReloadCount";
     const GALLERY_KIOSK_LAST_RELOAD_AT_KEY = "galleryKioskLastReloadAt";
     const TEMPLATE_RENDERING_ENABLED = false;
@@ -338,6 +361,17 @@
     let lastSoftRecoveryAttemptAtMs = 0;
     let softRecoveryAttemptCount = 0;
     let hardReloadScheduled = false;
+    let slideshowState = SLIDESHOW_STATES.booting;
+    let lastSlideshowStateReason = "initial_boot";
+    let lastSlideshowAdvanceAt = "";
+    let lastSlideshowAdvanceReason = "";
+    let approvedManifestVersion = "";
+    let slideshowLoopCount = 0;
+    let stuckAtIndexCount = 0;
+    let lastSlideshowAdvanceIndex = -1;
+    let lastSlideshowAdvancePhotoId = "";
+    let slideshowStallRecoveryAtMs = 0;
+    let loadingSlotIndex = -1;
     const telemetryStartedAtMs = Date.now();
     const TELEMETRY_ERROR_DEDUPE_WINDOW_MS = 1200;
     const GALLERY_DEVICE_ID_KEY = "galleryDeviceId";
@@ -468,12 +502,32 @@
       } catch (_) {}
     }
 
+    function isDocumentBackgrounded() {
+      try {
+        return String(document.visibilityState || "").toLowerCase() === "hidden";
+      } catch (_) {
+        return false;
+      }
+    }
+
     function getRuntimeHealthSnapshot(now = Date.now()) {
       const uptimeMs = now - telemetryStartedAtMs;
       const heartbeatAgeMs = getMsSinceIsoTimestamp(lastSuccessfulHeartbeatAt);
       const pollAgeMs = getMsSinceIsoTimestamp(lastSuccessfulPollAt);
       const photoChangeAgeMs = hasImage && lastPhotoChangeAt ? getMsSinceIsoTimestamp(lastPhotoChangeAt) : 0;
       const imageLoadAgeMs = getMsSinceIsoTimestamp(lastSuccessfulImageLoadAt);
+
+      if (isDocumentBackgrounded()) {
+        return {
+          isDegraded: false,
+          reason: "",
+          heartbeatAgeMs,
+          pollAgeMs,
+          photoChangeAgeMs,
+          imageLoadAgeMs,
+          backgrounded: true,
+        };
+      }
 
       if (uptimeMs < RUNTIME_BOOT_GRACE_MS) {
         return {
@@ -509,11 +563,6 @@
         approvedFetchInFlight = false;
         approvedFetchStartedAtMs = 0;
         const message = "stale_request_timeout:/gallery/approved";
-        recordRecentError("watchdog", message, {
-          type: "stale_in_flight",
-          route: "/gallery/approved",
-          includeCurrentPhoto: false,
-        });
         appendRuntimeLog("stale_in_flight", "cleared stale approved fetch lock", { route: "/gallery/approved" });
         void sendDeviceLog("warn", "stale_in_flight", message, { route: "/gallery/approved" });
       }
@@ -522,11 +571,6 @@
         overlayFetchInFlight = false;
         overlayFetchStartedAtMs = 0;
         const message = "stale_request_timeout:/gallery/active-overlay";
-        recordRecentError("watchdog", message, {
-          type: "stale_in_flight",
-          route: "/gallery/active-overlay",
-          includeCurrentPhoto: false,
-        });
         appendRuntimeLog("stale_in_flight", "cleared stale overlay fetch lock", { route: "/gallery/active-overlay" });
         void sendDeviceLog("warn", "stale_in_flight", message, { route: "/gallery/active-overlay" });
       }
@@ -535,11 +579,6 @@
         telemetryHeartbeatInFlight = false;
         telemetryHeartbeatStartedAtMs = 0;
         const message = "stale_request_timeout:/api/device-heartbeat";
-        recordRecentError("watchdog", message, {
-          type: "stale_in_flight",
-          route: "/api/device-heartbeat",
-          includeCurrentPhoto: false,
-        });
         appendRuntimeLog("stale_in_flight", "cleared stale heartbeat lock", { route: "/api/device-heartbeat" });
         void sendDeviceLog("warn", "stale_in_flight", message, { route: "/api/device-heartbeat" });
       }
@@ -563,7 +602,7 @@
       if (!overlayFetchInFlight) void fetchActiveOverlay();
       void sendTelemetryHeartbeat();
       if (photos.length) {
-        void startRotation({ preserveCurrentVisible: hasImage });
+        restartSlideshowLoop(`runtime_stage1:${reason}`);
       }
       return true;
     }
@@ -623,6 +662,15 @@
       try {
         const now = Date.now();
         lastRuntimeWatchdogAtMs = now;
+
+        if (isDocumentBackgrounded()) {
+          runtimeDegraded = false;
+          runtimeDegradedSinceMs = 0;
+          watchdogTriggered = false;
+          watchdogReason = "";
+          return;
+        }
+
         clearStaleInFlightLocks(now);
         const health = getRuntimeHealthSnapshot(now);
         const wasDegraded = runtimeDegraded;
@@ -643,6 +691,7 @@
             appendRuntimeLog("watchdog", "runtime_recovered", health);
             lastRecoveryStage = "";
           }
+          evaluateSlideshowStallRecovery(now);
           return;
         }
 
@@ -667,6 +716,8 @@
             reloadCount,
           });
         }
+
+        evaluateSlideshowStallRecovery(now);
       } catch (err) {
         galleryDebug("runtime watchdog evaluation failed", {
           error: err && err.message ? err.message : String(err),
@@ -684,11 +735,6 @@
     function recordRuntimeLifecycleEvent(eventName, details = {}) {
       const message = clampMonitorString(eventName || "lifecycle", 80);
       appendRuntimeLog("lifecycle", message, details);
-      recordRecentError("lifecycle", message, {
-        type: "runtime_lifecycle",
-        includeCurrentPhoto: false,
-        route: "",
-      });
       void sendDeviceLog("info", "runtime_lifecycle", message, details);
     }
 
@@ -832,6 +878,154 @@
     function setRecoveryAction(action) {
       try {
         lastRecoveryAction = clampMonitorString(action || "", 200);
+      } catch (_) {}
+    }
+
+    function getApprovedPhotoCount() {
+      return Array.isArray(photos) ? photos.length : 0;
+    }
+
+    function isSinglePhotoMode() {
+      return getApprovedPhotoCount() === 1;
+    }
+
+    function normalizeCurrentPhotoIndex() {
+      const count = getApprovedPhotoCount();
+      if (!count) {
+        currentIndex = 0;
+        return 0;
+      }
+      if (!Number.isFinite(currentIndex) || currentIndex < 0) {
+        currentIndex = 0;
+      } else if (currentIndex >= count) {
+        currentIndex = currentIndex % count;
+      }
+      return currentIndex;
+    }
+
+    function getNextPhotoIndex(fromIndex = currentIndex) {
+      const count = getApprovedPhotoCount();
+      if (!count) return 0;
+      if (count === 1) return 0;
+      const baseIndex = Number.isFinite(fromIndex) ? fromIndex : 0;
+      return (baseIndex + 1) % count;
+    }
+
+    function setSlideshowState(nextState, reason = "") {
+      try {
+        const normalizedState = SLIDESHOW_STATES[nextState] ? nextState : SLIDESHOW_STATES.ready;
+        const fromState = slideshowState;
+        const allowedTargets = ALLOWED_SLIDESHOW_TRANSITIONS[fromState];
+        if (allowedTargets && !allowedTargets.includes(normalizedState) && fromState !== normalizedState) {
+          galleryDebug("slideshow state transition allowed with override", {
+            fromState,
+            normalizedState,
+            reason,
+          });
+        }
+        slideshowState = normalizedState;
+        lastSlideshowStateReason = clampMonitorString(reason || "", 200);
+        appendRuntimeLog("slideshow_state", `${fromState}->${normalizedState}:${lastSlideshowStateReason}`, {
+          approvedPhotoCount: getApprovedPhotoCount(),
+          currentIndex: normalizeCurrentPhotoIndex(),
+          currentPhotoId: currentPhotoId || "",
+        });
+      } catch (_) {}
+    }
+
+    function recordSlideshowAdvance(reason, file = null) {
+      try {
+        slideshowLoopCount += 1;
+        lastSlideshowAdvanceAt = new Date().toISOString();
+        lastSlideshowAdvanceReason = clampMonitorString(reason || "", 120);
+        const nextIndex = normalizeCurrentPhotoIndex();
+        const nextPhotoId = file && file.id ? String(file.id) : currentPhotoId || "";
+        if (nextIndex === lastSlideshowAdvanceIndex && nextPhotoId && nextPhotoId === lastSlideshowAdvancePhotoId) {
+          stuckAtIndexCount += 1;
+        } else {
+          stuckAtIndexCount = 0;
+        }
+        lastSlideshowAdvanceIndex = nextIndex;
+        lastSlideshowAdvancePhotoId = nextPhotoId;
+      } catch (_) {}
+    }
+
+    function getSlideshowVisualStalled(now = Date.now()) {
+      try {
+        if (isSinglePhotoMode() || getApprovedPhotoCount() < 2 || !hasImage) return false;
+        const advanceReference = lastSlideshowAdvanceAt || lastPhotoChangeAt;
+        if (!advanceReference) return false;
+        const ageMs = getMsSinceIsoTimestamp(advanceReference);
+        if (!Number.isFinite(ageMs) || ageMs === Infinity) return false;
+        return ageMs > SLIDESHOW_STALL_THRESHOLD_MS;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function restartSlideshowLoop(reason = "slideshow_restart") {
+      rotationLoopToken += 1;
+      const loopToken = rotationLoopToken;
+      if (rotateTimer) {
+        clearTimeout(rotateTimer);
+        rotateTimer = null;
+      }
+      slideshowStallRecoveryAtMs = Date.now();
+      setRecoveryAction(`restart_slideshow:${reason}`);
+      appendRuntimeLog("slideshow_recovery", reason, {
+        approvedPhotoCount: getApprovedPhotoCount(),
+        currentIndex: normalizeCurrentPhotoIndex(),
+        stuckAtIndexCount,
+      });
+      if (!photos.length) {
+        setSlideshowState(SLIDESHOW_STATES.empty, `${reason}:no_photos`);
+        return false;
+      }
+      setSlideshowState(SLIDESHOW_STATES.ready, reason);
+      void startRotation({ preserveCurrentVisible: false, loopToken });
+      return true;
+    }
+
+    function evaluateSlideshowStallRecovery(now = Date.now()) {
+      try {
+        if (isDocumentBackgrounded()) return;
+
+        if (!getApprovedPhotoCount()) {
+          if (slideshowState !== SLIDESHOW_STATES.empty && slideshowState !== SLIDESHOW_STATES.booting) {
+            setSlideshowState(SLIDESHOW_STATES.empty, "no_approved_photos");
+          }
+          return;
+        }
+
+        if (isSinglePhotoMode()) {
+          if (hasImage && slideshowState !== SLIDESHOW_STATES.displaying) {
+            setSlideshowState(SLIDESHOW_STATES.displaying, "single_photo_mode");
+          }
+          stuckAtIndexCount = 0;
+          return;
+        }
+
+        if (!getSlideshowVisualStalled(now)) {
+          if (slideshowState === SLIDESHOW_STATES.degraded || slideshowState === SLIDESHOW_STATES.recovering) {
+            setSlideshowState(SLIDESHOW_STATES.displaying, "slideshow_unstalled");
+          }
+          return;
+        }
+
+        if (slideshowState !== SLIDESHOW_STATES.recovering) {
+          setSlideshowState(SLIDESHOW_STATES.degraded, "slideshow_stalled");
+          restartSlideshowLoop("slideshow_stall_detected");
+        }
+
+        const sinceRecoveryMs = slideshowStallRecoveryAtMs ? (now - slideshowStallRecoveryAtMs) : Infinity;
+        if (
+          stuckAtIndexCount >= SLIDESHOW_STUCK_INDEX_THRESHOLD &&
+          sinceRecoveryMs >= SLIDESHOW_RECOVERING_RETRY_MS
+        ) {
+          setSlideshowState(SLIDESHOW_STATES.recovering, "slideshow_still_stuck");
+          slideshowStallRecoveryAtMs = now;
+          attemptSoftGalleryRecovery("slideshow_stuck");
+        }
       } catch (_) {}
     }
 
@@ -991,7 +1185,7 @@
         });
 
         if (photos.length) {
-          void startRotation({ preserveCurrentVisible: true });
+          restartSlideshowLoop(`soft_recovery:${reason}`);
         }
         rescheduleManagedPollingLoops(`soft_recovery:${reason}`);
         if (!approvedFetchInFlight) void fetchApproved();
@@ -1247,14 +1441,7 @@
     }
 
     function getSlideshowStalled() {
-      try {
-        if (!hasImage || !lastPhotoChangeAt) return false;
-        const visibleAgeSec = getVisibleImageAgeSec();
-        const staleThresholdSec = Math.max(Math.round((DISPLAY_MS * 3) / 1000), 30);
-        return visibleAgeSec >= staleThresholdSec;
-      } catch (_) {
-        return false;
-      }
+      return getSlideshowVisualStalled();
     }
 
     function getPerformanceMemorySnapshot() {
@@ -1304,6 +1491,19 @@
             heartbeatFailureCount,
             visibleImageAgeSec: getVisibleImageAgeSec(),
             slideshowStalled: getSlideshowStalled(),
+            slideshowStatus: {
+              slideshowState: slideshowState || SLIDESHOW_STATES.booting,
+              lastSlideshowStateReason: lastSlideshowStateReason || "",
+              lastSlideshowAdvanceAt: lastSlideshowAdvanceAt || "",
+              lastSlideshowAdvanceReason: lastSlideshowAdvanceReason || "",
+              approvedPhotoCount: getApprovedPhotoCount(),
+              manifestVersion: approvedManifestVersion || "",
+              slideshowLoopCount: Math.max(0, Number(slideshowLoopCount) || 0),
+              stuckAtIndexCount: Math.max(0, Number(stuckAtIndexCount) || 0),
+              singlePhotoMode: isSinglePhotoMode(),
+              activeSlotIndex: activeIndex,
+              loadingSlotIndex: Number.isFinite(loadingSlotIndex) ? loadingSlotIndex : -1,
+            },
             userAgent: navigator.userAgent || "",
             platform: navigator.userAgentData?.platform || navigator.platform || "",
             screenWidth: window.screen ? Number(window.screen.width) || 0 : 0,
@@ -1335,6 +1535,7 @@
               photoChangeAgeSec: Math.round((runtimeHealth.photoChangeAgeMs || 0) / 1000),
               imageLoadAgeSec: Math.round((runtimeHealth.imageLoadAgeMs || 0) / 1000),
               documentVisibility: documentVisibilityState || (document.visibilityState || ""),
+              documentBackgrounded: isDocumentBackgrounded(),
               navigatorOnLine: navigatorOnline,
               lastWatchdogAt: lastRuntimeWatchdogAtMs ? new Date(lastRuntimeWatchdogAtMs).toISOString() : "",
               recentRuntimeLogs: recentRuntimeLogs.slice(-8),
@@ -2202,6 +2403,9 @@
       currentPhotoName = "";
       currentDisplayedPhotoIndex = -1;
       setRecoveryAction(`set_empty_state:${reason}`);
+      setSlideshowState(SLIDESHOW_STATES.empty, reason);
+      stuckAtIndexCount = 0;
+      loadingSlotIndex = -1;
       galleryDebug("setEmptyState applied", { reason });
       return true;
     }
@@ -2326,6 +2530,8 @@
 
     async function crossfadeTo(url, photoId = "") {
       const transitionToken = ++photoTransitionToken;
+      setSlideshowState(SLIDESHOW_STATES.transitioning, `crossfade:${photoId || "unknown"}`);
+      loadingSlotIndex = hasImage ? (1 - activeIndex) : activeIndex;
       galleryDebug("photo transition start", {
         transitionToken,
         targetPhotoId: photoId ? String(photoId) : "",
@@ -2349,6 +2555,8 @@
               img.classList.add("visible");
               hasImage = true;
               currentPhotoId = photoId ? String(photoId) : "";
+              loadingSlotIndex = activeIndex;
+              setSlideshowState(SLIDESHOW_STATES.displaying, "first_photo_visible");
               galleryDebug("photo transition committed (first photo)", {
                 transitionToken,
                 currentVisiblePhotoId: currentPhotoId,
@@ -2357,6 +2565,8 @@
             });
           });
         } catch (err) {
+          loadingSlotIndex = -1;
+          setSlideshowState(hasImage ? SLIDESHOW_STATES.displaying : SLIDESHOW_STATES.ready, "first_photo_load_failed");
           setRecoveryAction("first_photo_load_failed");
           if (isMonitorTimeoutOrAbortError(err)) {
             galleryDebug("first photo load timed out or was aborted", {
@@ -2382,6 +2592,8 @@
         setGalleryStatus("");
         currentPhotoId = targetId;
         hasImage = true;
+        loadingSlotIndex = activeIndex;
+        setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_active_slot");
         return true;
       }
 
@@ -2400,9 +2612,11 @@
             nextImg.classList.add("visible");
             currentImg.classList.remove("visible");
             activeIndex = nextIndex;
+            loadingSlotIndex = nextIndex;
             setGalleryStatus("");
             hasImage = true;
             currentPhotoId = targetId;
+            setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_preloaded_slot");
             galleryDebug("photo transition reused preloaded slot", {
               transitionToken,
               currentVisiblePhotoId: currentPhotoId,
@@ -2427,9 +2641,11 @@
             nextImg.classList.add("visible");
             currentImg.classList.remove("visible");
             activeIndex = nextIndex;
+            loadingSlotIndex = nextIndex;
             setGalleryStatus("");
             hasImage = true;
             currentPhotoId = photoId ? String(photoId) : "";
+            setSlideshowState(SLIDESHOW_STATES.displaying, "transition_committed");
             galleryDebug("photo transition committed", {
               transitionToken,
               currentVisiblePhotoId: currentPhotoId,
@@ -2438,6 +2654,8 @@
           });
         });
       } catch (err) {
+        loadingSlotIndex = -1;
+        setSlideshowState(SLIDESHOW_STATES.displaying, "transition_failed_keep_current");
         setRecoveryAction("kept_current_photo_after_load_failure");
         if (shouldCountImageLoadFailure(err, transitionToken)) {
           logKeptCurrentPhotoAfterFailure({
@@ -2464,58 +2682,117 @@
       }
     }
 
-    async function showCurrentPhoto() {
+    async function showCurrentPhoto(options = {}) {
+      const { targetIndex = null, advanceReason = "show_current_photo" } = options;
       if (!photos.length) {
+        setSlideshowState(SLIDESHOW_STATES.empty, "show_current_photo_without_confirmed_empty");
         setEmptyState({ force: false, reason: "show_current_photo_without_confirmed_empty" });
         return false;
       }
 
+      if (Number.isFinite(targetIndex)) {
+        currentIndex = targetIndex;
+      }
+      normalizeCurrentPhotoIndex();
+      setSlideshowState(SLIDESHOW_STATES.loading, `${advanceReason}:index_${currentIndex}`);
+
       const file = photos[currentIndex];
+      if (!file || !file.id) {
+        setSlideshowState(SLIDESHOW_STATES.ready, "show_current_photo_missing_file");
+        return false;
+      }
+
       const url = buildPhotoUrl(file.id);
       const didShow = await crossfadeTo(url, file.id);
       if (didShow) {
         markVisiblePhoto(file);
+        recordSlideshowAdvance(advanceReason, file);
         updateTicketBadge(file.name);
+        setSlideshowState(
+          SLIDESHOW_STATES.displaying,
+          isSinglePhotoMode() ? "single_photo_mode" : `${advanceReason}:visible`
+        );
+      } else {
+        setSlideshowState(SLIDESHOW_STATES.displaying, `${advanceReason}:failed`);
       }
       return didShow;
+    }
+
+    async function advanceSlideshowPhoto(loopToken) {
+      if (loopToken !== rotationLoopToken) return;
+
+      if (!photos.length) {
+        setSlideshowState(SLIDESHOW_STATES.empty, "rotation_tick_without_photos");
+        setEmptyState({ force: false, reason: "rotation_tick_without_confirmed_empty" });
+        return;
+      }
+
+      normalizeCurrentPhotoIndex();
+
+      if (isSinglePhotoMode()) {
+        setSlideshowState(SLIDESHOW_STATES.displaying, "single_photo_mode");
+        scheduleNextRotation(loopToken, DISPLAY_MS);
+        return;
+      }
+
+      const nextIndex = getNextPhotoIndex(currentIndex);
+      const didShow = await showCurrentPhoto({
+        targetIndex: nextIndex,
+        advanceReason: "rotation_tick",
+      });
+
+      if (loopToken !== rotationLoopToken) return;
+
+      if (didShow) {
+        scheduleNextRotation(loopToken, DISPLAY_MS);
+        return;
+      }
+
+      setSlideshowState(SLIDESHOW_STATES.displaying, "rotation_tick_failed_keep_current");
+      scheduleNextRotation(loopToken, 1500);
     }
 
     function scheduleNextRotation(loopToken, delayMs = DISPLAY_MS) {
       if (rotateTimer) {
         clearTimeout(rotateTimer);
       }
-      rotateTimer = setTimeout(async () => {
+      rotateTimer = setTimeout(() => {
         rotateTimer = null;
-        if (loopToken !== rotationLoopToken) return;
-        if (!photos.length) {
-          setEmptyState({ force: false, reason: "rotation_tick_without_confirmed_empty" });
-          return;
-        }
-        currentIndex = (currentIndex + 1) % photos.length;
-        const didShow = await showCurrentPhoto();
-        if (loopToken !== rotationLoopToken) return;
-        scheduleNextRotation(loopToken, didShow ? DISPLAY_MS : 1500);
-      }, delayMs);
+        void advanceSlideshowPhoto(loopToken);
+      }, Math.max(0, Math.round(delayMs)));
     }
 
     async function startRotation(options = {}) {
-      const { preserveCurrentVisible = false } = options;
-      rotationLoopToken += 1;
-      const loopToken = rotationLoopToken;
+      const { preserveCurrentVisible = false, loopToken: externalLoopToken = null } = options;
+      if (!Number.isFinite(externalLoopToken)) {
+        rotationLoopToken += 1;
+      }
+      const loopToken = Number.isFinite(externalLoopToken) ? externalLoopToken : rotationLoopToken;
       if (rotateTimer) clearTimeout(rotateTimer);
       rotateTimer = null;
       if (!photos.length) {
+        setSlideshowState(SLIDESHOW_STATES.empty, "start_rotation_without_confirmed_empty");
         setEmptyState({ force: false, reason: "start_rotation_without_confirmed_empty" });
         return;
       }
 
+      normalizeCurrentPhotoIndex();
+      setSlideshowState(SLIDESHOW_STATES.ready, preserveCurrentVisible ? "rotation_resume" : "rotation_start");
+
       if (!preserveCurrentVisible || !hasImage) {
-        const didShow = await showCurrentPhoto();
+        const didShow = await showCurrentPhoto({ advanceReason: "rotation_start" });
         if (loopToken !== rotationLoopToken) return;
         if (!didShow) {
           scheduleNextRotation(loopToken, 1500);
           return;
         }
+      } else {
+        setSlideshowState(SLIDESHOW_STATES.displaying, "rotation_resume_visible");
+      }
+
+      if (isSinglePhotoMode()) {
+        setSlideshowState(SLIDESHOW_STATES.displaying, "single_photo_mode");
+        return;
       }
 
       scheduleNextRotation(loopToken, DISPLAY_MS);
@@ -2569,6 +2846,7 @@
         }
 
         const newPhotos = Array.isArray(data.files) ? [...data.files] : [];
+        approvedManifestVersion = clampMonitorString(String(data.manifestVersion || ""), 40);
         recordSuccessfulPoll(Date.now() - pollStartedAt);
         sortPhotosList(newPhotos);
         const oldIds = photos.map((p) => p.id).join(",");
@@ -2603,30 +2881,36 @@
         }
 
         consecutiveEmptyApprovedResponses = 0;
+        const wasEmptyState = slideshowState === SLIDESHOW_STATES.empty || !hasImage;
         photos = newPhotos;
+        normalizeCurrentPhotoIndex();
 
-        if (!hasImage) {
+        if (!hasImage || wasEmptyState) {
           const currentPhotoIndex = currentPhotoId
             ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
             : -1;
           if (currentPhotoIndex >= 0) {
             currentIndex = currentPhotoIndex;
-          } else if (currentIndex >= photos.length) {
-            currentIndex = photos.length - 1;
+          } else {
+            currentIndex = 0;
           }
-          void startRotation();
+          setSlideshowState(SLIDESHOW_STATES.ready, "photos_available_after_empty");
+          void startRotation({ preserveCurrentVisible: false });
         } else if (oldIds !== newIds) {
           const currentPhotoIndex = currentPhotoId
             ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
             : -1;
           if (currentPhotoIndex >= 0) {
             currentIndex = currentPhotoIndex;
-          } else if (currentIndex >= photos.length) {
-            currentIndex = photos.length - 1;
+          } else {
+            currentIndex = 0;
           }
+          normalizeCurrentPhotoIndex();
           if (currentPhotoIndex < 0) {
-            void startRotation();
-          } else if (!rotateTimer) {
+            setSlideshowState(SLIDESHOW_STATES.ready, "manifest_changed_restart");
+            void startRotation({ preserveCurrentVisible: false });
+          } else if (!rotateTimer && !isSinglePhotoMode()) {
+            setSlideshowState(SLIDESHOW_STATES.ready, "manifest_changed_resume");
             void startRotation({ preserveCurrentVisible: true });
           }
         }
@@ -2840,6 +3124,7 @@
     }
     installTelemetryErrorCapture();
     installRuntimeLifecycleHandlers();
+    setSlideshowState(SLIDESHOW_STATES.booting, "initial_boot");
     clearOverlayLayer("initial_boot");
     setGalleryStatus(EMPTY_GALLERY_MESSAGE);
     if (TEMPLATE_RENDERING_ENABLED) {
