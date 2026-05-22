@@ -731,6 +731,19 @@ function buildLiveGalleryDeviceSummary(device) {
   };
 }
 
+function logObservedRouteResult(route, startedAtMs, statusCode, reason = 'ok') {
+  const durationMs = Math.max(0, Date.now() - startedAtMs);
+  const status = Number(statusCode) || 0;
+  const normalizedReason = clampString(reason || 'ok', 160);
+  const isOkReason = normalizedReason === 'ok' || normalizedReason.startsWith('ok ');
+  const message = `[route] ${route} status=${status} durationMs=${durationMs} reason=${normalizedReason}`;
+  if (status >= 500 || !isOkReason) {
+    console.warn(message);
+  } else {
+    console.log(message);
+  }
+}
+
 function normalizeStatusLabel(enabled) {
   return enabled ? 'On' : 'Off';
 }
@@ -3023,12 +3036,14 @@ app.post('/ping', async (req, res) => {
 });
 
 app.post('/api/device-heartbeat', (req, res) => {
+  const startedAtMs = Date.now();
   try {
     pruneLiveGalleryDevices();
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const deviceId = clampString(body.deviceId || '', 120);
     if (!deviceId) {
+      logObservedRouteResult('/api/device-heartbeat', startedAtMs, 400, 'missing_device_id');
       return res.status(400).json({ ok: false, error: 'missing_device_id' });
     }
 
@@ -3042,9 +3057,11 @@ app.post('/api/device-heartbeat', (req, res) => {
     device.status = status;
     device.recentErrors = recentErrors;
 
+    logObservedRouteResult('/api/device-heartbeat', startedAtMs, 200, `ok device=${deviceId}`);
     return res.json({ ok: true, deviceId, lastSeenAt: now });
   } catch (err) {
     console.error('Error processing device heartbeat:', err);
+    logObservedRouteResult('/api/device-heartbeat', startedAtMs, 500, err && err.message ? err.message : 'device_heartbeat_failed');
     return res.status(500).json({ ok: false, error: 'device_heartbeat_failed' });
   }
 });
@@ -4440,6 +4457,7 @@ app.get('/admin/metrics/export', ensureAdminAuth, async (req, res) => {
 
 // List approved photos (respects galleryDisplayLimit setting)
 app.get('/gallery/approved', async (req, res) => {
+  const startedAtMs = Date.now();
   try {
     // Ensure settings are hydrated
     await hydrateSettingsFromSheet();
@@ -4498,9 +4516,11 @@ app.get('/gallery/approved', async (req, res) => {
       approvedTime: getApprovedPlaybackTimestamp(f),
     }));
 
+    logObservedRouteResult('/gallery/approved', startedAtMs, 200, `ok files=${files.length}`);
     res.json({ ok: true, files });
   } catch (err) {
     console.error('Error listing approved files for gallery', err);
+    logObservedRouteResult('/gallery/approved', startedAtMs, 500, err && err.message ? err.message : 'list_approved_failed');
     res.status(500).json({ ok: false, error: 'list_approved_failed' });
   }
 });
@@ -4666,6 +4686,7 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
 });
 
 app.get('/gallery/active-overlay', async (req, res) => {
+  const startedAtMs = Date.now();
   let settingsHydrated = false;
   try {
     try {
@@ -4693,6 +4714,7 @@ app.get('/gallery/active-overlay', async (req, res) => {
         overlayFileId: String(snapshotTemplate.data?.overlayFileId || ''),
         version: String(snapshotTemplate.data?.overlayVersion || ''),
       });
+      logObservedRouteResult('/gallery/active-overlay', startedAtMs, 200, `ok source=${settingsHydrated ? 'settings_snapshot' : 'memory_snapshot_after_settings_failure'}`);
       return res.json(buildActiveOverlayResponse(snapshotTemplate, {
         source: settingsHydrated ? 'settings_snapshot' : 'memory_snapshot_after_settings_failure',
         reason: settingsHydrated ? 'active_overlay_snapshot' : 'settings_hydration_failed_using_snapshot',
@@ -4708,6 +4730,7 @@ app.get('/gallery/active-overlay', async (req, res) => {
           overlayFileId: String(liveTemplate.data?.overlayFileId || ''),
           version: String(liveTemplate.data?.overlayVersion || ''),
         });
+        logObservedRouteResult('/gallery/active-overlay', startedAtMs, 200, 'ok source=template_sheet_row');
         return res.json(buildActiveOverlayResponse(liveTemplate, {
           source: 'template_sheet_row',
           reason: 'active_overlay_row_loaded',
@@ -4732,6 +4755,7 @@ app.get('/gallery/active-overlay', async (req, res) => {
           overlayFileId: String(fallbackTemplate.data?.overlayFileId || ''),
           version: String(fallbackTemplate.data?.overlayVersion || ''),
         });
+        logObservedRouteResult('/gallery/active-overlay', startedAtMs, 200, 'ok source=stale_snapshot_fallback');
         return res.json(buildActiveOverlayResponse(fallbackTemplate, {
           source: 'stale_snapshot_fallback',
           reason: 'overlay_row_missing_using_snapshot',
@@ -4746,6 +4770,7 @@ app.get('/gallery/active-overlay', async (req, res) => {
       reason: appSettings.activeTemplateId ? 'overlay_row_missing_no_snapshot' : 'no_active_template_id',
     });
 
+    logObservedRouteResult('/gallery/active-overlay', startedAtMs, 200, appSettings.activeTemplateId ? 'ok source=overlay_row_missing_no_snapshot' : 'ok source=no_active_template_id');
     return res.json(buildActiveOverlayResponse(null, {
       disabled: false,
       source: settingsHydrated ? 'settings_state' : 'memory_state_after_settings_failure',
@@ -4768,12 +4793,14 @@ app.get('/gallery/active-overlay', async (req, res) => {
         version: String(fallbackTemplate.data?.overlayVersion || ''),
         error: err && err.message ? err.message : err,
       });
+      logObservedRouteResult('/gallery/active-overlay', startedAtMs, 200, 'ok source=route_exception_snapshot_fallback');
       return res.json(buildActiveOverlayResponse(fallbackTemplate, {
         source: 'route_exception_snapshot_fallback',
         reason: 'route_exception_using_snapshot',
       }));
     }
 
+    logObservedRouteResult('/gallery/active-overlay', startedAtMs, 500, err && err.message ? err.message : 'active_overlay_failed');
     return res.status(500).json({
       ok: false,
       error: 'active_overlay_failed',

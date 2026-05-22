@@ -209,12 +209,22 @@
     const DISPLAY_MS = 8000;
     const REFRESH_MS = 10000;
     const GALLERY_HEARTBEAT_MS = 5000;
+    const BURST_BACKOFF_REFRESH_MS = 20000;
+    const BURST_BACKOFF_HEARTBEAT_MS = 10000;
     const EMPTY_GALLERY_MESSAGE = "ESCANEA EL CODIGO QR";
     /** Template changes are rare; polling less often reduces load and timeout risk on low-memory clients. */
     const TEMPLATE_REFRESH_MS = 45000;
     const OVERLAY_REFRESH_MS = 45000;
+    const BURST_BACKOFF_OVERLAY_REFRESH_MS = 90000;
     const REQUEST_TIMEOUT_MS = 12000;
     const IMAGE_LOAD_TIMEOUT_MS = 15000;
+    const FETCH_FAILURE_BURST_THRESHOLD = 5;
+    const FETCH_FAILURE_BURST_WINDOW_MS = 60000;
+    const FETCH_FAILURE_BACKOFF_DURATION_MS = 120000;
+    const SOFT_RECOVERY_VISIBLE_AGE_MS = Math.max(DISPLAY_MS * 10, 90000);
+    const SOFT_RECOVERY_COOLDOWN_MS = 45000;
+    const HARD_RELOAD_AFTER_SOFT_RECOVERY_ATTEMPTS = 3;
+    const HARD_RELOAD_DELAY_MS = 250;
     const TEMPLATE_RENDERING_ENABLED = false;
     const DEFAULT_PHOTO_BOX = Object.freeze({
       x: 210,
@@ -291,6 +301,13 @@
     let debugTestTriggered = false;
     let lastRecordedTelemetryErrorSignature = "";
     let lastRecordedTelemetryErrorAtMs = 0;
+    let approvedFetchInFlight = false;
+    let overlayFetchInFlight = false;
+    let recentFetchFailureEvents = [];
+    let fetchFailureBackoffUntilMs = 0;
+    let lastSoftRecoveryAttemptAtMs = 0;
+    let softRecoveryAttemptCount = 0;
+    let hardReloadScheduled = false;
     const telemetryStartedAtMs = Date.now();
     const TELEMETRY_ERROR_DEDUPE_WINDOW_MS = 1200;
     const GALLERY_DEVICE_ID_KEY = "galleryDeviceId";
@@ -358,6 +375,27 @@
     function clampMonitorString(value, maxLength = 500) {
       const normalized = String(value || "").trim();
       return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
+    }
+
+    function createMonitorError(message, extra = {}) {
+      const err = new Error(clampMonitorString(message || "monitor_error", 200) || "monitor_error");
+      err.name = extra.name || "MonitorError";
+      if (extra.code) err.code = extra.code;
+      if (extra.route) err.route = sanitizeMonitorRoute(extra.route);
+      if (extra.cause) err.cause = extra.cause;
+      return err;
+    }
+
+    function getMonitorErrorMessage(error) {
+      if (error && typeof error === "object" && error.message) {
+        return clampMonitorString(error.message, 500);
+      }
+      return clampMonitorString(formatMonitorValue(error), 500);
+    }
+
+    function isMonitorTimeoutOrAbortError(error) {
+      const message = getMonitorErrorMessage(error);
+      return message === "request_timeout" || message === "request_aborted";
     }
 
     function sanitizeMonitorRoute(routeOrUrl) {
@@ -460,6 +498,241 @@
       } catch (_) {}
     }
 
+    function getVisibleImageAgeMs() {
+      try {
+        if (!lastPhotoChangeAt) return 0;
+        const ageMs = Date.now() - Date.parse(lastPhotoChangeAt);
+        return ageMs > 0 ? ageMs : 0;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function pruneRecentFetchFailureEvents(now = Date.now()) {
+      recentFetchFailureEvents = recentFetchFailureEvents.filter((entry) => (now - entry.atMs) <= FETCH_FAILURE_BURST_WINDOW_MS);
+    }
+
+    function getRecentFetchFailureCount(now = Date.now()) {
+      pruneRecentFetchFailureEvents(now);
+      return recentFetchFailureEvents.length;
+    }
+
+    function isFetchFailureBackoffActive(now = Date.now()) {
+      return fetchFailureBackoffUntilMs > now;
+    }
+
+    function getApprovedPollDelayMs() {
+      return isFetchFailureBackoffActive() ? BURST_BACKOFF_REFRESH_MS : REFRESH_MS;
+    }
+
+    function getHeartbeatDelayMs() {
+      return isFetchFailureBackoffActive() ? BURST_BACKOFF_HEARTBEAT_MS : GALLERY_HEARTBEAT_MS;
+    }
+
+    function getOverlayPollDelayMs() {
+      return isFetchFailureBackoffActive() ? BURST_BACKOFF_OVERLAY_REFRESH_MS : OVERLAY_REFRESH_MS;
+    }
+
+    function maybeClearBackoffAfterStableWindow(now = Date.now()) {
+      const wasActive = isFetchFailureBackoffActive(now);
+      if (fetchFailureBackoffUntilMs && fetchFailureBackoffUntilMs <= now && getRecentFetchFailureCount(now) < FETCH_FAILURE_BURST_THRESHOLD) {
+        fetchFailureBackoffUntilMs = 0;
+        if (wasActive) {
+          setRecoveryAction("fetch_failure_backoff_cleared_after_stable_success");
+          rescheduleManagedPollingLoops("stable_success");
+        }
+      }
+    }
+
+    function scheduleApprovedPoll(delayMs = getApprovedPollDelayMs()) {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(async () => {
+        refreshTimer = null;
+        try {
+          await fetchApproved();
+        } catch (err) {
+          galleryDebug("approved scheduler recovered from unexpected error", {
+            error: err && err.message ? err.message : String(err),
+          });
+        } finally {
+          scheduleApprovedPoll(getApprovedPollDelayMs());
+        }
+      }, Math.max(0, Math.round(delayMs)));
+    }
+
+    function scheduleOverlayPoll(delayMs = getOverlayPollDelayMs()) {
+      if (overlayRefreshTimer) clearTimeout(overlayRefreshTimer);
+      overlayRefreshTimer = setTimeout(async () => {
+        overlayRefreshTimer = null;
+        try {
+          await fetchActiveOverlay();
+        } catch (err) {
+          galleryDebug("overlay scheduler recovered from unexpected error", {
+            error: err && err.message ? err.message : String(err),
+          });
+        } finally {
+          scheduleOverlayPoll(getOverlayPollDelayMs());
+        }
+      }, Math.max(0, Math.round(delayMs)));
+    }
+
+    function scheduleTelemetryHeartbeat(delayMs = getHeartbeatDelayMs()) {
+      if (telemetryHeartbeatTimer) clearTimeout(telemetryHeartbeatTimer);
+      telemetryHeartbeatTimer = setTimeout(async () => {
+        telemetryHeartbeatTimer = null;
+        try {
+          await sendTelemetryHeartbeat();
+        } catch (err) {
+          galleryDebug("heartbeat scheduler recovered from unexpected error", {
+            error: err && err.message ? err.message : String(err),
+          });
+        } finally {
+          scheduleTelemetryHeartbeat(getHeartbeatDelayMs());
+        }
+      }, Math.max(0, Math.round(delayMs)));
+    }
+
+    function rescheduleManagedPollingLoops(reason = "") {
+      try {
+        galleryDebug("rescheduling managed polling loops", {
+          reason,
+          approvedDelayMs: getApprovedPollDelayMs(),
+          overlayDelayMs: getOverlayPollDelayMs(),
+          heartbeatDelayMs: getHeartbeatDelayMs(),
+          backoffUntil: fetchFailureBackoffUntilMs ? new Date(fetchFailureBackoffUntilMs).toISOString() : "",
+        });
+        scheduleApprovedPoll(getApprovedPollDelayMs());
+        scheduleOverlayPoll(getOverlayPollDelayMs());
+        scheduleTelemetryHeartbeat(getHeartbeatDelayMs());
+      } catch (_) {}
+    }
+
+    function maybeTriggerHardReloadAfterRepeatedRecovery(reason) {
+      if (hardReloadScheduled || softRecoveryAttemptCount < HARD_RELOAD_AFTER_SOFT_RECOVERY_ATTEMPTS) return false;
+      hardReloadScheduled = true;
+      setRecoveryAction(`hard_reload_after_repeated_soft_recovery:${reason}:attempt_${softRecoveryAttemptCount}`);
+      void sendDeviceLog("error", "hard_gallery_reload", `Hard reload scheduled after repeated soft recovery (${reason})`, {
+        reason,
+        softRecoveryAttemptCount,
+        visibleImageAgeMs: getVisibleImageAgeMs(),
+      });
+      void sendTelemetryHeartbeat();
+      setTimeout(() => {
+        try {
+          window.location.reload();
+        } catch (_) {}
+      }, HARD_RELOAD_DELAY_MS);
+      return true;
+    }
+
+    function attemptSoftGalleryRecovery(reason) {
+      try {
+        if (!hasImage || !lastPhotoChangeAt || hardReloadScheduled) return false;
+        const now = Date.now();
+        const visibleAgeMs = getVisibleImageAgeMs();
+        const recentFailureCount = getRecentFetchFailureCount(now);
+        if (visibleAgeMs < SOFT_RECOVERY_VISIBLE_AGE_MS) return false;
+        if (recentFailureCount < FETCH_FAILURE_BURST_THRESHOLD) return false;
+        if ((now - lastSoftRecoveryAttemptAtMs) < SOFT_RECOVERY_COOLDOWN_MS) return false;
+
+        lastSoftRecoveryAttemptAtMs = now;
+        softRecoveryAttemptCount += 1;
+        setRecoveryAction(`soft_gallery_recovery:${reason}:attempt_${softRecoveryAttemptCount}`);
+        galleryDebug("soft gallery recovery triggered", {
+          reason,
+          softRecoveryAttemptCount,
+          visibleAgeMs,
+          recentFailureCount,
+        });
+        void sendDeviceLog("warn", "soft_gallery_recovery", `Soft gallery recovery triggered (${reason})`, {
+          reason,
+          softRecoveryAttemptCount,
+          visibleImageAgeMs: visibleAgeMs,
+          recentFailureCount,
+          currentPhotoId: currentPhotoId || "",
+          currentPhotoName: currentPhotoName || "",
+        });
+
+        if (photos.length) {
+          void startRotation({ preserveCurrentVisible: true });
+        }
+        rescheduleManagedPollingLoops(`soft_recovery:${reason}`);
+        if (!approvedFetchInFlight) void fetchApproved();
+        if (!overlayFetchInFlight) void fetchActiveOverlay();
+
+        if (!hasImage) {
+          return false;
+        }
+
+        return maybeTriggerHardReloadAfterRepeatedRecovery(reason) || true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function activateFetchFailureBackoff(reason = "fetch_failure_burst") {
+      try {
+        const now = Date.now();
+        const previousUntil = fetchFailureBackoffUntilMs;
+        fetchFailureBackoffUntilMs = Math.max(fetchFailureBackoffUntilMs, now + FETCH_FAILURE_BACKOFF_DURATION_MS);
+        if (fetchFailureBackoffUntilMs !== previousUntil) {
+          setRecoveryAction(`fetch_failure_backoff_active:${reason}`);
+          void sendDeviceLog("warn", "fetch_failure_backoff", `Fetch failure backoff active (${reason})`, {
+            reason,
+            backoffUntil: new Date(fetchFailureBackoffUntilMs).toISOString(),
+            approvedDelayMs: getApprovedPollDelayMs(),
+            overlayDelayMs: getOverlayPollDelayMs(),
+            heartbeatDelayMs: getHeartbeatDelayMs(),
+            recentFailureCount: getRecentFetchFailureCount(now),
+          });
+          rescheduleManagedPollingLoops(`backoff:${reason}`);
+        }
+      } catch (_) {}
+    }
+
+    function recordFetchFailureEvent(category, reason = "") {
+      try {
+        const now = Date.now();
+        recentFetchFailureEvents.push({
+          atMs: now,
+          category: clampMonitorString(category || "unknown", 20) || "unknown",
+          reason: clampMonitorString(reason || "", 120),
+        });
+        pruneRecentFetchFailureEvents(now);
+        if (recentFetchFailureEvents.length >= FETCH_FAILURE_BURST_THRESHOLD) {
+          activateFetchFailureBackoff(reason || category || "fetch_failure_burst");
+        }
+      } catch (_) {}
+    }
+
+    function clearSlotObjectUrl(slotIndex, options = {}) {
+      const { clearSrc = false, clearPhotoId = true } = options;
+      const img = imgSlots[slotIndex];
+      try {
+        if (slotObjectUrls[slotIndex]) {
+          URL.revokeObjectURL(slotObjectUrls[slotIndex]);
+          slotObjectUrls[slotIndex] = null;
+        }
+      } catch (_) {
+        slotObjectUrls[slotIndex] = null;
+      }
+      if (clearPhotoId) {
+        slotPhotoIds[slotIndex] = null;
+      }
+      if (img) {
+        img.onload = null;
+        img.onerror = null;
+        if (clearSrc) {
+          try {
+            img.removeAttribute("src");
+          } catch (_) {}
+          try {
+            img.src = "";
+          } catch (_) {}
+        }
+      }
+    }
+
     function recordPollFailure(errorMessage, meta = {}) {
       try {
         const normalizedMessage = clampMonitorString(formatMonitorValue(errorMessage), 500) || "approved_fetch_failed";
@@ -467,6 +740,7 @@
         totalPollFailures += 1;
         lastApprovedFetchStatus = "fail";
         lastApprovedFetchError = normalizedMessage;
+        recordFetchFailureEvent("poll", normalizedMessage);
         recordRecentError("poll", normalizedMessage, {
           type: meta.type || "approved_fetch_failure",
           route: meta.route || "/gallery/approved",
@@ -483,6 +757,7 @@
             currentPhotoName: currentPhotoName || "",
           });
         }
+        attemptSoftGalleryRecovery("poll_failure");
       } catch (_) {}
     }
 
@@ -493,6 +768,7 @@
         totalImageFailures += 1;
         lastPhotoFetchStatus = "fail";
         lastPhotoFetchError = normalizedMessage;
+        recordFetchFailureEvent("image", normalizedMessage);
         const failurePhotoId = meta.currentPhotoId != null ? String(meta.currentPhotoId) : "";
         const failurePhotoName = meta.currentPhotoName != null
           ? String(meta.currentPhotoName)
@@ -515,6 +791,7 @@
             currentPhotoName: failurePhotoName || currentPhotoName || "",
           });
         }
+        attemptSoftGalleryRecovery("image_failure");
       } catch (_) {}
     }
 
@@ -525,6 +802,7 @@
         totalOverlayFailures += 1;
         lastOverlayFetchStatus = "fail";
         lastOverlayFetchError = normalizedMessage;
+        recordFetchFailureEvent("overlay", normalizedMessage);
         recordRecentError("overlay", normalizedMessage, {
           type: meta.type || "overlay_fetch_failure",
           route: meta.route || "/gallery/active-overlay",
@@ -541,6 +819,7 @@
             currentPhotoName: currentPhotoName || "",
           });
         }
+        attemptSoftGalleryRecovery("overlay_failure");
       } catch (_) {}
     }
 
@@ -551,6 +830,7 @@
         consecutivePollFailures = 0;
         lastApprovedFetchStatus = "success";
         lastApprovedFetchError = "";
+        maybeClearBackoffAfterStableWindow();
       } catch (_) {}
     }
 
@@ -560,6 +840,7 @@
         consecutiveImageFailures = 0;
         lastPhotoFetchStatus = "success";
         lastPhotoFetchError = "";
+        maybeClearBackoffAfterStableWindow();
       } catch (_) {}
     }
 
@@ -569,6 +850,7 @@
         consecutiveOverlayFailures = 0;
         lastOverlayFetchStatus = "success";
         lastOverlayFetchError = "";
+        maybeClearBackoffAfterStableWindow();
       } catch (_) {}
     }
 
@@ -588,6 +870,7 @@
       try {
         lastSuccessfulHeartbeatAt = new Date().toISOString();
         lastHeartbeatError = "";
+        maybeClearBackoffAfterStableWindow();
       } catch (_) {}
     }
 
@@ -596,6 +879,7 @@
         const normalizedMessage = clampMonitorString(formatMonitorValue(errorMessage), 500) || "heartbeat_failed";
         heartbeatFailureCount += 1;
         lastHeartbeatError = normalizedMessage;
+        recordFetchFailureEvent("heartbeat", normalizedMessage);
         recordRecentError("heartbeat", normalizedMessage, {
           type: "heartbeat_failure",
           route: "/api/device-heartbeat",
@@ -610,13 +894,14 @@
         currentPhotoName = file && file.name ? String(file.name) : "";
         currentDisplayedPhotoIndex = Number.isFinite(currentIndex) ? currentIndex : -1;
         lastPhotoChangeAt = new Date().toISOString();
+        softRecoveryAttemptCount = 0;
+        hardReloadScheduled = false;
       } catch (_) {}
     }
 
     function getVisibleImageAgeSec() {
       try {
-        if (!lastPhotoChangeAt) return 0;
-        const ageMs = Date.now() - Date.parse(lastPhotoChangeAt);
+        const ageMs = getVisibleImageAgeMs();
         return ageMs > 0 ? Math.round(ageMs / 1000) : 0;
       } catch (_) {
         return 0;
@@ -714,9 +999,13 @@
     }
 
     async function postMonitorJson(url, payload, timeoutMs = 4000) {
+      let didTimeout = false;
       if (typeof AbortController === "function") {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const timer = setTimeout(() => {
+          didTimeout = true;
+          controller.abort();
+        }, timeoutMs);
         try {
           return await fetch(url, {
             method: "POST",
@@ -725,17 +1014,28 @@
             keepalive: true,
             signal: controller.signal,
           });
+        } catch (err) {
+          if (didTimeout) {
+            throw createMonitorError("request_timeout", { route: url, code: "request_timeout", cause: err });
+          }
+          if (err && err.name === "AbortError") {
+            throw createMonitorError("request_aborted", { route: url, code: "request_aborted", cause: err });
+          }
+          throw err;
         } finally {
           clearTimeout(timer);
         }
       }
 
-      return await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        keepalive: true,
-      });
+      return await Promise.race([
+        fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(createMonitorError("request_timeout", { route: url, code: "request_timeout" })), timeoutMs)),
+      ]);
     }
 
     async function sendTelemetryHeartbeat() {
@@ -836,13 +1136,7 @@
 
     function startTelemetryHeartbeatLoop() {
       try {
-        if (telemetryHeartbeatTimer) {
-          clearInterval(telemetryHeartbeatTimer);
-        }
-        void sendTelemetryHeartbeat();
-        telemetryHeartbeatTimer = setInterval(() => {
-          void sendTelemetryHeartbeat();
-        }, GALLERY_HEARTBEAT_MS);
+        scheduleTelemetryHeartbeat(0);
       } catch (_) {}
     }
 
@@ -878,19 +1172,49 @@
     }
 
     async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+      const route = sanitizeMonitorRoute(url);
       if (typeof AbortController === "function") {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        let didTimeout = false;
+        const externalSignal = options && options.signal ? options.signal : null;
+        const timer = setTimeout(() => {
+          didTimeout = true;
+          controller.abort();
+        }, timeoutMs);
+        let removeAbortListener = null;
+        if (externalSignal && typeof externalSignal.addEventListener === "function") {
+          const handleExternalAbort = () => controller.abort();
+          if (externalSignal.aborted) {
+            controller.abort();
+          } else {
+            externalSignal.addEventListener("abort", handleExternalAbort, { once: true });
+            removeAbortListener = () => {
+              try {
+                externalSignal.removeEventListener("abort", handleExternalAbort);
+              } catch (_) {}
+            };
+          }
+        }
         try {
-          return await fetch(url, { ...options, signal: controller.signal });
+          const { signal, ...restOptions } = options || {};
+          return await fetch(url, { ...restOptions, signal: controller.signal });
+        } catch (err) {
+          if (didTimeout) {
+            throw createMonitorError("request_timeout", { route, code: "request_timeout", cause: err });
+          }
+          if (err && err.name === "AbortError") {
+            throw createMonitorError("request_aborted", { route, code: "request_aborted", cause: err });
+          }
+          throw err;
         } finally {
           clearTimeout(timer);
+          if (removeAbortListener) removeAbortListener();
         }
       }
 
       return await Promise.race([
         fetch(url, options),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("request_timeout")), timeoutMs)),
+        new Promise((_, reject) => setTimeout(() => reject(createMonitorError("request_timeout", { route, code: "request_timeout" })), timeoutMs)),
       ]);
     }
 
@@ -1512,14 +1836,7 @@
 
       imgSlots.forEach((img, index) => {
         img.classList.remove("visible");
-        img.onload = null;
-        img.onerror = null;
-        img.removeAttribute("src");
-        slotPhotoIds[index] = null;
-        if (slotObjectUrls[index]) {
-          URL.revokeObjectURL(slotObjectUrls[index]);
-          slotObjectUrls[index] = null;
-        }
+        clearSlotObjectUrl(index, { clearSrc: true, clearPhotoId: true });
       });
       setGalleryStatus(EMPTY_GALLERY_MESSAGE);
       hideTicketBadge();
@@ -1571,9 +1888,7 @@
             if (settled) return;
             settled = true;
             cleanup();
-            if (slotObjectUrls[slotIndex]) {
-              URL.revokeObjectURL(slotObjectUrls[slotIndex]);
-            }
+            clearSlotObjectUrl(slotIndex, { clearSrc: false, clearPhotoId: false });
             slotObjectUrls[slotIndex] = objectUrl;
             slotPhotoIds[slotIndex] = targetPhotoId;
             recordSuccessfulImageLoad();
@@ -1610,6 +1925,14 @@
         if (objectUrl) {
           try {
             URL.revokeObjectURL(objectUrl);
+          } catch (_) {}
+        }
+        if (img) {
+          try {
+            img.removeAttribute("src");
+          } catch (_) {}
+          try {
+            img.src = "";
           } catch (_) {}
         }
         recordImageFailure(err && err.message ? err.message : String(err), {
@@ -1656,7 +1979,15 @@
           });
         } catch (err) {
           setRecoveryAction("first_photo_load_failed");
-          console.error("Error loading first photo", err);
+          if (isMonitorTimeoutOrAbortError(err)) {
+            galleryDebug("first photo load timed out or was aborted", {
+              transitionToken,
+              targetPhotoId: photoId ? String(photoId) : "",
+              error: err && err.message ? err.message : String(err),
+            });
+          } else {
+            console.error("Error loading first photo", err);
+          }
           galleryDebug("photo transition failed before any photo was visible", {
             transitionToken,
             targetPhotoId: photoId ? String(photoId) : "",
@@ -1729,7 +2060,16 @@
         });
       } catch (err) {
         setRecoveryAction("kept_current_photo_after_load_failure");
-        console.error("Error loading photo", err);
+        if (isMonitorTimeoutOrAbortError(err)) {
+          galleryDebug("photo transition fetch timed out or was aborted; keeping current visible photo", {
+            transitionToken,
+            targetPhotoId: photoId ? String(photoId) : "",
+            currentVisiblePhotoId: currentPhotoId,
+            error: err && err.message ? err.message : String(err),
+          });
+        } else {
+          console.error("Error loading photo", err);
+        }
         galleryDebug("photo transition failed; keeping current visible photo", {
           transitionToken,
           targetPhotoId: photoId ? String(photoId) : "",
@@ -1798,6 +2138,14 @@
     }
 
     async function fetchApproved() {
+      if (approvedFetchInFlight) {
+        galleryDebug("approved poll skipped because previous request is still running", {
+          approvedPollCount,
+          currentVisiblePhotoId: currentPhotoId,
+        });
+        return false;
+      }
+      approvedFetchInFlight = true;
       approvedPollCount += 1;
       const pollStartedAt = Date.now();
       galleryDebug("approved poll start", {
@@ -1818,7 +2166,7 @@
             approvedPollCount,
             status: res.status,
           });
-          return;
+          return false;
         }
         const data = await res.json();
         if (!data.ok) {
@@ -1832,7 +2180,7 @@
             approvedPollCount,
             data,
           });
-          return;
+          return false;
         }
 
         const newPhotos = Array.isArray(data.files) ? [...data.files] : [];
@@ -1859,14 +2207,14 @@
             photos = [];
             currentIndex = 0;
             setEmptyState({ force: true, reason: "no_approved_photos_available" });
-            return;
+            return true;
           }
           if (consecutiveEmptyApprovedResponses >= EMPTY_APPROVED_CLEAR_THRESHOLD) {
             photos = [];
             currentIndex = 0;
             setEmptyState({ force: true, reason: "confirmed_empty_approved_responses" });
           }
-          return;
+          return true;
         }
 
         consecutiveEmptyApprovedResponses = 0;
@@ -1897,23 +2245,33 @@
             void startRotation({ preserveCurrentVisible: true });
           }
         }
+        return true;
       } catch (err) {
         lastPollDurationMs = Date.now() - pollStartedAt;
         recordPollFailure(err && err.message ? err.message : String(err), {
           route: "/gallery/approved",
           type: "approved_fetch_failure",
         });
-        console.error("Failed to fetch approved photos", err);
+        if (isMonitorTimeoutOrAbortError(err)) {
+          galleryDebug("approved poll timeout or abort", {
+            approvedPollCount,
+            error: err && err.message ? err.message : String(err),
+          });
+        } else {
+          console.error("Failed to fetch approved photos", err);
+        }
         galleryDebug("approved poll exception", {
           approvedPollCount,
           error: err && err.message ? err.message : String(err),
         });
+        return false;
+      } finally {
+        approvedFetchInFlight = false;
       }
     }
 
     function startRefreshLoop() {
-      if (refreshTimer) clearInterval(refreshTimer);
-      refreshTimer = setInterval(fetchApproved, REFRESH_MS);
+      scheduleApprovedPoll(0);
     }
 
     function startTemplateRefreshLoop() {
@@ -1928,6 +2286,14 @@
     }
 
     async function fetchActiveOverlay() {
+      if (overlayFetchInFlight) {
+        galleryDebug("overlay fetch skipped because previous request is still running", {
+          currentOverlayFileId,
+          currentOverlayVersion,
+        });
+        return false;
+      }
+      overlayFetchInFlight = true;
       const requestId = ++activeOverlayRequestId;
       galleryDebug("overlay fetch start", {
         requestId,
@@ -1947,13 +2313,13 @@
           });
           console.error("Error fetching active overlay", res.status);
           galleryDebug("overlay fetch failed", { requestId, status: res.status });
-          return;
+          return false;
         }
 
         const data = await res.json();
         if (requestId !== activeOverlayRequestId) {
           galleryDebug("overlay fetch ignored because a newer request exists", { requestId });
-          return;
+          return false;
         }
         if (!data.ok) {
           recordOverlayFailure("overlay_payload_not_ok", {
@@ -1962,7 +2328,7 @@
           });
           console.error("Active overlay API returned not ok", data);
           galleryDebug("overlay fetch returned non-ok payload", { requestId, data });
-          return;
+          return false;
         }
 
         const overlayKey = buildOverlayKey(data);
@@ -1988,7 +2354,7 @@
             applyPhotoBox(DEFAULT_PHOTO_BOX);
           }
           recordSuccessfulOverlayFetch();
-          return;
+          return true;
         }
 
         if (overlayKey === activeOverlayKey) {
@@ -1998,7 +2364,7 @@
             requestId,
             overlayKey,
           });
-          return;
+          return true;
         }
 
         try {
@@ -2019,24 +2385,33 @@
             lastGoodOverlay: lastGoodOverlayMeta,
           });
         }
+        return true;
       } catch (err) {
         recordOverlayFailure(err && err.message ? err.message : String(err), {
           type: "overlay_fetch_failure",
           route: "/gallery/active-overlay",
         });
-        console.error("Failed to fetch active overlay", err);
+        if (isMonitorTimeoutOrAbortError(err)) {
+          galleryDebug("overlay fetch timeout or abort", {
+            requestId,
+            error: err && err.message ? err.message : String(err),
+          });
+        } else {
+          console.error("Failed to fetch active overlay", err);
+        }
         galleryDebug("overlay fetch exception", {
           requestId,
           error: err && err.message ? err.message : String(err),
           lastGoodOverlay: lastGoodOverlayMeta,
         });
+        return false;
+      } finally {
+        overlayFetchInFlight = false;
       }
     }
 
     function startOverlayRefreshLoop() {
-      if (overlayRefreshTimer) clearInterval(overlayRefreshTimer);
-      fetchActiveOverlay();
-      overlayRefreshTimer = setInterval(fetchActiveOverlay, OVERLAY_REFRESH_MS);
+      scheduleOverlayPoll(0);
     }
 
     function getPhotoPlaybackTime(photo) {
@@ -2085,7 +2460,6 @@
     startRefreshLoop();
     startTelemetryHeartbeatLoop();
     runDebugTelemetryTestIfNeeded();
-    fetchApproved();
   </script>
 </body>
 </html>

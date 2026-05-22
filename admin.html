@@ -6691,6 +6691,52 @@ function hideGlobalLoader() {
       };
     }
 
+    function safeJsonStringify(value, space = 2) {
+      try {
+        return JSON.stringify(value, null, space);
+      } catch (_) {
+        return "";
+      }
+    }
+
+    function buildLiveGalleryDeviceReportExport(device, generatedAt = new Date()) {
+      const reportMetadata = {
+        reportExportValid: true,
+        generatedAtIso: generatedAt.toISOString(),
+        generatedAtPuertoRico: formatPuertoRicoDateTime(generatedAt),
+        timeZone: LIVE_GALLERY_REPORT_TIMEZONE,
+      };
+
+      try {
+        const payload = {
+          ...buildLiveGalleryDeviceRawTelemetry(device),
+          report: reportMetadata,
+        };
+        const json = safeJsonStringify(payload, 2);
+        if (!json) {
+          throw new Error("report_json_stringify_failed");
+        }
+        return {
+          payload: JSON.parse(json),
+          json,
+          reportExportValid: true,
+        };
+      } catch (_) {
+        const fallbackJson = safeJsonStringify(buildLiveGalleryDeviceRawTelemetry(device), 2) || "{}";
+        return {
+          payload: {
+            report: {
+              ...reportMetadata,
+              reportExportValid: false,
+              fallbackJsonOnly: true,
+            },
+          },
+          json: fallbackJson,
+          reportExportValid: false,
+        };
+      }
+    }
+
     function toPdfAsciiText(value) {
       return String(value == null ? "" : value)
         .normalize("NFKD")
@@ -6730,13 +6776,14 @@ function hideGlobalLoader() {
       const timing = device && device.timing ? device.timing : {};
       const health = getLiveGalleryDeviceHealth(device);
       const analysis = getLiveGalleryDeviceAnalysis(device);
-      const rawTelemetry = buildLiveGalleryDeviceRawTelemetry(device);
+      const reportExport = buildLiveGalleryDeviceReportExport(device, generatedAt);
       const overlayStatus = status.overlayStatus || {};
       const templateStatus = status.templateStatus || {};
       const lines = [
         "Mayaguez Photo App - Live Gallery Device Report",
         `Generated: ${formatPuertoRicoDateTime(generatedAt)}`,
         `Report Time Zone: ${LIVE_GALLERY_REPORT_TIMEZONE}`,
+        `Report Export Valid: ${reportExport.reportExportValid ? "Yes" : "Fallback JSON Only"}`,
         "",
         "Device Summary",
         `  Device Name: ${device?.deviceName || status.deviceName || "—"}`,
@@ -6831,7 +6878,7 @@ function hideGlobalLoader() {
 
       lines.push("");
       lines.push("Raw Telemetry JSON");
-      JSON.stringify(rawTelemetry, null, 2).split("\n").forEach((line) => {
+      reportExport.json.split("\n").forEach((line) => {
         lines.push(line);
       });
 
@@ -7143,6 +7190,7 @@ function hideGlobalLoader() {
       const health = getLiveGalleryDeviceHealth(device);
       const analysis = getLiveGalleryDeviceAnalysis(device);
       const rawTelemetry = buildLiveGalleryDeviceRawTelemetry(device);
+      const rawTelemetryJson = safeJsonStringify(rawTelemetry, 2) || "{}";
       const diagnosisItems = [
         {
           label: "Classification",
@@ -7301,7 +7349,7 @@ function hideGlobalLoader() {
           <div class="device-detail-side">
             <div class="device-detail-block">
               <div class="device-detail-title">Raw Telemetry JSON</div>
-              <pre class="device-detail-pre">${escapeHtml(JSON.stringify(rawTelemetry, null, 2))}</pre>
+              <pre class="device-detail-pre">${escapeHtml(rawTelemetryJson)}</pre>
             </div>
           </div>
         </div>
