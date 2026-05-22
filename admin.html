@@ -5471,6 +5471,92 @@ View report to see the most recent interactions
 
               <div class="settings-section">
                 <div class="settings-section-header">
+                  <div class="settings-section-title">GALLERY RUNTIME SAFETY TOGGLES</div>
+                  <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="settings-section-content">
+                  <div class="settings-grid">
+                    <div class="settings-help">Safe mode defaults keep photo rotation on while disabling overlay/template runtime systems for Raspberry Pi testing.</div>
+
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Gallery Crossfade</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableGalleryCrossfade" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Flattened Overlay</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableFlattenedOverlay" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Overlay Polling</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableOverlayPolling" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Dynamic Template Runtime</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableDynamicTemplateRuntime" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Template Polling</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableTemplatePolling" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Gallery Debug Overlay</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableGalleryDebugOverlay" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Runtime Watchdog</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableRuntimeWatchdog" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-row">
+                      <span class="settings-label">Enable Direct Swap Mode</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="settingsEnableDirectSwapMode" />
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="settings-actions" style="margin-top: 1rem;">
+                    <button id="settingsApplyGallerySafeModeBtn" class="btn-secondary" type="button">
+                      <span class="btn-inline-content">
+                        <i data-lucide="shield-check"></i>
+                        <span>APPLY GALLERY SAFE MODE</span>
+                      </span>
+                    </button>
+                    <button id="settingsApplyFullGalleryModeBtn" class="btn-secondary" type="button">
+                      <span class="btn-inline-content">
+                        <i data-lucide="sliders-horizontal"></i>
+                        <span>APPLY FULL GALLERY MODE</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-header">
                   <div class="settings-section-title">INTRO COPY</div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -8262,6 +8348,26 @@ function hideGlobalLoader() {
     const settingsNewsletterEnabled = document.getElementById("settingsNewsletterEnabled");
     const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
     const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
+    const settingsEnableGalleryCrossfade = document.getElementById("settingsEnableGalleryCrossfade");
+    const settingsEnableFlattenedOverlay = document.getElementById("settingsEnableFlattenedOverlay");
+    const settingsEnableOverlayPolling = document.getElementById("settingsEnableOverlayPolling");
+    const settingsEnableDynamicTemplateRuntime = document.getElementById("settingsEnableDynamicTemplateRuntime");
+    const settingsEnableTemplatePolling = document.getElementById("settingsEnableTemplatePolling");
+    const settingsEnableGalleryDebugOverlay = document.getElementById("settingsEnableGalleryDebugOverlay");
+    const settingsEnableRuntimeWatchdog = document.getElementById("settingsEnableRuntimeWatchdog");
+    const settingsEnableDirectSwapMode = document.getElementById("settingsEnableDirectSwapMode");
+    const settingsApplyGallerySafeModeBtn = document.getElementById("settingsApplyGallerySafeModeBtn");
+    const settingsApplyFullGalleryModeBtn = document.getElementById("settingsApplyFullGalleryModeBtn");
+    const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
+      enableGalleryCrossfade: true,
+      enableFlattenedOverlay: false,
+      enableOverlayPolling: false,
+      enableDynamicTemplateRuntime: false,
+      enableTemplatePolling: false,
+      enableGalleryDebugOverlay: true,
+      enableRuntimeWatchdog: true,
+      enableDirectSwapMode: false,
+    });
     const settingsFields = [
       settingsTicketEnabled,
       settingsGalleryDisplayLimit,
@@ -8280,6 +8386,14 @@ function hideGlobalLoader() {
       settingsNewsletterEnabled,
       settingsNewsletterLabel,
       settingsNewsletterHelper,
+      settingsEnableGalleryCrossfade,
+      settingsEnableFlattenedOverlay,
+      settingsEnableOverlayPolling,
+      settingsEnableDynamicTemplateRuntime,
+      settingsEnableTemplatePolling,
+      settingsEnableGalleryDebugOverlay,
+      settingsEnableRuntimeWatchdog,
+      settingsEnableDirectSwapMode,
     ].filter(Boolean);
     let settingsBaselineSerialized = "";
     let settingsLoadedOnce = false;
@@ -13723,6 +13837,62 @@ reportViewBtn.addEventListener("click", async () => {
       refreshSettingsLivePreview();
     }
 
+    function normalizeGalleryRuntimeSettings(settings = {}) {
+      const runtime = settings && typeof settings === "object" && settings.galleryRuntime && typeof settings.galleryRuntime === "object"
+        ? settings.galleryRuntime
+        : settings && typeof settings === "object" && !Array.isArray(settings)
+          ? settings
+          : {};
+      return {
+        enableGalleryCrossfade: runtime.enableGalleryCrossfade !== false,
+        enableFlattenedOverlay: Boolean(runtime.enableFlattenedOverlay),
+        enableOverlayPolling: Boolean(runtime.enableOverlayPolling),
+        enableDynamicTemplateRuntime: Boolean(runtime.enableDynamicTemplateRuntime),
+        enableTemplatePolling: Boolean(runtime.enableTemplatePolling),
+        enableGalleryDebugOverlay: runtime.enableGalleryDebugOverlay !== false,
+        enableRuntimeWatchdog: runtime.enableRuntimeWatchdog !== false,
+        enableDirectSwapMode: Boolean(runtime.enableDirectSwapMode),
+      };
+    }
+
+    function applyGalleryRuntimeSettingsToForm(runtimeSettings = DEFAULT_GALLERY_RUNTIME_SETTINGS) {
+      const nextSettings = normalizeGalleryRuntimeSettings(runtimeSettings);
+      if (settingsEnableGalleryCrossfade) settingsEnableGalleryCrossfade.checked = nextSettings.enableGalleryCrossfade;
+      if (settingsEnableFlattenedOverlay) settingsEnableFlattenedOverlay.checked = nextSettings.enableFlattenedOverlay;
+      if (settingsEnableOverlayPolling) settingsEnableOverlayPolling.checked = nextSettings.enableOverlayPolling;
+      if (settingsEnableDynamicTemplateRuntime) settingsEnableDynamicTemplateRuntime.checked = nextSettings.enableDynamicTemplateRuntime;
+      if (settingsEnableTemplatePolling) settingsEnableTemplatePolling.checked = nextSettings.enableTemplatePolling;
+      if (settingsEnableGalleryDebugOverlay) settingsEnableGalleryDebugOverlay.checked = nextSettings.enableGalleryDebugOverlay;
+      if (settingsEnableRuntimeWatchdog) settingsEnableRuntimeWatchdog.checked = nextSettings.enableRuntimeWatchdog;
+      if (settingsEnableDirectSwapMode) settingsEnableDirectSwapMode.checked = nextSettings.enableDirectSwapMode;
+    }
+
+    function getGallerySafeModeRuntimeSettings() {
+      return {
+        enableGalleryCrossfade: true,
+        enableFlattenedOverlay: false,
+        enableOverlayPolling: false,
+        enableDynamicTemplateRuntime: false,
+        enableTemplatePolling: false,
+        enableGalleryDebugOverlay: true,
+        enableRuntimeWatchdog: true,
+        enableDirectSwapMode: false,
+      };
+    }
+
+    function getGalleryFullModeRuntimeSettings() {
+      return {
+        enableGalleryCrossfade: true,
+        enableFlattenedOverlay: true,
+        enableOverlayPolling: true,
+        enableDynamicTemplateRuntime: false,
+        enableTemplatePolling: false,
+        enableGalleryDebugOverlay: true,
+        enableRuntimeWatchdog: true,
+        enableDirectSwapMode: false,
+      };
+    }
+
     function fillSettingsForm(settings) {
       if (!settings) return;
       settingsTicketEnabled.checked = Boolean(settings.ticketEnabled);
@@ -13767,6 +13937,7 @@ reportViewBtn.addEventListener("click", async () => {
       settingsNewsletterEnabled.checked = Boolean(settings.form?.newsletter?.enabled);
       settingsNewsletterLabel.value = settings.form?.newsletter?.label || "";
       settingsNewsletterHelper.value = settings.form?.newsletter?.helper || "";
+      applyGalleryRuntimeSettingsToForm(settings.galleryRuntime || DEFAULT_GALLERY_RUNTIME_SETTINGS);
       refreshSettingsLivePreview();
     }
 
@@ -13853,6 +14024,16 @@ reportViewBtn.addEventListener("click", async () => {
         ticketEnabled: settingsTicketEnabled.checked,
         galleryDisplayLimit: galleryDisplayLimit,
         activeTemplateId: settingsActiveTemplateId ? settingsActiveTemplateId.value : "",
+        galleryRuntime: {
+          enableGalleryCrossfade: settingsEnableGalleryCrossfade ? settingsEnableGalleryCrossfade.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableGalleryCrossfade,
+          enableFlattenedOverlay: settingsEnableFlattenedOverlay ? settingsEnableFlattenedOverlay.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableFlattenedOverlay,
+          enableOverlayPolling: settingsEnableOverlayPolling ? settingsEnableOverlayPolling.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableOverlayPolling,
+          enableDynamicTemplateRuntime: settingsEnableDynamicTemplateRuntime ? settingsEnableDynamicTemplateRuntime.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableDynamicTemplateRuntime,
+          enableTemplatePolling: settingsEnableTemplatePolling ? settingsEnableTemplatePolling.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableTemplatePolling,
+          enableGalleryDebugOverlay: settingsEnableGalleryDebugOverlay ? settingsEnableGalleryDebugOverlay.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableGalleryDebugOverlay,
+          enableRuntimeWatchdog: settingsEnableRuntimeWatchdog ? settingsEnableRuntimeWatchdog.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableRuntimeWatchdog,
+          enableDirectSwapMode: settingsEnableDirectSwapMode ? settingsEnableDirectSwapMode.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableDirectSwapMode,
+        },
         intro: {
           title: settingsIntroTitle.value.trim(),
           subtitle: settingsIntroSubtitle.value.trim(),
@@ -13921,6 +14102,57 @@ reportViewBtn.addEventListener("click", async () => {
       }
     }
 
+    async function persistSettingsPayload(payload, options = {}) {
+      const {
+        button = null,
+        loadingLabel = "Saving...",
+        successMessage = "SETTINGS SAVED",
+      } = options;
+
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return false;
+      }
+
+      if (button) {
+        setButtonLoading(button, loadingLabel, true);
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/settings`, {
+          method: "POST",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(payload),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return false;
+        }
+
+        const data = await res.json();
+        if (data && data.ok) {
+          await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
+          fillSettingsForm(data.settings);
+          captureSettingsBaseline();
+          showToast(successMessage, "success", 1700);
+          return true;
+        }
+
+        showToast("Could not save settings.", "error");
+        return false;
+      } catch (err) {
+        console.error("Error saving settings", err);
+        showToast("Error saving settings.", "error");
+        return false;
+      } finally {
+        if (button) {
+          setButtonLoading(button, loadingLabel, false);
+        }
+        syncSettingsDirtyState();
+      }
+    }
+
     async function openSettingsOverlay() {
       // Legacy function - kept for compatibility but now redirects to view
       switchView("settings");
@@ -13978,37 +14210,35 @@ reportViewBtn.addEventListener("click", async () => {
           return;
         }
 
-        setButtonLoading(settingsSaveBtn, "Saving...", true);
+        await persistSettingsPayload(collectSettingsPayload(), {
+          button: settingsSaveBtn,
+          loadingLabel: "Saving...",
+          successMessage: "SETTINGS SAVED",
+        });
+      });
+    }
 
-        try {
-          const payload = collectSettingsPayload();
-          const res = await fetch(`${BASE_URL}/admin/settings`, {
-            method: "POST",
-            headers: withAdminHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify(payload),
-          });
+    if (settingsApplyGallerySafeModeBtn) {
+      settingsApplyGallerySafeModeBtn.addEventListener("click", async () => {
+        applyGalleryRuntimeSettingsToForm(getGallerySafeModeRuntimeSettings());
+        syncSettingsDirtyState();
+        await persistSettingsPayload(collectSettingsPayload(), {
+          button: settingsApplyGallerySafeModeBtn,
+          loadingLabel: "Applying...",
+          successMessage: "GALLERY SAFE MODE APPLIED",
+        });
+      });
+    }
 
-          if (res.status === 401 || res.status === 403) {
-            showLock("Session expired. Enter the access code.");
-            return;
-          }
-
-          const data = await res.json();
-          if (data && data.ok) {
-            await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
-            fillSettingsForm(data.settings);
-            captureSettingsBaseline();
-            showToast("SETTINGS SAVED", "success", 1700);
-          } else {
-            showToast("Could not save settings.", "error");
-          }
-        } catch (err) {
-          console.error("Error saving settings", err);
-          showToast("Error saving settings.", "error");
-        } finally {
-          setButtonLoading(settingsSaveBtn, "Saving...", false);
-          syncSettingsDirtyState();
-        }
+    if (settingsApplyFullGalleryModeBtn) {
+      settingsApplyFullGalleryModeBtn.addEventListener("click", async () => {
+        applyGalleryRuntimeSettingsToForm(getGalleryFullModeRuntimeSettings());
+        syncSettingsDirtyState();
+        await persistSettingsPayload(collectSettingsPayload(), {
+          button: settingsApplyFullGalleryModeBtn,
+          loadingLabel: "Applying...",
+          successMessage: "FULL GALLERY MODE APPLIED",
+        });
       });
     }
     (function bootstrapAdmin() {

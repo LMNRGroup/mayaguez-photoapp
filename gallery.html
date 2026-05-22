@@ -289,11 +289,12 @@
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
     const DISPLAY_MS = 8000;
-    const DISABLE_GALLERY_TRANSITIONS = true;
+    const DISABLE_GALLERY_TRANSITIONS = false;
     const SHOW_GALLERY_DEBUG_OVERLAY = true;
     const DEBUG_OVERLAY_ERRORS_ONLY = true;
     const REFRESH_MS = 10000;
     const GALLERY_HEARTBEAT_MS = 5000;
+    const RUNTIME_SETTINGS_REFRESH_MS = 8000;
     const BURST_BACKOFF_REFRESH_MS = 20000;
     const BURST_BACKOFF_HEARTBEAT_MS = 10000;
     const EMPTY_GALLERY_MESSAGE = "ESCANEA EL CODIGO QR";
@@ -322,11 +323,13 @@
     const MAX_KIOSK_RELOAD_COUNT = 3;
     const MIN_KIOSK_RELOAD_COOLDOWN_MS = 10 * 60 * 1000;
     const RUNTIME_LOG_MAX = 15;
+    const PHOTO_CROSSFADE_DURATION_MS = 800;
+    const PHOTO_TRANSITION_FALLBACK_MS = PHOTO_CROSSFADE_DURATION_MS + 1000;
     const SLIDESHOW_STALL_THRESHOLD_MS = Math.max(DISPLAY_MS * 2.5, 20000);
     const SLIDESHOW_RECOVERING_RETRY_MS = 60000;
     const SLIDESHOW_STUCK_INDEX_THRESHOLD = 3;
     const DEBUG_OVERLAY_REFRESH_MS = 1000;
-    const DEBUG_OVERLAY_MAX_EVENTS = 12;
+    const DEBUG_OVERLAY_MAX_EVENTS = 8;
     const DEBUG_OVERLAY_EVENT_DEDUPE_MS = 8000;
     const DEBUG_OVERLAY_QR_STUCK_GRACE_MS = Math.max(DISPLAY_MS * 2, 15000);
     const SLIDESHOW_STATES = Object.freeze({
@@ -352,6 +355,16 @@
     const GALLERY_KIOSK_RELOAD_COUNT_KEY = "galleryKioskReloadCount";
     const GALLERY_KIOSK_LAST_RELOAD_AT_KEY = "galleryKioskLastReloadAt";
     const TEMPLATE_RENDERING_ENABLED = false;
+    const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
+      enableGalleryCrossfade: !DISABLE_GALLERY_TRANSITIONS,
+      enableFlattenedOverlay: false,
+      enableOverlayPolling: false,
+      enableDynamicTemplateRuntime: false,
+      enableTemplatePolling: false,
+      enableGalleryDebugOverlay: SHOW_GALLERY_DEBUG_OVERLAY,
+      enableRuntimeWatchdog: true,
+      enableDirectSwapMode: false,
+    });
     const DEFAULT_PHOTO_BOX = Object.freeze({
       x: 210,
       y: 40,
@@ -386,6 +399,7 @@
     let refreshTimer = null;
     let templateRefreshTimer = null;
     let overlayRefreshTimer = null;
+    let runtimeSettingsRefreshTimer = null;
     let activeTemplateKey = "";
     const sortOrder = "oldest";
     let activeTemplateRequestId = 0;
@@ -424,6 +438,11 @@
     let lastSuccessfulHeartbeatAt = "";
     let lastHeartbeatError = "";
     let heartbeatFailureCount = 0;
+    let lastRuntimeSettingsFetchAt = "";
+    let lastRuntimeSettingsAppliedAt = "";
+    let runtimeSettingsVersion = "default";
+    let lastRuntimeSettingsError = "";
+    let qrWaitingReason = "boot_waiting_for_manifest";
     let telemetryLastErrorMessage = "";
     let lastRecoveryAction = "";
     let recentErrors = [];
@@ -436,6 +455,8 @@
     let approvedFetchStartedAtMs = 0;
     let overlayFetchInFlight = false;
     let overlayFetchStartedAtMs = 0;
+    let runtimeSettingsFetchInFlight = false;
+    let runtimeSettingsFetchStartedAtMs = 0;
     let telemetryHeartbeatStartedAtMs = 0;
     let runtimeDegraded = false;
     let runtimeDegradedSinceMs = 0;
@@ -484,6 +505,8 @@
     let lastVisualSwapAt = "";
     let lastVisualSwapMode = "";
     let lastVisualSwapMs = 0;
+    let galleryRuntimeSettings = { ...DEFAULT_GALLERY_RUNTIME_SETTINGS };
+    let disabledSystems = [];
     let debugOverlayLatchedVisible = false;
     let debugOverlayInterval = null;
     let debugOverlayEvents = [];
@@ -610,6 +633,68 @@
       return ageMs > 0 ? ageMs : 0;
     }
 
+    function normalizeGalleryRuntimeSettings(rawSettings = {}) {
+      const candidate = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
+      return {
+        enableGalleryCrossfade: candidate.enableGalleryCrossfade !== false,
+        enableFlattenedOverlay: Boolean(candidate.enableFlattenedOverlay),
+        enableOverlayPolling: Boolean(candidate.enableOverlayPolling),
+        enableDynamicTemplateRuntime: Boolean(candidate.enableDynamicTemplateRuntime),
+        enableTemplatePolling: Boolean(candidate.enableTemplatePolling),
+        enableGalleryDebugOverlay: candidate.enableGalleryDebugOverlay !== false,
+        enableRuntimeWatchdog: candidate.enableRuntimeWatchdog !== false,
+        enableDirectSwapMode: Boolean(candidate.enableDirectSwapMode),
+      };
+    }
+
+    function buildDisabledSystemsList(settings = galleryRuntimeSettings) {
+      const runtime = normalizeGalleryRuntimeSettings(settings);
+      const nextDisabledSystems = [];
+      if (!runtime.enableGalleryCrossfade) nextDisabledSystems.push("gallery_crossfade");
+      if (!runtime.enableFlattenedOverlay) nextDisabledSystems.push("flattened_overlay");
+      if (!runtime.enableOverlayPolling) nextDisabledSystems.push("overlay_polling");
+      if (!runtime.enableDynamicTemplateRuntime) nextDisabledSystems.push("dynamic_template_runtime");
+      if (!runtime.enableTemplatePolling) nextDisabledSystems.push("template_polling");
+      if (!runtime.enableGalleryDebugOverlay) nextDisabledSystems.push("gallery_debug_overlay");
+      if (!runtime.enableRuntimeWatchdog) nextDisabledSystems.push("runtime_watchdog");
+      if (!runtime.enableDirectSwapMode) nextDisabledSystems.push("direct_swap_mode");
+      return nextDisabledSystems;
+    }
+
+    function isGalleryCrossfadeEnabled() {
+      return !galleryRuntimeSettings.enableDirectSwapMode && galleryRuntimeSettings.enableGalleryCrossfade !== false;
+    }
+
+    function isDirectSwapModeEnabled() {
+      return galleryRuntimeSettings.enableDirectSwapMode === true || !isGalleryCrossfadeEnabled();
+    }
+
+    function isGalleryDebugOverlayEnabled() {
+      return SHOW_GALLERY_DEBUG_OVERLAY && galleryRuntimeSettings.enableGalleryDebugOverlay !== false;
+    }
+
+    function isFlattenedOverlayRuntimeEnabled() {
+      return galleryRuntimeSettings.enableFlattenedOverlay === true && galleryRuntimeSettings.enableOverlayPolling === true;
+    }
+
+    function isDynamicTemplateRuntimeEnabled() {
+      return TEMPLATE_RENDERING_ENABLED && galleryRuntimeSettings.enableDynamicTemplateRuntime === true && galleryRuntimeSettings.enableTemplatePolling === true;
+    }
+
+    function isRuntimeWatchdogEnabled() {
+      return galleryRuntimeSettings.enableRuntimeWatchdog !== false;
+    }
+
+    function showQrWaitingScreen(reason = "boot_waiting_for_manifest", message = EMPTY_GALLERY_MESSAGE) {
+      qrWaitingReason = clampMonitorString(reason || "boot_waiting_for_manifest", 80) || "boot_waiting_for_manifest";
+      setGalleryStatus(message);
+    }
+
+    function hideQrWaitingScreen() {
+      qrWaitingReason = "none";
+      setGalleryStatus("");
+    }
+
     function getDebugOverlayCurrentPhotoIndex() {
       if (Number.isFinite(currentDisplayedPhotoIndex) && currentDisplayedPhotoIndex >= 0) {
         return currentDisplayedPhotoIndex;
@@ -639,12 +724,6 @@
       }
     }
 
-    function getDebugOverlaySecondsSince(isoValue) {
-      const ageMs = getMsSinceIsoTimestamp(isoValue);
-      if (!Number.isFinite(ageMs) || ageMs === Infinity) return -1;
-      return Math.max(0, Math.round(ageMs / 1000));
-    }
-
     function getDebugOverlayLastVisualSwapAgeSec(now = Date.now()) {
       try {
         const reference = lastVisualSwapAt || lastSlideshowAdvanceAt || lastPhotoChangeAt;
@@ -669,6 +748,107 @@
       }
     }
 
+    function getGalleryDebugDefaultDiagnosis(code = "") {
+      switch (code) {
+        case "HB_TIMEOUT":
+          return "HEARTBEAT TIMEOUT — browser/network stalled";
+        case "HB_FETCH_FAIL":
+          return "HEARTBEAT FAIL — browser cannot post health";
+        case "PHOTO_FETCH_FAIL":
+          return "PHOTO FETCH FAIL — Pi cannot load next photo";
+        case "PHOTO_TIMEOUT":
+          return "PHOTO TIMEOUT — next photo request hung";
+        case "MANIFEST_FAIL":
+          return "MANIFEST FAIL — approved list unavailable";
+        case "OVERLAY_FAIL":
+          return "OVERLAY FAIL — flattened overlay unavailable";
+        case "SETTINGS_FAIL":
+          return "SETTINGS FAIL — using current runtime mode";
+        case "IMG_ONERROR":
+          return "IMAGE ONERROR — img element failed";
+        case "IMG_DECODE_FAIL":
+          return "IMAGE DECODE FAIL — Chromium decode issue";
+        case "IMG_LOAD_TIMEOUT":
+          return "IMAGE LOAD TIMEOUT — onload never fired";
+        case "TRANSITION_TIMEOUT":
+          return "TRANSITION TIMEOUT — CSS transition stalled";
+        case "TRANSITION_TIMEOUT_FALLBACK":
+          return "TRANSITION FALLBACK — CSS transition failed but recovered";
+        case "VISUAL_STALL":
+          return "VISUAL STALL — slideshow stopped advancing";
+        case "QR_STUCK_WITH_PHOTOS":
+          return "QR STUCK — manifest has photos but waiting screen is visible";
+        case "STATE_STUCK":
+          return "STATE STUCK — slideshow state did not progress";
+        case "TIMER_STALL":
+          return "TIMER STALL — rotation timer stopped";
+        case "WATCHDOG_RECOVERY":
+          return "WATCHDOG RECOVERY — runtime tried to recover";
+        case "RUNTIME_RELOAD":
+          return "RUNTIME RELOAD — recovery forced page reload";
+        case "TEMPLATE_BYPASSED":
+          return "TEMPLATE RUNTIME OFF — safe mode active";
+        case "OVERLAY_BYPASSED":
+          return "OVERLAY BYPASSED — testing photos only";
+        case "UNKNOWN_RUNTIME":
+          return "UNKNOWN RUNTIME FREEZE";
+        default:
+          return "UNKNOWN RUNTIME FREEZE";
+      }
+    }
+
+    function getGalleryDebugDefaultAction(code = "") {
+      switch (code) {
+        case "HB_TIMEOUT":
+        case "HB_FETCH_FAIL":
+          return "Check Pi network path and Chromium/Yodeck browser stability.";
+        case "PHOTO_FETCH_FAIL":
+        case "PHOTO_TIMEOUT":
+          return "Inspect /gallery/photo fetch path and Pi network stability.";
+        case "MANIFEST_FAIL":
+          return "Check /gallery/approved reachability and backend health.";
+        case "OVERLAY_FAIL":
+          return "Leave overlay disabled or inspect /gallery/active-overlay.";
+        case "SETTINGS_FAIL":
+          return "Keep current safe mode; check /gallery/runtime-settings.";
+        case "IMG_ONERROR":
+        case "IMG_LOAD_TIMEOUT":
+          return "Inspect Pi image loading path and Chromium renderer health.";
+        case "IMG_DECODE_FAIL":
+          return "Reduce image complexity/size and monitor Chromium decode stability.";
+        case "TRANSITION_TIMEOUT":
+        case "TRANSITION_TIMEOUT_FALLBACK":
+          return "Keep crossfade on and monitor CSS/compositor behavior.";
+        case "VISUAL_STALL":
+        case "TIMER_STALL":
+          return "Inspect slideshow timer/runtime freeze and restart loop if needed.";
+        case "QR_STUCK_WITH_PHOTOS":
+          return "Force slideshow start; waiting screen should not remain visible.";
+        case "STATE_STUCK":
+          return "Inspect slideshow state machine and recent runtime logs.";
+        case "WATCHDOG_RECOVERY":
+        case "RUNTIME_RELOAD":
+          return "Monitor if the browser recovers or needs Pi-level watchdog.";
+        case "TEMPLATE_BYPASSED":
+          return "Keep dynamic template runtime off until playback is stable.";
+        case "OVERLAY_BYPASSED":
+          return "Keep overlay off while validating base photo rotation.";
+        case "UNKNOWN_RUNTIME":
+          return "Check recent Pi/browser errors and consider watchdog/browser restart.";
+        default:
+          return "Observe the Pi screen and telemetry for the next repeated failure.";
+      }
+    }
+
+    function getRuntimeDebugCode(reason = "") {
+      const normalizedReason = String(reason || "").toLowerCase();
+      if (normalizedReason.includes("heartbeat_stale")) return "HB_TIMEOUT";
+      if (normalizedReason.includes("poll_stale")) return "MANIFEST_FAIL";
+      if (normalizedReason.includes("photo_change_stale")) return "VISUAL_STALL";
+      if (normalizedReason.includes("slideshow_timer_or_runtime_freeze")) return "VISUAL_STALL";
+      return "STATE_STUCK";
+    }
+
     function getDebugOverlaySnapshot(now = Date.now()) {
       return {
         at: new Date(now).toISOString(),
@@ -688,11 +868,13 @@
         objectUrlCount: getDebugOverlayObjectUrlCount(),
         watchdogReason: clampMonitorString(watchdogReason || "", 120),
         reloadCount: Math.max(0, Number(reloadCount) || 0),
+        qrWaitingReason: qrWaitingReason || "none",
+        runtimeSettingsVersion: runtimeSettingsVersion || "default",
       };
     }
 
     function syncGalleryDebugOverlayLayout() {
-      if (!SHOW_GALLERY_DEBUG_OVERLAY || !debugOverlayEl || !debugOverlayInnerEl) return;
+      if (!isGalleryDebugOverlayEnabled() || !debugOverlayEl || !debugOverlayInnerEl) return;
       try {
         const rect = debugOverlayEl.getBoundingClientRect();
         const innerWidth = Math.max(180, Math.round(rect.height));
@@ -703,7 +885,13 @@
     }
 
     function renderGalleryDebugOverlay() {
-      if (!SHOW_GALLERY_DEBUG_OVERLAY || !debugOverlayEl || !debugOverlayInnerEl || !debugOverlayDiagnosisEl || !debugOverlaySnapshotEl || !debugOverlayEventsEl) {
+      if (!debugOverlayEl || !debugOverlayInnerEl || !debugOverlayDiagnosisEl || !debugOverlaySnapshotEl || !debugOverlayEventsEl) {
+        return;
+      }
+
+      if (!isGalleryDebugOverlayEnabled()) {
+        debugOverlayEl.classList.remove("visible");
+        debugOverlayEl.setAttribute("aria-hidden", "true");
         return;
       }
 
@@ -720,7 +908,7 @@
         latestEvent && latestEvent.diagnosis
           ? latestEvent.diagnosis
           : debugOverlayLastDiagnosis || "DEBUG ACTIVE",
-        120
+        160
       ) || "DEBUG ACTIVE";
       const severity = latestEvent && latestEvent.severity
         ? latestEvent.severity
@@ -730,50 +918,38 @@
       debugOverlayDiagnosisEl.textContent = diagnosisText;
 
       debugOverlaySnapshotEl.textContent = [
-        `ts ${formatDebugOverlayTime(snapshot.at)}`,
-        `sev ${String(severity || "info").toUpperCase()}`,
-        `cat ${latestEvent ? latestEvent.category : "--"}`,
-        `msg ${latestEvent ? latestEvent.message : "--"}`,
-        `idx ${snapshot.currentPhotoIndex}`,
-        `photo ${snapshot.currentPhotoName || "--"}`,
-        `approved ${snapshot.approvedPhotoCount}`,
-        `state ${snapshot.slideshowState || "--"}`,
-        `mode ${snapshot.transitionMode}`,
-        `img stage ${snapshot.lastImageLifecycleStage || "--"}`,
-        `img err ${snapshot.lastImageLifecycleError || "--"}`,
-        `swap ${formatDebugOverlayTime(snapshot.lastVisualSwapAt)}`,
-        `swap age ${snapshot.lastVisualSwapAgeSec >= 0 ? `${snapshot.lastVisualSwapAgeSec}s` : "--"}`,
-        `poll ok ${formatDebugOverlayTime(snapshot.lastSuccessfulPollAt)}`,
-        `img ok ${formatDebugOverlayTime(snapshot.lastSuccessfulImageLoadAt)}`,
-        `overlay ok ${formatDebugOverlayTime(snapshot.lastSuccessfulOverlayAt)}`,
-        `beat ok ${formatDebugOverlayTime(snapshot.lastSuccessfulHeartbeatAt)}`,
-        `obj urls ${snapshot.objectUrlCount}`,
-        `watchdog ${snapshot.watchdogReason || "--"}`,
-        `reloads ${snapshot.reloadCount}`,
+        `${latestEvent ? latestEvent.code : "--"} ${latestEvent ? (latestEvent.subsystem || latestEvent.route || "--") : "--"} ${formatDebugOverlayTime(snapshot.at)}`,
+        `idx ${snapshot.currentPhotoIndex} | ${snapshot.currentPhotoName || "--"}`,
+        `approved ${snapshot.approvedPhotoCount} | state ${snapshot.slideshowState || "--"} | mode ${snapshot.transitionMode}`,
+        `img ${snapshot.lastImageLifecycleStage || "--"} | err ${snapshot.lastImageLifecycleError || "--"}`,
+        `swap ${snapshot.lastVisualSwapAgeSec >= 0 ? `${snapshot.lastVisualSwapAgeSec}s` : "--"} | qr ${snapshot.qrWaitingReason}`,
+        `poll ${formatDebugOverlayTime(snapshot.lastSuccessfulPollAt)} | img ${formatDebugOverlayTime(snapshot.lastSuccessfulImageLoadAt)}`,
+        `ovr ${formatDebugOverlayTime(snapshot.lastSuccessfulOverlayAt)} | hb ${formatDebugOverlayTime(snapshot.lastSuccessfulHeartbeatAt)}`,
+        `urls ${snapshot.objectUrlCount} | wd ${snapshot.watchdogReason || "--"} | rl ${snapshot.reloadCount}`,
       ].join("\n");
 
       debugOverlayEventsEl.textContent = debugOverlayEvents.length
         ? debugOverlayEvents.map((entry) => [
-            `${formatDebugOverlayTime(entry.at)} ${String(entry.severity || "info").toUpperCase()} ${entry.category || "unknown"} ${entry.diagnosis || "--"}`,
-            `${entry.message || "--"}`,
-            `idx ${entry.currentPhotoIndex} | ${entry.currentPhotoName || "--"}`,
-            `approved ${entry.approvedPhotoCount} | state ${entry.slideshowState || "--"} | mode ${entry.transitionMode || "--"}`,
-            `img ${entry.lastImageLifecycleStage || "--"} | swap ${entry.lastVisualSwapAgeSec >= 0 ? `${entry.lastVisualSwapAgeSec}s` : "--"} | urls ${entry.objectUrlCount}`,
-            `poll ${formatDebugOverlayTime(entry.lastSuccessfulPollAt)} | img ${formatDebugOverlayTime(entry.lastSuccessfulImageLoadAt)} | overlay ${formatDebugOverlayTime(entry.lastSuccessfulOverlayAt)} | beat ${formatDebugOverlayTime(entry.lastSuccessfulHeartbeatAt)}`,
-            `watchdog ${entry.watchdogReason || "--"} | reloads ${entry.reloadCount}`,
+            `${formatDebugOverlayTime(entry.at)} ${entry.code} ${entry.subsystem || entry.route || "--"}`,
+            `${entry.currentPhotoIndex} ${entry.currentPhotoName || "--"}`,
+            `${entry.action || "--"}`,
           ].join("\n")).join("\n\n")
         : "No serious gallery issues captured.";
     }
 
     function recordGalleryDebugEvent(input = {}) {
-      if (!SHOW_GALLERY_DEBUG_OVERLAY) return;
+      if (!isGalleryDebugOverlayEnabled()) return;
       try {
         const now = Date.now();
         const severity = clampMonitorString(input.severity || "warn", 12) || "warn";
         const category = clampMonitorString(input.category || "unknown", 24) || "unknown";
-        const diagnosis = clampMonitorString(input.diagnosis || "UNKNOWN RUNTIME FREEZE", 120) || "UNKNOWN RUNTIME FREEZE";
+        const code = clampMonitorString(input.code || "UNKNOWN_RUNTIME", 40) || "UNKNOWN_RUNTIME";
+        const diagnosis = clampMonitorString(input.diagnosis || getGalleryDebugDefaultDiagnosis(code), 160) || getGalleryDebugDefaultDiagnosis(code);
         const message = clampMonitorString(formatMonitorValue(input.message || diagnosis), 220) || diagnosis;
-        const signature = [severity, category, diagnosis, message].join("|");
+        const subsystem = clampMonitorString(input.subsystem || category, 60) || category;
+        const route = sanitizeMonitorRoute(input.route || "");
+        const action = clampMonitorString(input.action || getGalleryDebugDefaultAction(code), 180) || getGalleryDebugDefaultAction(code);
+        const signature = [severity, code, subsystem, route, message].join("|");
         const previousAtMs = Number(debugOverlayEventSeenAt[signature]) || 0;
         if (previousAtMs && (now - previousAtMs) < DEBUG_OVERLAY_EVENT_DEDUPE_MS) {
           renderGalleryDebugOverlay();
@@ -791,8 +967,12 @@
           at: new Date(now).toISOString(),
           severity,
           category,
+          code,
+          subsystem,
+          route,
           diagnosis,
           message,
+          action,
           currentPhotoIndex: snapshot.currentPhotoIndex,
           currentPhotoName: snapshot.currentPhotoName,
           approvedPhotoCount: snapshot.approvedPhotoCount,
@@ -823,36 +1003,76 @@
       } catch (_) {}
     }
 
-    function getImageDebugDiagnosis(errorMessage) {
+    function getImageDebugDetails(errorMessage) {
       const normalizedMessage = String(errorMessage || "").toLowerCase();
-      if (/decode/.test(normalizedMessage)) return "IMAGE DECODE FAIL";
-      if (/timeout|onload_never_fired|image_load_timeout/.test(normalizedMessage)) return "IMAGE LOAD TIMEOUT";
-      if (/load_failed|img_onerror/.test(normalizedMessage)) return "IMAGE ONERROR";
-      return "IMAGE FETCH FAIL";
+      if (/decode/.test(normalizedMessage)) {
+        return { code: "IMG_DECODE_FAIL", diagnosis: getGalleryDebugDefaultDiagnosis("IMG_DECODE_FAIL") };
+      }
+      if (/image_load_timeout|onload_never_fired/.test(normalizedMessage)) {
+        return { code: "IMG_LOAD_TIMEOUT", diagnosis: getGalleryDebugDefaultDiagnosis("IMG_LOAD_TIMEOUT") };
+      }
+      if (/image_load_failed|img_onerror/.test(normalizedMessage)) {
+        return { code: "IMG_ONERROR", diagnosis: getGalleryDebugDefaultDiagnosis("IMG_ONERROR") };
+      }
+      if (/request_timeout/.test(normalizedMessage)) {
+        return { code: "PHOTO_TIMEOUT", diagnosis: getGalleryDebugDefaultDiagnosis("PHOTO_TIMEOUT") };
+      }
+      return { code: "PHOTO_FETCH_FAIL", diagnosis: getGalleryDebugDefaultDiagnosis("PHOTO_FETCH_FAIL") };
     }
 
     function recordGalleryDebugLifecycleIssue(stage, meta = {}) {
-      if (!SHOW_GALLERY_DEBUG_OVERLAY) return;
+      if (!isGalleryDebugOverlayEnabled()) return;
       const normalizedStage = String(stage || "").toLowerCase();
       if (normalizedStage === "decode_failed") {
         recordGalleryDebugEvent({
           severity: "warn",
           category: "image",
-          diagnosis: "IMAGE DECODE FAIL",
+          code: "IMG_DECODE_FAIL",
+          subsystem: "image",
+          route: "/gallery/photo",
           message: meta && meta.error ? meta.error : "decode_failed",
         });
       } else if (normalizedStage === "crossfade_stall_detected") {
         recordGalleryDebugEvent({
           severity: "error",
           category: "image",
-          diagnosis: "CROSSFADE STALLED",
+          code: "TRANSITION_TIMEOUT",
+          subsystem: "transition",
+          route: "/gallery/photo",
           message: meta && meta.error ? meta.error : "crossfade_stall_detected",
+        });
+      } else if (normalizedStage === "transition_timeout_fallback") {
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "image",
+          code: "TRANSITION_TIMEOUT_FALLBACK",
+          subsystem: "transition",
+          route: "/gallery/photo",
+          message: meta && meta.error ? meta.error : "transition_timeout_fallback",
+        });
+      } else if (normalizedStage === "img_onerror") {
+        recordGalleryDebugEvent({
+          severity: "error",
+          category: "image",
+          code: "IMG_ONERROR",
+          subsystem: "image",
+          route: "/gallery/photo",
+          message: meta && meta.error ? meta.error : "img_onerror",
+        });
+      } else if (normalizedStage === "onload_never_fired" || normalizedStage === "transition_timeout") {
+        recordGalleryDebugEvent({
+          severity: "error",
+          category: "image",
+          code: "IMG_LOAD_TIMEOUT",
+          subsystem: "image",
+          route: "/gallery/photo",
+          message: meta && meta.error ? meta.error : normalizedStage,
         });
       }
     }
 
     function evaluateGalleryDebugOverlayHealth(now = Date.now()) {
-      if (!SHOW_GALLERY_DEBUG_OVERLAY || isDocumentBackgrounded()) {
+      if (!isGalleryDebugOverlayEnabled() || isDocumentBackgrounded()) {
         renderGalleryDebugOverlay();
         return;
       }
@@ -864,16 +1084,53 @@
           recordGalleryDebugEvent({
             severity: "error",
             category: "runtime",
-            diagnosis: DISABLE_GALLERY_TRANSITIONS ? "DIRECT SWAP STALLED" : "VISUAL ROTATION STALLED",
+            code: "VISUAL_STALL",
+            subsystem: getGalleryTransitionMode(),
+            route: "/gallery/photo",
             message: `No visual swap for ${visualSwapAgeSec}s with ${approvedPhotoCount} approved photos`,
           });
+        }
+
+        if (
+          approvedPhotoCount > 1 &&
+          hasImage &&
+          !rotateTimer &&
+          !crossfadeInProgress &&
+          visualSwapAgeSec >= 0 &&
+          (visualSwapAgeSec * 1000) > (DISPLAY_MS + 2000)
+        ) {
+          recordGalleryDebugEvent({
+            severity: "warn",
+            category: "runtime",
+            code: "TIMER_STALL",
+            subsystem: "slideshow_timer",
+            route: "/gallery/photo",
+            message: "Rotation timer missing while multiple photos are available",
+          });
+        }
+
+        if (
+          approvedPhotoCount > 1 &&
+          ["loading", "transitioning", "degraded", "recovering"].includes(String(slideshowState || ""))
+        ) {
+          const stateAgeSec = getDebugOverlayLastVisualSwapAgeSec(now);
+          if (stateAgeSec >= 0 && (stateAgeSec * 1000) > SLIDESHOW_STALL_THRESHOLD_MS) {
+            recordGalleryDebugEvent({
+              severity: "warn",
+              category: "runtime",
+              code: "STATE_STUCK",
+              subsystem: "slideshow_state",
+              route: "/gallery/photo",
+              message: `Slideshow state ${slideshowState} did not progress`,
+            });
+          }
         }
 
         const pollAgeMs = getMsSinceIsoTimestamp(lastSuccessfulPollAt);
         if (
           approvedPhotoCount > 0 &&
-          !hasImage &&
           isGalleryWaitingVisible() &&
+          qrWaitingReason !== "approved_empty" &&
           Number.isFinite(pollAgeMs) &&
           pollAgeMs !== Infinity &&
           pollAgeMs > DEBUG_OVERLAY_QR_STUCK_GRACE_MS
@@ -881,9 +1138,14 @@
           recordGalleryDebugEvent({
             severity: "error",
             category: "runtime",
-            diagnosis: "QR STUCK WITH PHOTOS",
+            code: "QR_STUCK_WITH_PHOTOS",
+            subsystem: "waiting_screen",
+            route: "/gallery/approved",
             message: `Waiting screen visible with ${approvedPhotoCount} approved photos`,
           });
+          if (!hasImage && photos.length) {
+            void startRotation({ preserveCurrentVisible: false });
+          }
         }
 
         renderGalleryDebugOverlay();
@@ -893,13 +1155,26 @@
     }
 
     function startGalleryDebugOverlayLoop() {
-      if (!SHOW_GALLERY_DEBUG_OVERLAY) return;
       try {
         if (debugOverlayInterval) clearInterval(debugOverlayInterval);
+        if (!isGalleryDebugOverlayEnabled()) {
+          renderGalleryDebugOverlay();
+          return;
+        }
         debugOverlayInterval = setInterval(() => {
           evaluateGalleryDebugOverlayHealth();
         }, DEBUG_OVERLAY_REFRESH_MS);
         window.addEventListener("resize", renderGalleryDebugOverlay);
+        renderGalleryDebugOverlay();
+      } catch (_) {}
+    }
+
+    function stopGalleryDebugOverlayLoop() {
+      try {
+        if (debugOverlayInterval) {
+          clearInterval(debugOverlayInterval);
+          debugOverlayInterval = null;
+        }
         renderGalleryDebugOverlay();
       } catch (_) {}
     }
@@ -931,14 +1206,14 @@
     }
 
     function getGalleryTransitionMode() {
-      return DISABLE_GALLERY_TRANSITIONS ? "direct_swap" : "crossfade";
+      return isGalleryCrossfadeEnabled() ? "crossfade" : "direct_swap";
     }
 
     function applyGalleryTransitionMode() {
       try {
         imgSlots.forEach((img) => {
           if (!img) return;
-          img.style.transition = DISABLE_GALLERY_TRANSITIONS ? "none" : "";
+          img.style.transition = isGalleryCrossfadeEnabled() ? "" : "none";
         });
       } catch (_) {}
     }
@@ -958,11 +1233,11 @@
     }
 
     function getRuntimePhotoStaleReason() {
-      return DISABLE_GALLERY_TRANSITIONS ? "slideshow_timer_or_runtime_freeze" : "photo_change_stale";
+      return isGalleryCrossfadeEnabled() ? "photo_change_stale" : "slideshow_timer_or_runtime_freeze";
     }
 
     function getSlideshowStallRecoveryReason() {
-      return DISABLE_GALLERY_TRANSITIONS ? "slideshow_timer_or_runtime_freeze" : "slideshow_stalled";
+      return isGalleryCrossfadeEnabled() ? "slideshow_stalled" : "slideshow_timer_or_runtime_freeze";
     }
 
     function getRuntimeHealthSnapshot(now = Date.now()) {
@@ -1047,8 +1322,11 @@
       recordGalleryDebugEvent({
         severity: "warn",
         category: "runtime",
-        diagnosis: "RUNTIME RECOVERING",
+        code: "WATCHDOG_RECOVERY",
+        subsystem: "runtime_watchdog",
+        route: "/gallery/runtime-watchdog",
         message: reason || "runtime_stage1_recovery",
+        action: "Monitor if slideshow resumes; Pi/browser restart may be needed if this repeats.",
       });
       appendRuntimeLog("recovery", `stage1_soft:${reason}`, { reason });
       void sendDeviceLog("warn", "runtime_stage1_recovery", `Runtime stage-1 recovery (${reason})`, {
@@ -1060,7 +1338,7 @@
       clearStaleInFlightLocks(now);
       rescheduleManagedPollingLoops(`runtime_watchdog_stage1:${reason}`);
       if (!approvedFetchInFlight) void fetchApproved();
-      if (!overlayFetchInFlight) void fetchActiveOverlay();
+      if (isFlattenedOverlayRuntimeEnabled() && !overlayFetchInFlight) void fetchActiveOverlay();
       void sendTelemetryHeartbeat();
       if (photos.length) {
         restartSlideshowLoop(`runtime_stage1:${reason}`);
@@ -1098,8 +1376,11 @@
       recordGalleryDebugEvent({
         severity: "error",
         category: "runtime",
-        diagnosis: "UNKNOWN RUNTIME FREEZE",
+        code: "RUNTIME_RELOAD",
+        subsystem: "runtime_watchdog",
+        route: "/gallery/runtime-watchdog",
         message: reason || "runtime_stage2_reload",
+        action: "Watch for gallery reload; add Pi-level watchdog if this repeats.",
       });
       appendRuntimeLog("reload", `stage2_reload:${reason}`, {
         reloadCount,
@@ -1148,16 +1429,17 @@
           watchdogTriggered = true;
           watchdogReason = health.reason || "runtime_degraded";
           if (!wasDegraded) {
+            const debugCode = getRuntimeDebugCode(health.reason);
             recordGalleryDebugEvent({
               severity: "warn",
               category: "runtime",
-              diagnosis: health.reason === "heartbeat_stale"
-                ? "HEARTBEAT LOST"
-                : health.reason === "poll_stale"
-                  ? "APPROVED MANIFEST FAIL"
-                  : health.reason === "slideshow_timer_or_runtime_freeze"
-                    ? "UNKNOWN RUNTIME FREEZE"
-                    : "RUNTIME DEGRADED",
+              code: debugCode,
+              subsystem: "runtime_watchdog",
+              route: debugCode === "HB_TIMEOUT"
+                ? "/api/device-heartbeat"
+                : debugCode === "MANIFEST_FAIL"
+                  ? "/gallery/approved"
+                  : "/gallery/photo",
               message: health.reason || "runtime_degraded",
             });
             appendRuntimeLog("watchdog", `runtime_degraded:${watchdogReason}`, health);
@@ -1207,6 +1489,10 @@
     }
 
     function startRuntimeWatchdog() {
+      if (!isRuntimeWatchdogEnabled()) {
+        stopRuntimeWatchdogLoop();
+        return;
+      }
       if (runtimeWatchdogTimer) clearInterval(runtimeWatchdogTimer);
       runtimeWatchdogTimer = setInterval(evaluateRuntimeWatchdog, RUNTIME_WATCHDOG_INTERVAL_MS);
       appendRuntimeLog("watchdog", "runtime_watchdog_started");
@@ -1662,6 +1948,10 @@
       return isFetchFailureBackoffActive() ? BURST_BACKOFF_OVERLAY_REFRESH_MS : OVERLAY_REFRESH_MS;
     }
 
+    function getRuntimeSettingsPollDelayMs() {
+      return RUNTIME_SETTINGS_REFRESH_MS;
+    }
+
     function maybeClearBackoffAfterStableWindow(now = Date.now()) {
       const wasActive = isFetchFailureBackoffActive(now);
       if (fetchFailureBackoffUntilMs && fetchFailureBackoffUntilMs <= now && getRecentFetchFailureCount(now) < FETCH_FAILURE_BURST_THRESHOLD) {
@@ -1690,6 +1980,13 @@
     }
 
     function scheduleOverlayPoll(delayMs = getOverlayPollDelayMs()) {
+      if (!isFlattenedOverlayRuntimeEnabled()) {
+        if (overlayRefreshTimer) {
+          clearTimeout(overlayRefreshTimer);
+          overlayRefreshTimer = null;
+        }
+        return;
+      }
       if (overlayRefreshTimer) clearTimeout(overlayRefreshTimer);
       overlayRefreshTimer = setTimeout(async () => {
         overlayRefreshTimer = null;
@@ -1721,6 +2018,43 @@
       }, Math.max(0, Math.round(delayMs)));
     }
 
+    function scheduleRuntimeSettingsRefresh(delayMs = getRuntimeSettingsPollDelayMs()) {
+      if (runtimeSettingsRefreshTimer) clearTimeout(runtimeSettingsRefreshTimer);
+      runtimeSettingsRefreshTimer = setTimeout(async () => {
+        runtimeSettingsRefreshTimer = null;
+        try {
+          await fetchGalleryRuntimeSettings();
+        } catch (err) {
+          galleryDebug("runtime settings scheduler recovered from unexpected error", {
+            error: err && err.message ? err.message : String(err),
+          });
+        } finally {
+          scheduleRuntimeSettingsRefresh(getRuntimeSettingsPollDelayMs());
+        }
+      }, Math.max(0, Math.round(delayMs)));
+    }
+
+    function stopOverlayRefreshLoop() {
+      if (overlayRefreshTimer) {
+        clearTimeout(overlayRefreshTimer);
+        overlayRefreshTimer = null;
+      }
+    }
+
+    function stopTemplateRefreshLoop() {
+      if (templateRefreshTimer) {
+        clearInterval(templateRefreshTimer);
+        templateRefreshTimer = null;
+      }
+    }
+
+    function stopRuntimeWatchdogLoop() {
+      if (runtimeWatchdogTimer) {
+        clearInterval(runtimeWatchdogTimer);
+        runtimeWatchdogTimer = null;
+      }
+    }
+
     function rescheduleManagedPollingLoops(reason = "") {
       try {
         galleryDebug("rescheduling managed polling loops", {
@@ -1731,8 +2065,13 @@
           backoffUntil: fetchFailureBackoffUntilMs ? new Date(fetchFailureBackoffUntilMs).toISOString() : "",
         });
         scheduleApprovedPoll(getApprovedPollDelayMs());
-        scheduleOverlayPoll(getOverlayPollDelayMs());
+        if (isFlattenedOverlayRuntimeEnabled()) {
+          scheduleOverlayPoll(getOverlayPollDelayMs());
+        } else {
+          stopOverlayRefreshLoop();
+        }
         scheduleTelemetryHeartbeat(getHeartbeatDelayMs());
+        scheduleRuntimeSettingsRefresh(getRuntimeSettingsPollDelayMs());
       } catch (_) {}
     }
 
@@ -1787,7 +2126,7 @@
         }
         rescheduleManagedPollingLoops(`soft_recovery:${reason}`);
         if (!approvedFetchInFlight) void fetchApproved();
-        if (!overlayFetchInFlight) void fetchActiveOverlay();
+        if (isFlattenedOverlayRuntimeEnabled() && !overlayFetchInFlight) void fetchActiveOverlay();
 
         if (!hasImage) {
           return false;
@@ -1879,7 +2218,9 @@
         recordGalleryDebugEvent({
           severity: "error",
           category: "poll",
-          diagnosis: "APPROVED MANIFEST FAIL",
+          code: "MANIFEST_FAIL",
+          subsystem: "approved_manifest",
+          route: meta.route || "/gallery/approved",
           message: normalizedMessage,
         });
         if (consecutivePollFailures === 1 || consecutivePollFailures % 5 === 0) {
@@ -1899,6 +2240,7 @@
     function recordImageFailure(errorMessage, meta = {}) {
       try {
         const normalizedMessage = clampMonitorString(formatMonitorValue(errorMessage), 500) || "image_fetch_failed";
+        const debugDetails = getImageDebugDetails(normalizedMessage);
         consecutiveImageFailures += 1;
         totalImageFailures += 1;
         lastPhotoFetchStatus = "fail";
@@ -1919,7 +2261,10 @@
         recordGalleryDebugEvent({
           severity: "error",
           category: "image",
-          diagnosis: getImageDebugDiagnosis(normalizedMessage),
+          code: debugDetails.code,
+          subsystem: "photo_loader",
+          route: meta.route || "/gallery/photo",
+          diagnosis: debugDetails.diagnosis,
           message: normalizedMessage,
         });
         if (consecutiveImageFailures === 1 || consecutiveImageFailures % 5 === 0) {
@@ -1953,7 +2298,9 @@
         recordGalleryDebugEvent({
           severity: "error",
           category: "overlay",
-          diagnosis: "OVERLAY FETCH FAIL",
+          code: "OVERLAY_FAIL",
+          subsystem: "overlay",
+          route: meta.route || "/gallery/active-overlay",
           message: normalizedMessage,
         });
         if (consecutiveOverlayFailures === 1 || consecutiveOverlayFailures % 5 === 0) {
@@ -2013,7 +2360,10 @@
         recordGalleryDebugEvent({
           severity: "warn",
           category: "template",
-          diagnosis: "TEMPLATE FAILURE",
+          code: "UNKNOWN_RUNTIME",
+          subsystem: "template",
+          route: meta.route || "/gallery/active-template",
+          diagnosis: "TEMPLATE FAILURE — runtime kept safe photo mode",
           message: normalizedMessage,
         });
       } catch (_) {}
@@ -2030,6 +2380,7 @@
     function recordHeartbeatFailure(errorMessage) {
       try {
         const normalizedMessage = clampMonitorString(formatMonitorValue(errorMessage), 500) || "heartbeat_failed";
+        const isTimeoutLike = normalizedMessage === "request_timeout" || normalizedMessage === "request_aborted";
         heartbeatFailureCount += 1;
         lastHeartbeatError = normalizedMessage;
         recordFetchFailureEvent("heartbeat", normalizedMessage);
@@ -2041,7 +2392,9 @@
         recordGalleryDebugEvent({
           severity: "error",
           category: "heartbeat",
-          diagnosis: "HEARTBEAT LOST",
+          code: isTimeoutLike ? "HB_TIMEOUT" : "HB_FETCH_FAIL",
+          subsystem: "telemetry_heartbeat",
+          route: "/api/device-heartbeat",
           message: normalizedMessage,
         });
       } catch (_) {}
@@ -2163,6 +2516,12 @@
             objectUrlCount: slotObjectUrls.filter(Boolean).length,
             lastErrorMessage: telemetryLastErrorMessage || "",
             lastRecoveryAction: lastRecoveryAction || "",
+            galleryRuntimeSettings: { ...galleryRuntimeSettings },
+            lastRuntimeSettingsFetchAt: lastRuntimeSettingsFetchAt || "",
+            lastRuntimeSettingsAppliedAt: lastRuntimeSettingsAppliedAt || "",
+            runtimeSettingsVersion: runtimeSettingsVersion || "default",
+            disabledSystems: Array.isArray(disabledSystems) ? [...disabledSystems] : [],
+            qrWaitingReason: qrWaitingReason || "none",
             overlayStatus: {
               enabled: Boolean(currentOverlayFileId || activeOverlayKey || lastGoodOverlayMeta),
               overlayFileId: currentOverlayFileId || "",
@@ -2299,7 +2658,9 @@
             recordGalleryDebugEvent({
               severity: "error",
               category: "unknown",
-              diagnosis: "UNKNOWN RUNTIME FREEZE",
+              code: "UNKNOWN_RUNTIME",
+              subsystem: "window.onerror",
+              route: sanitizeMonitorRoute(source || ""),
               message: formattedMessage,
             });
           } catch (_) {}
@@ -2322,7 +2683,8 @@
             recordGalleryDebugEvent({
               severity: "error",
               category: "unknown",
-              diagnosis: "UNKNOWN RUNTIME FREEZE",
+              code: "UNKNOWN_RUNTIME",
+              subsystem: "unhandledrejection",
               message: formattedMessage,
             });
           } catch (_) {}
@@ -2346,7 +2708,8 @@
                 recordGalleryDebugEvent({
                   severity: "error",
                   category: "unknown",
-                  diagnosis: "UNKNOWN RUNTIME FREEZE",
+                  code: "UNKNOWN_RUNTIME",
+                  subsystem: "console.error",
                   message: formattedMessage,
                 });
               }
@@ -2442,6 +2805,144 @@
         fetch(url, options),
         new Promise((_, reject) => setTimeout(() => reject(createMonitorError("request_timeout", { route, code: "request_timeout" })), timeoutMs)),
       ]);
+    }
+
+    function applyGalleryRuntimeSettings(nextSettingsInput = {}, meta = {}) {
+      try {
+        const previousSettings = normalizeGalleryRuntimeSettings(galleryRuntimeSettings);
+        const nextSettings = normalizeGalleryRuntimeSettings(nextSettingsInput);
+        const previousVersion = runtimeSettingsVersion || "default";
+        const nextVersion = clampMonitorString(meta.runtimeSettingsVersion || previousVersion || "default", 60) || "default";
+        const settingsValueChanged = JSON.stringify(previousSettings) !== JSON.stringify(nextSettings);
+        const settingsVersionChanged = previousVersion !== nextVersion;
+        const settingsChanged = settingsValueChanged || settingsVersionChanged;
+
+        galleryRuntimeSettings = nextSettings;
+        disabledSystems = buildDisabledSystemsList(nextSettings);
+        runtimeSettingsVersion = nextVersion;
+        lastRuntimeSettingsAppliedAt = new Date().toISOString();
+        applyGalleryTransitionMode();
+
+        if (!isGalleryDebugOverlayEnabled()) {
+          stopGalleryDebugOverlayLoop();
+          if (debugOverlayEl) {
+            debugOverlayEl.classList.remove("visible");
+            debugOverlayEl.setAttribute("aria-hidden", "true");
+          }
+        } else if (!debugOverlayInterval) {
+          startGalleryDebugOverlayLoop();
+        }
+        if (settingsValueChanged) {
+          debugOverlayLatchedVisible = false;
+        }
+
+        if (!isFlattenedOverlayRuntimeEnabled()) {
+          stopOverlayRefreshLoop();
+          if (
+            previousSettings.enableFlattenedOverlay ||
+            currentOverlayFileId ||
+            activeOverlayKey ||
+            lastGoodOverlayMeta ||
+            (templateOverlayEl && templateOverlayEl.getAttribute("src"))
+          ) {
+            clearOverlayLayer("runtime_overlay_disabled");
+          }
+          if (settingsValueChanged && previousSettings.enableFlattenedOverlay) {
+            recordGalleryDebugEvent({
+              severity: "warn",
+              category: "overlay",
+              code: "OVERLAY_BYPASSED",
+              subsystem: "overlay",
+              route: "/gallery/active-overlay",
+              diagnosis: "OVERLAY BYPASSED — testing photos only",
+              message: "Flattened overlay disabled by runtime config",
+              action: "Leave overlay off while testing photo rotation stability.",
+            });
+          }
+        } else if (settingsValueChanged || !overlayRefreshTimer) {
+          scheduleOverlayPoll(0);
+        }
+
+        if (!isDynamicTemplateRuntimeEnabled()) {
+          stopTemplateRefreshLoop();
+          disableDynamicTemplateLayer();
+          clearTemplateLayers({ force: true, reason: "runtime_template_disabled" });
+          if (settingsValueChanged && previousSettings.enableDynamicTemplateRuntime) {
+            recordGalleryDebugEvent({
+              severity: "warn",
+              category: "template",
+              code: "TEMPLATE_BYPASSED",
+              subsystem: "template",
+              route: "/gallery/active-template",
+              diagnosis: "TEMPLATE RUNTIME OFF — safe mode active",
+              message: "Dynamic template runtime disabled by config",
+              action: "Keep template runtime off until photo playback is stable.",
+            });
+          }
+        } else if (settingsValueChanged || !templateRefreshTimer) {
+          startTemplateRefreshLoop();
+        }
+
+        if (isRuntimeWatchdogEnabled()) {
+          if (!runtimeWatchdogTimer) {
+            startRuntimeWatchdog();
+          }
+        } else {
+          stopRuntimeWatchdogLoop();
+        }
+
+        if (settingsChanged) {
+          galleryDebug("gallery runtime settings applied", {
+            previousSettings,
+            nextSettings,
+            runtimeSettingsVersion: nextVersion,
+            disabledSystems,
+          });
+        }
+      } catch (_) {}
+    }
+
+    async function fetchGalleryRuntimeSettings() {
+      if (runtimeSettingsFetchInFlight) return false;
+      runtimeSettingsFetchInFlight = true;
+      runtimeSettingsFetchStartedAtMs = Date.now();
+      try {
+        const res = await fetchWithTimeout(`${BASE_URL}/gallery/runtime-settings?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          throw createMonitorError(`settings_http_${res.status}`, { route: "/gallery/runtime-settings", code: "settings_http" });
+        }
+
+        const data = await res.json();
+        if (!data || !data.ok) {
+          throw createMonitorError("settings_payload_not_ok", { route: "/gallery/runtime-settings", code: "settings_payload_not_ok" });
+        }
+
+        lastRuntimeSettingsFetchAt = new Date().toISOString();
+        lastRuntimeSettingsError = "";
+        applyGalleryRuntimeSettings(data.runtimeSettings || DEFAULT_GALLERY_RUNTIME_SETTINGS, {
+          runtimeSettingsVersion: data.runtimeSettingsVersion || "default",
+          disabledSystems: Array.isArray(data.disabledSystems) ? data.disabledSystems : [],
+        });
+        return true;
+      } catch (err) {
+        lastRuntimeSettingsError = err && err.message ? err.message : String(err);
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "settings",
+          code: "SETTINGS_FAIL",
+          subsystem: "settings",
+          route: "/gallery/runtime-settings",
+          diagnosis: "SETTINGS FAIL — using current runtime mode",
+          message: lastRuntimeSettingsError,
+          action: "Keep current safe mode; check runtime settings route.",
+        });
+        return false;
+      } finally {
+        runtimeSettingsFetchInFlight = false;
+        runtimeSettingsFetchStartedAtMs = 0;
+      }
     }
 
     function normalizePhotoBox(photoBox) {
@@ -2861,8 +3362,8 @@
     }
 
     async function renderTemplate(template, options = {}) {
-      if (!TEMPLATE_RENDERING_ENABLED) {
-        galleryDebug("renderTemplate skipped because template rendering is disabled");
+      if (!isDynamicTemplateRuntimeEnabled()) {
+        galleryDebug("renderTemplate skipped because template runtime is disabled");
         return false;
       }
 
@@ -2929,8 +3430,8 @@
     }
 
     async function fetchActiveTemplate() {
-      if (!TEMPLATE_RENDERING_ENABLED) {
-        galleryDebug("fetchActiveTemplate skipped because template rendering is disabled");
+      if (!isDynamicTemplateRuntimeEnabled()) {
+        galleryDebug("fetchActiveTemplate skipped because template runtime is disabled");
         return;
       }
 
@@ -3064,7 +3565,7 @@
         img.classList.remove("visible");
         clearSlotObjectUrl(index, { clearSrc: true, clearPhotoId: true });
       });
-      setGalleryStatus(EMPTY_GALLERY_MESSAGE);
+      showQrWaitingScreen("approved_empty");
       hideTicketBadge();
       hasImage = false;
       currentPhotoId = "";
@@ -3327,7 +3828,7 @@
       }
 
       if (hasImage && targetPhotoId && slotPhotoIds[activeIndex] === targetPhotoId && activeImg && activeImg.getAttribute("src")) {
-        setGalleryStatus("");
+        hideQrWaitingScreen();
         currentPhotoId = targetPhotoId;
         loadingSlotIndex = activeIndex;
         setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_active_slot_direct");
@@ -3361,7 +3862,7 @@
         }
 
         nextImg.classList.add("visible");
-        setGalleryStatus("");
+        hideQrWaitingScreen();
         hasImage = true;
         activeIndex = nextIndex;
         currentPhotoId = targetPhotoId;
@@ -3425,8 +3926,60 @@
       }
     }
 
+    function installTransitionCompletionFallback(currentImg, nextImg, meta = {}) {
+      if (!isGalleryCrossfadeEnabled() || !nextImg) return;
+      const transitionToken = Number.isFinite(meta.transitionToken) ? meta.transitionToken : 0;
+      const targetPhotoId = meta.photoId ? String(meta.photoId) : "";
+      const slotIndex = Number.isFinite(meta.slotIndex) ? meta.slotIndex : -1;
+      const startedAtMs = Number.isFinite(meta.startedAtMs) ? meta.startedAtMs : 0;
+      let settled = false;
+      let timeoutId = null;
+
+      const cleanup = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        try {
+          nextImg.removeEventListener("transitionend", handleTransitionEnd);
+        } catch (_) {}
+      };
+
+      const handleTransitionEnd = (event) => {
+        if (event && event.target !== nextImg) return;
+        if (settled) return;
+        settled = true;
+        cleanup();
+      };
+
+      try {
+        nextImg.addEventListener("transitionend", handleTransitionEnd);
+      } catch (_) {}
+
+      timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (transitionToken !== photoTransitionToken) return;
+        try {
+          nextImg.classList.add("visible");
+          if (currentImg && currentImg !== nextImg) {
+            currentImg.classList.remove("visible");
+          }
+          recordImageLifecycleEvent("transition_timeout_fallback", {
+            photoId: targetPhotoId,
+            slotIndex,
+            transitionToken,
+            startedAtMs,
+            durationMs: startedAtMs > 0 ? Date.now() - startedAtMs : PHOTO_TRANSITION_FALLBACK_MS,
+            error: "transitionend_not_fired",
+          });
+        } catch (_) {}
+      }, PHOTO_TRANSITION_FALLBACK_MS);
+    }
+
     async function crossfadeTo(url, photoId = "") {
-      if (DISABLE_GALLERY_TRANSITIONS) {
+      if (isDirectSwapModeEnabled()) {
         return performDirectImageSwap(url, photoId);
       }
 
@@ -3473,7 +4026,7 @@
                 resolve(false);
                 return;
               }
-              setGalleryStatus("");
+              hideQrWaitingScreen();
               img.classList.add("visible");
               hasImage = true;
               currentPhotoId = targetPhotoId;
@@ -3481,6 +4034,12 @@
               commitVisibleSlotLifecycle(targetPhotoId, activeIndex, transitionToken);
               completeCrossfadeLifecycle(targetPhotoId, "crossfade_complete", { slotIndex: activeIndex, transitionToken });
               recordVisualSwap("crossfade", transitionStartedAtMs);
+              installTransitionCompletionFallback(null, img, {
+                transitionToken,
+                photoId: targetPhotoId,
+                slotIndex: activeIndex,
+                startedAtMs: transitionStartedAtMs,
+              });
               setSlideshowState(SLIDESHOW_STATES.displaying, "first_photo_visible");
               galleryDebug("photo transition committed (first photo)", {
                 transitionToken,
@@ -3516,7 +4075,7 @@
       const currentImg = imgSlots[activeIndex];
       const targetId = targetPhotoId;
       if (targetId && slotPhotoIds[activeIndex] === targetId) {
-        setGalleryStatus("");
+        hideQrWaitingScreen();
         currentPhotoId = targetId;
         hasImage = true;
         loadingSlotIndex = activeIndex;
@@ -3546,12 +4105,18 @@
             currentImg.classList.remove("visible");
             activeIndex = nextIndex;
             loadingSlotIndex = nextIndex;
-            setGalleryStatus("");
+            hideQrWaitingScreen();
             hasImage = true;
             currentPhotoId = targetId;
             commitVisibleSlotLifecycle(targetId, nextIndex, transitionToken);
             completeCrossfadeLifecycle(targetId, "crossfade_complete_reuse_preloaded", { slotIndex: nextIndex, transitionToken });
             recordVisualSwap("crossfade", transitionStartedAtMs);
+            installTransitionCompletionFallback(currentImg, nextImg, {
+              transitionToken,
+              photoId: targetId,
+              slotIndex: nextIndex,
+              startedAtMs: transitionStartedAtMs,
+            });
             setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_preloaded_slot");
             galleryDebug("photo transition reused preloaded slot", {
               transitionToken,
@@ -3596,12 +4161,18 @@
             currentImg.classList.remove("visible");
             activeIndex = nextIndex;
             loadingSlotIndex = nextIndex;
-            setGalleryStatus("");
+            hideQrWaitingScreen();
             hasImage = true;
             currentPhotoId = targetId;
             commitVisibleSlotLifecycle(targetId, nextIndex, transitionToken);
             completeCrossfadeLifecycle(targetId, "crossfade_complete", { slotIndex: nextIndex, transitionToken });
             recordVisualSwap("crossfade", transitionStartedAtMs);
+            installTransitionCompletionFallback(currentImg, nextImg, {
+              transitionToken,
+              photoId: targetId,
+              slotIndex: nextIndex,
+              startedAtMs: transitionStartedAtMs,
+            });
             setSlideshowState(SLIDESHOW_STATES.displaying, "transition_committed");
             galleryDebug("photo transition committed", {
               transitionToken,
@@ -3656,7 +4227,7 @@
         nextPhotoIndex = nextPhotoIndex % approvedPhotoCount;
       }
 
-      if (!DISABLE_GALLERY_TRANSITIONS) {
+      if (!isDirectSwapModeEnabled()) {
         currentIndex = nextPhotoIndex;
         normalizeCurrentPhotoIndex();
         nextPhotoIndex = currentIndex;
@@ -3855,6 +4426,9 @@
         normalizeCurrentPhotoIndex();
 
         if (!hasImage || wasEmptyState) {
+          if (!hasImage) {
+            showQrWaitingScreen("boot_waiting_for_first_photo");
+          }
           const currentPhotoIndex = currentPhotoId
             ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
             : -1;
@@ -3890,6 +4464,9 @@
           route: "/gallery/approved",
           type: "approved_fetch_failure",
         });
+        if (!hasImage && !photos.length) {
+          showQrWaitingScreen("manifest_failed_no_cached_photos");
+        }
         if (isMonitorTimeoutOrAbortError(err)) {
           galleryDebug("approved poll timeout or abort", {
             approvedPollCount,
@@ -3914,8 +4491,8 @@
     }
 
     function startTemplateRefreshLoop() {
-      if (!TEMPLATE_RENDERING_ENABLED) {
-        galleryDebug("template refresh loop not started because template rendering is disabled");
+      if (!isDynamicTemplateRuntimeEnabled()) {
+        galleryDebug("template refresh loop not started because template runtime is disabled");
         return;
       }
 
@@ -3925,6 +4502,10 @@
     }
 
     async function fetchActiveOverlay() {
+      if (!isFlattenedOverlayRuntimeEnabled()) {
+        clearOverlayLayer("flattened_overlay_disabled");
+        return false;
+      }
       if (overlayFetchInFlight) {
         galleryDebug("overlay fetch skipped because previous request is still running", {
           currentOverlayFileId,
@@ -4052,6 +4633,11 @@
     }
 
     function startOverlayRefreshLoop() {
+      if (!isFlattenedOverlayRuntimeEnabled()) {
+        stopOverlayRefreshLoop();
+        clearOverlayLayer("flattened_overlay_disabled");
+        return;
+      }
       scheduleOverlayPoll(0);
     }
 
@@ -4091,20 +4677,22 @@
     } else {
       disableTemplateLayerForLiveMode();
     }
-    applyGalleryTransitionMode();
+    applyGalleryRuntimeSettings(DEFAULT_GALLERY_RUNTIME_SETTINGS, {
+      runtimeSettingsVersion: "default",
+    });
+    stopRuntimeWatchdogLoop();
     installTelemetryErrorCapture();
     startGalleryDebugOverlayLoop();
     installRuntimeLifecycleHandlers();
     setSlideshowState(SLIDESHOW_STATES.booting, "initial_boot");
     clearOverlayLayer("initial_boot");
-    setGalleryStatus(EMPTY_GALLERY_MESSAGE);
-    if (TEMPLATE_RENDERING_ENABLED) {
-      startTemplateRefreshLoop();
-    }
-    startOverlayRefreshLoop();
+    showQrWaitingScreen("boot_waiting_for_manifest");
     startRefreshLoop();
     startTelemetryHeartbeatLoop();
-    startRuntimeWatchdog();
+    if (isRuntimeWatchdogEnabled()) {
+      startRuntimeWatchdog();
+    }
+    scheduleRuntimeSettingsRefresh(0);
     runDebugTelemetryTestIfNeeded();
   </script>
 </body>

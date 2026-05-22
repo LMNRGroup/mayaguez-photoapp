@@ -280,6 +280,16 @@ const DEFAULT_APP_SETTINGS = {
       label: 'Deseo recibir noticias y ofertas de Municipio de Mayagüez.',
       helper: 'Tu email será utilizado únicamente si autorizas recibir nuestro boletín.'
     }
+  },
+  galleryRuntime: {
+    enableGalleryCrossfade: true,
+    enableFlattenedOverlay: false,
+    enableOverlayPolling: false,
+    enableDynamicTemplateRuntime: false,
+    enableTemplatePolling: false,
+    enableGalleryDebugOverlay: true,
+    enableRuntimeWatchdog: true,
+    enableDirectSwapMode: false,
   }
 };
 
@@ -308,6 +318,14 @@ const SETTINGS_FIELDS = [
   { key: 'Gallery Display Limit', type: 'string', path: ['galleryDisplayLimit'] },
   { key: 'Active Template ID', type: 'string', path: ['activeTemplateId'] },
   { key: 'Active Template Snapshot', type: 'string', path: ['activeTemplateSnapshot'] },
+  { key: 'Gallery Crossfade Enabled', type: 'boolean', path: ['galleryRuntime', 'enableGalleryCrossfade'] },
+  { key: 'Flattened Overlay Enabled', type: 'boolean', path: ['galleryRuntime', 'enableFlattenedOverlay'] },
+  { key: 'Overlay Polling Enabled', type: 'boolean', path: ['galleryRuntime', 'enableOverlayPolling'] },
+  { key: 'Dynamic Template Runtime Enabled', type: 'boolean', path: ['galleryRuntime', 'enableDynamicTemplateRuntime'] },
+  { key: 'Template Polling Enabled', type: 'boolean', path: ['galleryRuntime', 'enableTemplatePolling'] },
+  { key: 'Gallery Debug Overlay Enabled', type: 'boolean', path: ['galleryRuntime', 'enableGalleryDebugOverlay'] },
+  { key: 'Runtime Watchdog Enabled', type: 'boolean', path: ['galleryRuntime', 'enableRuntimeWatchdog'] },
+  { key: 'Direct Swap Mode Enabled', type: 'boolean', path: ['galleryRuntime', 'enableDirectSwapMode'] },
   { key: 'Intro Title', type: 'string', path: ['intro', 'title'] },
   { key: 'Intro Subtitle', type: 'string', path: ['intro', 'subtitle'] },
   { key: 'Location Enabled', type: 'boolean', path: ['form', 'locationEnabled'] },
@@ -437,6 +455,18 @@ function sanitizeDeviceStatus(rawStatus) {
         activeTemplateKey: clampString(status.templateStatus.activeTemplateKey || '', 200),
       }
     : null;
+  const galleryRuntimeSettings = status.galleryRuntimeSettings && typeof status.galleryRuntimeSettings === 'object'
+    ? {
+        enableGalleryCrossfade: clampBoolean(status.galleryRuntimeSettings.enableGalleryCrossfade),
+        enableFlattenedOverlay: clampBoolean(status.galleryRuntimeSettings.enableFlattenedOverlay),
+        enableOverlayPolling: clampBoolean(status.galleryRuntimeSettings.enableOverlayPolling),
+        enableDynamicTemplateRuntime: clampBoolean(status.galleryRuntimeSettings.enableDynamicTemplateRuntime),
+        enableTemplatePolling: clampBoolean(status.galleryRuntimeSettings.enableTemplatePolling),
+        enableGalleryDebugOverlay: clampBoolean(status.galleryRuntimeSettings.enableGalleryDebugOverlay),
+        enableRuntimeWatchdog: clampBoolean(status.galleryRuntimeSettings.enableRuntimeWatchdog),
+        enableDirectSwapMode: clampBoolean(status.galleryRuntimeSettings.enableDirectSwapMode),
+      }
+    : null;
 
   return {
     deviceName: clampString(status.deviceName || '', 120),
@@ -481,6 +511,14 @@ function sanitizeDeviceStatus(rawStatus) {
     objectUrlCount: clampNumber(status.objectUrlCount),
     lastErrorMessage: clampString(status.lastErrorMessage || '', 500),
     lastRecoveryAction: clampString(status.lastRecoveryAction || '', 200),
+    galleryRuntimeSettings,
+    lastRuntimeSettingsFetchAt: clampIsoTimestamp(status.lastRuntimeSettingsFetchAt),
+    lastRuntimeSettingsAppliedAt: clampIsoTimestamp(status.lastRuntimeSettingsAppliedAt),
+    runtimeSettingsVersion: clampString(status.runtimeSettingsVersion || '', 60),
+    disabledSystems: Array.isArray(status.disabledSystems)
+      ? status.disabledSystems.map((entry) => clampString(entry || '', 60)).filter(Boolean).slice(0, 24)
+      : [],
+    qrWaitingReason: clampString(status.qrWaitingReason || '', 80),
     overlayStatus,
     templateStatus,
     debugTestMode: Boolean(status.debugTestMode),
@@ -803,6 +841,56 @@ function getNestedValue(obj, path) {
   return path.reduce((acc, key) => (acc && acc[key] != null ? acc[key] : undefined), obj);
 }
 
+function getDefaultGalleryRuntimeSettings() {
+  return JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS.galleryRuntime || {}));
+}
+
+function normalizeGalleryRuntimeSettings(rawSettings = {}) {
+  const fallback = getDefaultGalleryRuntimeSettings();
+  const candidate = rawSettings && typeof rawSettings === 'object' ? rawSettings : {};
+  return {
+    enableGalleryCrossfade: coerceBoolean(candidate.enableGalleryCrossfade, fallback.enableGalleryCrossfade),
+    enableFlattenedOverlay: coerceBoolean(candidate.enableFlattenedOverlay, fallback.enableFlattenedOverlay),
+    enableOverlayPolling: coerceBoolean(candidate.enableOverlayPolling, fallback.enableOverlayPolling),
+    enableDynamicTemplateRuntime: coerceBoolean(candidate.enableDynamicTemplateRuntime, fallback.enableDynamicTemplateRuntime),
+    enableTemplatePolling: coerceBoolean(candidate.enableTemplatePolling, fallback.enableTemplatePolling),
+    enableGalleryDebugOverlay: coerceBoolean(candidate.enableGalleryDebugOverlay, fallback.enableGalleryDebugOverlay),
+    enableRuntimeWatchdog: coerceBoolean(candidate.enableRuntimeWatchdog, fallback.enableRuntimeWatchdog),
+    enableDirectSwapMode: coerceBoolean(candidate.enableDirectSwapMode, fallback.enableDirectSwapMode),
+  };
+}
+
+function buildGalleryRuntimeDisabledSystems(runtimeSettings = {}) {
+  const runtime = normalizeGalleryRuntimeSettings(runtimeSettings);
+  const disabledSystems = [];
+  if (!runtime.enableGalleryCrossfade) disabledSystems.push('gallery_crossfade');
+  if (!runtime.enableFlattenedOverlay) disabledSystems.push('flattened_overlay');
+  if (!runtime.enableOverlayPolling) disabledSystems.push('overlay_polling');
+  if (!runtime.enableDynamicTemplateRuntime) disabledSystems.push('dynamic_template_runtime');
+  if (!runtime.enableTemplatePolling) disabledSystems.push('template_polling');
+  if (!runtime.enableGalleryDebugOverlay) disabledSystems.push('gallery_debug_overlay');
+  if (!runtime.enableRuntimeWatchdog) disabledSystems.push('runtime_watchdog');
+  if (!runtime.enableDirectSwapMode) disabledSystems.push('direct_swap_mode');
+  return disabledSystems;
+}
+
+function buildGalleryRuntimeSettingsPayload(settings = appSettings) {
+  const runtimeSettings = normalizeGalleryRuntimeSettings(
+    settings && typeof settings === 'object' ? settings.galleryRuntime : null
+  );
+  const runtimeSettingsVersion = crypto
+    .createHash('sha1')
+    .update(JSON.stringify(runtimeSettings))
+    .digest('hex')
+    .slice(0, 12);
+
+  return {
+    runtimeSettings,
+    runtimeSettingsVersion,
+    disabledSystems: buildGalleryRuntimeDisabledSystems(runtimeSettings),
+  };
+}
+
 function setNestedValue(obj, path, value) {
   let cursor = obj;
   for (let i = 0; i < path.length - 1; i++) {
@@ -847,6 +935,21 @@ function mergeAppSettings(patch = {}) {
   if (Object.prototype.hasOwnProperty.call(patch, 'activeTemplateSnapshot')) {
     const rawSnapshot = patch.activeTemplateSnapshot;
     next.activeTemplateSnapshot = rawSnapshot == null ? '' : String(rawSnapshot).trim();
+  }
+
+  if (patch.galleryRuntime && typeof patch.galleryRuntime === 'object') {
+    const currentRuntimeSettings = normalizeGalleryRuntimeSettings(next.galleryRuntime);
+    const runtimePatch = patch.galleryRuntime;
+    next.galleryRuntime = {
+      enableGalleryCrossfade: coerceBoolean(runtimePatch.enableGalleryCrossfade, currentRuntimeSettings.enableGalleryCrossfade),
+      enableFlattenedOverlay: coerceBoolean(runtimePatch.enableFlattenedOverlay, currentRuntimeSettings.enableFlattenedOverlay),
+      enableOverlayPolling: coerceBoolean(runtimePatch.enableOverlayPolling, currentRuntimeSettings.enableOverlayPolling),
+      enableDynamicTemplateRuntime: coerceBoolean(runtimePatch.enableDynamicTemplateRuntime, currentRuntimeSettings.enableDynamicTemplateRuntime),
+      enableTemplatePolling: coerceBoolean(runtimePatch.enableTemplatePolling, currentRuntimeSettings.enableTemplatePolling),
+      enableGalleryDebugOverlay: coerceBoolean(runtimePatch.enableGalleryDebugOverlay, currentRuntimeSettings.enableGalleryDebugOverlay),
+      enableRuntimeWatchdog: coerceBoolean(runtimePatch.enableRuntimeWatchdog, currentRuntimeSettings.enableRuntimeWatchdog),
+      enableDirectSwapMode: coerceBoolean(runtimePatch.enableDirectSwapMode, currentRuntimeSettings.enableDirectSwapMode),
+    };
   }
 
   if (patch.intro && typeof patch.intro === 'object') {
@@ -3205,6 +3308,24 @@ app.get('/app-settings', (req, res) => {
         sessionId: appSessionId
       })
     );
+});
+
+app.get('/gallery/runtime-settings', (req, res) => {
+  const respond = () => {
+    const payload = buildGalleryRuntimeSettingsPayload(appSettings);
+    return res.json({
+      ok: true,
+      runtimeSettings: payload.runtimeSettings,
+      runtimeSettingsVersion: payload.runtimeSettingsVersion,
+      disabledSystems: payload.disabledSystems,
+      fetchedAt: new Date().toISOString(),
+      templateRenderingEnabled: false,
+    });
+  };
+
+  hydrateSettingsFromSheet()
+    .then(respond)
+    .catch(respond);
 });
 
 // Simple visit endpoint: FE can call this on page load
