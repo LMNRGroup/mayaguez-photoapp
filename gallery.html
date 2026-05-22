@@ -207,6 +207,7 @@
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
     const DISPLAY_MS = 8000;
+    const DISABLE_GALLERY_TRANSITIONS = true;
     const REFRESH_MS = 10000;
     const GALLERY_HEARTBEAT_MS = 5000;
     const BURST_BACKOFF_REFRESH_MS = 20000;
@@ -372,6 +373,31 @@
     let lastSlideshowAdvancePhotoId = "";
     let slideshowStallRecoveryAtMs = 0;
     let loadingSlotIndex = -1;
+    const IMAGE_LIFECYCLE_EVENTS_MAX = 30;
+    const CROSSFADE_STALL_DETECT_MS = IMAGE_LOAD_TIMEOUT_MS + 5000;
+    let imageLifecycleRecentEvents = [];
+    let lastImageLifecycleStage = "";
+    let lastImageLifecyclePhotoId = "";
+    let lastImageLifecyclePhotoName = "";
+    let lastImageLifecycleMs = 0;
+    let lastImageLifecycleError = "";
+    let crossfadeInProgress = false;
+    let crossfadeLastCompletedAt = "";
+    let crossfadeStallDetected = false;
+    let crossfadeStartedAtMs = 0;
+    let currentCrossfadePhotoId = "";
+    let directSwapCount = 0;
+    let crossfadeCount = 0;
+    let lastVisualSwapAt = "";
+    let lastVisualSwapMode = "";
+    let lastVisualSwapMs = 0;
+    let imageLifecycleDetections = {
+      fetchFailed: false,
+      decodeFailed: false,
+      onloadNeverFired: false,
+      crossfadeNeverCompleted: false,
+      loadedNeverVisible: false,
+    };
     const telemetryStartedAtMs = Date.now();
     const TELEMETRY_ERROR_DEDUPE_WINDOW_MS = 1200;
     const GALLERY_DEVICE_ID_KEY = "galleryDeviceId";
@@ -510,6 +536,41 @@
       }
     }
 
+    function getGalleryTransitionMode() {
+      return DISABLE_GALLERY_TRANSITIONS ? "direct_swap" : "crossfade";
+    }
+
+    function applyGalleryTransitionMode() {
+      try {
+        imgSlots.forEach((img) => {
+          if (!img) return;
+          img.style.transition = DISABLE_GALLERY_TRANSITIONS ? "none" : "";
+        });
+      } catch (_) {}
+    }
+
+    function recordVisualSwap(mode = getGalleryTransitionMode(), startedAtMs = 0) {
+      try {
+        const normalizedMode = mode === "direct_swap" ? "direct_swap" : "crossfade";
+        if (normalizedMode === "direct_swap") {
+          directSwapCount += 1;
+        } else {
+          crossfadeCount += 1;
+        }
+        lastVisualSwapAt = new Date().toISOString();
+        lastVisualSwapMode = normalizedMode;
+        lastVisualSwapMs = startedAtMs > 0 ? Math.max(0, Date.now() - startedAtMs) : 0;
+      } catch (_) {}
+    }
+
+    function getRuntimePhotoStaleReason() {
+      return DISABLE_GALLERY_TRANSITIONS ? "slideshow_timer_or_runtime_freeze" : "photo_change_stale";
+    }
+
+    function getSlideshowStallRecoveryReason() {
+      return DISABLE_GALLERY_TRANSITIONS ? "slideshow_timer_or_runtime_freeze" : "slideshow_stalled";
+    }
+
     function getRuntimeHealthSnapshot(now = Date.now()) {
       const uptimeMs = now - telemetryStartedAtMs;
       const heartbeatAgeMs = getMsSinceIsoTimestamp(lastSuccessfulHeartbeatAt);
@@ -544,7 +605,7 @@
       if (heartbeatAgeMs > RUNTIME_HEARTBEAT_STALE_MS) reasons.push("heartbeat_stale");
       if (pollAgeMs > RUNTIME_POLL_STALE_MS) reasons.push("poll_stale");
       if (photos.length && hasImage && photoChangeAgeMs > RUNTIME_PHOTO_CHANGE_STALE_MS) {
-        reasons.push("photo_change_stale");
+        reasons.push(getRuntimePhotoStaleReason());
       }
 
       return {
@@ -692,6 +753,7 @@
             lastRecoveryStage = "";
           }
           evaluateSlideshowStallRecovery(now);
+          updateImageLifecycleDetections(now);
           return;
         }
 
@@ -718,6 +780,7 @@
         }
 
         evaluateSlideshowStallRecovery(now);
+        updateImageLifecycleDetections(now);
       } catch (err) {
         galleryDebug("runtime watchdog evaluation failed", {
           error: err && err.message ? err.message : String(err),
@@ -986,6 +1049,120 @@
       return true;
     }
 
+    function recordImageLifecycleEvent(stage, meta = {}) {
+      try {
+        const now = Date.now();
+        const photoId = meta.photoId != null ? String(meta.photoId) : "";
+        const photoName = meta.photoName != null
+          ? String(meta.photoName)
+          : photoId
+            ? findPhotoNameById(photoId)
+            : "";
+        const startedAtMs = Number.isFinite(meta.startedAtMs) ? meta.startedAtMs : 0;
+        const durationMs = Number.isFinite(meta.durationMs)
+          ? Math.max(0, Math.round(meta.durationMs))
+          : startedAtMs > 0
+            ? Math.max(0, now - startedAtMs)
+            : 0;
+
+        lastImageLifecycleStage = clampMonitorString(stage || "unknown", 80);
+        lastImageLifecyclePhotoId = clampMonitorString(photoId, 120);
+        lastImageLifecyclePhotoName = clampMonitorString(photoName, 200);
+        lastImageLifecycleMs = durationMs;
+        lastImageLifecycleError = clampMonitorString(meta.error || "", 500);
+
+        const entry = {
+          at: new Date().toISOString(),
+          stage: lastImageLifecycleStage,
+          photoId: lastImageLifecyclePhotoId,
+          photoName: lastImageLifecyclePhotoName,
+          slotIndex: Number.isFinite(meta.slotIndex) ? meta.slotIndex : -1,
+          durationMs,
+          error: lastImageLifecycleError,
+          naturalWidth: Number(meta.naturalWidth) || 0,
+          naturalHeight: Number(meta.naturalHeight) || 0,
+          transitionToken: Number.isFinite(meta.transitionToken) ? meta.transitionToken : 0,
+        };
+
+        imageLifecycleRecentEvents.push(entry);
+        if (imageLifecycleRecentEvents.length > IMAGE_LIFECYCLE_EVENTS_MAX) {
+          imageLifecycleRecentEvents = imageLifecycleRecentEvents.slice(-IMAGE_LIFECYCLE_EVENTS_MAX);
+        }
+
+        galleryDebug("[image-lifecycle]", entry.stage, entry);
+      } catch (_) {}
+    }
+
+    function beginCrossfadeLifecycle(photoId = "") {
+      try {
+        crossfadeInProgress = true;
+        crossfadeStartedAtMs = Date.now();
+        currentCrossfadePhotoId = photoId ? String(photoId) : "";
+        crossfadeStallDetected = false;
+        imageLifecycleDetections.crossfadeNeverCompleted = false;
+        recordImageLifecycleEvent("crossfade_start", {
+          photoId: currentCrossfadePhotoId,
+          startedAtMs: crossfadeStartedAtMs,
+        });
+      } catch (_) {}
+    }
+
+    function completeCrossfadeLifecycle(photoId = "", stage = "crossfade_complete", meta = {}) {
+      try {
+        const completedAtMs = Date.now();
+        crossfadeInProgress = false;
+        crossfadeLastCompletedAt = new Date(completedAtMs).toISOString();
+        crossfadeStallDetected = false;
+        imageLifecycleDetections.crossfadeNeverCompleted = false;
+        recordImageLifecycleEvent(stage, {
+          photoId: photoId || currentCrossfadePhotoId,
+          startedAtMs: crossfadeStartedAtMs,
+          durationMs: crossfadeStartedAtMs ? completedAtMs - crossfadeStartedAtMs : 0,
+          ...meta,
+        });
+      } catch (_) {}
+    }
+
+    function abortCrossfadeLifecycle(photoId = "", stage = "crossfade_failed", error = "") {
+      try {
+        crossfadeInProgress = false;
+        imageLifecycleDetections.crossfadeNeverCompleted = true;
+        recordImageLifecycleEvent(stage, {
+          photoId: photoId || currentCrossfadePhotoId,
+          startedAtMs: crossfadeStartedAtMs,
+          error: error || stage,
+        });
+      } catch (_) {}
+    }
+
+    function commitVisibleSlotLifecycle(photoId = "", slotIndex = -1, transitionToken = 0) {
+      recordImageLifecycleEvent("visible_slot_committed", {
+        photoId,
+        slotIndex,
+        transitionToken,
+        startedAtMs: crossfadeStartedAtMs,
+      });
+    }
+
+    function updateImageLifecycleDetections(now = Date.now()) {
+      try {
+        const wasCrossfadeStall = crossfadeStallDetected;
+        crossfadeStallDetected = Boolean(
+          crossfadeInProgress &&
+          crossfadeStartedAtMs > 0 &&
+          (now - crossfadeStartedAtMs) > CROSSFADE_STALL_DETECT_MS
+        );
+        if (crossfadeStallDetected && !wasCrossfadeStall) {
+          imageLifecycleDetections.crossfadeNeverCompleted = true;
+          recordImageLifecycleEvent("crossfade_stall_detected", {
+            photoId: currentCrossfadePhotoId,
+            startedAtMs: crossfadeStartedAtMs,
+            error: "crossfade_stall_detected",
+          });
+        }
+      } catch (_) {}
+    }
+
     function evaluateSlideshowStallRecovery(now = Date.now()) {
       try {
         if (isDocumentBackgrounded()) return;
@@ -1012,9 +1189,11 @@
           return;
         }
 
+        const stallReason = getSlideshowStallRecoveryReason();
+
         if (slideshowState !== SLIDESHOW_STATES.recovering) {
-          setSlideshowState(SLIDESHOW_STATES.degraded, "slideshow_stalled");
-          restartSlideshowLoop("slideshow_stall_detected");
+          setSlideshowState(SLIDESHOW_STATES.degraded, stallReason);
+          restartSlideshowLoop(stallReason);
         }
 
         const sinceRecoveryMs = slideshowStallRecoveryAtMs ? (now - slideshowStallRecoveryAtMs) : Infinity;
@@ -1022,9 +1201,9 @@
           stuckAtIndexCount >= SLIDESHOW_STUCK_INDEX_THRESHOLD &&
           sinceRecoveryMs >= SLIDESHOW_RECOVERING_RETRY_MS
         ) {
-          setSlideshowState(SLIDESHOW_STATES.recovering, "slideshow_still_stuck");
+          setSlideshowState(SLIDESHOW_STATES.recovering, `${stallReason}_still_stuck`);
           slideshowStallRecoveryAtMs = now;
-          attemptSoftGalleryRecovery("slideshow_stuck");
+          attemptSoftGalleryRecovery(stallReason);
         }
       } catch (_) {}
     }
@@ -1480,6 +1659,12 @@
             totalImageFailures,
             totalPollFailures,
             totalOverlayFailures,
+            transitionMode: getGalleryTransitionMode(),
+            directSwapCount,
+            crossfadeCount,
+            lastVisualSwapAt,
+            lastVisualSwapMode,
+            lastVisualSwapMs,
             lastApprovedFetchStatus,
             lastPhotoFetchStatus,
             lastOverlayFetchStatus,
@@ -1503,6 +1688,22 @@
               singlePhotoMode: isSinglePhotoMode(),
               activeSlotIndex: activeIndex,
               loadingSlotIndex: Number.isFinite(loadingSlotIndex) ? loadingSlotIndex : -1,
+            },
+            imageLifecycleStatus: {
+              lastImageLifecycleStage: lastImageLifecycleStage || "",
+              lastImageLifecyclePhotoId: lastImageLifecyclePhotoId || "",
+              lastImageLifecyclePhotoName: lastImageLifecyclePhotoName || "",
+              lastImageLifecycleMs: Math.max(0, Number(lastImageLifecycleMs) || 0),
+              lastImageLifecycleError: lastImageLifecycleError || "",
+              imageLifecycleRecentEvents: imageLifecycleRecentEvents.slice(-IMAGE_LIFECYCLE_EVENTS_MAX),
+              crossfadeInProgress: Boolean(crossfadeInProgress),
+              crossfadeLastCompletedAt: crossfadeLastCompletedAt || "",
+              crossfadeStallDetected: Boolean(crossfadeStallDetected),
+              fetchFailed: Boolean(imageLifecycleDetections.fetchFailed),
+              decodeFailed: Boolean(imageLifecycleDetections.decodeFailed),
+              onloadNeverFired: Boolean(imageLifecycleDetections.onloadNeverFired),
+              crossfadeNeverCompleted: Boolean(imageLifecycleDetections.crossfadeNeverCompleted),
+              loadedNeverVisible: Boolean(imageLifecycleDetections.loadedNeverVisible),
             },
             userAgent: navigator.userAgent || "",
             platform: navigator.userAgentData?.platform || navigator.platform || "",
@@ -2417,6 +2618,16 @@
       const targetPhotoId = photoId ? String(photoId) : "";
       const targetPhotoName = targetPhotoId ? findPhotoNameById(targetPhotoId) : "";
       let objectUrl = "";
+      const lifecycleStartedAtMs = Date.now();
+      const lifecycleBase = {
+        slotIndex,
+        photoId: targetPhotoId,
+        photoName: targetPhotoName,
+        transitionToken,
+        startedAtMs: lifecycleStartedAtMs,
+      };
+
+      recordImageLifecycleEvent("fetch_start", lifecycleBase);
 
       try {
         if (!img) {
@@ -2425,16 +2636,48 @@
 
         const response = await fetchWithTimeout(url, { cache: "no-store" }, timeoutMs);
         if (!response.ok) {
+          imageLifecycleDetections.fetchFailed = true;
+          recordImageLifecycleEvent("fetch_failed", {
+            ...lifecycleBase,
+            error: `image_http_${response.status}`,
+          });
           throw new Error(`image_http_${response.status}`);
         }
 
+        recordImageLifecycleEvent("fetch_success", {
+          ...lifecycleBase,
+          durationMs: Date.now() - lifecycleStartedAtMs,
+        });
+
         const blob = await response.blob();
+        recordImageLifecycleEvent("blob_created", {
+          ...lifecycleBase,
+          durationMs: Date.now() - lifecycleStartedAtMs,
+        });
+
         objectUrl = URL.createObjectURL(blob);
+        recordImageLifecycleEvent("object_url_created", {
+          ...lifecycleBase,
+          durationMs: Date.now() - lifecycleStartedAtMs,
+        });
 
         return await new Promise((resolve, reject) => {
           let settled = false;
           let readinessProbe = 0;
+          const imgPipelineStartedAtMs = Date.now();
           const timer = setTimeout(() => {
+            if (!settled) {
+              imageLifecycleDetections.onloadNeverFired = true;
+              recordImageLifecycleEvent("transition_timeout", {
+                ...lifecycleBase,
+                error: "image_load_timeout",
+                durationMs: Date.now() - imgPipelineStartedAtMs,
+              });
+              recordImageLifecycleEvent("onload_never_fired", {
+                ...lifecycleBase,
+                error: "image_load_timeout",
+              });
+            }
             cleanup();
             reject(new Error("image_load_timeout"));
           }, timeoutMs);
@@ -2446,7 +2689,7 @@
             img.onerror = null;
           };
 
-          function commit() {
+          function commit(source = "img_onload") {
             if (settled) return;
             settled = true;
             cleanup();
@@ -2454,36 +2697,91 @@
             slotObjectUrls[slotIndex] = objectUrl;
             slotPhotoIds[slotIndex] = targetPhotoId;
             recordSuccessfulImageLoad();
+            recordImageLifecycleEvent(source, {
+              ...lifecycleBase,
+              naturalWidth: img.naturalWidth || 0,
+              naturalHeight: img.naturalHeight || 0,
+              durationMs: Date.now() - imgPipelineStartedAtMs,
+            });
+            recordImageLifecycleEvent("slot_loaded", {
+              ...lifecycleBase,
+              naturalWidth: img.naturalWidth || 0,
+              naturalHeight: img.naturalHeight || 0,
+              durationMs: Date.now() - lifecycleStartedAtMs,
+            });
             galleryDebug("photo asset loaded", {
               slotIndex,
               photoId: targetPhotoId,
               naturalWidth: img.naturalWidth || 0,
               naturalHeight: img.naturalHeight || 0,
             });
+
+            if (typeof img.decode === "function") {
+              recordImageLifecycleEvent("decode_start", lifecycleBase);
+              img.decode()
+                .then(() => {
+                  recordImageLifecycleEvent("decode_success", {
+                    ...lifecycleBase,
+                    naturalWidth: img.naturalWidth || 0,
+                    naturalHeight: img.naturalHeight || 0,
+                  });
+                })
+                .catch((decodeErr) => {
+                  imageLifecycleDetections.decodeFailed = true;
+                  recordImageLifecycleEvent("decode_failed", {
+                    ...lifecycleBase,
+                    error: decodeErr && decodeErr.message ? decodeErr.message : String(decodeErr),
+                  });
+                });
+            }
+
             resolve(objectUrl);
           }
 
-          img.onload = commit;
+          img.onload = () => commit("img_onload");
           img.onerror = () => {
             if (settled) return;
             settled = true;
             cleanup();
+            recordImageLifecycleEvent("img_onerror", {
+              ...lifecycleBase,
+              error: "image_load_failed",
+              durationMs: Date.now() - imgPipelineStartedAtMs,
+            });
             reject(new Error("image_load_failed"));
           };
+
+          recordImageLifecycleEvent("img_src_assigned", {
+            ...lifecycleBase,
+            durationMs: Date.now() - imgPipelineStartedAtMs,
+          });
           img.src = objectUrl;
 
           if (img.complete && img.naturalWidth > 0) {
-            commit();
+            commit("img_ready_immediate");
             return;
           }
 
           readinessProbe = setInterval(() => {
             if (img.complete && img.naturalWidth > 0) {
-              commit();
+              commit("img_ready_probe");
             }
           }, 250);
         });
       } catch (err) {
+        const errorMessage = err && err.message ? err.message : String(err);
+        if (
+          !imageLifecycleDetections.fetchFailed &&
+          (errorMessage === "request_timeout" ||
+            errorMessage === "request_aborted" ||
+            /^image_http_/i.test(errorMessage))
+        ) {
+          imageLifecycleDetections.fetchFailed = true;
+          recordImageLifecycleEvent("fetch_failed", {
+            ...lifecycleBase,
+            error: errorMessage,
+          });
+        }
         if (objectUrl) {
           try {
             URL.revokeObjectURL(objectUrl);
@@ -2498,7 +2796,7 @@
           } catch (_) {}
         }
         if (shouldCountImageLoadFailure(err, transitionToken)) {
-          recordImageFailure(err && err.message ? err.message : String(err), {
+          recordImageFailure(errorMessage, {
             type: "photo_fetch_failure",
             route: photoRoute || "/gallery/photo",
             currentPhotoId: targetPhotoId,
@@ -2528,13 +2826,152 @@
       } catch (_) {}
     }
 
-    async function crossfadeTo(url, photoId = "") {
+    async function performDirectImageSwap(url, photoId = "") {
       const transitionToken = ++photoTransitionToken;
-      setSlideshowState(SLIDESHOW_STATES.transitioning, `crossfade:${photoId || "unknown"}`);
+      const targetPhotoId = photoId ? String(photoId) : "";
+      const swapStartedAtMs = Date.now();
+      const activeImg = imgSlots[activeIndex];
+      const nextIndex = hasImage ? (1 - activeIndex) : activeIndex;
+      const previousIndex = hasImage ? activeIndex : -1;
+      const nextImg = imgSlots[nextIndex];
+
+      setSlideshowState(SLIDESHOW_STATES.transitioning, `direct_swap:${targetPhotoId || "unknown"}`);
+      loadingSlotIndex = nextIndex;
+      crossfadeInProgress = false;
+      crossfadeStallDetected = false;
+      currentCrossfadePhotoId = "";
+      crossfadeStartedAtMs = 0;
+      imageLifecycleDetections.crossfadeNeverCompleted = false;
+      recordImageLifecycleEvent("direct_swap_start", {
+        photoId: targetPhotoId,
+        slotIndex: nextIndex,
+        transitionToken,
+        startedAtMs: swapStartedAtMs,
+      });
+      galleryDebug("direct image swap start", {
+        transitionToken,
+        targetPhotoId,
+        currentVisiblePhotoId: currentPhotoId,
+      });
+
+      if (!nextImg) {
+        setSlideshowState(hasImage ? SLIDESHOW_STATES.displaying : SLIDESHOW_STATES.ready, "direct_swap_missing_slot");
+        return false;
+      }
+
+      if (hasImage && targetPhotoId && slotPhotoIds[activeIndex] === targetPhotoId && activeImg && activeImg.getAttribute("src")) {
+        setGalleryStatus("");
+        currentPhotoId = targetPhotoId;
+        loadingSlotIndex = activeIndex;
+        setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_active_slot_direct");
+        return true;
+      }
+
+      try {
+        nextImg.classList.remove("visible");
+
+        const alreadyLoaded = targetPhotoId &&
+          slotPhotoIds[nextIndex] === targetPhotoId &&
+          nextImg.getAttribute("src");
+
+        if (!alreadyLoaded) {
+          await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
+        }
+
+        if (transitionToken !== photoTransitionToken) {
+          imageLifecycleDetections.loadedNeverVisible = true;
+          recordImageLifecycleEvent("image_loaded_never_visible", {
+            photoId: targetPhotoId,
+            slotIndex: nextIndex,
+            transitionToken,
+            error: "transition_superseded_before_direct_swap_commit",
+          });
+          if (nextIndex !== activeIndex) {
+            clearSlotObjectUrl(nextIndex, { clearSrc: true, clearPhotoId: true });
+          }
+          setSlideshowState(hasImage ? SLIDESHOW_STATES.displaying : SLIDESHOW_STATES.ready, "direct_swap_superseded");
+          return false;
+        }
+
+        nextImg.classList.add("visible");
+        setGalleryStatus("");
+        hasImage = true;
+        activeIndex = nextIndex;
+        currentPhotoId = targetPhotoId;
+        loadingSlotIndex = nextIndex;
+        commitVisibleSlotLifecycle(targetPhotoId, nextIndex, transitionToken);
+        recordImageLifecycleEvent("direct_swap_committed", {
+          photoId: targetPhotoId,
+          slotIndex: nextIndex,
+          transitionToken,
+          startedAtMs: swapStartedAtMs,
+          durationMs: Date.now() - swapStartedAtMs,
+        });
+        recordVisualSwap("direct_swap", swapStartedAtMs);
+
+        if (previousIndex >= 0 && previousIndex !== nextIndex) {
+          const previousImg = imgSlots[previousIndex];
+          if (previousImg) {
+            previousImg.classList.remove("visible");
+          }
+          clearSlotObjectUrl(previousIndex, { clearSrc: true, clearPhotoId: true });
+        }
+
+        setSlideshowState(
+          SLIDESHOW_STATES.displaying,
+          previousIndex >= 0 ? "direct_swap_committed" : "first_photo_visible_direct_swap"
+        );
+        galleryDebug("direct image swap committed", {
+          transitionToken,
+          targetPhotoId,
+          activeIndex,
+        });
+        return true;
+      } catch (err) {
+        loadingSlotIndex = -1;
+        setSlideshowState(hasImage ? SLIDESHOW_STATES.displaying : SLIDESHOW_STATES.ready, "direct_swap_failed_keep_current");
+        setRecoveryAction("kept_current_photo_after_load_failure");
+        if (shouldCountImageLoadFailure(err, transitionToken)) {
+          logKeptCurrentPhotoAfterFailure({
+            targetPhotoId,
+            error: err && err.message ? err.message : String(err),
+          });
+        } else if (isMonitorTimeoutOrAbortError(err)) {
+          galleryDebug("direct image swap aborted or timed out; keeping current visible photo", {
+            transitionToken,
+            targetPhotoId,
+            currentVisiblePhotoId: currentPhotoId,
+            error: err && err.message ? err.message : String(err),
+          });
+        } else {
+          console.error("Error loading photo", err);
+          galleryDebug("direct image swap failed; keeping current visible photo", {
+            transitionToken,
+            targetPhotoId,
+            currentVisiblePhotoId: currentPhotoId,
+            error: err && err.message ? err.message : String(err),
+          });
+        }
+        return false;
+      } finally {
+        loadingSlotIndex = -1;
+      }
+    }
+
+    async function crossfadeTo(url, photoId = "") {
+      if (DISABLE_GALLERY_TRANSITIONS) {
+        return performDirectImageSwap(url, photoId);
+      }
+
+      const transitionToken = ++photoTransitionToken;
+      const targetPhotoId = photoId ? String(photoId) : "";
+      const transitionStartedAtMs = Date.now();
+      beginCrossfadeLifecycle(targetPhotoId);
+      setSlideshowState(SLIDESHOW_STATES.transitioning, `crossfade:${targetPhotoId || "unknown"}`);
       loadingSlotIndex = hasImage ? (1 - activeIndex) : activeIndex;
       galleryDebug("photo transition start", {
         transitionToken,
-        targetPhotoId: photoId ? String(photoId) : "",
+        targetPhotoId,
         currentVisiblePhotoId: currentPhotoId,
       });
 
@@ -2543,19 +2980,40 @@
         try {
           img.classList.remove("visible");
           await loadImageIntoSlot(activeIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
-          if (transitionToken !== photoTransitionToken) return false;
+          if (transitionToken !== photoTransitionToken) {
+            imageLifecycleDetections.loadedNeverVisible = true;
+            recordImageLifecycleEvent("image_loaded_never_visible", {
+              photoId: targetPhotoId,
+              slotIndex: activeIndex,
+              transitionToken,
+              error: "transition_superseded_before_visible",
+            });
+            abortCrossfadeLifecycle(targetPhotoId, "crossfade_aborted", "transition_superseded");
+            return false;
+          }
 
           return await new Promise((resolve) => {
             requestAnimationFrame(() => {
               if (transitionToken !== photoTransitionToken) {
+                imageLifecycleDetections.loadedNeverVisible = true;
+                recordImageLifecycleEvent("image_loaded_never_visible", {
+                  photoId: targetPhotoId,
+                  slotIndex: activeIndex,
+                  transitionToken,
+                  error: "transition_superseded_before_visible_commit",
+                });
+                abortCrossfadeLifecycle(targetPhotoId, "crossfade_aborted", "transition_superseded");
                 resolve(false);
                 return;
               }
               setGalleryStatus("");
               img.classList.add("visible");
               hasImage = true;
-              currentPhotoId = photoId ? String(photoId) : "";
+              currentPhotoId = targetPhotoId;
               loadingSlotIndex = activeIndex;
+              commitVisibleSlotLifecycle(targetPhotoId, activeIndex, transitionToken);
+              completeCrossfadeLifecycle(targetPhotoId, "crossfade_complete", { slotIndex: activeIndex, transitionToken });
+              recordVisualSwap("crossfade", transitionStartedAtMs);
               setSlideshowState(SLIDESHOW_STATES.displaying, "first_photo_visible");
               galleryDebug("photo transition committed (first photo)", {
                 transitionToken,
@@ -2566,6 +3024,7 @@
           });
         } catch (err) {
           loadingSlotIndex = -1;
+          abortCrossfadeLifecycle(targetPhotoId, "crossfade_failed", err && err.message ? err.message : String(err));
           setSlideshowState(hasImage ? SLIDESHOW_STATES.displaying : SLIDESHOW_STATES.ready, "first_photo_load_failed");
           setRecoveryAction("first_photo_load_failed");
           if (isMonitorTimeoutOrAbortError(err)) {
@@ -2582,17 +3041,20 @@
             targetPhotoId: photoId ? String(photoId) : "",
             error: err && err.message ? err.message : String(err),
           });
+          abortCrossfadeLifecycle(targetPhotoId, "crossfade_failed", err && err.message ? err.message : String(err));
           return false;
         }
       }
 
       const currentImg = imgSlots[activeIndex];
-      const targetId = photoId ? String(photoId) : "";
+      const targetId = targetPhotoId;
       if (targetId && slotPhotoIds[activeIndex] === targetId) {
         setGalleryStatus("");
         currentPhotoId = targetId;
         hasImage = true;
         loadingSlotIndex = activeIndex;
+        commitVisibleSlotLifecycle(targetId, activeIndex, transitionToken);
+        completeCrossfadeLifecycle(targetId, "crossfade_complete_reuse_active", { slotIndex: activeIndex, transitionToken });
         setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_active_slot");
         return true;
       }
@@ -2601,10 +3063,14 @@
       const nextImg = imgSlots[nextIndex];
 
       if (targetId && slotPhotoIds[nextIndex] === targetId && nextImg.getAttribute("src")) {
-        if (transitionToken !== photoTransitionToken) return false;
+        if (transitionToken !== photoTransitionToken) {
+          abortCrossfadeLifecycle(targetId, "crossfade_aborted", "transition_superseded");
+          return false;
+        }
         return await new Promise((resolve) => {
           requestAnimationFrame(() => {
             if (transitionToken !== photoTransitionToken) {
+              abortCrossfadeLifecycle(targetId, "crossfade_aborted", "transition_superseded");
               resolve(false);
               return;
             }
@@ -2616,6 +3082,9 @@
             setGalleryStatus("");
             hasImage = true;
             currentPhotoId = targetId;
+            commitVisibleSlotLifecycle(targetId, nextIndex, transitionToken);
+            completeCrossfadeLifecycle(targetId, "crossfade_complete_reuse_preloaded", { slotIndex: nextIndex, transitionToken });
+            recordVisualSwap("crossfade", transitionStartedAtMs);
             setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_preloaded_slot");
             galleryDebug("photo transition reused preloaded slot", {
               transitionToken,
@@ -2629,11 +3098,29 @@
       try {
         nextImg.classList.remove("visible");
         await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
-        if (transitionToken !== photoTransitionToken) return false;
+        if (transitionToken !== photoTransitionToken) {
+          imageLifecycleDetections.loadedNeverVisible = true;
+          recordImageLifecycleEvent("image_loaded_never_visible", {
+            photoId: targetId,
+            slotIndex: nextIndex,
+            transitionToken,
+            error: "transition_superseded_after_slot_load",
+          });
+          abortCrossfadeLifecycle(targetId, "crossfade_aborted", "transition_superseded");
+          return false;
+        }
 
         return await new Promise((resolve) => {
           requestAnimationFrame(() => {
             if (transitionToken !== photoTransitionToken) {
+              imageLifecycleDetections.loadedNeverVisible = true;
+              recordImageLifecycleEvent("image_loaded_never_visible", {
+                photoId: targetId,
+                slotIndex: nextIndex,
+                transitionToken,
+                error: "transition_superseded_before_visible_commit",
+              });
+              abortCrossfadeLifecycle(targetId, "crossfade_aborted", "transition_superseded");
               resolve(false);
               return;
             }
@@ -2644,7 +3131,10 @@
             loadingSlotIndex = nextIndex;
             setGalleryStatus("");
             hasImage = true;
-            currentPhotoId = photoId ? String(photoId) : "";
+            currentPhotoId = targetId;
+            commitVisibleSlotLifecycle(targetId, nextIndex, transitionToken);
+            completeCrossfadeLifecycle(targetId, "crossfade_complete", { slotIndex: nextIndex, transitionToken });
+            recordVisualSwap("crossfade", transitionStartedAtMs);
             setSlideshowState(SLIDESHOW_STATES.displaying, "transition_committed");
             galleryDebug("photo transition committed", {
               transitionToken,
@@ -2655,6 +3145,7 @@
         });
       } catch (err) {
         loadingSlotIndex = -1;
+        abortCrossfadeLifecycle(targetId, "crossfade_failed", err && err.message ? err.message : String(err));
         setSlideshowState(SLIDESHOW_STATES.displaying, "transition_failed_keep_current");
         setRecoveryAction("kept_current_photo_after_load_failure");
         if (shouldCountImageLoadFailure(err, transitionToken)) {
@@ -2690,13 +3181,22 @@
         return false;
       }
 
-      if (Number.isFinite(targetIndex)) {
-        currentIndex = targetIndex;
+      let nextPhotoIndex = Number.isFinite(targetIndex) ? targetIndex : currentIndex;
+      const approvedPhotoCount = getApprovedPhotoCount();
+      if (!Number.isFinite(nextPhotoIndex) || nextPhotoIndex < 0) {
+        nextPhotoIndex = 0;
+      } else if (approvedPhotoCount > 0 && nextPhotoIndex >= approvedPhotoCount) {
+        nextPhotoIndex = nextPhotoIndex % approvedPhotoCount;
       }
-      normalizeCurrentPhotoIndex();
-      setSlideshowState(SLIDESHOW_STATES.loading, `${advanceReason}:index_${currentIndex}`);
 
-      const file = photos[currentIndex];
+      if (!DISABLE_GALLERY_TRANSITIONS) {
+        currentIndex = nextPhotoIndex;
+        normalizeCurrentPhotoIndex();
+        nextPhotoIndex = currentIndex;
+      }
+      setSlideshowState(SLIDESHOW_STATES.loading, `${advanceReason}:index_${nextPhotoIndex}`);
+
+      const file = photos[nextPhotoIndex];
       if (!file || !file.id) {
         setSlideshowState(SLIDESHOW_STATES.ready, "show_current_photo_missing_file");
         return false;
@@ -2705,6 +3205,8 @@
       const url = buildPhotoUrl(file.id);
       const didShow = await crossfadeTo(url, file.id);
       if (didShow) {
+        currentIndex = nextPhotoIndex;
+        normalizeCurrentPhotoIndex();
         markVisiblePhoto(file);
         recordSlideshowAdvance(advanceReason, file);
         updateTicketBadge(file.name);
@@ -3122,6 +3624,7 @@
     } else {
       disableTemplateLayerForLiveMode();
     }
+    applyGalleryTransitionMode();
     installTelemetryErrorCapture();
     installRuntimeLifecycleHandlers();
     setSlideshowState(SLIDESHOW_STATES.booting, "initial_boot");
