@@ -323,11 +323,15 @@
     const MAX_KIOSK_RELOAD_COUNT = 3;
     const MIN_KIOSK_RELOAD_COOLDOWN_MS = 10 * 60 * 1000;
     const RUNTIME_LOG_MAX = 15;
+    const RECENT_ERRORS_MAX = 20;
     const PHOTO_CROSSFADE_DURATION_MS = 800;
     const PHOTO_TRANSITION_FALLBACK_MS = PHOTO_CROSSFADE_DURATION_MS + 1000;
     const SLIDESHOW_STALL_THRESHOLD_MS = Math.max(DISPLAY_MS * 2.5, 20000);
     const SLIDESHOW_RECOVERING_RETRY_MS = 60000;
     const SLIDESHOW_STUCK_INDEX_THRESHOLD = 3;
+    const SETTINGS_STALE_MS = 60000;
+    const LOOP_DRIFT_STALE_MS = 30000;
+    const EXPECTED_MAX_OBJECT_URLS = 2;
     const DEBUG_OVERLAY_REFRESH_MS = 1000;
     const DEBUG_OVERLAY_MAX_EVENTS = 8;
     const DEBUG_OVERLAY_EVENT_DEDUPE_MS = 8000;
@@ -442,6 +446,10 @@
     let lastRuntimeSettingsAppliedAt = "";
     let runtimeSettingsVersion = "default";
     let lastRuntimeSettingsError = "";
+    let settingsFetchFailures = 0;
+    let settingsApplyCount = 0;
+    let lastSettingsRuntimeEvent = "";
+    let lastSettingsRuntimeEventAtMs = 0;
     let qrWaitingReason = "boot_waiting_for_manifest";
     let telemetryLastErrorMessage = "";
     let lastRecoveryAction = "";
@@ -458,6 +466,7 @@
     let runtimeSettingsFetchInFlight = false;
     let runtimeSettingsFetchStartedAtMs = 0;
     let telemetryHeartbeatStartedAtMs = 0;
+    let staleInFlightFetches = 0;
     let runtimeDegraded = false;
     let runtimeDegradedSinceMs = 0;
     let watchdogTriggered = false;
@@ -469,6 +478,7 @@
     let lastRuntimeWatchdogAtMs = 0;
     let runtimeWatchdogTimer = null;
     let recentRuntimeLogs = [];
+    let eventListenerInstallCount = 0;
     let documentVisibilityState = "";
     let navigatorOnline = true;
     let recentFetchFailureEvents = [];
@@ -505,6 +515,8 @@
     let lastVisualSwapAt = "";
     let lastVisualSwapMode = "";
     let lastVisualSwapMs = 0;
+    let runtimeDriftState = "";
+    let lastRuntimeDriftAt = "";
     let galleryRuntimeSettings = { ...DEFAULT_GALLERY_RUNTIME_SETTINGS };
     let disabledSystems = [];
     let debugOverlayLatchedVisible = false;
@@ -514,6 +526,13 @@
     let debugOverlayLastSeverity = "info";
     let debugOverlayLastEventAt = "";
     let debugOverlayEventSeenAt = {};
+    const namedTimers = Object.create(null);
+    const namedIntervals = Object.create(null);
+    const pendingFetchRegistry = Object.create(null);
+    const trackedObjectUrls = new Set();
+    let lifecycleHandlersInstalled = false;
+    let telemetryErrorCaptureInstalled = false;
+    let debugOverlayResizeListenerInstalled = false;
     let imageLifecycleDetections = {
       fetchFailed: false,
       decodeFailed: false,
@@ -707,7 +726,7 @@
 
     function getDebugOverlayObjectUrlCount() {
       try {
-        return slotObjectUrls.filter(Boolean).length;
+        return getObjectUrlCount();
       } catch (_) {
         return 0;
       }
@@ -786,6 +805,18 @@
           return "WATCHDOG RECOVERY — runtime tried to recover";
         case "RUNTIME_RELOAD":
           return "RUNTIME RELOAD — recovery forced page reload";
+        case "STALE_FETCH_LOCK_CLEARED":
+          return "STALE FETCH LOCK — runtime cleared a stuck request lock";
+        case "SETTINGS_STALE":
+          return "SETTINGS STALE — runtime config loop is behind";
+        case "TELEMETRY_LOOP_DRIFT":
+          return "TELEMETRY LOOP DRIFT — visual swaps continue but health loops stalled";
+        case "SLIDESHOW_LOOP_DRIFT":
+          return "SLIDESHOW LOOP DRIFT — heartbeats continue but photos stopped advancing";
+        case "SETTINGS_LOOP_DRIFT":
+          return "SETTINGS LOOP DRIFT — settings checks stopped updating";
+        case "OBJ_URL_GROWTH":
+          return "OBJ URL GROWTH — possible blob/object URL leak";
         case "TEMPLATE_BYPASSED":
           return "TEMPLATE RUNTIME OFF — safe mode active";
         case "OVERLAY_BYPASSED":
@@ -829,6 +860,17 @@
         case "WATCHDOG_RECOVERY":
         case "RUNTIME_RELOAD":
           return "Monitor if the browser recovers or needs Pi-level watchdog.";
+        case "STALE_FETCH_LOCK_CLEARED":
+          return "Watch for repeated stuck fetches; network or Chromium may be hanging.";
+        case "SETTINGS_STALE":
+        case "SETTINGS_LOOP_DRIFT":
+          return "Check runtime settings polling; the Pi may not be applying admin changes.";
+        case "TELEMETRY_LOOP_DRIFT":
+          return "Visuals are moving but telemetry loops stalled; inspect timers and fetch locks.";
+        case "SLIDESHOW_LOOP_DRIFT":
+          return "Heartbeats are alive but slideshow stalled; inspect rotation/crossfade loop.";
+        case "OBJ_URL_GROWTH":
+          return "Check for unreleased blob/object URLs or stale image slots.";
         case "TEMPLATE_BYPASSED":
           return "Keep dynamic template runtime off until playback is stable.";
         case "OVERLAY_BYPASSED":
@@ -849,6 +891,78 @@
       return "STATE_STUCK";
     }
 
+    function setRuntimeDriftState(state = "") {
+      const normalizedState = clampMonitorString(state || "", 60);
+      runtimeDriftState = normalizedState;
+      if (normalizedState) {
+        lastRuntimeDriftAt = new Date().toISOString();
+      }
+    }
+
+    function evaluateRuntimeLoopDrift(now = Date.now()) {
+      const visualSwapAgeSec = getDebugOverlayLastVisualSwapAgeSec(now);
+      const heartbeatAgeMs = getMsSinceIsoTimestamp(lastSuccessfulHeartbeatAt);
+      const settingsAgeMs = getMsSinceIsoTimestamp(lastRuntimeSettingsFetchAt);
+      const approvedPhotoCount = getApprovedPhotoCount();
+
+      if (
+        approvedPhotoCount > 1 &&
+        visualSwapAgeSec >= 0 &&
+        (visualSwapAgeSec * 1000) <= LOOP_DRIFT_STALE_MS &&
+        heartbeatAgeMs > RUNTIME_HEARTBEAT_STALE_MS
+      ) {
+        setRuntimeDriftState("TELEMETRY_LOOP_DRIFT");
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "runtime",
+          code: "TELEMETRY_LOOP_DRIFT",
+          subsystem: "telemetry_loop",
+          route: "/api/device-heartbeat",
+          message: "Visual swaps continue while heartbeat loop is stale",
+        });
+      } else if (
+        approvedPhotoCount > 1 &&
+        Number.isFinite(heartbeatAgeMs) &&
+        heartbeatAgeMs >= 0 &&
+        heartbeatAgeMs < LOOP_DRIFT_STALE_MS &&
+        visualSwapAgeSec >= 0 &&
+        (visualSwapAgeSec * 1000) > SLIDESHOW_STALL_THRESHOLD_MS
+      ) {
+        setRuntimeDriftState("SLIDESHOW_LOOP_DRIFT");
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "runtime",
+          code: "SLIDESHOW_LOOP_DRIFT",
+          subsystem: "slideshow_loop",
+          route: "/gallery/photo",
+          message: "Heartbeat loop continues while slideshow visuals are stalled",
+        });
+      } else if (
+        settingsAgeMs > SETTINGS_STALE_MS &&
+        (lastRuntimeSettingsFetchAt || (now - telemetryStartedAtMs) > SETTINGS_STALE_MS)
+      ) {
+        setRuntimeDriftState("SETTINGS_LOOP_DRIFT");
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "settings",
+          code: "SETTINGS_STALE",
+          subsystem: "settings_loop",
+          route: "/gallery/runtime-settings",
+          message: `Runtime settings are stale for ${Math.round(settingsAgeMs / 1000)}s`,
+        });
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "settings",
+          code: "SETTINGS_LOOP_DRIFT",
+          subsystem: "settings_loop",
+          route: "/gallery/runtime-settings",
+          message: "Settings loop stopped updating within expected time",
+        });
+      } else {
+        setRuntimeDriftState("");
+      }
+    }
+
     function getDebugOverlaySnapshot(now = Date.now()) {
       return {
         at: new Date(now).toISOString(),
@@ -865,7 +979,20 @@
         lastSuccessfulImageLoadAt: lastSuccessfulImageLoadAt || "",
         lastSuccessfulOverlayAt: lastSuccessfulOverlayAt || "",
         lastSuccessfulHeartbeatAt: lastSuccessfulHeartbeatAt || "",
-        objectUrlCount: getDebugOverlayObjectUrlCount(),
+        objectUrlCount: getObjectUrlCount(),
+        activeBlobCount: getActiveBlobCount(),
+        activeImageSlotCount: getActiveImageSlotCount(),
+        activeTimerNames: getActiveTimerNames(),
+        activeIntervalNames: getActiveIntervalNames(),
+        pendingFetchNames: getPendingFetchNames(),
+        pendingFetchCount: getPendingFetchCount(),
+        settingsAgeSec: getRuntimeSettingsLastAppliedAgeSec(),
+        settingsFetchAgeSec: getRuntimeSettingsLastFetchAgeSec(),
+        settingsFetchFailures,
+        recentLogsCount: recentRuntimeLogs.length,
+        recentErrorsCount: recentErrors.length,
+        debugOverlayEventCount: debugOverlayEvents.length,
+        runtimeDriftState: runtimeDriftState || "",
         watchdogReason: clampMonitorString(watchdogReason || "", 120),
         reloadCount: Math.max(0, Number(reloadCount) || 0),
         qrWaitingReason: qrWaitingReason || "none",
@@ -925,7 +1052,11 @@
         `swap ${snapshot.lastVisualSwapAgeSec >= 0 ? `${snapshot.lastVisualSwapAgeSec}s` : "--"} | qr ${snapshot.qrWaitingReason}`,
         `poll ${formatDebugOverlayTime(snapshot.lastSuccessfulPollAt)} | img ${formatDebugOverlayTime(snapshot.lastSuccessfulImageLoadAt)}`,
         `ovr ${formatDebugOverlayTime(snapshot.lastSuccessfulOverlayAt)} | hb ${formatDebugOverlayTime(snapshot.lastSuccessfulHeartbeatAt)}`,
-        `urls ${snapshot.objectUrlCount} | wd ${snapshot.watchdogReason || "--"} | rl ${snapshot.reloadCount}`,
+        `OBJ_URLS ${snapshot.objectUrlCount} | BLOBS ${snapshot.activeBlobCount} | SLOTS ${snapshot.activeImageSlotCount}`,
+        `TIMERS ${snapshot.activeTimerNames.length} | INTS ${snapshot.activeIntervalNames.length} | FETCHES ${snapshot.pendingFetchCount}`,
+        `SETTINGS AGE ${snapshot.settingsAgeSec >= 0 ? `${snapshot.settingsAgeSec}s` : "--"} | FETCH ${snapshot.settingsFetchAgeSec >= 0 ? `${snapshot.settingsFetchAgeSec}s` : "--"}`,
+        `errs ${snapshot.recentErrorsCount} | logs ${snapshot.recentLogsCount} | dbg ${snapshot.debugOverlayEventCount}`,
+        `drift ${snapshot.runtimeDriftState || "--"} | wd ${snapshot.watchdogReason || "--"} | rl ${snapshot.reloadCount}`,
       ].join("\n");
 
       debugOverlayEventsEl.textContent = debugOverlayEvents.length
@@ -1080,6 +1211,7 @@
       try {
         const approvedPhotoCount = getApprovedPhotoCount();
         const visualSwapAgeSec = getDebugOverlayLastVisualSwapAgeSec(now);
+        evaluateRuntimeLoopDrift(now);
         if (approvedPhotoCount > 1 && hasImage && visualSwapAgeSec >= 0 && (visualSwapAgeSec * 1000) > SLIDESHOW_STALL_THRESHOLD_MS) {
           recordGalleryDebugEvent({
             severity: "error",
@@ -1156,26 +1288,183 @@
 
     function startGalleryDebugOverlayLoop() {
       try {
-        if (debugOverlayInterval) clearInterval(debugOverlayInterval);
+        clearNamedInterval("debug_overlay");
+        debugOverlayInterval = null;
         if (!isGalleryDebugOverlayEnabled()) {
           renderGalleryDebugOverlay();
           return;
         }
-        debugOverlayInterval = setInterval(() => {
+        debugOverlayInterval = registerInterval("debug_overlay", setInterval(() => {
           evaluateGalleryDebugOverlayHealth();
-        }, DEBUG_OVERLAY_REFRESH_MS);
-        window.addEventListener("resize", renderGalleryDebugOverlay);
+        }, DEBUG_OVERLAY_REFRESH_MS));
+        if (!debugOverlayResizeListenerInstalled) {
+          window.addEventListener("resize", renderGalleryDebugOverlay);
+          debugOverlayResizeListenerInstalled = true;
+          eventListenerInstallCount += 1;
+        }
         renderGalleryDebugOverlay();
       } catch (_) {}
     }
 
     function stopGalleryDebugOverlayLoop() {
       try {
-        if (debugOverlayInterval) {
-          clearInterval(debugOverlayInterval);
-          debugOverlayInterval = null;
-        }
+        clearNamedInterval("debug_overlay");
+        debugOverlayInterval = null;
         renderGalleryDebugOverlay();
+      } catch (_) {}
+    }
+
+    function registerTimer(name, id) {
+      if (!name || !id) return id;
+      clearNamedTimer(name);
+      namedTimers[name] = id;
+      return id;
+    }
+
+    function clearNamedTimer(name) {
+      const existingId = namedTimers[name];
+      if (existingId) {
+        try {
+          clearTimeout(existingId);
+        } catch (_) {}
+        delete namedTimers[name];
+      }
+      return Boolean(existingId);
+    }
+
+    function registerInterval(name, id) {
+      if (!name || !id) return id;
+      clearNamedInterval(name);
+      namedIntervals[name] = id;
+      return id;
+    }
+
+    function clearNamedInterval(name) {
+      const existingId = namedIntervals[name];
+      if (existingId) {
+        try {
+          clearInterval(existingId);
+        } catch (_) {}
+        delete namedIntervals[name];
+      }
+      return Boolean(existingId);
+    }
+
+    function clearAllRegisteredTimersAndIntervals() {
+      Object.keys(namedTimers).forEach((name) => clearNamedTimer(name));
+      Object.keys(namedIntervals).forEach((name) => clearNamedInterval(name));
+      refreshTimer = null;
+      overlayRefreshTimer = null;
+      telemetryHeartbeatTimer = null;
+      runtimeSettingsRefreshTimer = null;
+      rotateTimer = null;
+      templateRefreshTimer = null;
+      runtimeWatchdogTimer = null;
+      debugOverlayInterval = null;
+    }
+
+    function getActiveTimerNames() {
+      return Object.keys(namedTimers);
+    }
+
+    function getActiveIntervalNames() {
+      return Object.keys(namedIntervals);
+    }
+
+    function trackPendingFetch(name, startedAtMs = Date.now()) {
+      if (!name) return;
+      pendingFetchRegistry[name] = startedAtMs;
+    }
+
+    function untrackPendingFetch(name) {
+      if (!name) return;
+      delete pendingFetchRegistry[name];
+    }
+
+    function getPendingFetchNames() {
+      return Object.keys(pendingFetchRegistry);
+    }
+
+    function getPendingFetchCount() {
+      return getPendingFetchNames().length;
+    }
+
+    function getRuntimeSettingsLastAppliedAgeSec() {
+      const ageMs = getMsSinceIsoTimestamp(lastRuntimeSettingsAppliedAt);
+      if (!Number.isFinite(ageMs) || ageMs === Infinity || ageMs < 0) return -1;
+      return Math.round(ageMs / 1000);
+    }
+
+    function getRuntimeSettingsLastFetchAgeSec() {
+      const ageMs = getMsSinceIsoTimestamp(lastRuntimeSettingsFetchAt);
+      if (!Number.isFinite(ageMs) || ageMs === Infinity || ageMs < 0) return -1;
+      return Math.round(ageMs / 1000);
+    }
+
+    function getActiveImageSlotCount() {
+      try {
+        return imgSlots.reduce((count, img) => {
+          if (!img) return count;
+          const src = String(img.getAttribute("src") || "").trim();
+          return src ? count + 1 : count;
+        }, 0);
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function getObjectUrlCount() {
+      return trackedObjectUrls.size;
+    }
+
+    function getActiveBlobCount() {
+      return trackedObjectUrls.size;
+    }
+
+    function revokeTrackedObjectUrl(url) {
+      const normalizedUrl = String(url || "").trim();
+      if (!normalizedUrl) return false;
+      try {
+        URL.revokeObjectURL(normalizedUrl);
+      } catch (_) {}
+      trackedObjectUrls.delete(normalizedUrl);
+      return true;
+    }
+
+    function createTrackedObjectUrl(blob) {
+      const objectUrl = URL.createObjectURL(blob);
+      trackedObjectUrls.add(objectUrl);
+      return objectUrl;
+    }
+
+    function auditObjectUrlPressure(reason = "") {
+      try {
+        const objectUrlCount = getObjectUrlCount();
+        if (objectUrlCount <= EXPECTED_MAX_OBJECT_URLS) return;
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "runtime",
+          code: "OBJ_URL_GROWTH",
+          subsystem: "object_url_pool",
+          route: "/gallery/photo",
+          message: `objectUrlCount=${objectUrlCount} reason=${reason || "unknown"}`,
+          action: "Watch for blob/object URL growth on the Pi; expected gallery max is 2.",
+        });
+      } catch (_) {}
+    }
+
+    function releaseTrackedObjectUrls(reason = "runtime_cleanup") {
+      try {
+        imgSlots.forEach((_, index) => {
+          clearSlotObjectUrl(index, { clearSrc: true, clearPhotoId: true });
+        });
+        trackedObjectUrls.forEach((url) => {
+          revokeTrackedObjectUrl(url);
+        });
+        appendRuntimeLog("cleanup", `released_object_urls:${reason}`, {
+          reason,
+          objectUrlCount: getObjectUrlCount(),
+        });
       } catch (_) {}
     }
 
@@ -1194,6 +1483,18 @@
           recentRuntimeLogs = recentRuntimeLogs.slice(-RUNTIME_LOG_MAX);
         }
         galleryDebug("[runtime]", entry.type, entry.message, entry.details || "");
+      } catch (_) {}
+    }
+
+    function appendSettingsRuntimeLog(message, details = null, throttleMs = 30000) {
+      try {
+        const now = Date.now();
+        if (lastSettingsRuntimeEvent === message && (now - lastSettingsRuntimeEventAtMs) < throttleMs) {
+          return;
+        }
+        lastSettingsRuntimeEvent = message;
+        lastSettingsRuntimeEventAtMs = now;
+        appendRuntimeLog("settings", message, details);
       } catch (_) {}
     }
 
@@ -1292,26 +1593,92 @@
       if (approvedFetchInFlight && approvedFetchStartedAtMs && (now - approvedFetchStartedAtMs) > staleThresholdMs) {
         approvedFetchInFlight = false;
         approvedFetchStartedAtMs = 0;
+        untrackPendingFetch("approved_manifest");
+        staleInFlightFetches += 1;
         const message = "stale_request_timeout:/gallery/approved";
         appendRuntimeLog("stale_in_flight", "cleared stale approved fetch lock", { route: "/gallery/approved" });
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "runtime",
+          code: "STALE_FETCH_LOCK_CLEARED",
+          subsystem: "approved_manifest",
+          route: "/gallery/approved",
+          message,
+        });
         void sendDeviceLog("warn", "stale_in_flight", message, { route: "/gallery/approved" });
       }
 
       if (overlayFetchInFlight && overlayFetchStartedAtMs && (now - overlayFetchStartedAtMs) > staleThresholdMs) {
         overlayFetchInFlight = false;
         overlayFetchStartedAtMs = 0;
+        untrackPendingFetch("overlay_manifest");
+        staleInFlightFetches += 1;
         const message = "stale_request_timeout:/gallery/active-overlay";
         appendRuntimeLog("stale_in_flight", "cleared stale overlay fetch lock", { route: "/gallery/active-overlay" });
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "runtime",
+          code: "STALE_FETCH_LOCK_CLEARED",
+          subsystem: "overlay_manifest",
+          route: "/gallery/active-overlay",
+          message,
+        });
         void sendDeviceLog("warn", "stale_in_flight", message, { route: "/gallery/active-overlay" });
       }
 
       if (telemetryHeartbeatInFlight && telemetryHeartbeatStartedAtMs && (now - telemetryHeartbeatStartedAtMs) > staleThresholdMs) {
         telemetryHeartbeatInFlight = false;
         telemetryHeartbeatStartedAtMs = 0;
+        untrackPendingFetch("telemetry_heartbeat");
+        staleInFlightFetches += 1;
         const message = "stale_request_timeout:/api/device-heartbeat";
         appendRuntimeLog("stale_in_flight", "cleared stale heartbeat lock", { route: "/api/device-heartbeat" });
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "runtime",
+          code: "STALE_FETCH_LOCK_CLEARED",
+          subsystem: "telemetry_heartbeat",
+          route: "/api/device-heartbeat",
+          message,
+        });
         void sendDeviceLog("warn", "stale_in_flight", message, { route: "/api/device-heartbeat" });
       }
+
+      if (runtimeSettingsFetchInFlight && runtimeSettingsFetchStartedAtMs && (now - runtimeSettingsFetchStartedAtMs) > staleThresholdMs) {
+        runtimeSettingsFetchInFlight = false;
+        runtimeSettingsFetchStartedAtMs = 0;
+        untrackPendingFetch("runtime_settings");
+        staleInFlightFetches += 1;
+        const message = "stale_request_timeout:/gallery/runtime-settings";
+        appendRuntimeLog("stale_in_flight", "cleared stale runtime settings fetch lock", { route: "/gallery/runtime-settings" });
+        recordGalleryDebugEvent({
+          severity: "warn",
+          category: "runtime",
+          code: "STALE_FETCH_LOCK_CLEARED",
+          subsystem: "runtime_settings",
+          route: "/gallery/runtime-settings",
+          message,
+        });
+        void sendDeviceLog("warn", "stale_in_flight", message, { route: "/gallery/runtime-settings" });
+      }
+
+      Object.entries(pendingFetchRegistry).forEach(([fetchName, startedAtMs]) => {
+        if (!startedAtMs || (now - startedAtMs) <= staleThresholdMs) return;
+        if (fetchName.startsWith("photo_slot_")) {
+          untrackPendingFetch(fetchName);
+          staleInFlightFetches += 1;
+          const message = `stale_request_timeout:${fetchName}`;
+          appendRuntimeLog("stale_in_flight", "cleared stale photo fetch tracking", { route: "/gallery/photo", fetchName });
+          recordGalleryDebugEvent({
+            severity: "warn",
+            category: "runtime",
+            code: "STALE_FETCH_LOCK_CLEARED",
+            subsystem: fetchName,
+            route: "/gallery/photo",
+            message,
+          });
+        }
+      });
     }
 
     function performRuntimeStage1Recovery(reason) {
@@ -1493,8 +1860,8 @@
         stopRuntimeWatchdogLoop();
         return;
       }
-      if (runtimeWatchdogTimer) clearInterval(runtimeWatchdogTimer);
-      runtimeWatchdogTimer = setInterval(evaluateRuntimeWatchdog, RUNTIME_WATCHDOG_INTERVAL_MS);
+      clearNamedInterval("runtime_watchdog");
+      runtimeWatchdogTimer = registerInterval("runtime_watchdog", setInterval(evaluateRuntimeWatchdog, RUNTIME_WATCHDOG_INTERVAL_MS));
       appendRuntimeLog("watchdog", "runtime_watchdog_started");
       evaluateRuntimeWatchdog();
     }
@@ -1507,6 +1874,8 @@
 
     function installRuntimeLifecycleHandlers() {
       try {
+        if (lifecycleHandlersInstalled) return;
+        lifecycleHandlersInstalled = true;
         documentVisibilityState = document.visibilityState || "";
         navigatorOnline = navigator.onLine !== false;
 
@@ -1520,6 +1889,7 @@
             void sendTelemetryHeartbeat();
           }
         });
+        eventListenerInstallCount += 1;
 
         window.addEventListener("pageshow", (event) => {
           recordRuntimeLifecycleEvent("pageshow", {
@@ -1527,12 +1897,23 @@
           });
           rescheduleManagedPollingLoops("pageshow");
         });
+        eventListenerInstallCount += 1;
 
         window.addEventListener("pagehide", (event) => {
           recordRuntimeLifecycleEvent("pagehide", {
             persisted: Boolean(event && event.persisted),
           });
+          clearAllRegisteredTimersAndIntervals();
+          releaseTrackedObjectUrls("pagehide");
         });
+        eventListenerInstallCount += 1;
+
+        window.addEventListener("beforeunload", () => {
+          recordRuntimeLifecycleEvent("beforeunload");
+          clearAllRegisteredTimersAndIntervals();
+          releaseTrackedObjectUrls("beforeunload");
+        });
+        eventListenerInstallCount += 1;
 
         window.addEventListener("online", () => {
           navigatorOnline = true;
@@ -1540,11 +1921,13 @@
           rescheduleManagedPollingLoops("online");
           void sendTelemetryHeartbeat();
         });
+        eventListenerInstallCount += 1;
 
         window.addEventListener("offline", () => {
           navigatorOnline = false;
           recordRuntimeLifecycleEvent("offline");
         });
+        eventListenerInstallCount += 1;
       } catch (_) {}
     }
 
@@ -1635,8 +2018,8 @@
         if (shouldSkipDuplicateRecentError(nextEntry)) return;
 
         recentErrors.push(nextEntry);
-        if (recentErrors.length > 20) {
-          recentErrors = recentErrors.slice(-20);
+        if (recentErrors.length > RECENT_ERRORS_MAX) {
+          recentErrors = recentErrors.slice(-RECENT_ERRORS_MAX);
         }
         telemetryLastErrorMessage = message;
       } catch (_) {}
@@ -1733,10 +2116,9 @@
     function restartSlideshowLoop(reason = "slideshow_restart") {
       rotationLoopToken += 1;
       const loopToken = rotationLoopToken;
-      if (rotateTimer) {
-        clearTimeout(rotateTimer);
-        rotateTimer = null;
-      }
+      clearNamedTimer("rotation");
+      rotateTimer = null;
+      clearInactiveImageSlots(`restart_slideshow_loop:${reason}`);
       slideshowStallRecoveryAtMs = Date.now();
       setRecoveryAction(`restart_slideshow:${reason}`);
       appendRuntimeLog("slideshow_recovery", reason, {
@@ -1964,8 +2346,9 @@
     }
 
     function scheduleApprovedPoll(delayMs = getApprovedPollDelayMs()) {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(async () => {
+      clearNamedTimer("approved_poll");
+      refreshTimer = registerTimer("approved_poll", setTimeout(async () => {
+        clearNamedTimer("approved_poll");
         refreshTimer = null;
         try {
           await fetchApproved();
@@ -1976,19 +2359,18 @@
         } finally {
           scheduleApprovedPoll(getApprovedPollDelayMs());
         }
-      }, Math.max(0, Math.round(delayMs)));
+      }, Math.max(0, Math.round(delayMs))));
     }
 
     function scheduleOverlayPoll(delayMs = getOverlayPollDelayMs()) {
       if (!isFlattenedOverlayRuntimeEnabled()) {
-        if (overlayRefreshTimer) {
-          clearTimeout(overlayRefreshTimer);
-          overlayRefreshTimer = null;
-        }
+        clearNamedTimer("overlay_poll");
+        overlayRefreshTimer = null;
         return;
       }
-      if (overlayRefreshTimer) clearTimeout(overlayRefreshTimer);
-      overlayRefreshTimer = setTimeout(async () => {
+      clearNamedTimer("overlay_poll");
+      overlayRefreshTimer = registerTimer("overlay_poll", setTimeout(async () => {
+        clearNamedTimer("overlay_poll");
         overlayRefreshTimer = null;
         try {
           await fetchActiveOverlay();
@@ -1999,12 +2381,13 @@
         } finally {
           scheduleOverlayPoll(getOverlayPollDelayMs());
         }
-      }, Math.max(0, Math.round(delayMs)));
+      }, Math.max(0, Math.round(delayMs))));
     }
 
     function scheduleTelemetryHeartbeat(delayMs = getHeartbeatDelayMs()) {
-      if (telemetryHeartbeatTimer) clearTimeout(telemetryHeartbeatTimer);
-      telemetryHeartbeatTimer = setTimeout(async () => {
+      clearNamedTimer("telemetry_heartbeat");
+      telemetryHeartbeatTimer = registerTimer("telemetry_heartbeat", setTimeout(async () => {
+        clearNamedTimer("telemetry_heartbeat");
         telemetryHeartbeatTimer = null;
         try {
           await sendTelemetryHeartbeat();
@@ -2015,12 +2398,13 @@
         } finally {
           scheduleTelemetryHeartbeat(getHeartbeatDelayMs());
         }
-      }, Math.max(0, Math.round(delayMs)));
+      }, Math.max(0, Math.round(delayMs))));
     }
 
     function scheduleRuntimeSettingsRefresh(delayMs = getRuntimeSettingsPollDelayMs()) {
-      if (runtimeSettingsRefreshTimer) clearTimeout(runtimeSettingsRefreshTimer);
-      runtimeSettingsRefreshTimer = setTimeout(async () => {
+      clearNamedTimer("runtime_settings");
+      runtimeSettingsRefreshTimer = registerTimer("runtime_settings", setTimeout(async () => {
+        clearNamedTimer("runtime_settings");
         runtimeSettingsRefreshTimer = null;
         try {
           await fetchGalleryRuntimeSettings();
@@ -2031,28 +2415,22 @@
         } finally {
           scheduleRuntimeSettingsRefresh(getRuntimeSettingsPollDelayMs());
         }
-      }, Math.max(0, Math.round(delayMs)));
+      }, Math.max(0, Math.round(delayMs))));
     }
 
     function stopOverlayRefreshLoop() {
-      if (overlayRefreshTimer) {
-        clearTimeout(overlayRefreshTimer);
-        overlayRefreshTimer = null;
-      }
+      clearNamedTimer("overlay_poll");
+      overlayRefreshTimer = null;
     }
 
     function stopTemplateRefreshLoop() {
-      if (templateRefreshTimer) {
-        clearInterval(templateRefreshTimer);
-        templateRefreshTimer = null;
-      }
+      clearNamedInterval("template_poll");
+      templateRefreshTimer = null;
     }
 
     function stopRuntimeWatchdogLoop() {
-      if (runtimeWatchdogTimer) {
-        clearInterval(runtimeWatchdogTimer);
-        runtimeWatchdogTimer = null;
-      }
+      clearNamedInterval("runtime_watchdog");
+      runtimeWatchdogTimer = null;
     }
 
     function rescheduleManagedPollingLoops(reason = "") {
@@ -2176,14 +2554,8 @@
     function clearSlotObjectUrl(slotIndex, options = {}) {
       const { clearSrc = false, clearPhotoId = true } = options;
       const img = imgSlots[slotIndex];
-      try {
-        if (slotObjectUrls[slotIndex]) {
-          URL.revokeObjectURL(slotObjectUrls[slotIndex]);
-          slotObjectUrls[slotIndex] = null;
-        }
-      } catch (_) {
-        slotObjectUrls[slotIndex] = null;
-      }
+      revokeTrackedObjectUrl(slotObjectUrls[slotIndex]);
+      slotObjectUrls[slotIndex] = null;
       if (clearPhotoId) {
         slotPhotoIds[slotIndex] = null;
       }
@@ -2199,6 +2571,23 @@
           } catch (_) {}
         }
       }
+      auditObjectUrlPressure("clear_slot_object_url");
+    }
+
+    function clearInactiveImageSlots(reason = "inactive_slot_cleanup") {
+      try {
+        imgSlots.forEach((img, index) => {
+          if (!img) return;
+          if (hasImage && index === activeIndex) return;
+          if (Number.isFinite(loadingSlotIndex) && index === loadingSlotIndex) return;
+          clearSlotObjectUrl(index, { clearSrc: true, clearPhotoId: true });
+        });
+        appendRuntimeLog("cleanup", reason, {
+          activeIndex,
+          hasImage,
+          objectUrlCount: getObjectUrlCount(),
+        });
+      } catch (_) {}
     }
 
     function recordPollFailure(errorMessage, meta = {}) {
@@ -2513,13 +2902,30 @@
             screenHeight: window.screen ? Number(window.screen.height) || 0 : 0,
             devicePixelRatio: Number(window.devicePixelRatio) || 1,
             memory: getPerformanceMemorySnapshot(),
-            objectUrlCount: slotObjectUrls.filter(Boolean).length,
+            objectUrlCount: getObjectUrlCount(),
+            activeBlobCount: getActiveBlobCount(),
+            activeImageSlotCount: getActiveImageSlotCount(),
+            activeTimers: getActiveTimerNames(),
+            activeTimerCount: getActiveTimerNames().length,
+            activeIntervals: getActiveIntervalNames(),
+            activeIntervalCount: getActiveIntervalNames().length,
+            pendingFetches: getPendingFetchNames(),
+            pendingFetchCount: getPendingFetchCount(),
+            staleInFlightFetches,
             lastErrorMessage: telemetryLastErrorMessage || "",
             lastRecoveryAction: lastRecoveryAction || "",
             galleryRuntimeSettings: { ...galleryRuntimeSettings },
+            lastSettingsFetchAt: lastRuntimeSettingsFetchAt || "",
             lastRuntimeSettingsFetchAt: lastRuntimeSettingsFetchAt || "",
             lastRuntimeSettingsAppliedAt: lastRuntimeSettingsAppliedAt || "",
+            runtimeSettingsLastAppliedAgeSec: getRuntimeSettingsLastAppliedAgeSec(),
             runtimeSettingsVersion: runtimeSettingsVersion || "default",
+            settingsFetchFailures,
+            settingsApplyCount,
+            eventListenerInstallCount,
+            debugOverlayEventCount: debugOverlayEvents.length,
+            recentLogsCount: recentRuntimeLogs.length,
+            recentErrorsCount: recentErrors.length,
             disabledSystems: Array.isArray(disabledSystems) ? [...disabledSystems] : [],
             qrWaitingReason: qrWaitingReason || "none",
             overlayStatus: {
@@ -2548,9 +2954,11 @@
               navigatorOnLine: navigatorOnline,
               lastWatchdogAt: lastRuntimeWatchdogAtMs ? new Date(lastRuntimeWatchdogAtMs).toISOString() : "",
               recentRuntimeLogs: recentRuntimeLogs.slice(-8),
+              runtimeDriftState: runtimeDriftState || "",
+              lastRuntimeDriftAt: lastRuntimeDriftAt || "",
             },
           },
-          recentErrors: recentErrors.slice(-20),
+          recentErrors: recentErrors.slice(-RECENT_ERRORS_MAX),
         };
       } catch (_) {
         return {
@@ -2558,7 +2966,7 @@
           status: {
             deviceName: galleryDeviceName,
           },
-          recentErrors: recentErrors.slice(-20),
+          recentErrors: recentErrors.slice(-RECENT_ERRORS_MAX),
         };
       }
     }
@@ -2604,9 +3012,11 @@
     }
 
     async function sendTelemetryHeartbeat() {
+      clearStaleInFlightLocks(Date.now());
       if (telemetryHeartbeatInFlight) return;
       telemetryHeartbeatInFlight = true;
       telemetryHeartbeatStartedAtMs = Date.now();
+      trackPendingFetch("telemetry_heartbeat", telemetryHeartbeatStartedAtMs);
       try {
         const response = await postMonitorJson(`${BASE_URL}/api/device-heartbeat`, buildTelemetryPayload());
         if (!response || !response.ok) {
@@ -2619,6 +3029,7 @@
       } finally {
         telemetryHeartbeatInFlight = false;
         telemetryHeartbeatStartedAtMs = 0;
+        untrackPendingFetch("telemetry_heartbeat");
       }
     }
 
@@ -2639,6 +3050,8 @@
 
     function installTelemetryErrorCapture() {
       try {
+        if (telemetryErrorCaptureInstalled) return;
+        telemetryErrorCaptureInstalled = true;
         const previousOnError = window.onerror;
         window.onerror = function onGalleryError(message, source, lineno, colno, error) {
           try {
@@ -2669,6 +3082,7 @@
           }
           return false;
         };
+        eventListenerInstallCount += 1;
 
         const previousUnhandledRejection = window.onunhandledrejection;
         window.onunhandledrejection = function onGalleryUnhandledRejection(event) {
@@ -2693,6 +3107,7 @@
           }
           return false;
         };
+        eventListenerInstallCount += 1;
 
         if (console && typeof console.error === "function" && !console.__galleryHealthWrapped) {
           const originalConsoleError = console.error.bind(console);
@@ -2719,6 +3134,7 @@
           wrappedConsoleError.__galleryHealthWrapped = true;
           console.error = wrappedConsoleError;
           console.__galleryHealthWrapped = true;
+          eventListenerInstallCount += 1;
         }
       } catch (_) {}
     }
@@ -2821,6 +3237,7 @@
         disabledSystems = buildDisabledSystemsList(nextSettings);
         runtimeSettingsVersion = nextVersion;
         lastRuntimeSettingsAppliedAt = new Date().toISOString();
+        settingsApplyCount += 1;
         applyGalleryTransitionMode();
 
         if (!isGalleryDebugOverlayEnabled()) {
@@ -2892,20 +3309,32 @@
         }
 
         if (settingsChanged) {
+          appendSettingsRuntimeLog("SETTINGS_APPLIED", {
+            runtimeSettingsVersion: nextVersion,
+            disabledSystems,
+            settingsApplyCount,
+          }, 5000);
           galleryDebug("gallery runtime settings applied", {
             previousSettings,
             nextSettings,
             runtimeSettingsVersion: nextVersion,
             disabledSystems,
           });
+        } else {
+          appendSettingsRuntimeLog("SETTINGS_UNCHANGED", {
+            runtimeSettingsVersion: nextVersion,
+            settingsApplyCount,
+          });
         }
       } catch (_) {}
     }
 
     async function fetchGalleryRuntimeSettings() {
+      clearStaleInFlightLocks(Date.now());
       if (runtimeSettingsFetchInFlight) return false;
       runtimeSettingsFetchInFlight = true;
       runtimeSettingsFetchStartedAtMs = Date.now();
+      trackPendingFetch("runtime_settings", runtimeSettingsFetchStartedAtMs);
       try {
         const res = await fetchWithTimeout(`${BASE_URL}/gallery/runtime-settings?ts=${Date.now()}`, {
           cache: "no-store",
@@ -2921,13 +3350,21 @@
 
         lastRuntimeSettingsFetchAt = new Date().toISOString();
         lastRuntimeSettingsError = "";
+        appendSettingsRuntimeLog("SETTINGS_FETCH_OK", {
+          runtimeSettingsVersion: data.runtimeSettingsVersion || "default",
+        }, 10000);
         applyGalleryRuntimeSettings(data.runtimeSettings || DEFAULT_GALLERY_RUNTIME_SETTINGS, {
           runtimeSettingsVersion: data.runtimeSettingsVersion || "default",
           disabledSystems: Array.isArray(data.disabledSystems) ? data.disabledSystems : [],
         });
         return true;
       } catch (err) {
+        settingsFetchFailures += 1;
         lastRuntimeSettingsError = err && err.message ? err.message : String(err);
+        appendSettingsRuntimeLog("SETTINGS_FETCH_FAIL", {
+          error: lastRuntimeSettingsError,
+          settingsFetchFailures,
+        }, 5000);
         recordGalleryDebugEvent({
           severity: "warn",
           category: "settings",
@@ -2942,6 +3379,7 @@
       } finally {
         runtimeSettingsFetchInFlight = false;
         runtimeSettingsFetchStartedAtMs = 0;
+        untrackPendingFetch("runtime_settings");
       }
     }
 
@@ -3556,10 +3994,8 @@
 
       rotationLoopToken += 1;
       photoTransitionToken += 1;
-      if (rotateTimer) {
-        clearTimeout(rotateTimer);
-        rotateTimer = null;
-      }
+      clearNamedTimer("rotation");
+      rotateTimer = null;
 
       imgSlots.forEach((img, index) => {
         img.classList.remove("visible");
@@ -3580,12 +4016,14 @@
     }
 
     async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "", options = {}) {
+      clearStaleInFlightLocks(Date.now());
       const { transitionToken = null } = options;
       const img = imgSlots[slotIndex];
       const photoRoute = sanitizeMonitorRoute(url);
       const targetPhotoId = photoId ? String(photoId) : "";
       const targetPhotoName = targetPhotoId ? findPhotoNameById(targetPhotoId) : "";
       let objectUrl = "";
+      const pendingFetchName = `photo_slot_${slotIndex}_${transitionToken != null ? transitionToken : "current"}`;
       const lifecycleStartedAtMs = Date.now();
       const lifecycleBase = {
         slotIndex,
@@ -3596,6 +4034,7 @@
       };
 
       recordImageLifecycleEvent("fetch_start", lifecycleBase);
+      trackPendingFetch(pendingFetchName, lifecycleStartedAtMs);
 
       try {
         if (!img) {
@@ -3623,15 +4062,17 @@
           durationMs: Date.now() - lifecycleStartedAtMs,
         });
 
-        objectUrl = URL.createObjectURL(blob);
+        objectUrl = createTrackedObjectUrl(blob);
         recordImageLifecycleEvent("object_url_created", {
           ...lifecycleBase,
           durationMs: Date.now() - lifecycleStartedAtMs,
         });
+        auditObjectUrlPressure("loadImageIntoSlot");
 
         return await new Promise((resolve, reject) => {
           let settled = false;
           let readinessProbe = 0;
+          const readinessProbeName = `image_readiness_probe_${slotIndex}_${transitionToken != null ? transitionToken : lifecycleStartedAtMs}`;
           const imgPipelineStartedAtMs = Date.now();
           const timer = setTimeout(() => {
             if (!settled) {
@@ -3652,7 +4093,8 @@
 
           let cleanup = () => {
             clearTimeout(timer);
-            if (readinessProbe) clearInterval(readinessProbe);
+            clearNamedInterval(readinessProbeName);
+            readinessProbe = 0;
             img.onload = null;
             img.onerror = null;
           };
@@ -3683,6 +4125,7 @@
               naturalWidth: img.naturalWidth || 0,
               naturalHeight: img.naturalHeight || 0,
             });
+            auditObjectUrlPressure("slot_commit");
 
             if (typeof img.decode === "function") {
               recordImageLifecycleEvent("decode_start", lifecycleBase);
@@ -3730,11 +4173,11 @@
             return;
           }
 
-          readinessProbe = setInterval(() => {
+          readinessProbe = registerInterval(readinessProbeName, setInterval(() => {
             if (img.complete && img.naturalWidth > 0) {
               commit("img_ready_probe");
             }
-          }, 250);
+          }, 250));
         });
       } catch (err) {
         const errorMessage = err && err.message ? err.message : String(err);
@@ -3751,9 +4194,7 @@
           });
         }
         if (objectUrl) {
-          try {
-            URL.revokeObjectURL(objectUrl);
-          } catch (_) {}
+          revokeTrackedObjectUrl(objectUrl);
         }
         if (img) {
           try {
@@ -3772,6 +4213,8 @@
           });
         }
         throw err;
+      } finally {
+        untrackPendingFetch(pendingFetchName);
       }
     }
 
@@ -4293,13 +4736,12 @@
     }
 
     function scheduleNextRotation(loopToken, delayMs = DISPLAY_MS) {
-      if (rotateTimer) {
-        clearTimeout(rotateTimer);
-      }
-      rotateTimer = setTimeout(() => {
+      clearNamedTimer("rotation");
+      rotateTimer = registerTimer("rotation", setTimeout(() => {
+        clearNamedTimer("rotation");
         rotateTimer = null;
         void advanceSlideshowPhoto(loopToken);
-      }, Math.max(0, Math.round(delayMs)));
+      }, Math.max(0, Math.round(delayMs))));
     }
 
     async function startRotation(options = {}) {
@@ -4308,7 +4750,7 @@
         rotationLoopToken += 1;
       }
       const loopToken = Number.isFinite(externalLoopToken) ? externalLoopToken : rotationLoopToken;
-      if (rotateTimer) clearTimeout(rotateTimer);
+      clearNamedTimer("rotation");
       rotateTimer = null;
       if (!photos.length) {
         setSlideshowState(SLIDESHOW_STATES.empty, "start_rotation_without_confirmed_empty");
@@ -4339,6 +4781,7 @@
     }
 
     async function fetchApproved() {
+      clearStaleInFlightLocks(Date.now());
       if (approvedFetchInFlight) {
         galleryDebug("approved poll skipped because previous request is still running", {
           approvedPollCount,
@@ -4348,6 +4791,7 @@
       }
       approvedFetchInFlight = true;
       approvedFetchStartedAtMs = Date.now();
+      trackPendingFetch("approved_manifest", approvedFetchStartedAtMs);
       approvedPollCount += 1;
       const pollStartedAt = Date.now();
       galleryDebug("approved poll start", {
@@ -4483,6 +4927,7 @@
       } finally {
         approvedFetchInFlight = false;
         approvedFetchStartedAtMs = 0;
+        untrackPendingFetch("approved_manifest");
       }
     }
 
@@ -4496,12 +4941,13 @@
         return;
       }
 
-      if (templateRefreshTimer) clearInterval(templateRefreshTimer);
+      clearNamedInterval("template_poll");
       fetchActiveTemplate();
-      templateRefreshTimer = setInterval(fetchActiveTemplate, TEMPLATE_REFRESH_MS);
+      templateRefreshTimer = registerInterval("template_poll", setInterval(fetchActiveTemplate, TEMPLATE_REFRESH_MS));
     }
 
     async function fetchActiveOverlay() {
+      clearStaleInFlightLocks(Date.now());
       if (!isFlattenedOverlayRuntimeEnabled()) {
         clearOverlayLayer("flattened_overlay_disabled");
         return false;
@@ -4515,6 +4961,7 @@
       }
       overlayFetchInFlight = true;
       overlayFetchStartedAtMs = Date.now();
+      trackPendingFetch("overlay_manifest", overlayFetchStartedAtMs);
       const requestId = ++activeOverlayRequestId;
       galleryDebug("overlay fetch start", {
         requestId,
@@ -4629,6 +5076,7 @@
       } finally {
         overlayFetchInFlight = false;
         overlayFetchStartedAtMs = 0;
+        untrackPendingFetch("overlay_manifest");
       }
     }
 

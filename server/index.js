@@ -509,12 +509,35 @@ function sanitizeDeviceStatus(rawStatus) {
     devicePixelRatio: clampNumber(status.devicePixelRatio),
     memory: sanitizeDeviceMemory(status.memory),
     objectUrlCount: clampNumber(status.objectUrlCount),
+    activeBlobCount: clampNumber(status.activeBlobCount),
+    activeImageSlotCount: clampNumber(status.activeImageSlotCount),
+    activeTimers: Array.isArray(status.activeTimers)
+      ? status.activeTimers.map((entry) => clampString(entry || '', 80)).filter(Boolean).slice(0, 24)
+      : [],
+    activeTimerCount: clampNumber(status.activeTimerCount),
+    activeIntervals: Array.isArray(status.activeIntervals)
+      ? status.activeIntervals.map((entry) => clampString(entry || '', 80)).filter(Boolean).slice(0, 24)
+      : [],
+    activeIntervalCount: clampNumber(status.activeIntervalCount),
+    pendingFetches: Array.isArray(status.pendingFetches)
+      ? status.pendingFetches.map((entry) => clampString(entry || '', 120)).filter(Boolean).slice(0, 24)
+      : [],
+    pendingFetchCount: clampNumber(status.pendingFetchCount),
+    staleInFlightFetches: clampNumber(status.staleInFlightFetches),
     lastErrorMessage: clampString(status.lastErrorMessage || '', 500),
     lastRecoveryAction: clampString(status.lastRecoveryAction || '', 200),
     galleryRuntimeSettings,
+    lastSettingsFetchAt: clampIsoTimestamp(status.lastSettingsFetchAt),
     lastRuntimeSettingsFetchAt: clampIsoTimestamp(status.lastRuntimeSettingsFetchAt),
     lastRuntimeSettingsAppliedAt: clampIsoTimestamp(status.lastRuntimeSettingsAppliedAt),
+    runtimeSettingsLastAppliedAgeSec: clampNumber(status.runtimeSettingsLastAppliedAgeSec),
     runtimeSettingsVersion: clampString(status.runtimeSettingsVersion || '', 60),
+    settingsFetchFailures: clampNumber(status.settingsFetchFailures),
+    settingsApplyCount: clampNumber(status.settingsApplyCount),
+    eventListenerInstallCount: clampNumber(status.eventListenerInstallCount),
+    debugOverlayEventCount: clampNumber(status.debugOverlayEventCount),
+    recentLogsCount: clampNumber(status.recentLogsCount),
+    recentErrorsCount: clampNumber(status.recentErrorsCount),
     disabledSystems: Array.isArray(status.disabledSystems)
       ? status.disabledSystems.map((entry) => clampString(entry || '', 60)).filter(Boolean).slice(0, 24)
       : [],
@@ -533,6 +556,8 @@ function sanitizeDeviceStatus(rawStatus) {
           documentVisibility: clampString(status.runtimeStatus.documentVisibility || '', 40),
           navigatorOnLine: clampBoolean(status.runtimeStatus.navigatorOnLine),
           documentBackgrounded: clampBoolean(status.runtimeStatus.documentBackgrounded),
+          runtimeDriftState: clampString(status.runtimeStatus.runtimeDriftState || '', 80),
+          lastRuntimeDriftAt: clampIsoTimestamp(status.runtimeStatus.lastRuntimeDriftAt),
         }
       : null,
   };
