@@ -1178,6 +1178,158 @@ function getApprovedPlaybackTimeMs(file) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+function setGalleryJsonNoStoreHeaders(res) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+}
+
+function buildGalleryApprovedFileEntry(file) {
+  return {
+    id: file.id,
+    name: file.name || '',
+    mimeType: file.mimeType || '',
+    createdTime: file.createdTime || '',
+    modifiedTime: file.modifiedTime || '',
+    approvedTime: getApprovedPlaybackTimestamp(file),
+  };
+}
+
+function buildGalleryApprovedManifestVersion(files) {
+  const signature = (Array.isArray(files) ? files : [])
+    .map((file) => `${file.id}|${file.approvedTime}|${file.modifiedTime}`)
+    .join(';');
+  return crypto.createHash('sha1').update(signature).digest('hex').slice(0, 12);
+}
+
+function selectGalleryApprovedFiles(allFiles, displayLimit) {
+  const all = Array.isArray(allFiles) ? allFiles : [];
+  const limit = String(displayLimit || 'all');
+
+  if (limit === 'all') {
+    return all;
+  }
+  if (limit === 'last10') {
+    return all.slice(-10);
+  }
+  if (limit === 'last25') {
+    return all.slice(-25);
+  }
+  if (limit.startsWith('custom:')) {
+    const customNum = parseInt(limit.replace('custom:', ''), 10);
+    if (customNum > 0 && customNum <= 1000) {
+      return all.slice(-customNum);
+    }
+  }
+  return all;
+}
+
+async function listApprovedDriveFilesForGallery() {
+  let pageToken = null;
+  const results = [];
+
+  do {
+    const response = await drive.files.list({
+      q: `'${APPROVED_FOLDER_ID}' in parents and trashed = false`,
+      fields: 'nextPageToken, files(id, name, createdTime, modifiedTime, mimeType, appProperties)',
+      pageSize: 200,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageToken,
+    });
+
+    results.push(...(response.data.files || []));
+    pageToken = response.data.nextPageToken || null;
+  } while (pageToken);
+
+  return results.sort((a, b) => {
+    const playbackTimeDiff = getApprovedPlaybackTimeMs(a) - getApprovedPlaybackTimeMs(b);
+    if (playbackTimeDiff !== 0) return playbackTimeDiff;
+
+    const createdTimeDiff =
+      (Date.parse(String(a.createdTime || '')) || 0) -
+      (Date.parse(String(b.createdTime || '')) || 0);
+    if (createdTimeDiff !== 0) return createdTimeDiff;
+
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+}
+
+const GALLERY_APPROVED_MANIFEST_TTL_MS = 4000;
+const galleryApprovedManifestCache = {
+  value: null,
+  expiresAt: 0,
+  promise: null,
+  cacheKey: '',
+};
+
+function invalidateGalleryApprovedManifestCache() {
+  galleryApprovedManifestCache.value = null;
+  galleryApprovedManifestCache.expiresAt = 0;
+  galleryApprovedManifestCache.promise = null;
+  galleryApprovedManifestCache.cacheKey = '';
+}
+
+async function getGalleryApprovedManifest() {
+  await hydrateSettingsFromSheet();
+
+  const displayLimit = appSettings.galleryDisplayLimit || 'all';
+  const cacheKey = String(displayLimit);
+  const now = Date.now();
+
+  if (
+    galleryApprovedManifestCache.value &&
+    galleryApprovedManifestCache.cacheKey === cacheKey &&
+    galleryApprovedManifestCache.expiresAt > now
+  ) {
+    return galleryApprovedManifestCache.value;
+  }
+
+  if (galleryApprovedManifestCache.promise && galleryApprovedManifestCache.cacheKey === cacheKey) {
+    return galleryApprovedManifestCache.promise;
+  }
+
+  const refreshPromise = (async () => {
+    const allFiles = await listApprovedDriveFilesForGallery();
+    const selected = selectGalleryApprovedFiles(allFiles, displayLimit);
+    const files = selected.map(buildGalleryApprovedFileEntry);
+    const manifest = {
+      files,
+      manifestVersion: buildGalleryApprovedManifestVersion(files),
+      generatedAt: new Date().toISOString(),
+    };
+
+    galleryApprovedManifestCache.value = manifest;
+    galleryApprovedManifestCache.cacheKey = cacheKey;
+    galleryApprovedManifestCache.expiresAt = Date.now() + GALLERY_APPROVED_MANIFEST_TTL_MS;
+    galleryApprovedManifestCache.promise = null;
+    return manifest;
+  })().catch((err) => {
+    galleryApprovedManifestCache.promise = null;
+    throw err;
+  });
+
+  galleryApprovedManifestCache.promise = refreshPromise;
+  galleryApprovedManifestCache.cacheKey = cacheKey;
+  return refreshPromise;
+}
+
+const ADMIN_THUMBNAIL_PLACEHOLDER_SVG = Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><rect width="160" height="160" fill="#1f2937"/><text x="80" y="84" text-anchor="middle" fill="#9ca3af" font-size="12" font-family="sans-serif">Preview</text></svg>',
+  'utf8'
+);
+
+function sendAdminThumbnailPlaceholder(res, fileId, reason) {
+  console.warn('Admin thumbnail unavailable; serving placeholder instead of full-resolution fallback', {
+    fileId: String(fileId || ''),
+    reason: String(reason || 'thumbnail_unavailable'),
+  });
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'private, max-age=120');
+  res.setHeader('X-Thumbnail-Source', 'placeholder');
+  res.status(200).end(ADMIN_THUMBNAIL_PLACEHOLDER_SVG);
+}
+
 function normalizeTemplateAssetFileId(value) {
   if (value == null) return '';
   const raw = String(value).trim();
@@ -3670,30 +3822,24 @@ app.get('/admin/photo/:id/thumbnail', ensureAdminAuth, async (req, res) => {
         const contentType = thumbRes.headers.get('content-type') || fileMeta.data.mimeType || 'image/jpeg';
         res.setHeader('Content-Type', contentType);
         res.setHeader('Cache-Control', 'private, max-age=300');
+        res.setHeader('X-Thumbnail-Source', 'drive_thumbnail');
         const thumbBuffer = Buffer.from(await thumbRes.arrayBuffer());
         return res.end(thumbBuffer);
       }
+      console.warn('Admin thumbnail Drive link fetch failed; using placeholder', {
+        fileId,
+        status: thumbRes.status,
+      });
+    } else {
+      console.warn('Admin thumbnail link missing from Drive metadata; using placeholder', {
+        fileId,
+        mimeType: fileMeta.data.mimeType || '',
+      });
     }
 
-    const driveRes = await drive.files.get(
-      {
-        fileId,
-        alt: 'media',
-        supportsAllDrives: true,
-      },
-      { responseType: 'stream' }
-    );
-
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'private, max-age=60');
-    driveRes.data
-      .on('error', (err) => {
-        console.error('Error streaming photo thumbnail:', err);
-        if (!res.headersSent) {
-          res.status(500).end('Error streaming file');
-        }
-      })
-      .pipe(res);
+    if (!res.headersSent) {
+      return sendAdminThumbnailPlaceholder(res, fileId, 'thumbnail_unavailable');
+    }
   } catch (err) {
     console.error('Error getting photo thumbnail from Drive:', err);
     if (!res.headersSent) {
@@ -3823,6 +3969,9 @@ function invalidateDriveFolderCaches(folderId) {
   }
   driveFolderCountCache.delete(folderId);
   adminSystemHealthCache.expiresAt = 0;
+  if (folderId === APPROVED_FOLDER_ID) {
+    invalidateGalleryApprovedManifestCache();
+  }
 }
 
 async function countFilesInFolder(folderId) {
@@ -4459,69 +4608,28 @@ app.get('/admin/metrics/export', ensureAdminAuth, async (req, res) => {
 app.get('/gallery/approved', async (req, res) => {
   const startedAtMs = Date.now();
   try {
-    // Ensure settings are hydrated
-    await hydrateSettingsFromSheet();
-
-    const response = await drive.files.list({
-      q: `'${APPROVED_FOLDER_ID}' in parents and trashed = false`,
-      fields: 'files(id, name, createdTime, modifiedTime, appProperties)',
-      pageSize: 1000,
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
+    setGalleryJsonNoStoreHeaders(res);
+    const manifest = await getGalleryApprovedManifest();
+    const files = manifest.files || [];
+    logObservedRouteResult(
+      '/gallery/approved',
+      startedAtMs,
+      200,
+      `ok files=${files.length} version=${manifest.manifestVersion || 'unknown'}`
+    );
+    res.json({
+      ok: true,
+      files,
+      manifestVersion: manifest.manifestVersion || '',
+      generatedAt: manifest.generatedAt || '',
     });
-
-    const all = [...(response.data.files || [])].sort((a, b) => {
-      const playbackTimeDiff = getApprovedPlaybackTimeMs(a) - getApprovedPlaybackTimeMs(b);
-      if (playbackTimeDiff !== 0) return playbackTimeDiff;
-
-      const createdTimeDiff =
-        (Date.parse(String(a.createdTime || '')) || 0) -
-        (Date.parse(String(b.createdTime || '')) || 0);
-      if (createdTimeDiff !== 0) return createdTimeDiff;
-
-      return String(a.id || '').localeCompare(String(b.id || ''));
-    });
-    const displayLimit = appSettings.galleryDisplayLimit || 'all';
-
-    let selected;
-
-    if (displayLimit === 'all') {
-      // Show all photos
-      selected = all;
-    } else if (displayLimit === 'last10') {
-      // Show last 10 photos (most recent)
-      selected = all.slice(-10);
-    } else if (displayLimit === 'last25') {
-      // Show last 25 photos (most recent)
-      selected = all.slice(-25);
-    } else if (displayLimit.startsWith('custom:')) {
-      // Show custom number of photos (most recent)
-      const customNum = parseInt(displayLimit.replace('custom:', ''), 10);
-      if (customNum > 0 && customNum <= 1000) {
-        selected = all.slice(-customNum);
-      } else {
-        // Invalid custom number, fallback to all
-        selected = all;
-      }
-    } else {
-      // Fallback to all if invalid setting
-      selected = all;
-    }
-
-    const files = selected.map((f) => ({
-      id: f.id,
-      name: f.name,
-      createdTime: f.createdTime || '',
-      modifiedTime: f.modifiedTime || '',
-      approvedTime: getApprovedPlaybackTimestamp(f),
-    }));
-
-    logObservedRouteResult('/gallery/approved', startedAtMs, 200, `ok files=${files.length}`);
-    res.json({ ok: true, files });
   } catch (err) {
     console.error('Error listing approved files for gallery', err);
     logObservedRouteResult('/gallery/approved', startedAtMs, 500, err && err.message ? err.message : 'list_approved_failed');
-    res.status(500).json({ ok: false, error: 'list_approved_failed' });
+    if (!res.headersSent) {
+      setGalleryJsonNoStoreHeaders(res);
+      res.status(500).json({ ok: false, error: 'list_approved_failed' });
+    }
   }
 });
 
@@ -4538,8 +4646,8 @@ app.get('/gallery/photo/:fileId', async (req, res) => {
       { responseType: 'stream' }
     );
 
-    // You can refine Content-Type by querying file metadata if needed
     res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
 
     driveRes.data
       .on('error', (err) => {

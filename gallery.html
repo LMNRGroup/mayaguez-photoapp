@@ -398,6 +398,15 @@
       return message === "request_timeout" || message === "request_aborted";
     }
 
+    function shouldCountImageLoadFailure(error, transitionToken = null) {
+      if (transitionToken != null && transitionToken !== photoTransitionToken) {
+        return false;
+      }
+      return true;
+    }
+
+    let keptCurrentPhotoLogCount = 0;
+
     function sanitizeMonitorRoute(routeOrUrl) {
       const rawValue = String(routeOrUrl || "").trim();
       if (!rawValue) return "";
@@ -896,6 +905,7 @@
         lastPhotoChangeAt = new Date().toISOString();
         softRecoveryAttemptCount = 0;
         hardReloadScheduled = false;
+        keptCurrentPhotoLogCount = 0;
       } catch (_) {}
     }
 
@@ -1849,7 +1859,8 @@
       return true;
     }
 
-    async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "") {
+    async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "", options = {}) {
+      const { transitionToken = null } = options;
       const img = imgSlots[slotIndex];
       const photoRoute = sanitizeMonitorRoute(url);
       const targetPhotoId = photoId ? String(photoId) : "";
@@ -1935,14 +1946,35 @@
             img.src = "";
           } catch (_) {}
         }
-        recordImageFailure(err && err.message ? err.message : String(err), {
-          type: "photo_fetch_failure",
-          route: photoRoute || "/gallery/photo",
-          currentPhotoId: targetPhotoId,
-          currentPhotoName: targetPhotoName,
-        });
+        if (shouldCountImageLoadFailure(err, transitionToken)) {
+          recordImageFailure(err && err.message ? err.message : String(err), {
+            type: "photo_fetch_failure",
+            route: photoRoute || "/gallery/photo",
+            currentPhotoId: targetPhotoId,
+            currentPhotoName: targetPhotoName,
+          });
+        }
         throw err;
       }
+    }
+
+    function logKeptCurrentPhotoAfterFailure(meta = {}) {
+      try {
+        keptCurrentPhotoLogCount += 1;
+        const payload = {
+          currentPhotoId: currentPhotoId || "",
+          currentPhotoName: currentPhotoName || "",
+          targetPhotoId: meta.targetPhotoId || "",
+          visibleImageAgeMs: getVisibleImageAgeMs(),
+          recentFailureCount: getRecentFetchFailureCount(),
+          error: meta.error || "",
+        };
+        galleryDebug("keeping current visible photo after failed transition", payload);
+        if (keptCurrentPhotoLogCount === 1 || keptCurrentPhotoLogCount % 3 === 0) {
+          void sendDeviceLog("warn", "kept_current_photo", "Gallery kept the last visible photo after a failed transition", payload);
+        }
+        attemptSoftGalleryRecovery("kept_current_photo_after_load_failure");
+      } catch (_) {}
     }
 
     async function crossfadeTo(url, photoId = "") {
@@ -1957,7 +1989,7 @@
         const img = imgSlots[activeIndex];
         try {
           img.classList.remove("visible");
-          await loadImageIntoSlot(activeIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId);
+          await loadImageIntoSlot(activeIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
           if (transitionToken !== photoTransitionToken) return false;
 
           return await new Promise((resolve) => {
@@ -2035,7 +2067,7 @@
 
       try {
         nextImg.classList.remove("visible");
-        await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId);
+        await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
         if (transitionToken !== photoTransitionToken) return false;
 
         return await new Promise((resolve) => {
@@ -2060,8 +2092,13 @@
         });
       } catch (err) {
         setRecoveryAction("kept_current_photo_after_load_failure");
-        if (isMonitorTimeoutOrAbortError(err)) {
-          galleryDebug("photo transition fetch timed out or was aborted; keeping current visible photo", {
+        if (shouldCountImageLoadFailure(err, transitionToken)) {
+          logKeptCurrentPhotoAfterFailure({
+            targetPhotoId: photoId ? String(photoId) : "",
+            error: err && err.message ? err.message : String(err),
+          });
+        } else if (isMonitorTimeoutOrAbortError(err)) {
+          galleryDebug("photo transition aborted or timed out after superseded; keeping current visible photo", {
             transitionToken,
             targetPhotoId: photoId ? String(photoId) : "",
             currentVisiblePhotoId: currentPhotoId,
@@ -2069,13 +2106,13 @@
           });
         } else {
           console.error("Error loading photo", err);
+          galleryDebug("photo transition failed; keeping current visible photo", {
+            transitionToken,
+            targetPhotoId: photoId ? String(photoId) : "",
+            currentVisiblePhotoId: currentPhotoId,
+            error: err && err.message ? err.message : String(err),
+          });
         }
-        galleryDebug("photo transition failed; keeping current visible photo", {
-          transitionToken,
-          targetPhotoId: photoId ? String(photoId) : "",
-          currentVisiblePhotoId: currentPhotoId,
-          error: err && err.message ? err.message : String(err),
-        });
         return false;
       }
     }
@@ -2154,7 +2191,7 @@
         consecutiveEmptyApprovedResponses,
       });
       try {
-        const res = await fetchWithTimeout(`${BASE_URL}/gallery/approved`);
+        const res = await fetchWithTimeout(`${BASE_URL}/gallery/approved`, { cache: "no-store" });
         if (!res.ok) {
           lastPollDurationMs = Date.now() - pollStartedAt;
           recordPollFailure(`approved_poll_http_${res.status}`, {
