@@ -324,6 +324,9 @@
     const REFRESH_MS = 10000;
     const GALLERY_HEARTBEAT_MS = 5000;
     const RUNTIME_SETTINGS_REFRESH_MS = 8000;
+    const PI_STABLE_APPROVED_REFRESH_MS = 30000;
+    const PI_STABLE_HEARTBEAT_MS = 20000;
+    const PI_STABLE_RUNTIME_SETTINGS_REFRESH_MS = 15000;
     const BURST_BACKOFF_REFRESH_MS = 20000;
     const BURST_BACKOFF_HEARTBEAT_MS = 10000;
     const EMPTY_GALLERY_MESSAGE = "ESCANEA EL CODIGO QR";
@@ -341,6 +344,7 @@
     const HARD_RELOAD_AFTER_SOFT_RECOVERY_ATTEMPTS = 3;
     const HARD_RELOAD_DELAY_MS = 250;
     const RUNTIME_WATCHDOG_INTERVAL_MS = 15000;
+    const PI_STABLE_RUNTIME_WATCHDOG_INTERVAL_MS = 5000;
     const RUNTIME_HEARTBEAT_STALE_MS = 90000;
     const RUNTIME_POLL_STALE_MS = 90000;
     const RUNTIME_PHOTO_CHANGE_STALE_MS = 180000;
@@ -361,11 +365,16 @@
     const SLIDESHOW_STALL_THRESHOLD_MS = Math.max(DISPLAY_MS * 2.5, 20000);
     const SLIDESHOW_RECOVERING_RETRY_MS = 60000;
     const SLIDESHOW_STUCK_INDEX_THRESHOLD = 3;
+    const HARD_VISUAL_STALL_RECOVERY_MS = DISPLAY_MS * 2 + 5000;
+    const PHOTO_FAILURE_BURST_WINDOW_MS = 2 * 60 * 1000;
+    const PHOTO_TEMP_DISABLE_MS = 5 * 60 * 1000;
     const SETTINGS_STALE_MS = 60000;
     const LOOP_DRIFT_STALE_MS = 30000;
     const EXPECTED_MAX_OBJECT_URLS = 2;
     const DEBUG_OVERLAY_REFRESH_MS = 1000;
+    const PI_STABLE_DEBUG_OVERLAY_REFRESH_MS = 2000;
     const DEBUG_OVERLAY_MAX_EVENTS = 8;
+    const PI_STABLE_DEBUG_OVERLAY_MAX_EVENTS = 6;
     const DEBUG_OVERLAY_REPORT_EVENTS_MAX = 30;
     const DEBUG_OVERLAY_EVENT_DEDUPE_MS = 8000;
     const DEBUG_OVERLAY_QR_STUCK_GRACE_MS = Math.max(DISPLAY_MS * 2, 15000);
@@ -394,7 +403,10 @@
     const GALLERY_LAST_HANDLED_RUNTIME_COMMAND_KEY = "galleryLastHandledRuntimeCommandId";
     const TEMPLATE_RENDERING_ENABLED = false;
     const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
+      enablePiStablePlayerMode: true,
+      enableBlobPhotoLoader: false,
       enableGalleryCrossfade: !DISABLE_GALLERY_TRANSITIONS,
+      enableDirectSwapFallback: true,
       enableFlattenedOverlay: false,
       enableOverlayPolling: false,
       enableDynamicTemplateRuntime: false,
@@ -534,6 +546,11 @@
     let lastSlideshowAdvanceIndex = -1;
     let lastSlideshowAdvancePhotoId = "";
     let slideshowStallRecoveryAtMs = 0;
+    let hardVisualRecoveryCount = 0;
+    let lastHardVisualRecoveryAtMs = 0;
+    let hardVisualRecoveryInProgress = false;
+    let directSwapFallbackActive = false;
+    let photoTempDisableRegistry = Object.create(null);
     let loadingSlotIndex = -1;
     const IMAGE_LIFECYCLE_EVENTS_MAX = 30;
     const CROSSFADE_STALL_DETECT_MS = IMAGE_LOAD_TIMEOUT_MS + 5000;
@@ -936,7 +953,10 @@
     function normalizeGalleryRuntimeSettings(rawSettings = {}) {
       const candidate = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
       return {
+        enablePiStablePlayerMode: candidate.enablePiStablePlayerMode !== false,
+        enableBlobPhotoLoader: Boolean(candidate.enableBlobPhotoLoader),
         enableGalleryCrossfade: candidate.enableGalleryCrossfade !== false,
+        enableDirectSwapFallback: candidate.enableDirectSwapFallback !== false,
         enableFlattenedOverlay: Boolean(candidate.enableFlattenedOverlay),
         enableOverlayPolling: Boolean(candidate.enableOverlayPolling),
         enableDynamicTemplateRuntime: Boolean(candidate.enableDynamicTemplateRuntime),
@@ -977,7 +997,9 @@
     function buildDisabledSystemsList(settings = galleryRuntimeSettings) {
       const runtime = normalizeGalleryRuntimeSettings(settings);
       const nextDisabledSystems = [];
+      if (!runtime.enableBlobPhotoLoader) nextDisabledSystems.push("blob_photo_loader");
       if (!runtime.enableGalleryCrossfade) nextDisabledSystems.push("gallery_crossfade");
+      if (!runtime.enableDirectSwapFallback) nextDisabledSystems.push("direct_swap_fallback");
       if (!runtime.enableFlattenedOverlay) nextDisabledSystems.push("flattened_overlay");
       if (!runtime.enableOverlayPolling) nextDisabledSystems.push("overlay_polling");
       if (!runtime.enableDynamicTemplateRuntime) nextDisabledSystems.push("dynamic_template_runtime");
@@ -991,7 +1013,10 @@
     function isGallerySafeModeActive(settings = galleryRuntimeSettings) {
       const runtime = normalizeGalleryRuntimeSettings(settings);
       return Boolean(
+        runtime.enablePiStablePlayerMode &&
+        !runtime.enableBlobPhotoLoader &&
         runtime.enableGalleryCrossfade &&
+        runtime.enableDirectSwapFallback &&
         !runtime.enableFlattenedOverlay &&
         !runtime.enableOverlayPolling &&
         !runtime.enableDynamicTemplateRuntime &&
@@ -1003,11 +1028,35 @@
     }
 
     function isGalleryCrossfadeEnabled() {
-      return !galleryRuntimeSettings.enableDirectSwapMode && galleryRuntimeSettings.enableGalleryCrossfade !== false;
+      return !galleryRuntimeSettings.enableDirectSwapMode && !directSwapFallbackActive && galleryRuntimeSettings.enableGalleryCrossfade !== false;
     }
 
     function isDirectSwapModeEnabled() {
-      return galleryRuntimeSettings.enableDirectSwapMode === true || !isGalleryCrossfadeEnabled();
+      return galleryRuntimeSettings.enableDirectSwapMode === true || directSwapFallbackActive === true || !isGalleryCrossfadeEnabled();
+    }
+
+    function isPiStablePlayerModeEnabled() {
+      return galleryRuntimeSettings.enablePiStablePlayerMode !== false;
+    }
+
+    function isBlobPhotoLoaderEnabled() {
+      return !isPiStablePlayerModeEnabled() && galleryRuntimeSettings.enableBlobPhotoLoader === true;
+    }
+
+    function isDirectSwapFallbackEnabled() {
+      return galleryRuntimeSettings.enableDirectSwapFallback !== false;
+    }
+
+    function isStableImgSrcLoaderEnabled() {
+      return !isBlobPhotoLoaderEnabled();
+    }
+
+    function getDebugOverlayRefreshMs() {
+      return isPiStablePlayerModeEnabled() ? PI_STABLE_DEBUG_OVERLAY_REFRESH_MS : DEBUG_OVERLAY_REFRESH_MS;
+    }
+
+    function getDebugOverlayVisibleEventLimit() {
+      return isPiStablePlayerModeEnabled() ? PI_STABLE_DEBUG_OVERLAY_MAX_EVENTS : DEBUG_OVERLAY_MAX_EVENTS;
     }
 
     function isGalleryDebugOverlayEnabled() {
@@ -1035,9 +1084,11 @@
         code: "OVERLAY_BYPASSED",
         subsystem: "overlay",
         route: "/gallery/active-overlay",
-        diagnosis: isGallerySafeModeActive()
-          ? "SAFE MODE ACTIVE — photos + crossfade only"
-          : "OVERLAY BYPASSED — testing photos only",
+        diagnosis: isPiStablePlayerModeEnabled()
+          ? "PI STABLE MODE — img src loader — overlay off"
+          : isGallerySafeModeActive()
+            ? "SAFE MODE ACTIVE — photos + crossfade only"
+            : "OVERLAY BYPASSED — testing photos only",
         message,
         action: "Leave overlay off while validating base photo rotation.",
       });
@@ -1114,6 +1165,18 @@
           return "HEARTBEAT FAIL — browser cannot post health";
         case "TELEMETRY_WARNING":
           return "TELEMETRY WARNING — playback may still be OK";
+        case "PI_STABLE_MODE_ON":
+          return "PI STABLE MODE — img src loader — overlay off";
+        case "BLOB_LOADER_OFF":
+          return "BLOB LOADER OFF — native img src mode active";
+        case "IMG_SRC_LOAD_START":
+          return "IMG SRC LOAD START — loading next photo";
+        case "IMG_SRC_LOAD_OK":
+          return "IMG SRC LOAD OK — native image load succeeded";
+        case "IMG_SRC_LOAD_FAIL":
+          return "IMG SRC LOAD FAIL — browser image request failed";
+        case "IMG_SRC_TIMEOUT":
+          return "IMG SRC TIMEOUT — browser never loaded next photo";
         case "PHOTO_FETCH_FAIL":
           return "PHOTO FETCH FAIL — Pi cannot load next photo";
         case "PHOTO_TIMEOUT":
@@ -1136,6 +1199,8 @@
           return "TRANSITION FALLBACK — CSS transition failed but recovered";
         case "VISUAL_STALL":
           return "VISUAL STALL — slideshow stopped advancing";
+        case "VISUAL_STALL_HARD_RECOVERY":
+          return "VISUAL STALL HARD RECOVERY — trying next photo";
         case "QR_STUCK_WITH_PHOTOS":
           return "QR STUCK — manifest has photos but waiting screen is visible";
         case "STATE_STUCK":
@@ -1166,6 +1231,14 @@
           return "ADMIN RELOAD RECEIVED";
         case "CHROMIUM_OR_TELEMETRY_LOOP_STOPPED":
           return "CHROMIUM OR TELEMETRY STOPPED — playback was healthy before heartbeats stopped";
+        case "PHOTO_TEMP_DISABLED":
+          return "PHOTO TEMP DISABLED — skipping unstable photo";
+        case "SWITCHED_TO_DIRECT_SWAP":
+          return "SWITCHED TO DIRECT SWAP — crossfade stalled";
+        case "LAST_RESORT_PAGE_RELOAD":
+          return "LAST RESORT PAGE RELOAD — recovery attempts exhausted";
+        case "PLAYBACK_HEALTHY_TELEMETRY_WARNING":
+          return "PLAYBACK HEALTHY — telemetry warning only";
         case "UNKNOWN_RUNTIME":
           return "UNKNOWN RUNTIME FREEZE";
         default:
@@ -1180,6 +1253,16 @@
           return "Check Pi network path and Chromium/Yodeck browser stability.";
         case "TELEMETRY_WARNING":
           return "Playback may still be healthy; inspect telemetry POST path and Chromium background loops.";
+        case "PI_STABLE_MODE_ON":
+          return "Pi stable mode is active for Chromium 92 testing.";
+        case "BLOB_LOADER_OFF":
+          return "Blob/object URL playback is disabled; native img src loading is active.";
+        case "IMG_SRC_LOAD_START":
+        case "IMG_SRC_LOAD_OK":
+          return "Native image loading is active in Pi stable mode.";
+        case "IMG_SRC_LOAD_FAIL":
+        case "IMG_SRC_TIMEOUT":
+          return "Skip this photo and keep native img src loading active.";
         case "PHOTO_FETCH_FAIL":
         case "PHOTO_TIMEOUT":
           return "Inspect /gallery/photo fetch path and Pi network stability.";
@@ -1200,6 +1283,8 @@
         case "VISUAL_STALL":
         case "TIMER_STALL":
           return "Inspect slideshow timer/runtime freeze and restart loop if needed.";
+        case "VISUAL_STALL_HARD_RECOVERY":
+          return "Trying the next photo immediately to keep playback moving.";
         case "QR_STUCK_WITH_PHOTOS":
           return "Force slideshow start; waiting screen should not remain visible.";
         case "STATE_STUCK":
@@ -1226,6 +1311,14 @@
           return "Wait for the gallery page to reload and re-report telemetry.";
         case "CHROMIUM_OR_TELEMETRY_LOOP_STOPPED":
           return "Playback looked healthy before heartbeats stopped; inspect Chromium/Yodeck runtime stability.";
+        case "PHOTO_TEMP_DISABLED":
+          return "This photo will be skipped for five minutes so the slideshow can continue.";
+        case "SWITCHED_TO_DIRECT_SWAP":
+          return "Crossfade fallback activated because the renderer stalled.";
+        case "LAST_RESORT_PAGE_RELOAD":
+          return "Reloading once because playback could not recover.";
+        case "PLAYBACK_HEALTHY_TELEMETRY_WARNING":
+          return "Playback is still healthy; only telemetry posting is unhealthy.";
         case "UNKNOWN_RUNTIME":
           return "Check recent Pi/browser errors and consider watchdog/browser restart.";
         default:
@@ -1349,6 +1442,10 @@
         recentLogsCount: recentRuntimeLogs.length,
         recentErrorsCount: recentErrors.length,
         debugOverlayEventCount: debugOverlayEvents.length,
+        playbackHealth: getPlaybackHealth(now),
+        telemetryHealth: getTelemetryHealth(),
+        networkHealth: getNetworkHealth(),
+        browserHealth: getBrowserHealth(now),
         runtimeDriftState: runtimeDriftState || "",
         watchdogReason: clampMonitorString(watchdogReason || "", 120),
         reloadCount: Math.max(0, Number(reloadCount) || 0),
@@ -1578,10 +1675,12 @@
       let diagnosisText = latestEvent && latestEvent.diagnosis
         ? latestEvent.diagnosis
         : debugOverlayLastDiagnosis || "DEBUG ACTIVE";
-      if (latestEvent && latestEvent.code === "TELEMETRY_WARNING") {
+      if (latestEvent && (latestEvent.code === "TELEMETRY_WARNING" || latestEvent.code === "PLAYBACK_HEALTHY_TELEMETRY_WARNING")) {
         diagnosisText = "TELEMETRY WARNING — playback may still be OK";
       } else if (latestEvent && latestEvent.code === "ADMIN_RELOAD_RECEIVED") {
         diagnosisText = "ADMIN RELOAD RECEIVED";
+      } else if (isPiStablePlayerModeEnabled() && (!latestEvent || latestEvent.code === "OVERLAY_BYPASSED")) {
+        diagnosisText = "PI STABLE MODE — img src loader — overlay off";
       } else if (latestEvent && latestEvent.code === "OVERLAY_BYPASSED" && isGallerySafeModeActive()) {
         diagnosisText = "SAFE MODE ACTIVE — photos + crossfade only";
       } else if (!latestEvent && isGallerySafeModeActive()) {
@@ -1603,6 +1702,7 @@
         `${latestEvent ? latestEvent.code : "--"} ${latestEvent ? (latestEvent.subsystem || latestEvent.route || "--") : "--"} ${formatDebugOverlayTime(snapshot.at)}`,
         `idx ${snapshot.currentPhotoIndex} | ${snapshot.currentPhotoName || "--"}`,
         `approved ${snapshot.approvedPhotoCount} | state ${snapshot.slideshowState || "--"} | mode ${snapshot.transitionMode}`,
+        `health p:${snapshot.playbackHealth} t:${snapshot.telemetryHealth} n:${snapshot.networkHealth} b:${snapshot.browserHealth}`,
         `img ${snapshot.lastImageLifecycleStage || "--"} | err ${snapshot.lastImageLifecycleError || "--"}`,
         `swap ${snapshot.lastVisualSwapAgeSec >= 0 ? `${snapshot.lastVisualSwapAgeSec}s` : "--"} | qr ${snapshot.qrWaitingReason}`,
         `poll ${formatDebugOverlayTime(snapshot.lastSuccessfulPollAt)} | img ${formatDebugOverlayTime(snapshot.lastSuccessfulImageLoadAt)}`,
@@ -1680,8 +1780,8 @@
         };
 
         debugOverlayEvents.unshift(entry);
-        if (debugOverlayEvents.length > DEBUG_OVERLAY_MAX_EVENTS) {
-          debugOverlayEvents = debugOverlayEvents.slice(0, DEBUG_OVERLAY_MAX_EVENTS);
+        if (debugOverlayEvents.length > getDebugOverlayVisibleEventLimit()) {
+          debugOverlayEvents = debugOverlayEvents.slice(0, getDebugOverlayVisibleEventLimit());
         }
         debugOverlayReportEvents.unshift(entry);
         if (debugOverlayReportEvents.length > DEBUG_OVERLAY_REPORT_EVENTS_MAX) {
@@ -1750,6 +1850,24 @@
           subsystem: "image",
           route: "/gallery/photo",
           message: meta && meta.error ? meta.error : "img_onerror",
+        });
+      } else if (normalizedStage === "img_src_load_fail") {
+        recordGalleryDebugEvent({
+          severity: "error",
+          category: "image",
+          code: "IMG_SRC_LOAD_FAIL",
+          subsystem: "image",
+          route: "/gallery/photo",
+          message: meta && meta.error ? meta.error : "img_src_load_fail",
+        });
+      } else if (normalizedStage === "img_src_timeout") {
+        recordGalleryDebugEvent({
+          severity: "error",
+          category: "image",
+          code: "IMG_SRC_TIMEOUT",
+          subsystem: "image",
+          route: "/gallery/photo",
+          message: meta && meta.error ? meta.error : "img_src_timeout",
         });
       } else if (normalizedStage === "onload_never_fired" || normalizedStage === "transition_timeout") {
         recordGalleryDebugEvent({
@@ -1859,7 +1977,7 @@
         installGalleryDebugOverlayInteraction();
         debugOverlayInterval = registerInterval("debug_overlay", setInterval(() => {
           evaluateGalleryDebugOverlayHealth();
-        }, DEBUG_OVERLAY_REFRESH_MS));
+        }, getDebugOverlayRefreshMs()));
         if (!debugOverlayResizeListenerInstalled) {
           window.addEventListener("resize", renderGalleryDebugOverlay);
           debugOverlayResizeListenerInstalled = true;
@@ -2133,6 +2251,20 @@
       appendStaleFetchDebugOverlayLines(entry, "PHOTO_FETCH_STALE", "tried next photo");
       lastPhotoFetchStatus = "fail";
       lastPhotoFetchError = "stale_fetch_aborted";
+      if (entry && entry.photoId) {
+        recordPhotoPlaybackFailure({
+          id: entry.photoId,
+          name: entry.photoName || "",
+        }, "stale_photo_fetch", {
+          photoId: entry.photoId,
+          photoName: entry.photoName || "",
+        });
+      }
+      const slotMatch = entry && entry.name ? String(entry.name).match(/^photo_slot_(\d+)_/) : null;
+      const slotIndex = slotMatch ? Number(slotMatch[1]) : -1;
+      if (Number.isFinite(slotIndex) && slotIndex >= 0) {
+        clearSlotObjectUrl(slotIndex, { clearSrc: true, clearPhotoId: true });
+      }
       if (getApprovedPhotoCount() > 0) {
         if (hasImage && !isSinglePhotoMode()) {
           const nextIndex = getNextPhotoIndex(currentIndex);
@@ -2385,6 +2517,8 @@
         lastVisualSwapAt = new Date().toISOString();
         lastVisualSwapMode = normalizedMode;
         lastVisualSwapMs = startedAtMs > 0 ? Math.max(0, Date.now() - startedAtMs) : 0;
+        hardVisualRecoveryCount = 0;
+        hardVisualRecoveryInProgress = false;
       } catch (_) {}
     }
 
@@ -2560,7 +2694,7 @@
       void sendTelemetryHeartbeat();
       setTimeout(() => {
         try {
-          window.location.reload();
+          window.location.replace(buildGalleryReloadUrl(`watchdog-${Date.now()}`, false));
         } catch (_) {}
       }, HARD_RELOAD_DELAY_MS);
       return true;
@@ -2598,7 +2732,7 @@
           recordGalleryDebugEvent({
             severity: "warn",
             category: "heartbeat",
-            code: "TELEMETRY_WARNING",
+            code: "PLAYBACK_HEALTHY_TELEMETRY_WARNING",
             subsystem: "telemetry_heartbeat",
             route: "/api/device-heartbeat",
             diagnosis: "TELEMETRY WARNING — playback may still be OK",
@@ -2682,7 +2816,7 @@
         return;
       }
       clearNamedInterval("runtime_watchdog");
-      runtimeWatchdogTimer = registerInterval("runtime_watchdog", setInterval(evaluateRuntimeWatchdog, RUNTIME_WATCHDOG_INTERVAL_MS));
+      runtimeWatchdogTimer = registerInterval("runtime_watchdog", setInterval(evaluateRuntimeWatchdog, getRuntimeWatchdogIntervalMs()));
       appendRuntimeLog("watchdog", "runtime_watchdog_started");
       evaluateRuntimeWatchdog();
     }
@@ -2862,6 +2996,92 @@
       return getApprovedPhotoCount() === 1;
     }
 
+    function pruneTemporarilyBadPhotos(now = Date.now()) {
+      try {
+        Object.keys(photoTempDisableRegistry).forEach((photoId) => {
+          const entry = photoTempDisableRegistry[photoId];
+          if (!entry || typeof entry !== "object") {
+            delete photoTempDisableRegistry[photoId];
+            return;
+          }
+          const failures = Array.isArray(entry.failures)
+            ? entry.failures.filter((atMs) => Number.isFinite(atMs) && (now - atMs) <= PHOTO_FAILURE_BURST_WINDOW_MS)
+            : [];
+          const disabledUntilMs = Number.isFinite(entry.disabledUntilMs) && entry.disabledUntilMs > now
+            ? entry.disabledUntilMs
+            : 0;
+          if (!failures.length && !disabledUntilMs) {
+            delete photoTempDisableRegistry[photoId];
+            return;
+          }
+          entry.failures = failures;
+          entry.disabledUntilMs = disabledUntilMs;
+        });
+      } catch (_) {}
+    }
+
+    function clearTemporarilyBadPhotos(reason = "reset_bad_photo_registry") {
+      try {
+        photoTempDisableRegistry = Object.create(null);
+        appendRuntimeLog("photo_registry", reason, {
+          reason,
+          approvedPhotoCount: getApprovedPhotoCount(),
+        });
+      } catch (_) {}
+    }
+
+    function isPhotoTemporarilyDisabled(photoId = "", now = Date.now()) {
+      const normalizedPhotoId = clampMonitorString(photoId || "", 120);
+      if (!normalizedPhotoId) return false;
+      pruneTemporarilyBadPhotos(now);
+      const entry = photoTempDisableRegistry[normalizedPhotoId];
+      return Boolean(entry && Number.isFinite(entry.disabledUntilMs) && entry.disabledUntilMs > now);
+    }
+
+    function getTemporarilyBadPhotoCount(now = Date.now()) {
+      pruneTemporarilyBadPhotos(now);
+      return Object.values(photoTempDisableRegistry).filter((entry) => entry && entry.disabledUntilMs > now).length;
+    }
+
+    function recordPhotoPlaybackFailure(file = null, reason = "photo_failure", meta = {}) {
+      try {
+        const photoId = file && file.id ? String(file.id) : clampMonitorString(meta.photoId || "", 120);
+        if (!photoId) return false;
+        const now = Date.now();
+        pruneTemporarilyBadPhotos(now);
+        const entry = photoTempDisableRegistry[photoId] && typeof photoTempDisableRegistry[photoId] === "object"
+          ? photoTempDisableRegistry[photoId]
+          : { failures: [], disabledUntilMs: 0 };
+        entry.failures = Array.isArray(entry.failures)
+          ? entry.failures.filter((atMs) => Number.isFinite(atMs) && (now - atMs) <= PHOTO_FAILURE_BURST_WINDOW_MS)
+          : [];
+        entry.failures.push(now);
+        if (entry.failures.length >= 2) {
+          entry.disabledUntilMs = now + PHOTO_TEMP_DISABLE_MS;
+          recordGalleryDebugEvent({
+            severity: "warn",
+            category: "image",
+            code: "PHOTO_TEMP_DISABLED",
+            subsystem: "photo_rotation",
+            route: "/gallery/photo",
+            diagnosis: "PHOTO TEMP DISABLED — skipping unstable photo",
+            message: `${photoId} disabled for 5 minutes after repeated failures`,
+            action: "Photo temporarily skipped so slideshow can continue.",
+          });
+          void sendDeviceLog("warn", "photo_temp_disabled", `Photo temporarily disabled (${photoId})`, {
+            photoId,
+            photoName: file && file.name ? String(file.name) : clampMonitorString(meta.photoName || "", 200),
+            reason,
+            disabledUntilAt: new Date(entry.disabledUntilMs).toISOString(),
+          });
+        }
+        photoTempDisableRegistry[photoId] = entry;
+        return entry.disabledUntilMs > now;
+      } catch (_) {
+        return false;
+      }
+    }
+
     function normalizeCurrentPhotoIndex() {
       const count = getApprovedPhotoCount();
       if (!count) {
@@ -2876,12 +3096,47 @@
       return currentIndex;
     }
 
+    function getPlayablePhotoIndex(startIndex = 0, options = {}) {
+      const { allowStart = true } = options;
+      const count = getApprovedPhotoCount();
+      if (!count) return 0;
+      const baseIndex = Number.isFinite(startIndex) ? ((startIndex % count) + count) % count : 0;
+      const now = Date.now();
+      pruneTemporarilyBadPhotos(now);
+
+      for (let offset = 0; offset < count; offset += 1) {
+        if (!allowStart && offset === 0 && count > 1) continue;
+        const candidateIndex = (baseIndex + offset) % count;
+        const candidatePhoto = photos[candidateIndex];
+        const candidatePhotoId = candidatePhoto && candidatePhoto.id ? String(candidatePhoto.id) : "";
+        if (!candidatePhotoId) continue;
+        if (!isPhotoTemporarilyDisabled(candidatePhotoId, now)) {
+          return candidateIndex;
+        }
+      }
+
+      if (count > 0 && getTemporarilyBadPhotoCount(now) >= count) {
+        clearTemporarilyBadPhotos("all_photos_temporarily_disabled");
+      }
+
+      for (let offset = 0; offset < count; offset += 1) {
+        if (!allowStart && offset === 0 && count > 1) continue;
+        const candidateIndex = (baseIndex + offset) % count;
+        const candidatePhoto = photos[candidateIndex];
+        if (candidatePhoto && candidatePhoto.id) {
+          return candidateIndex;
+        }
+      }
+
+      return baseIndex;
+    }
+
     function getNextPhotoIndex(fromIndex = currentIndex) {
       const count = getApprovedPhotoCount();
       if (!count) return 0;
       if (count === 1) return 0;
       const baseIndex = Number.isFinite(fromIndex) ? fromIndex : 0;
-      return (baseIndex + 1) % count;
+      return getPlayablePhotoIndex((baseIndex + 1) % count, { allowStart: true });
     }
 
     function setSlideshowState(nextState, reason = "") {
@@ -3074,6 +3329,98 @@
       } catch (_) {}
     }
 
+    function activateDirectSwapFallback(reason = "crossfade_stall") {
+      if (!isDirectSwapFallbackEnabled() || directSwapFallbackActive) return false;
+      directSwapFallbackActive = true;
+      applyGalleryTransitionMode();
+      recordGalleryDebugEvent({
+        severity: "warn",
+        category: "runtime",
+        code: "SWITCHED_TO_DIRECT_SWAP",
+        subsystem: "slideshow_recovery",
+        route: "/gallery/photo",
+        diagnosis: "SWITCHED TO DIRECT SWAP — crossfade stalled",
+        message: reason,
+        action: "Direct swap fallback is active to keep slideshow moving.",
+      });
+      appendRuntimeLog("slideshow_recovery", "switched_to_direct_swap", { reason });
+      return true;
+    }
+
+    function performLastResortPageReload(reason = "visual_stall_hard_recovery") {
+      recordGalleryDebugEvent({
+        severity: "error",
+        category: "runtime",
+        code: "LAST_RESORT_PAGE_RELOAD",
+        subsystem: "slideshow_recovery",
+        route: "/gallery/photo",
+        diagnosis: "LAST RESORT PAGE RELOAD — recovery attempts exhausted",
+        message: reason,
+        action: "Gallery page will reload once as the last recovery step.",
+      });
+      return performRuntimeStage2Reload(reason);
+    }
+
+    async function performHardVisualStallRecovery(reason = "visual_stall_hard_recovery", now = Date.now()) {
+      if (hardVisualRecoveryInProgress) return false;
+      if (isSinglePhotoMode() || getApprovedPhotoCount() < 2) return false;
+      hardVisualRecoveryInProgress = true;
+      hardVisualRecoveryCount += 1;
+      lastHardVisualRecoveryAtMs = now;
+      const nextIndex = getNextPhotoIndex(currentIndex);
+      const nextPhoto = photos[nextIndex] || null;
+      const nextPhotoId = nextPhoto && nextPhoto.id ? String(nextPhoto.id) : "";
+
+      try {
+        recordGalleryDebugEvent({
+          severity: "error",
+          category: "runtime",
+          code: "VISUAL_STALL_HARD_RECOVERY",
+          subsystem: "slideshow_recovery",
+          route: "/gallery/photo",
+          diagnosis: "VISUAL STALL HARD RECOVERY — trying next photo",
+          message: `${reason}:attempt_${hardVisualRecoveryCount}`,
+          action: hardVisualRecoveryCount >= 3
+            ? "Last-resort page reload will run if playback does not recover."
+            : hardVisualRecoveryCount === 2 && isDirectSwapFallbackEnabled()
+              ? "Switching to direct swap fallback before the next recovery attempt."
+              : "Trying the next photo immediately.",
+        });
+        appendRuntimeLog("slideshow_recovery", "visual_stall_hard_recovery", {
+          reason,
+          hardVisualRecoveryCount,
+          nextPhotoId,
+          currentPhotoId: currentPhotoId || "",
+        });
+        clearNamedTimer("rotation");
+        rotateTimer = null;
+        loadingSlotIndex = -1;
+        crossfadeInProgress = false;
+        clearInactiveImageSlots(`visual_stall_hard_recovery:${reason}`);
+        setRecoveryAction(`visual_stall_hard_recovery:${hardVisualRecoveryCount}:${reason}`);
+
+        if (hardVisualRecoveryCount >= 2) {
+          activateDirectSwapFallback(reason);
+        }
+
+        if (hardVisualRecoveryCount >= 3) {
+          return performLastResortPageReload(`visual_stall_hard_recovery:${reason}`);
+        }
+
+        rotationLoopToken += 1;
+        const loopToken = rotationLoopToken;
+        const didShow = await showCurrentPhoto({
+          targetIndex: nextIndex,
+          advanceReason: `visual_stall_hard_recovery_${hardVisualRecoveryCount}`,
+        });
+        if (loopToken !== rotationLoopToken) return didShow;
+        scheduleNextRotation(loopToken, didShow ? DISPLAY_MS : 1500);
+        return didShow;
+      } finally {
+        hardVisualRecoveryInProgress = false;
+      }
+    }
+
     function evaluateSlideshowStallRecovery(now = Date.now()) {
       try {
         if (isDocumentBackgrounded()) return;
@@ -3101,6 +3448,11 @@
         }
 
         const stallReason = getSlideshowStallRecoveryReason();
+
+        if ((lastVisualSwapAt || lastPhotoChangeAt) && getVisibleImageAgeMs() >= HARD_VISUAL_STALL_RECOVERY_MS) {
+          void performHardVisualStallRecovery(stallReason, now);
+          return;
+        }
 
         if (slideshowState !== SLIDESHOW_STATES.recovering) {
           setSlideshowState(SLIDESHOW_STATES.degraded, stallReason);
@@ -3143,10 +3495,16 @@
     }
 
     function getApprovedPollDelayMs() {
+      if (isPiStablePlayerModeEnabled()) {
+        return PI_STABLE_APPROVED_REFRESH_MS;
+      }
       return isFetchFailureBackoffActive() ? BURST_BACKOFF_REFRESH_MS : REFRESH_MS;
     }
 
     function getHeartbeatDelayMs() {
+      if (isPiStablePlayerModeEnabled()) {
+        return PI_STABLE_HEARTBEAT_MS;
+      }
       return isFetchFailureBackoffActive() ? BURST_BACKOFF_HEARTBEAT_MS : GALLERY_HEARTBEAT_MS;
     }
 
@@ -3155,7 +3513,14 @@
     }
 
     function getRuntimeSettingsPollDelayMs() {
+      if (isPiStablePlayerModeEnabled()) {
+        return PI_STABLE_RUNTIME_SETTINGS_REFRESH_MS;
+      }
       return RUNTIME_SETTINGS_REFRESH_MS;
+    }
+
+    function getRuntimeWatchdogIntervalMs() {
+      return isPiStablePlayerModeEnabled() ? PI_STABLE_RUNTIME_WATCHDOG_INTERVAL_MS : RUNTIME_WATCHDOG_INTERVAL_MS;
     }
 
     function maybeClearBackoffAfterStableWindow(now = Date.now()) {
@@ -3622,7 +3987,7 @@
         recordGalleryDebugEvent({
           severity: playbackHealthy ? "warn" : "error",
           category: "heartbeat",
-          code: playbackHealthy ? "TELEMETRY_WARNING" : (isTimeoutLike ? "HB_TIMEOUT" : "HB_FETCH_FAIL"),
+          code: playbackHealthy ? "PLAYBACK_HEALTHY_TELEMETRY_WARNING" : (isTimeoutLike ? "HB_TIMEOUT" : "HB_FETCH_FAIL"),
           subsystem: "telemetry_heartbeat",
           route: "/api/device-heartbeat",
           diagnosis: playbackHealthy ? "TELEMETRY WARNING — playback may still be OK" : undefined,
@@ -3642,6 +4007,9 @@
       try {
         currentPhotoId = file && file.id ? String(file.id) : currentPhotoId;
         currentPhotoName = file && file.name ? String(file.name) : "";
+        if (currentPhotoId && photoTempDisableRegistry[currentPhotoId]) {
+          delete photoTempDisableRegistry[currentPhotoId];
+        }
         currentDisplayedPhotoIndex = Number.isFinite(currentIndex) ? currentIndex : -1;
         lastPhotoChangeAt = new Date().toISOString();
         softRecoveryAttemptCount = 0;
@@ -3661,6 +4029,50 @@
 
     function getSlideshowStalled() {
       return getSlideshowVisualStalled();
+    }
+
+    function getPlaybackHealth(now = Date.now()) {
+      if (getApprovedPhotoCount() > 1 && getSlideshowVisualStalled(now)) return "stalled";
+      const pollAgeMs = getMsSinceIsoTimestamp(lastSuccessfulPollAt);
+      if (
+        getApprovedPhotoCount() > 0 &&
+        isGalleryWaitingVisible() &&
+        qrWaitingReason !== "approved_empty" &&
+        Number.isFinite(pollAgeMs) &&
+        pollAgeMs !== Infinity &&
+        pollAgeMs > DEBUG_OVERLAY_QR_STUCK_GRACE_MS
+      ) {
+        return "stalled";
+      }
+      if (hasImage) return "healthy";
+      if (getApprovedPhotoCount() > 0) return "waiting";
+      return "waiting";
+    }
+
+    function getTelemetryHealth(now = Date.now()) {
+      if (lastHeartbeatError) return "warning";
+      const heartbeatAgeMs = getMsSinceIsoTimestamp(lastSuccessfulHeartbeatAt);
+      if (
+        lastSuccessfulHeartbeatAt &&
+        Number.isFinite(heartbeatAgeMs) &&
+        heartbeatAgeMs > Math.max(getHeartbeatDelayMs() * 2, RUNTIME_HEARTBEAT_STALE_MS)
+      ) {
+        return "warning";
+      }
+      return "healthy";
+    }
+
+    function getNetworkHealth() {
+      if (lastApprovedFetchStatus === "fail" || lastPhotoFetchStatus === "fail" || lastOverlayFetchStatus === "fail") {
+        return "warning";
+      }
+      return "healthy";
+    }
+
+    function getBrowserHealth(now = Date.now()) {
+      if (getPlaybackHealth(now) === "stalled") return "stalled";
+      if (runtimeDegraded || watchdogTriggered) return "warning";
+      return "healthy";
     }
 
     function getPerformanceMemorySnapshot() {
@@ -3757,6 +4169,10 @@
             objectUrlPeak,
             objectUrlWarningActive: Boolean(objectUrlWarningActive),
             activeBlobCount: getActiveBlobCount(),
+            playbackHealth: getPlaybackHealth(),
+            telemetryHealth: getTelemetryHealth(),
+            networkHealth: getNetworkHealth(),
+            browserHealth: getBrowserHealth(),
             activeImageSlotCount: getActiveImageSlotCount(),
             activeTimers: getActiveTimerNames(),
             activeTimerCount: getActiveTimerNames().length,
@@ -4237,8 +4653,16 @@
       } catch (_) {}
     }
 
-    function buildPhotoUrl(fileId) {
-      return `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
+    function buildPhotoUrl(fileId, version = "") {
+      const baseUrl = `${BASE_URL}/gallery/photo/${encodeURIComponent(fileId)}`;
+      if (!version) return baseUrl;
+      return `${baseUrl}?v=${encodeURIComponent(String(version))}`;
+    }
+
+    function buildPhotoPlaybackUrl(photo) {
+      if (!photo || !photo.id) return "";
+      const version = approvedManifestVersion || photo.modifiedTime || photo.approvedTime || photo.id;
+      return buildPhotoUrl(photo.id, version);
     }
 
     function normalizeAssetUrl(url) {
@@ -4344,6 +4768,9 @@
         runtimeSettingsVersion = nextVersion;
         lastRuntimeSettingsAppliedAt = new Date().toISOString();
         settingsApplyCount += 1;
+        if (settingsChanged) {
+          directSwapFallbackActive = false;
+        }
         applyGalleryTransitionMode();
 
         if (!isGalleryDebugOverlayEnabled()) {
@@ -4401,9 +4828,7 @@
         }
 
         if (isRuntimeWatchdogEnabled()) {
-          if (!runtimeWatchdogTimer) {
-            startRuntimeWatchdog();
-          }
+          startRuntimeWatchdog();
         } else {
           stopRuntimeWatchdogLoop();
         }
@@ -4414,12 +4839,23 @@
             disabledSystems,
             settingsApplyCount,
           }, 5000);
+          if (isPiStablePlayerModeEnabled()) {
+            appendRuntimeLog("runtime_mode", "PI_STABLE_MODE_ON", {
+              enablePiStablePlayerMode: true,
+            });
+          }
+          if (!isBlobPhotoLoaderEnabled()) {
+            appendRuntimeLog("runtime_mode", "BLOB_LOADER_OFF", {
+              enableBlobPhotoLoader: false,
+            });
+          }
           galleryDebug("gallery runtime settings applied", {
             previousSettings,
             nextSettings,
             runtimeSettingsVersion: nextVersion,
             disabledSystems,
           });
+          rescheduleManagedPollingLoops("runtime_settings_applied");
         } else {
           appendSettingsRuntimeLog("SETTINGS_UNCHANGED", {
             runtimeSettingsVersion: nextVersion,
@@ -5126,13 +5562,166 @@
       return true;
     }
 
-    async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "", options = {}) {
+    function commitVisualSwapFrame(callback) {
+      if (typeof callback !== "function") return;
+      if (isPiStablePlayerModeEnabled()) {
+        callback();
+        return;
+      }
+      requestAnimationFrame(callback);
+    }
+
+    async function loadImageIntoSlotStable(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "", options = {}) {
       clearStaleInFlightLocks(Date.now());
-      const { transitionToken = null } = options;
+      const { transitionToken = null, photo = null } = options;
+      const img = imgSlots[slotIndex];
+      const targetPhoto = photo && typeof photo === "object" ? photo : null;
+      const targetPhotoId = targetPhoto && targetPhoto.id ? String(targetPhoto.id) : (photoId ? String(photoId) : "");
+      const targetPhotoName = targetPhoto && targetPhoto.name ? String(targetPhoto.name) : (targetPhotoId ? findPhotoNameById(targetPhotoId) : "");
+      const playbackUrl = targetPhoto ? buildPhotoPlaybackUrl(targetPhoto) : url;
+      const photoRoute = sanitizeMonitorRoute(playbackUrl || url);
+      const pendingFetchName = `photo_slot_${slotIndex}_${transitionToken != null ? transitionToken : "current"}`;
+      const lifecycleStartedAtMs = Date.now();
+      const lifecycleBase = {
+        slotIndex,
+        photoId: targetPhotoId,
+        photoName: targetPhotoName,
+        transitionToken,
+        startedAtMs: lifecycleStartedAtMs,
+      };
+
+      recordImageLifecycleEvent("img_src_load_start", lifecycleBase);
+      registerPendingFetch({
+        name: pendingFetchName,
+        category: "photo_fetch",
+        route: photoRoute,
+        startAt: lifecycleStartedAtMs,
+        timeoutMs,
+        photoId: targetPhotoId,
+        photoName: targetPhotoName,
+      });
+
+      try {
+        if (!img) {
+          throw new Error("missing_image_slot");
+        }
+        if (!playbackUrl) {
+          throw new Error("missing_photo_url");
+        }
+
+        return await new Promise((resolve, reject) => {
+          let settled = false;
+          const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            imageLifecycleDetections.onloadNeverFired = true;
+            recordImageLifecycleEvent("img_src_timeout", {
+              ...lifecycleBase,
+              error: "image_load_timeout",
+            });
+            cleanup(true);
+            reject(new Error("image_load_timeout"));
+          }, timeoutMs);
+
+          function cleanup(clearSrc = false) {
+            clearTimeout(timer);
+            if (!img) return;
+            img.onload = null;
+            img.onerror = null;
+            if (clearSrc) {
+              try {
+                img.removeAttribute("src");
+              } catch (_) {}
+              try {
+                img.src = "";
+              } catch (_) {}
+            }
+          }
+
+          function finalizeSuccess(source = "img_src_onload") {
+            if (settled) return;
+            if (!img.naturalWidth || !img.naturalHeight) {
+              settled = true;
+              imageLifecycleDetections.decodeFailed = true;
+              recordImageLifecycleEvent("img_src_invalid_dimensions", {
+                ...lifecycleBase,
+                error: "image_invalid_dimensions",
+              });
+              cleanup(true);
+              reject(new Error("image_load_failed"));
+              return;
+            }
+            settled = true;
+            cleanup(false);
+            clearSlotObjectUrl(slotIndex, { clearSrc: false, clearPhotoId: false });
+            slotObjectUrls[slotIndex] = null;
+            slotPhotoIds[slotIndex] = targetPhotoId;
+            recordSuccessfulImageLoad();
+            recordImageLifecycleEvent(source, {
+              ...lifecycleBase,
+              naturalWidth: img.naturalWidth || 0,
+              naturalHeight: img.naturalHeight || 0,
+              durationMs: Date.now() - lifecycleStartedAtMs,
+            });
+            recordImageLifecycleEvent("slot_loaded", {
+              ...lifecycleBase,
+              naturalWidth: img.naturalWidth || 0,
+              naturalHeight: img.naturalHeight || 0,
+              durationMs: Date.now() - lifecycleStartedAtMs,
+            });
+            resolve(playbackUrl);
+          }
+
+          img.onload = () => finalizeSuccess("img_src_load_ok");
+          img.onerror = () => {
+            if (settled) return;
+            settled = true;
+            recordImageLifecycleEvent("img_src_load_fail", {
+              ...lifecycleBase,
+              error: "image_load_failed",
+            });
+            cleanup(true);
+            reject(new Error("image_load_failed"));
+          };
+
+          recordImageLifecycleEvent("img_src_assigned", {
+            ...lifecycleBase,
+          });
+          img.src = playbackUrl;
+
+          if (img.complete && img.naturalWidth > 0) {
+            finalizeSuccess("img_src_load_ok_immediate");
+          }
+        });
+      } catch (err) {
+        const errorMessage = err && err.message ? err.message : String(err);
+        if (img) {
+          clearSlotObjectUrl(slotIndex, { clearSrc: true, clearPhotoId: true });
+        }
+        if (shouldCountImageLoadFailure(err, transitionToken)) {
+          recordImageFailure(errorMessage, {
+            type: "photo_fetch_failure",
+            route: photoRoute || "/gallery/photo",
+            currentPhotoId: targetPhotoId,
+            currentPhotoName: targetPhotoName,
+          });
+        }
+        throw err;
+      } finally {
+        unregisterPendingFetch(pendingFetchName);
+      }
+    }
+
+    async function loadImageIntoSlot(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "", options = {}) {
+      if (isStableImgSrcLoaderEnabled()) {
+        return loadImageIntoSlotStable(slotIndex, url, timeoutMs, photoId, options);
+      }
+      clearStaleInFlightLocks(Date.now());
+      const { transitionToken = null, photo = null } = options;
       const img = imgSlots[slotIndex];
       const photoRoute = sanitizeMonitorRoute(url);
       const targetPhotoId = photoId ? String(photoId) : "";
-      const targetPhotoName = targetPhotoId ? findPhotoNameById(targetPhotoId) : "";
+      const targetPhotoName = photo && photo.name ? String(photo.name) : (targetPhotoId ? findPhotoNameById(targetPhotoId) : "");
       let objectUrl = "";
       const pendingFetchName = `photo_slot_${slotIndex}_${transitionToken != null ? transitionToken : "current"}`;
       const lifecycleStartedAtMs = Date.now();
@@ -5368,7 +5957,7 @@
       } catch (_) {}
     }
 
-    async function performDirectImageSwap(url, photoId = "") {
+    async function performDirectImageSwap(url, photoId = "", photo = null) {
       const transitionToken = ++photoTransitionToken;
       const targetPhotoId = photoId ? String(photoId) : "";
       const swapStartedAtMs = Date.now();
@@ -5417,7 +6006,7 @@
           nextImg.getAttribute("src");
 
         if (!alreadyLoaded) {
-          await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
+          await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken, photo });
         }
 
         if (transitionToken !== photoTransitionToken) {
@@ -5505,6 +6094,7 @@
       const transitionToken = Number.isFinite(meta.transitionToken) ? meta.transitionToken : 0;
       const targetPhotoId = meta.photoId ? String(meta.photoId) : "";
       const slotIndex = Number.isFinite(meta.slotIndex) ? meta.slotIndex : -1;
+      const previousSlotIndex = Number.isFinite(meta.previousSlotIndex) ? meta.previousSlotIndex : -1;
       const startedAtMs = Number.isFinite(meta.startedAtMs) ? meta.startedAtMs : 0;
       let settled = false;
       let timeoutId = null;
@@ -5524,6 +6114,9 @@
         if (settled) return;
         settled = true;
         cleanup();
+        if (previousSlotIndex >= 0 && previousSlotIndex !== slotIndex) {
+          clearSlotObjectUrl(previousSlotIndex, { clearSrc: true, clearPhotoId: true });
+        }
       };
 
       try {
@@ -5540,6 +6133,9 @@
           if (currentImg && currentImg !== nextImg) {
             currentImg.classList.remove("visible");
           }
+          if (previousSlotIndex >= 0 && previousSlotIndex !== slotIndex) {
+            clearSlotObjectUrl(previousSlotIndex, { clearSrc: true, clearPhotoId: true });
+          }
           recordImageLifecycleEvent("transition_timeout_fallback", {
             photoId: targetPhotoId,
             slotIndex,
@@ -5552,9 +6148,9 @@
       }, PHOTO_TRANSITION_FALLBACK_MS);
     }
 
-    async function crossfadeTo(url, photoId = "") {
+    async function crossfadeTo(url, photoId = "", photo = null) {
       if (isDirectSwapModeEnabled()) {
-        return performDirectImageSwap(url, photoId);
+        return performDirectImageSwap(url, photoId, photo);
       }
 
       const transitionToken = ++photoTransitionToken;
@@ -5573,7 +6169,7 @@
         const img = imgSlots[activeIndex];
         try {
           img.classList.remove("visible");
-          await loadImageIntoSlot(activeIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
+          await loadImageIntoSlot(activeIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken, photo });
           if (transitionToken !== photoTransitionToken) {
             imageLifecycleDetections.loadedNeverVisible = true;
             recordImageLifecycleEvent("image_loaded_never_visible", {
@@ -5587,7 +6183,7 @@
           }
 
           return await new Promise((resolve) => {
-            requestAnimationFrame(() => {
+            commitVisualSwapFrame(() => {
               if (transitionToken !== photoTransitionToken) {
                 imageLifecycleDetections.loadedNeverVisible = true;
                 recordImageLifecycleEvent("image_loaded_never_visible", {
@@ -5612,6 +6208,7 @@
                 transitionToken,
                 photoId: targetPhotoId,
                 slotIndex: activeIndex,
+                previousSlotIndex: -1,
                 startedAtMs: transitionStartedAtMs,
               });
               setSlideshowState(SLIDESHOW_STATES.displaying, "first_photo_visible");
@@ -5663,12 +6260,13 @@
       const nextImg = imgSlots[nextIndex];
 
       if (targetId && slotPhotoIds[nextIndex] === targetId && nextImg.getAttribute("src")) {
+        const previousIndex = activeIndex;
         if (transitionToken !== photoTransitionToken) {
           abortCrossfadeLifecycle(targetId, "crossfade_aborted", "transition_superseded");
           return false;
         }
         return await new Promise((resolve) => {
-          requestAnimationFrame(() => {
+          commitVisualSwapFrame(() => {
             if (transitionToken !== photoTransitionToken) {
               abortCrossfadeLifecycle(targetId, "crossfade_aborted", "transition_superseded");
               resolve(false);
@@ -5689,6 +6287,7 @@
               transitionToken,
               photoId: targetId,
               slotIndex: nextIndex,
+              previousSlotIndex: previousIndex,
               startedAtMs: transitionStartedAtMs,
             });
             setSlideshowState(SLIDESHOW_STATES.displaying, "reuse_preloaded_slot");
@@ -5702,8 +6301,9 @@
       }
 
       try {
+        const previousIndex = activeIndex;
         nextImg.classList.remove("visible");
-        await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken });
+        await loadImageIntoSlot(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, { transitionToken, photo });
         if (transitionToken !== photoTransitionToken) {
           imageLifecycleDetections.loadedNeverVisible = true;
           recordImageLifecycleEvent("image_loaded_never_visible", {
@@ -5717,7 +6317,7 @@
         }
 
         return await new Promise((resolve) => {
-          requestAnimationFrame(() => {
+          commitVisualSwapFrame(() => {
             if (transitionToken !== photoTransitionToken) {
               imageLifecycleDetections.loadedNeverVisible = true;
               recordImageLifecycleEvent("image_loaded_never_visible", {
@@ -5745,6 +6345,7 @@
               transitionToken,
               photoId: targetId,
               slotIndex: nextIndex,
+              previousSlotIndex: previousIndex,
               startedAtMs: transitionStartedAtMs,
             });
             setSlideshowState(SLIDESHOW_STATES.displaying, "transition_committed");
@@ -5802,34 +6403,49 @@
       }
 
       if (!isDirectSwapModeEnabled()) {
-        currentIndex = nextPhotoIndex;
+        currentIndex = getPlayablePhotoIndex(nextPhotoIndex, { allowStart: true });
         normalizeCurrentPhotoIndex();
         nextPhotoIndex = currentIndex;
       }
       setSlideshowState(SLIDESHOW_STATES.loading, `${advanceReason}:index_${nextPhotoIndex}`);
 
-      const file = photos[nextPhotoIndex];
-      if (!file || !file.id) {
-        setSlideshowState(SLIDESHOW_STATES.ready, "show_current_photo_missing_file");
-        return false;
+      for (let attempt = 0; attempt < approvedPhotoCount; attempt += 1) {
+        const candidateIndex = attempt === 0
+          ? getPlayablePhotoIndex(nextPhotoIndex, { allowStart: true })
+          : getNextPhotoIndex(nextPhotoIndex);
+        nextPhotoIndex = candidateIndex;
+        const file = photos[candidateIndex];
+        if (!file || !file.id) {
+          continue;
+        }
+        if (isPhotoTemporarilyDisabled(file.id)) {
+          continue;
+        }
+
+        const url = buildPhotoPlaybackUrl(file);
+        const didShow = await crossfadeTo(url, file.id, file);
+        if (didShow) {
+          currentIndex = candidateIndex;
+          normalizeCurrentPhotoIndex();
+          markVisiblePhoto(file);
+          recordSlideshowAdvance(advanceReason, file);
+          updateTicketBadge(file.name);
+          setSlideshowState(
+            SLIDESHOW_STATES.displaying,
+            isSinglePhotoMode() ? "single_photo_mode" : `${advanceReason}:visible`
+          );
+          return true;
+        }
+
+        recordPhotoPlaybackFailure(file, "show_current_photo_failed", {
+          photoId: file.id,
+          photoName: file.name || "",
+        });
+        nextPhotoIndex = candidateIndex;
       }
 
-      const url = buildPhotoUrl(file.id);
-      const didShow = await crossfadeTo(url, file.id);
-      if (didShow) {
-        currentIndex = nextPhotoIndex;
-        normalizeCurrentPhotoIndex();
-        markVisiblePhoto(file);
-        recordSlideshowAdvance(advanceReason, file);
-        updateTicketBadge(file.name);
-        setSlideshowState(
-          SLIDESHOW_STATES.displaying,
-          isSinglePhotoMode() ? "single_photo_mode" : `${advanceReason}:visible`
-        );
-      } else {
-        setSlideshowState(SLIDESHOW_STATES.displaying, `${advanceReason}:failed`);
-      }
-      return didShow;
+      setSlideshowState(SLIDESHOW_STATES.displaying, `${advanceReason}:failed`);
+      return false;
     }
 
     async function advanceSlideshowPhoto(loopToken) {

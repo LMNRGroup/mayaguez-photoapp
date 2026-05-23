@@ -289,7 +289,10 @@ const DEFAULT_APP_SETTINGS = {
     }
   },
   galleryRuntime: {
+    enablePiStablePlayerMode: true,
+    enableBlobPhotoLoader: false,
     enableGalleryCrossfade: true,
+    enableDirectSwapFallback: true,
     enableFlattenedOverlay: false,
     enableOverlayPolling: false,
     enableDynamicTemplateRuntime: false,
@@ -325,7 +328,10 @@ const SETTINGS_FIELDS = [
   { key: 'Gallery Display Limit', type: 'string', path: ['galleryDisplayLimit'] },
   { key: 'Active Template ID', type: 'string', path: ['activeTemplateId'] },
   { key: 'Active Template Snapshot', type: 'string', path: ['activeTemplateSnapshot'] },
+  { key: 'Pi Stable Player Mode Enabled', type: 'boolean', path: ['galleryRuntime', 'enablePiStablePlayerMode'] },
+  { key: 'Blob Photo Loader Enabled', type: 'boolean', path: ['galleryRuntime', 'enableBlobPhotoLoader'] },
   { key: 'Gallery Crossfade Enabled', type: 'boolean', path: ['galleryRuntime', 'enableGalleryCrossfade'] },
+  { key: 'Direct Swap Fallback Enabled', type: 'boolean', path: ['galleryRuntime', 'enableDirectSwapFallback'] },
   { key: 'Flattened Overlay Enabled', type: 'boolean', path: ['galleryRuntime', 'enableFlattenedOverlay'] },
   { key: 'Overlay Polling Enabled', type: 'boolean', path: ['galleryRuntime', 'enableOverlayPolling'] },
   { key: 'Dynamic Template Runtime Enabled', type: 'boolean', path: ['galleryRuntime', 'enableDynamicTemplateRuntime'] },
@@ -465,7 +471,10 @@ function sanitizeDeviceStatus(rawStatus) {
     : null;
   const galleryRuntimeSettings = status.galleryRuntimeSettings && typeof status.galleryRuntimeSettings === 'object'
     ? {
+        enablePiStablePlayerMode: clampBoolean(status.galleryRuntimeSettings.enablePiStablePlayerMode),
+        enableBlobPhotoLoader: clampBoolean(status.galleryRuntimeSettings.enableBlobPhotoLoader),
         enableGalleryCrossfade: clampBoolean(status.galleryRuntimeSettings.enableGalleryCrossfade),
+        enableDirectSwapFallback: clampBoolean(status.galleryRuntimeSettings.enableDirectSwapFallback),
         enableFlattenedOverlay: clampBoolean(status.galleryRuntimeSettings.enableFlattenedOverlay),
         enableOverlayPolling: clampBoolean(status.galleryRuntimeSettings.enableOverlayPolling),
         enableDynamicTemplateRuntime: clampBoolean(status.galleryRuntimeSettings.enableDynamicTemplateRuntime),
@@ -520,6 +529,10 @@ function sanitizeDeviceStatus(rawStatus) {
     objectUrlPeak: clampNumber(status.objectUrlPeak),
     objectUrlWarningActive: clampBoolean(status.objectUrlWarningActive),
     activeBlobCount: clampNumber(status.activeBlobCount),
+    playbackHealth: clampString(status.playbackHealth || '', 40),
+    telemetryHealth: clampString(status.telemetryHealth || '', 40),
+    networkHealth: clampString(status.networkHealth || '', 40),
+    browserHealth: clampString(status.browserHealth || '', 40),
     activeImageSlotCount: clampNumber(status.activeImageSlotCount),
     activeTimers: Array.isArray(status.activeTimers)
       ? status.activeTimers.map((entry) => clampString(entry || '', 80)).filter(Boolean).slice(0, 24)
@@ -963,7 +976,10 @@ function normalizeGalleryRuntimeSettings(rawSettings = {}) {
   const fallback = getDefaultGalleryRuntimeSettings();
   const candidate = rawSettings && typeof rawSettings === 'object' ? rawSettings : {};
   return {
+    enablePiStablePlayerMode: coerceBoolean(candidate.enablePiStablePlayerMode, fallback.enablePiStablePlayerMode),
+    enableBlobPhotoLoader: coerceBoolean(candidate.enableBlobPhotoLoader, fallback.enableBlobPhotoLoader),
     enableGalleryCrossfade: coerceBoolean(candidate.enableGalleryCrossfade, fallback.enableGalleryCrossfade),
+    enableDirectSwapFallback: coerceBoolean(candidate.enableDirectSwapFallback, fallback.enableDirectSwapFallback),
     enableFlattenedOverlay: coerceBoolean(candidate.enableFlattenedOverlay, fallback.enableFlattenedOverlay),
     enableOverlayPolling: coerceBoolean(candidate.enableOverlayPolling, fallback.enableOverlayPolling),
     enableDynamicTemplateRuntime: coerceBoolean(candidate.enableDynamicTemplateRuntime, fallback.enableDynamicTemplateRuntime),
@@ -999,7 +1015,9 @@ function normalizeGalleryRuntimeCommand(rawCommand = {}) {
 function buildGalleryRuntimeDisabledSystems(runtimeSettings = {}) {
   const runtime = normalizeGalleryRuntimeSettings(runtimeSettings);
   const disabledSystems = [];
+  if (!runtime.enableBlobPhotoLoader) disabledSystems.push('blob_photo_loader');
   if (!runtime.enableGalleryCrossfade) disabledSystems.push('gallery_crossfade');
+  if (!runtime.enableDirectSwapFallback) disabledSystems.push('direct_swap_fallback');
   if (!runtime.enableFlattenedOverlay) disabledSystems.push('flattened_overlay');
   if (!runtime.enableOverlayPolling) disabledSystems.push('overlay_polling');
   if (!runtime.enableDynamicTemplateRuntime) disabledSystems.push('dynamic_template_runtime');
@@ -1085,7 +1103,10 @@ function mergeAppSettings(patch = {}) {
     const currentRuntimeSettings = normalizeGalleryRuntimeSettings(next.galleryRuntime);
     const runtimePatch = patch.galleryRuntime;
     next.galleryRuntime = {
+      enablePiStablePlayerMode: coerceBoolean(runtimePatch.enablePiStablePlayerMode, currentRuntimeSettings.enablePiStablePlayerMode),
+      enableBlobPhotoLoader: coerceBoolean(runtimePatch.enableBlobPhotoLoader, currentRuntimeSettings.enableBlobPhotoLoader),
       enableGalleryCrossfade: coerceBoolean(runtimePatch.enableGalleryCrossfade, currentRuntimeSettings.enableGalleryCrossfade),
+      enableDirectSwapFallback: coerceBoolean(runtimePatch.enableDirectSwapFallback, currentRuntimeSettings.enableDirectSwapFallback),
       enableFlattenedOverlay: coerceBoolean(runtimePatch.enableFlattenedOverlay, currentRuntimeSettings.enableFlattenedOverlay),
       enableOverlayPolling: coerceBoolean(runtimePatch.enableOverlayPolling, currentRuntimeSettings.enableOverlayPolling),
       enableDynamicTemplateRuntime: coerceBoolean(runtimePatch.enableDynamicTemplateRuntime, currentRuntimeSettings.enableDynamicTemplateRuntime),
