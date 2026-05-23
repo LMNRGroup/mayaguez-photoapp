@@ -5551,7 +5551,20 @@ View report to see the most recent interactions
                         <span>APPLY FULL GALLERY MODE</span>
                       </span>
                     </button>
+                    <button id="settingsReloadGalleryPlayerBtn" class="btn-secondary" type="button">
+                      <span class="btn-inline-content">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>RELOAD GALLERY PLAYER</span>
+                      </span>
+                    </button>
+                    <button id="settingsClearCacheReloadGalleryPlayerBtn" class="btn-secondary" type="button">
+                      <span class="btn-inline-content">
+                        <i data-lucide="rotate-ccw"></i>
+                        <span>CLEAR GALLERY CACHE + RELOAD</span>
+                      </span>
+                    </button>
                   </div>
+                  <div id="settingsGalleryRuntimeCommandStatus" class="settings-help" style="margin-top: 0.85rem;">No gallery reload command issued yet.</div>
                 </div>
               </div>
 
@@ -6939,6 +6952,8 @@ function hideGlobalLoader() {
         `  Device Name: ${device?.deviceName || status.deviceName || "—"}`,
         `  Device ID: ${device?.deviceId || "—"}`,
         `  Health: ${health.label}`,
+        `  Gallery Playback Health: ${analysis.playbackHealth || "healthy"}`,
+        `  Telemetry Health: ${analysis.telemetryHealth || "healthy"}`,
         `  Seen In Live API Window (2m): ${device?.online ? "Yes" : "No"}`,
         `  Browser Heartbeat Offline: ${analysis.browserHeartbeatOffline ? "Yes" : "No"}`,
         `  Created At: ${formatPuertoRicoDateTime(device?.createdAt)}`,
@@ -6983,6 +6998,9 @@ function hideGlobalLoader() {
         `  Last Failure Timestamp: ${formatPuertoRicoDateTime(analysis.lastFailureAt)}`,
         `  Failure Categories Count: ${formatFailureCategoryCountsText(analysis.failureCategoryCounts)}`,
         `  Fetch Failure Burst: ${analysis.fetchFailureBurst.detected ? `${analysis.fetchFailureBurst.label || "WARNING: FETCH FAILURE BURST"} (${analysis.fetchFailureBurst.count} failures in 60s)` : "No"}`,
+        `  Heartbeat-Only Warning: ${analysis.heartbeatOnlyWarning ? "Yes" : "No"}`,
+        `  Chromium Or Telemetry Loop Stopped: ${analysis.chromiumOrTelemetryStopped ? "Yes" : "No"}`,
+        `  Overlay Active At Failure: ${analysis.overlayActiveAtFailure ? "Yes" : "No"}`,
         `  Yodeck Chromium Freeze Likely: ${analysis.yodeckChromiumFreezeLikely ? "Yes" : "No"}`,
         `  Yodeck Freeze Action: ${analysis.yodeckFreezeRecommendedAction || "None"}`,
         `  Recommended Next Action: ${analysis.recommendedNextAction || "None"}`,
@@ -7266,6 +7284,7 @@ function hideGlobalLoader() {
           <div class="device-card-footer">
             <div>Stalled: ${escapeHtml(status.slideshowStalled ? "Yes" : "No")} · Memory: ${escapeHtml(formatDeviceMemory(status.memory))}</div>
             <div>${escapeHtml(browserLabel)}</div>
+            <div>${escapeHtml(`Playback ${analysis.playbackHealth || "healthy"} · Telemetry ${analysis.telemetryHealth || "healthy"}`)}</div>
             <div>${escapeHtml(analysis.browserHeartbeatOffline ? "Browser heartbeat offline" : health.label)} · Last known state: ${escapeHtml(analysis.lastKnownState || "—")}</div>
             ${analysis.fetchFailureBurst.detected ? `<div>${escapeHtml(`${analysis.fetchFailureBurst.label || "WARNING: FETCH FAILURE BURST"} (${analysis.fetchFailureBurst.count} failures in 60s)`)}</div>` : ""}
             ${analysis.staleDataWarning ? `<div>${escapeHtml(analysis.staleDataWarning)}</div>` : analysis.likelyDiagnosis ? `<div>${escapeHtml(analysis.likelyDiagnosis)}</div>` : ""}
@@ -7366,6 +7385,16 @@ function hideGlobalLoader() {
           label: "Classification",
           text: analysis.browserHeartbeatOffline ? "Browser heartbeat offline" : health.label,
           tone: analysis.browserHeartbeatOffline ? "device-status-error" : health.tone,
+        },
+        {
+          label: "Gallery Playback Health",
+          text: analysis.playbackHealth || "healthy",
+          tone: analysis.playbackHealth === "degraded" ? "device-status-error" : analysis.playbackHealth === "warning" ? "device-status-warn" : "",
+        },
+        {
+          label: "Telemetry Health",
+          text: analysis.telemetryHealth || "healthy",
+          tone: analysis.telemetryHealth === "offline" ? "device-status-error" : analysis.telemetryHealth === "warning" ? "device-status-warn" : "",
         },
         {
           label: "Last Known State",
@@ -8375,6 +8404,9 @@ function hideGlobalLoader() {
     const settingsEnableDirectSwapMode = document.getElementById("settingsEnableDirectSwapMode");
     const settingsApplyGallerySafeModeBtn = document.getElementById("settingsApplyGallerySafeModeBtn");
     const settingsApplyFullGalleryModeBtn = document.getElementById("settingsApplyFullGalleryModeBtn");
+    const settingsReloadGalleryPlayerBtn = document.getElementById("settingsReloadGalleryPlayerBtn");
+    const settingsClearCacheReloadGalleryPlayerBtn = document.getElementById("settingsClearCacheReloadGalleryPlayerBtn");
+    const settingsGalleryRuntimeCommandStatus = document.getElementById("settingsGalleryRuntimeCommandStatus");
     const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
       enableGalleryCrossfade: true,
       enableFlattenedOverlay: false,
@@ -8384,6 +8416,13 @@ function hideGlobalLoader() {
       enableGalleryDebugOverlay: true,
       enableRuntimeWatchdog: true,
       enableDirectSwapMode: false,
+    });
+    const DEFAULT_GALLERY_RUNTIME_COMMAND = Object.freeze({
+      command: "",
+      commandId: "",
+      issuedAt: "",
+      reason: "",
+      clearCache: false,
     });
     const settingsFields = [
       settingsTicketEnabled,
@@ -13872,6 +13911,48 @@ reportViewBtn.addEventListener("click", async () => {
       };
     }
 
+    function normalizeGalleryRuntimeCommand(settings = {}) {
+      const command = settings && typeof settings === "object" && settings.galleryRuntimeCommand && typeof settings.galleryRuntimeCommand === "object"
+        ? settings.galleryRuntimeCommand
+        : settings && typeof settings === "object" && !Array.isArray(settings)
+          ? settings
+          : {};
+      const nextCommand = {
+        command: String(command.command || "").trim(),
+        commandId: String(command.commandId || "").trim(),
+        issuedAt: String(command.issuedAt || "").trim(),
+        reason: String(command.reason || "").trim(),
+        clearCache: command.clearCache === true,
+      };
+      if (!nextCommand.command || !nextCommand.commandId || !nextCommand.issuedAt) {
+        return { ...DEFAULT_GALLERY_RUNTIME_COMMAND };
+      }
+      return nextCommand;
+    }
+
+    function renderGalleryRuntimeCommandStatus(commandInput = DEFAULT_GALLERY_RUNTIME_COMMAND) {
+      if (!settingsGalleryRuntimeCommandStatus) return;
+      const command = normalizeGalleryRuntimeCommand(commandInput);
+      if (!command.commandId) {
+        settingsGalleryRuntimeCommandStatus.textContent = "No gallery reload command issued yet.";
+        return;
+      }
+      const label = command.clearCache ? "Gallery cache clear + reload requested" : "Gallery reload requested";
+      settingsGalleryRuntimeCommandStatus.textContent = `${label} · ${formatPuertoRicoDateTime(command.issuedAt)} · ${command.commandId}`;
+    }
+
+    function buildGalleryRuntimeCommand(command, options = {}) {
+      const issuedAt = new Date().toISOString();
+      const commandId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+      return {
+        command,
+        commandId,
+        issuedAt,
+        reason: options.reason || "admin_reload_button",
+        clearCache: Boolean(options.clearCache),
+      };
+    }
+
     function applyGalleryRuntimeSettingsToForm(runtimeSettings = DEFAULT_GALLERY_RUNTIME_SETTINGS) {
       const nextSettings = normalizeGalleryRuntimeSettings(runtimeSettings);
       if (settingsEnableGalleryCrossfade) settingsEnableGalleryCrossfade.checked = nextSettings.enableGalleryCrossfade;
@@ -13955,6 +14036,7 @@ reportViewBtn.addEventListener("click", async () => {
       settingsNewsletterLabel.value = settings.form?.newsletter?.label || "";
       settingsNewsletterHelper.value = settings.form?.newsletter?.helper || "";
       applyGalleryRuntimeSettingsToForm(settings.galleryRuntime || DEFAULT_GALLERY_RUNTIME_SETTINGS);
+      renderGalleryRuntimeCommandStatus(settings.galleryRuntimeCommand || DEFAULT_GALLERY_RUNTIME_COMMAND);
       refreshSettingsLivePreview();
     }
 
@@ -14041,6 +14123,7 @@ reportViewBtn.addEventListener("click", async () => {
         ticketEnabled: settingsTicketEnabled.checked,
         galleryDisplayLimit: galleryDisplayLimit,
         activeTemplateId: settingsActiveTemplateId ? settingsActiveTemplateId.value : "",
+        galleryRuntimeCommand: normalizeGalleryRuntimeCommand(DEFAULT_GALLERY_RUNTIME_COMMAND),
         galleryRuntime: {
           enableGalleryCrossfade: settingsEnableGalleryCrossfade ? settingsEnableGalleryCrossfade.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableGalleryCrossfade,
           enableFlattenedOverlay: settingsEnableFlattenedOverlay ? settingsEnableFlattenedOverlay.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableFlattenedOverlay,
@@ -14256,6 +14339,65 @@ reportViewBtn.addEventListener("click", async () => {
           loadingLabel: "Applying...",
           successMessage: "FULL GALLERY MODE APPLIED",
         });
+      });
+    }
+
+    async function issueGalleryReloadCommand(options = {}) {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return false;
+      }
+
+      const clearCache = Boolean(options.clearCache);
+      const confirmReload = await appConfirm(
+        clearCache
+          ? "Request a gallery cache clear and gallery webpage reload on connected displays?"
+          : "Request a gallery webpage reload on connected displays without rebooting the Pi?",
+        {
+          title: clearCache ? "Clear Cache + Reload Gallery" : "Reload Gallery Player",
+          tone: "primary",
+          confirmLabel: clearCache ? "Clear + Reload" : "Reload Gallery",
+          cancelLabel: "Cancel",
+        }
+      );
+
+      if (!confirmReload) {
+        return false;
+      }
+
+      const command = buildGalleryRuntimeCommand(
+        clearCache ? "clear_cache_reload_gallery" : "reload_gallery",
+        {
+          reason: clearCache ? "admin_clear_cache_reload_button" : "admin_reload_button",
+          clearCache,
+        }
+      );
+      const payload = {
+        galleryRuntimeCommand: command,
+      };
+
+      const button = clearCache ? settingsClearCacheReloadGalleryPlayerBtn : settingsReloadGalleryPlayerBtn;
+      const success = await persistSettingsPayload(payload, {
+        button,
+        loadingLabel: clearCache ? "Requesting..." : "Reloading...",
+        successMessage: clearCache ? "GALLERY CACHE CLEAR + RELOAD REQUESTED" : "GALLERY RELOAD REQUESTED",
+      });
+
+      if (success) {
+        renderGalleryRuntimeCommandStatus(command);
+      }
+      return success;
+    }
+
+    if (settingsReloadGalleryPlayerBtn) {
+      settingsReloadGalleryPlayerBtn.addEventListener("click", async () => {
+        await issueGalleryReloadCommand({ clearCache: false });
+      });
+    }
+
+    if (settingsClearCacheReloadGalleryPlayerBtn) {
+      settingsClearCacheReloadGalleryPlayerBtn.addEventListener("click", async () => {
+        await issueGalleryReloadCommand({ clearCache: true });
       });
     }
     (function bootstrapAdmin() {

@@ -391,6 +391,7 @@
     };
     const GALLERY_KIOSK_RELOAD_COUNT_KEY = "galleryKioskReloadCount";
     const GALLERY_KIOSK_LAST_RELOAD_AT_KEY = "galleryKioskLastReloadAt";
+    const GALLERY_LAST_HANDLED_RUNTIME_COMMAND_KEY = "galleryLastHandledRuntimeCommandId";
     const TEMPLATE_RENDERING_ENABLED = false;
     const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
       enableGalleryCrossfade: !DISABLE_GALLERY_TRANSITIONS,
@@ -556,6 +557,9 @@
     let lastRuntimeDriftAt = "";
     let galleryRuntimeSettings = { ...DEFAULT_GALLERY_RUNTIME_SETTINGS };
     let disabledSystems = [];
+    let galleryRuntimeCommand = null;
+    let lastHandledRuntimeCommandId = "";
+    let lastHandledRuntimeCommandAt = "";
     let debugOverlayLatchedVisible = false;
     let debugOverlayInterval = null;
     let debugOverlayEvents = [];
@@ -577,6 +581,10 @@
     let lifecycleHandlersInstalled = false;
     let telemetryErrorCaptureInstalled = false;
     let debugOverlayResizeListenerInstalled = false;
+    let overlayBypassedLogged = false;
+    let objectUrlPeak = 0;
+    let objectUrlWarningActive = false;
+    let objectUrlWarningSinceMs = 0;
     let imageLifecycleDetections = {
       fetchFailed: false,
       decodeFailed: false,
@@ -595,6 +603,12 @@
         return false;
       }
     })();
+    const ENABLE_SENTRY_DIAGNOSTICS = false;
+    const GALLERY_SENTRY_DSN = "";
+    const GALLERY_SENTRY_DSN_PLACEHOLDER = "__GALLERY_SENTRY_DSN__";
+    const GALLERY_SENTRY_ENVIRONMENT = "gallery";
+    const GALLERY_SENTRY_RELEASE = "mayaguez-gallery-html";
+    const GALLERY_SENTRY_CDN_URL = "https://browser.sentry-cdn.com/8.55.0/bundle.min.js";
     const galleryDeviceId = (() => {
       try {
         const existingId = window.localStorage.getItem(GALLERY_DEVICE_ID_KEY);
@@ -633,6 +647,226 @@
 
     function galleryDebug(...args) {
       console.log("[gallery]", ...args);
+    }
+
+    let gallerySentryReady = false;
+    let gallerySentryInitPromise = null;
+
+    function resolveGallerySentryDsn() {
+      const configuredDsn = String(GALLERY_SENTRY_DSN || "").trim();
+      if (!configuredDsn || configuredDsn === GALLERY_SENTRY_DSN_PLACEHOLDER) {
+        return "";
+      }
+      return configuredDsn;
+    }
+
+    function isGallerySentryDiagnosticsEnabled() {
+      return ENABLE_SENTRY_DIAGNOSTICS === true && Boolean(resolveGallerySentryDsn());
+    }
+
+    function isGallerySentryActive() {
+      return gallerySentryReady && typeof window !== "undefined" && window.Sentry;
+    }
+
+    function normalizeGallerySentryError(error) {
+      if (error instanceof Error) return error;
+      return new Error(clampMonitorString(formatMonitorValue(error), 500) || "gallery_error");
+    }
+
+    function buildGallerySentryContext(extra = {}) {
+      return {
+        gallery: {
+          deviceId: galleryDeviceId || "",
+          deviceName: galleryDeviceName || "",
+          slideshowState: slideshowState || "",
+          currentPhotoId: currentPhotoId || "",
+          currentPhotoName: currentPhotoName || "",
+          currentPhotoIndex: Number.isFinite(currentIndex) ? currentIndex : -1,
+          transitionMode: typeof getGalleryTransitionMode === "function" ? getGalleryTransitionMode() : "",
+          approvedPhotoCount: typeof getApprovedPhotoCount === "function" ? getApprovedPhotoCount() : 0,
+          hasImage: Boolean(hasImage),
+          runtimeDegraded: Boolean(runtimeDegraded),
+          watchdogReason: watchdogReason || "",
+        },
+        fetchStatus: {
+          lastApprovedFetchStatus: lastApprovedFetchStatus || "",
+          lastApprovedFetchError: lastApprovedFetchError || "",
+          lastPhotoFetchStatus: lastPhotoFetchStatus || "",
+          lastPhotoFetchError: lastPhotoFetchError || "",
+          lastOverlayFetchStatus: lastOverlayFetchStatus || "",
+          lastOverlayFetchError: lastOverlayFetchError || "",
+          lastHeartbeatError: lastHeartbeatError || "",
+          heartbeatFailureCount: Math.max(0, Number(heartbeatFailureCount) || 0),
+          consecutivePollFailures: Math.max(0, Number(consecutivePollFailures) || 0),
+          consecutiveImageFailures: Math.max(0, Number(consecutiveImageFailures) || 0),
+          consecutiveOverlayFailures: Math.max(0, Number(consecutiveOverlayFailures) || 0),
+        },
+        runtimeSettings: {
+          ...(galleryRuntimeSettings && typeof galleryRuntimeSettings === "object" ? galleryRuntimeSettings : {}),
+          runtimeSettingsVersion: runtimeSettingsVersion || "default",
+        },
+        browser: {
+          userAgent: navigator.userAgent || "",
+          platform: navigator.userAgentData?.platform || navigator.platform || "",
+          screenWidth: window.screen ? Number(window.screen.width) || 0 : 0,
+          screenHeight: window.screen ? Number(window.screen.height) || 0 : 0,
+        },
+        extra: extra && typeof extra === "object" ? extra : {},
+      };
+    }
+
+    function sanitizeGallerySentryEvent(event) {
+      try {
+        if (!event || typeof event !== "object") return event;
+        if (event.request && event.request.headers) {
+          delete event.request.headers.authorization;
+          delete event.request.headers.cookie;
+          delete event.request.headers.Authorization;
+          delete event.request.headers.Cookie;
+        }
+        if (event.extra && typeof event.extra === "object") {
+          delete event.extra.dsn;
+          delete event.extra.token;
+          delete event.extra.apiKey;
+        }
+      } catch (_) {}
+      return event;
+    }
+
+    function refreshGallerySentryScope(extra = {}) {
+      if (!isGallerySentryActive()) return;
+      try {
+        const context = buildGallerySentryContext(extra);
+        window.Sentry.setUser({
+          id: context.gallery.deviceId || undefined,
+          username: context.gallery.deviceName || undefined,
+        });
+        window.Sentry.setContext("gallery", context.gallery);
+        window.Sentry.setContext("fetchStatus", context.fetchStatus);
+        window.Sentry.setContext("runtimeSettings", context.runtimeSettings);
+        window.Sentry.setContext("browser", context.browser);
+        window.Sentry.setTag("gallery.slideshowState", context.gallery.slideshowState || "");
+        window.Sentry.setTag("gallery.deviceId", context.gallery.deviceId || "");
+      } catch (_) {}
+    }
+
+    function captureGallerySentryException(error, extra = {}) {
+      if (!isGallerySentryActive()) return;
+      try {
+        window.Sentry.withScope((scope) => {
+          refreshGallerySentryScope(extra);
+          if (extra.category) scope.setTag("gallery.category", clampMonitorString(extra.category, 40));
+          if (extra.route) scope.setTag("gallery.route", sanitizeMonitorRoute(extra.route));
+          if (extra.kind) scope.setTag("gallery.kind", clampMonitorString(extra.kind, 40));
+          window.Sentry.captureException(normalizeGallerySentryError(error));
+        });
+      } catch (_) {}
+    }
+
+    function captureGallerySentryMessage(message, level = "warning", extra = {}) {
+      if (!isGallerySentryActive()) return;
+      try {
+        window.Sentry.withScope((scope) => {
+          refreshGallerySentryScope(extra);
+          scope.setLevel(level);
+          if (extra.category) scope.setTag("gallery.category", clampMonitorString(extra.category, 40));
+          if (extra.route) scope.setTag("gallery.route", sanitizeMonitorRoute(extra.route));
+          if (extra.kind) scope.setTag("gallery.kind", clampMonitorString(extra.kind, 40));
+          window.Sentry.captureMessage(
+            clampMonitorString(message || "gallery_event", 500) || "gallery_event",
+            level
+          );
+        });
+      } catch (_) {}
+    }
+
+    function captureGallerySentryFetchFailure(route, error, meta = {}) {
+      if (!isGallerySentryActive()) return;
+      const category = clampMonitorString(
+        meta.category || meta.name || meta.type || "fetch",
+        40
+      ) || "fetch";
+      const normalizedRoute = sanitizeMonitorRoute(route || meta.route || "");
+      const message = clampMonitorString(formatMonitorValue(error), 500) || "fetch_failed";
+      captureGallerySentryMessage(`fetch_failure:${category}:${message}`, "warning", {
+        category,
+        route: normalizedRoute,
+        kind: "fetch_failure",
+        error: message,
+      });
+      captureGallerySentryException(error, {
+        category,
+        route: normalizedRoute,
+        kind: "fetch_failure",
+      });
+    }
+
+    function loadGallerySentryBundle() {
+      if (typeof window === "undefined") {
+        return Promise.resolve(false);
+      }
+      if (window.Sentry) {
+        return Promise.resolve(true);
+      }
+      return new Promise((resolve) => {
+        try {
+          const script = document.createElement("script");
+          script.src = GALLERY_SENTRY_CDN_URL;
+          script.crossOrigin = "anonymous";
+          script.referrerPolicy = "no-referrer";
+          script.onload = () => resolve(Boolean(window.Sentry));
+          script.onerror = () => resolve(false);
+          document.head.appendChild(script);
+        } catch (_) {
+          resolve(false);
+        }
+      });
+    }
+
+    function installGallerySentryDiagnostics() {
+      if (!isGallerySentryDiagnosticsEnabled()) {
+        return Promise.resolve(false);
+      }
+      if (gallerySentryInitPromise) {
+        return gallerySentryInitPromise;
+      }
+
+      gallerySentryInitPromise = (async () => {
+        try {
+          const dsn = resolveGallerySentryDsn();
+          if (!dsn) return false;
+          const loaded = await loadGallerySentryBundle();
+          if (!loaded || !window.Sentry || typeof window.Sentry.init !== "function") {
+            return false;
+          }
+
+          window.Sentry.init({
+            dsn,
+            environment: GALLERY_SENTRY_ENVIRONMENT,
+            release: GALLERY_SENTRY_RELEASE,
+            defaultIntegrations: false,
+            tracesSampleRate: 0,
+            replaysSessionSampleRate: 0,
+            replaysOnErrorSampleRate: 0,
+            beforeSend(event) {
+              return sanitizeGallerySentryEvent(event);
+            },
+          });
+
+          gallerySentryReady = true;
+          refreshGallerySentryScope({ source: "sentry_init" });
+          captureGallerySentryMessage("gallery_sentry_diagnostics_started", "info", {
+            category: "sentry",
+            kind: "startup",
+          });
+          return true;
+        } catch (_) {
+          gallerySentryReady = false;
+          return false;
+        }
+      })();
+
+      return gallerySentryInitPromise;
     }
 
     function formatMonitorValue(value) {
@@ -687,6 +921,9 @@
       reloadCount = Math.max(0, Number(window.sessionStorage.getItem(GALLERY_KIOSK_RELOAD_COUNT_KEY)) || 0);
       lastReloadAt = String(window.sessionStorage.getItem(GALLERY_KIOSK_LAST_RELOAD_AT_KEY) || "");
     } catch (_) {}
+    try {
+      lastHandledRuntimeCommandId = String(window.localStorage.getItem(GALLERY_LAST_HANDLED_RUNTIME_COMMAND_KEY) || "");
+    } catch (_) {}
 
     function getMsSinceIsoTimestamp(isoValue) {
       if (!isoValue) return Infinity;
@@ -710,6 +947,33 @@
       };
     }
 
+    function normalizeGalleryRuntimeCommand(rawCommand = null) {
+      const candidate = rawCommand && typeof rawCommand === "object" ? rawCommand : {};
+      const command = clampMonitorString(candidate.command || "", 80);
+      const commandId = clampMonitorString(candidate.commandId || "", 120);
+      const issuedAt = clampMonitorString(candidate.issuedAt || "", 80);
+      const reason = clampMonitorString(candidate.reason || "", 160);
+      const clearCache = candidate.clearCache === true;
+      if (!command || !commandId || !issuedAt) return null;
+      return {
+        command,
+        commandId,
+        issuedAt,
+        reason,
+        clearCache,
+      };
+    }
+
+    function persistLastHandledRuntimeCommandId(commandId = "") {
+      lastHandledRuntimeCommandId = clampMonitorString(commandId || "", 120);
+      lastHandledRuntimeCommandAt = lastHandledRuntimeCommandId ? new Date().toISOString() : "";
+      try {
+        if (lastHandledRuntimeCommandId) {
+          window.localStorage.setItem(GALLERY_LAST_HANDLED_RUNTIME_COMMAND_KEY, lastHandledRuntimeCommandId);
+        }
+      } catch (_) {}
+    }
+
     function buildDisabledSystemsList(settings = galleryRuntimeSettings) {
       const runtime = normalizeGalleryRuntimeSettings(settings);
       const nextDisabledSystems = [];
@@ -722,6 +986,20 @@
       if (!runtime.enableRuntimeWatchdog) nextDisabledSystems.push("runtime_watchdog");
       if (!runtime.enableDirectSwapMode) nextDisabledSystems.push("direct_swap_mode");
       return nextDisabledSystems;
+    }
+
+    function isGallerySafeModeActive(settings = galleryRuntimeSettings) {
+      const runtime = normalizeGalleryRuntimeSettings(settings);
+      return Boolean(
+        runtime.enableGalleryCrossfade &&
+        !runtime.enableFlattenedOverlay &&
+        !runtime.enableOverlayPolling &&
+        !runtime.enableDynamicTemplateRuntime &&
+        !runtime.enableTemplatePolling &&
+        runtime.enableGalleryDebugOverlay &&
+        runtime.enableRuntimeWatchdog &&
+        !runtime.enableDirectSwapMode
+      );
     }
 
     function isGalleryCrossfadeEnabled() {
@@ -746,6 +1024,23 @@
 
     function isRuntimeWatchdogEnabled() {
       return galleryRuntimeSettings.enableRuntimeWatchdog !== false;
+    }
+
+    function recordOverlayBypassedIfNeeded(message = "Flattened overlay disabled by runtime config") {
+      if (overlayBypassedLogged) return;
+      overlayBypassedLogged = true;
+      recordGalleryDebugEvent({
+        severity: "warn",
+        category: "overlay",
+        code: "OVERLAY_BYPASSED",
+        subsystem: "overlay",
+        route: "/gallery/active-overlay",
+        diagnosis: isGallerySafeModeActive()
+          ? "SAFE MODE ACTIVE — photos + crossfade only"
+          : "OVERLAY BYPASSED — testing photos only",
+        message,
+        action: "Leave overlay off while validating base photo rotation.",
+      });
     }
 
     function showQrWaitingScreen(reason = "boot_waiting_for_manifest", message = EMPTY_GALLERY_MESSAGE) {
@@ -817,6 +1112,8 @@
           return "HEARTBEAT TIMEOUT — browser/network stalled";
         case "HB_FETCH_FAIL":
           return "HEARTBEAT FAIL — browser cannot post health";
+        case "TELEMETRY_WARNING":
+          return "TELEMETRY WARNING — playback may still be OK";
         case "PHOTO_FETCH_FAIL":
           return "PHOTO FETCH FAIL — Pi cannot load next photo";
         case "PHOTO_TIMEOUT":
@@ -865,6 +1162,10 @@
           return "TEMPLATE RUNTIME OFF — safe mode active";
         case "OVERLAY_BYPASSED":
           return "OVERLAY BYPASSED — testing photos only";
+        case "ADMIN_RELOAD_RECEIVED":
+          return "ADMIN RELOAD RECEIVED";
+        case "CHROMIUM_OR_TELEMETRY_LOOP_STOPPED":
+          return "CHROMIUM OR TELEMETRY STOPPED — playback was healthy before heartbeats stopped";
         case "UNKNOWN_RUNTIME":
           return "UNKNOWN RUNTIME FREEZE";
         default:
@@ -877,6 +1178,8 @@
         case "HB_TIMEOUT":
         case "HB_FETCH_FAIL":
           return "Check Pi network path and Chromium/Yodeck browser stability.";
+        case "TELEMETRY_WARNING":
+          return "Playback may still be healthy; inspect telemetry POST path and Chromium background loops.";
         case "PHOTO_FETCH_FAIL":
         case "PHOTO_TIMEOUT":
           return "Inspect /gallery/photo fetch path and Pi network stability.";
@@ -919,6 +1222,10 @@
           return "Keep dynamic template runtime off until playback is stable.";
         case "OVERLAY_BYPASSED":
           return "Keep overlay off while validating base photo rotation.";
+        case "ADMIN_RELOAD_RECEIVED":
+          return "Wait for the gallery page to reload and re-report telemetry.";
+        case "CHROMIUM_OR_TELEMETRY_LOOP_STOPPED":
+          return "Playback looked healthy before heartbeats stopped; inspect Chromium/Yodeck runtime stability.";
         case "UNKNOWN_RUNTIME":
           return "Check recent Pi/browser errors and consider watchdog/browser restart.";
         default:
@@ -928,6 +1235,7 @@
 
     function getRuntimeDebugCode(reason = "") {
       const normalizedReason = String(reason || "").toLowerCase();
+      if (normalizedReason.includes("telemetry_only_stale")) return "TELEMETRY_WARNING";
       if (normalizedReason.includes("heartbeat_stale")) return "HB_TIMEOUT";
       if (normalizedReason.includes("poll_stale")) return "MANIFEST_FAIL";
       if (normalizedReason.includes("photo_change_stale")) return "VISUAL_STALL";
@@ -1025,6 +1333,8 @@
         lastSuccessfulOverlayAt: lastSuccessfulOverlayAt || "",
         lastSuccessfulHeartbeatAt: lastSuccessfulHeartbeatAt || "",
         objectUrlCount: getObjectUrlCount(),
+        objectUrlPeak,
+        objectUrlWarningActive: Boolean(objectUrlWarningActive),
         activeBlobCount: getActiveBlobCount(),
         activeImageSlotCount: getActiveImageSlotCount(),
         activeTimerNames: getActiveTimerNames(),
@@ -1101,6 +1411,8 @@
         `lastVisualSwapAt: ${status.lastVisualSwapAt || ""}`,
         `secondsSinceLastVisualSwap: ${snapshot.lastVisualSwapAgeSec}`,
         `objectUrlCount: ${status.objectUrlCount != null ? status.objectUrlCount : getObjectUrlCount()}`,
+        `objectUrlPeak: ${status.objectUrlPeak != null ? status.objectUrlPeak : objectUrlPeak}`,
+        `objectUrlWarningActive: ${status.objectUrlWarningActive != null ? status.objectUrlWarningActive : objectUrlWarningActive}`,
         `activeBlobCount: ${status.activeBlobCount != null ? status.activeBlobCount : getActiveBlobCount()}`,
         `activeImageSlotCount: ${status.activeImageSlotCount != null ? status.activeImageSlotCount : getActiveImageSlotCount()}`,
         `activeTimers: ${formatDebugOverlayJson(status.activeTimers || getActiveTimerNames())}`,
@@ -1263,12 +1575,21 @@
 
       const latestEvent = debugOverlayEvents[0] || null;
       const snapshot = getDebugOverlaySnapshot();
-      const diagnosisText = clampMonitorString(
-        latestEvent && latestEvent.diagnosis
-          ? latestEvent.diagnosis
-          : debugOverlayLastDiagnosis || "DEBUG ACTIVE",
-        160
-      ) || "DEBUG ACTIVE";
+      let diagnosisText = latestEvent && latestEvent.diagnosis
+        ? latestEvent.diagnosis
+        : debugOverlayLastDiagnosis || "DEBUG ACTIVE";
+      if (latestEvent && latestEvent.code === "TELEMETRY_WARNING") {
+        diagnosisText = "TELEMETRY WARNING — playback may still be OK";
+      } else if (latestEvent && latestEvent.code === "ADMIN_RELOAD_RECEIVED") {
+        diagnosisText = "ADMIN RELOAD RECEIVED";
+      } else if (latestEvent && latestEvent.code === "OVERLAY_BYPASSED" && isGallerySafeModeActive()) {
+        diagnosisText = "SAFE MODE ACTIVE — photos + crossfade only";
+      } else if (!latestEvent && isGallerySafeModeActive()) {
+        diagnosisText = "SAFE MODE ACTIVE — photos + crossfade only";
+      } else if (!latestEvent && isFlattenedOverlayRuntimeEnabled()) {
+        diagnosisText = "OVERLAY ACTIVE — testing overlay runtime";
+      }
+      diagnosisText = clampMonitorString(diagnosisText, 160) || "DEBUG ACTIVE";
       const severity = latestEvent && latestEvent.severity
         ? latestEvent.severity
         : debugOverlayLastSeverity || "info";
@@ -1286,7 +1607,7 @@
         `swap ${snapshot.lastVisualSwapAgeSec >= 0 ? `${snapshot.lastVisualSwapAgeSec}s` : "--"} | qr ${snapshot.qrWaitingReason}`,
         `poll ${formatDebugOverlayTime(snapshot.lastSuccessfulPollAt)} | img ${formatDebugOverlayTime(snapshot.lastSuccessfulImageLoadAt)}`,
         `ovr ${formatDebugOverlayTime(snapshot.lastSuccessfulOverlayAt)} | hb ${formatDebugOverlayTime(snapshot.lastSuccessfulHeartbeatAt)}`,
-        `OBJ_URLS ${snapshot.objectUrlCount} | BLOBS ${snapshot.activeBlobCount} | SLOTS ${snapshot.activeImageSlotCount}`,
+        `OBJ_URLS ${snapshot.objectUrlCount}/${snapshot.objectUrlPeak || snapshot.objectUrlCount} ${snapshot.objectUrlWarningActive ? "WARN" : "OK"} | BLOBS ${snapshot.activeBlobCount} | SLOTS ${snapshot.activeImageSlotCount}`,
         `TIMERS ${snapshot.activeTimerNames.length} | INTS ${snapshot.activeIntervalNames.length} | FETCHES ${snapshot.pendingFetchCount} | STALE ${snapshot.stalePendingFetchCount || 0}`,
         `SETTINGS AGE ${snapshot.settingsAgeSec >= 0 ? `${snapshot.settingsAgeSec}s` : "--"} | FETCH ${snapshot.settingsFetchAgeSec >= 0 ? `${snapshot.settingsFetchAgeSec}s` : "--"}`,
         `errs ${snapshot.recentErrorsCount} | logs ${snapshot.recentLogsCount} | dbg ${snapshot.debugOverlayEventCount}`,
@@ -1451,6 +1772,7 @@
       try {
         const approvedPhotoCount = getApprovedPhotoCount();
         const visualSwapAgeSec = getDebugOverlayLastVisualSwapAgeSec(now);
+        auditObjectUrlPressure("debug_overlay_health");
         evaluateRuntimeLoopDrift(now);
         if (approvedPhotoCount > 1 && hasImage && visualSwapAgeSec >= 0 && (visualSwapAgeSec * 1000) > SLIDESHOW_STALL_THRESHOLD_MS) {
           recordGalleryDebugEvent({
@@ -1948,15 +2270,40 @@
     function auditObjectUrlPressure(reason = "") {
       try {
         const objectUrlCount = getObjectUrlCount();
-        if (objectUrlCount <= EXPECTED_MAX_OBJECT_URLS) return;
+        objectUrlPeak = Math.max(objectUrlPeak, objectUrlCount);
+        const now = Date.now();
+        const isNormalTransitionSpike = objectUrlCount <= (EXPECTED_MAX_OBJECT_URLS + 1);
+        const shouldWarn = objectUrlCount > (EXPECTED_MAX_OBJECT_URLS + 1);
+        const shouldEscalate = objectUrlCount > (EXPECTED_MAX_OBJECT_URLS + 2);
+
+        if (!shouldWarn) {
+          objectUrlWarningActive = false;
+          objectUrlWarningSinceMs = 0;
+          return;
+        }
+
+        if (!objectUrlWarningSinceMs) {
+          objectUrlWarningSinceMs = now;
+        }
+
+        const warningAgeMs = now - objectUrlWarningSinceMs;
+        objectUrlWarningActive = shouldEscalate || warningAgeMs >= 5000;
+        if (!objectUrlWarningActive && isNormalTransitionSpike) {
+          return;
+        }
+        if (!objectUrlWarningActive && !shouldEscalate) {
+          return;
+        }
         recordGalleryDebugEvent({
-          severity: "warn",
+          severity: shouldEscalate ? "error" : "warn",
           category: "runtime",
           code: "OBJ_URL_GROWTH",
           subsystem: "object_url_pool",
           route: "/gallery/photo",
           message: `objectUrlCount=${objectUrlCount} reason=${reason || "unknown"}`,
-          action: "Watch for blob/object URL growth on the Pi; expected gallery max is 2.",
+          action: shouldEscalate
+            ? "Object URL count is beyond normal transition behavior; inspect slot cleanup."
+            : "Object URL count stayed above the normal transition peak; inspect slot cleanup.",
         });
       } catch (_) {}
     }
@@ -2041,6 +2388,29 @@
       } catch (_) {}
     }
 
+    function isPlaybackHealthyDuringHeartbeatFailure(now = Date.now()) {
+      try {
+        const pollAgeMs = getMsSinceIsoTimestamp(lastSuccessfulPollAt);
+        const imageAgeMs = getMsSinceIsoTimestamp(lastSuccessfulImageLoadAt);
+        const visualReference = lastVisualSwapAt || lastPhotoChangeAt;
+        const visualAgeMs = getMsSinceIsoTimestamp(visualReference);
+        const approvedPhotoCount = getApprovedPhotoCount();
+        const visualHealthy = approvedPhotoCount <= 1
+          ? hasImage
+          : Number.isFinite(visualAgeMs) && visualAgeMs < Math.max(SLIDESHOW_STALL_THRESHOLD_MS, DISPLAY_MS * 2);
+        return Boolean(
+          !getSlideshowVisualStalled(now) &&
+          Number.isFinite(pollAgeMs) &&
+          pollAgeMs < RUNTIME_POLL_STALE_MS &&
+          Number.isFinite(imageAgeMs) &&
+          imageAgeMs < RUNTIME_PHOTO_CHANGE_STALE_MS &&
+          visualHealthy
+        );
+      } catch (_) {
+        return false;
+      }
+    }
+
     function getRuntimePhotoStaleReason() {
       return isGalleryCrossfadeEnabled() ? "photo_change_stale" : "slideshow_timer_or_runtime_freeze";
     }
@@ -2081,8 +2451,9 @@
 
       const reasons = [];
       const pendingStaleCount = getCurrentStalePendingFetchCount(now);
+      const playbackHealthy = isPlaybackHealthyDuringHeartbeatFailure(now);
       if (pendingStaleCount > 0) reasons.push("pending_fetch_stale");
-      if (heartbeatAgeMs > RUNTIME_HEARTBEAT_STALE_MS) reasons.push("heartbeat_stale");
+      if (heartbeatAgeMs > RUNTIME_HEARTBEAT_STALE_MS && !playbackHealthy) reasons.push("heartbeat_stale");
       if (pollAgeMs > RUNTIME_POLL_STALE_MS) reasons.push("poll_stale");
       if (photos.length && hasImage && photoChangeAgeMs > RUNTIME_PHOTO_CHANGE_STALE_MS) {
         reasons.push(getRuntimePhotoStaleReason());
@@ -2090,6 +2461,7 @@
 
       return {
         isDegraded: reasons.length > 0,
+        telemetryOnly: heartbeatAgeMs > RUNTIME_HEARTBEAT_STALE_MS && playbackHealthy,
         reason: reasons.join(","),
         heartbeatAgeMs,
         pollAgeMs,
@@ -2217,6 +2589,28 @@
         const health = getRuntimeHealthSnapshot(now);
         const wasDegraded = runtimeDegraded;
 
+        if (health.telemetryOnly) {
+          const wasTelemetryOnly = watchdogReason === "telemetry_only_stale";
+          runtimeDegraded = false;
+          runtimeDegradedSinceMs = 0;
+          watchdogTriggered = false;
+          watchdogReason = "telemetry_only_stale";
+          recordGalleryDebugEvent({
+            severity: "warn",
+            category: "heartbeat",
+            code: "TELEMETRY_WARNING",
+            subsystem: "telemetry_heartbeat",
+            route: "/api/device-heartbeat",
+            diagnosis: "TELEMETRY WARNING — playback may still be OK",
+            message: "Heartbeat loop is stale while playback still looks healthy.",
+            action: "Inspect telemetry POST path and Chromium background loop behavior.",
+          });
+          if (!wasTelemetryOnly) {
+            appendRuntimeLog("watchdog", "telemetry_only_stale", health);
+          }
+          return;
+        }
+
         runtimeDegraded = Boolean(health.isDegraded);
         if (runtimeDegraded) {
           if (!runtimeDegradedSinceMs) runtimeDegradedSinceMs = now;
@@ -2330,6 +2724,7 @@
           recordRuntimeLifecycleEvent("pagehide", {
             persisted: Boolean(event && event.persisted),
           });
+          clearAllPendingFetchesForReload("pagehide");
           clearAllRegisteredTimersAndIntervals();
           releaseTrackedObjectUrls("pagehide");
         });
@@ -2337,6 +2732,7 @@
 
         window.addEventListener("beforeunload", () => {
           recordRuntimeLifecycleEvent("beforeunload");
+          clearAllPendingFetchesForReload("beforeunload");
           clearAllRegisteredTimersAndIntervals();
           releaseTrackedObjectUrls("beforeunload");
         });
@@ -2507,6 +2903,7 @@
           currentIndex: normalizeCurrentPhotoIndex(),
           currentPhotoId: currentPhotoId || "",
         });
+        refreshGallerySentryScope({ reason: lastSlideshowStateReason || "" });
       } catch (_) {}
     }
 
@@ -3049,6 +3446,10 @@
             currentPhotoName: currentPhotoName || "",
           });
         }
+        captureGallerySentryFetchFailure(meta.route || "/gallery/approved", normalizedMessage, {
+          category: "poll",
+          type: meta.type || "approved_fetch_failure",
+        });
         attemptSoftGalleryRecovery("poll_failure");
       } catch (_) {}
     }
@@ -3093,6 +3494,10 @@
             currentPhotoName: failurePhotoName || currentPhotoName || "",
           });
         }
+        captureGallerySentryFetchFailure(meta.route || "/gallery/photo", normalizedMessage, {
+          category: "image",
+          type: meta.type || "photo_fetch_failure",
+        });
         attemptSoftGalleryRecovery("image_failure");
       } catch (_) {}
     }
@@ -3129,6 +3534,10 @@
             currentPhotoName: currentPhotoName || "",
           });
         }
+        captureGallerySentryFetchFailure(meta.route || "/gallery/active-overlay", normalizedMessage, {
+          category: "overlay",
+          type: meta.type || "overlay_fetch_failure",
+        });
         attemptSoftGalleryRecovery("overlay_failure");
       } catch (_) {}
     }
@@ -3141,6 +3550,7 @@
         lastApprovedFetchStatus = "success";
         lastApprovedFetchError = "";
         maybeClearBackoffAfterStableWindow();
+        refreshGallerySentryScope({ source: "poll_success" });
       } catch (_) {}
     }
 
@@ -3151,6 +3561,7 @@
         lastPhotoFetchStatus = "success";
         lastPhotoFetchError = "";
         maybeClearBackoffAfterStableWindow();
+        refreshGallerySentryScope({ source: "image_success" });
       } catch (_) {}
     }
 
@@ -3161,6 +3572,7 @@
         lastOverlayFetchStatus = "success";
         lastOverlayFetchError = "";
         maybeClearBackoffAfterStableWindow();
+        refreshGallerySentryScope({ source: "overlay_success" });
       } catch (_) {}
     }
 
@@ -3190,6 +3602,7 @@
         lastSuccessfulHeartbeatAt = new Date().toISOString();
         lastHeartbeatError = "";
         maybeClearBackoffAfterStableWindow();
+        refreshGallerySentryScope({ source: "heartbeat_success" });
       } catch (_) {}
     }
 
@@ -3197,6 +3610,7 @@
       try {
         const normalizedMessage = clampMonitorString(formatMonitorValue(errorMessage), 500) || "heartbeat_failed";
         const isTimeoutLike = normalizedMessage === "request_timeout" || normalizedMessage === "request_aborted";
+        const playbackHealthy = isPlaybackHealthyDuringHeartbeatFailure(Date.now());
         heartbeatFailureCount += 1;
         lastHeartbeatError = normalizedMessage;
         recordFetchFailureEvent("heartbeat", normalizedMessage);
@@ -3206,12 +3620,20 @@
           includeCurrentPhoto: false,
         });
         recordGalleryDebugEvent({
-          severity: "error",
+          severity: playbackHealthy ? "warn" : "error",
           category: "heartbeat",
-          code: isTimeoutLike ? "HB_TIMEOUT" : "HB_FETCH_FAIL",
+          code: playbackHealthy ? "TELEMETRY_WARNING" : (isTimeoutLike ? "HB_TIMEOUT" : "HB_FETCH_FAIL"),
           subsystem: "telemetry_heartbeat",
           route: "/api/device-heartbeat",
+          diagnosis: playbackHealthy ? "TELEMETRY WARNING — playback may still be OK" : undefined,
           message: normalizedMessage,
+          action: playbackHealthy
+            ? "Inspect telemetry POST path and Chromium background loop behavior."
+            : undefined,
+        });
+        captureGallerySentryFetchFailure("/api/device-heartbeat", normalizedMessage, {
+          category: "heartbeat",
+          type: "heartbeat_failure",
         });
       } catch (_) {}
     }
@@ -3332,6 +3754,8 @@
             devicePixelRatio: Number(window.devicePixelRatio) || 1,
             memory: getPerformanceMemorySnapshot(),
             objectUrlCount: getObjectUrlCount(),
+            objectUrlPeak,
+            objectUrlWarningActive: Boolean(objectUrlWarningActive),
             activeBlobCount: getActiveBlobCount(),
             activeImageSlotCount: getActiveImageSlotCount(),
             activeTimers: getActiveTimerNames(),
@@ -3360,6 +3784,8 @@
             recentErrorsCount: recentErrors.length,
             disabledSystems: Array.isArray(disabledSystems) ? [...disabledSystems] : [],
             qrWaitingReason: qrWaitingReason || "none",
+            lastHandledRuntimeCommandId: lastHandledRuntimeCommandId || "",
+            lastHandledRuntimeCommandAt: lastHandledRuntimeCommandAt || "",
             overlayStatus: {
               enabled: Boolean(currentOverlayFileId || activeOverlayKey || lastGoodOverlayMeta),
               overlayFileId: currentOverlayFileId || "",
@@ -3437,6 +3863,7 @@
             signal: controller.signal,
           });
         } catch (err) {
+          captureGallerySentryFetchFailure(route, err, pendingMeta || { category: "post_monitor" });
           if (didTimeout) {
             throw createMonitorError("request_timeout", { route, code: "request_timeout", cause: err });
           }
@@ -3471,6 +3898,9 @@
           }),
           new Promise((_, reject) => setTimeout(() => reject(createMonitorError("request_timeout", { route, code: "request_timeout" })), effectiveTimeoutMs)),
         ]);
+      } catch (err) {
+        captureGallerySentryFetchFailure(route, err, pendingMeta || { category: "post_monitor" });
+        throw err;
       } finally {
         if (registeredPendingName) unregisterPendingFetch(registeredPendingName);
       }
@@ -3521,6 +3951,166 @@
       }
     }
 
+    function clearAllPendingFetchesForReload(reason = "runtime_reload") {
+      try {
+        getPendingFetchEntries().forEach((entry) => {
+          abortPendingFetchController(entry);
+          clearInFlightLockForPendingFetch(entry);
+          unregisterPendingFetch(entry.name);
+        });
+        approvedFetchInFlight = false;
+        approvedFetchStartedAtMs = 0;
+        overlayFetchInFlight = false;
+        overlayFetchStartedAtMs = 0;
+        runtimeSettingsFetchInFlight = false;
+        runtimeSettingsFetchStartedAtMs = 0;
+        telemetryHeartbeatInFlight = false;
+        telemetryHeartbeatStartedAtMs = 0;
+        loadingSlotIndex = -1;
+        appendRuntimeLog("cleanup", `pending_fetches_cleared:${reason}`, {
+          reason,
+        });
+      } catch (_) {}
+    }
+
+    function abortPendingFetchesByCategory(category = "", reason = "runtime_toggle_disabled") {
+      try {
+        const normalizedCategory = clampMonitorString(category || "", 40);
+        if (!normalizedCategory) return 0;
+        let abortedCount = 0;
+        getPendingFetchEntries().forEach((entry) => {
+          const entryCategory = inferPendingFetchCategory(entry);
+          if (entryCategory !== normalizedCategory) return;
+          abortPendingFetchController(entry);
+          clearInFlightLockForPendingFetch(entry);
+          unregisterPendingFetch(entry.name);
+          abortedCount += 1;
+          appendRuntimeLog("cleanup", `pending_fetch_aborted:${reason}`, {
+            category: normalizedCategory,
+            name: entry.name,
+          });
+        });
+        return abortedCount;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function clearGalleryRuntimeStorage(command = null) {
+      try {
+        const handledCommandId = command && command.commandId ? String(command.commandId) : lastHandledRuntimeCommandId;
+        window.sessionStorage.removeItem(GALLERY_KIOSK_RELOAD_COUNT_KEY);
+        window.sessionStorage.removeItem(GALLERY_KIOSK_LAST_RELOAD_AT_KEY);
+        if (handledCommandId) {
+          window.localStorage.setItem(GALLERY_LAST_HANDLED_RUNTIME_COMMAND_KEY, handledCommandId);
+        }
+      } catch (_) {}
+    }
+
+    function buildGalleryReloadUrl(commandId = "", clearCache = false) {
+      try {
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("reload", commandId || `${Date.now()}`);
+        if (clearCache) {
+          nextUrl.searchParams.set("cacheReset", commandId || `${Date.now()}`);
+        } else {
+          nextUrl.searchParams.delete("cacheReset");
+        }
+        return nextUrl.toString();
+      } catch (_) {
+        const separator = window.location.href.includes("?") ? "&" : "?";
+        return `${window.location.href}${separator}reload=${encodeURIComponent(commandId || String(Date.now()))}`;
+      }
+    }
+
+    function prepareGalleryRuntimeReload(reason = "admin_reload") {
+      try {
+        clearAllPendingFetchesForReload(reason);
+        clearAllRegisteredTimersAndIntervals();
+        clearOverlayLayer(reason);
+        disableDynamicTemplateLayer();
+        releaseTrackedObjectUrls(reason);
+        imgSlots.forEach((img) => {
+          if (!img) return;
+          img.classList.remove("visible");
+          try {
+            img.removeAttribute("src");
+          } catch (_) {}
+          try {
+            img.src = "";
+          } catch (_) {}
+        });
+        hasImage = false;
+        crossfadeInProgress = false;
+        loadingSlotIndex = -1;
+      } catch (_) {}
+    }
+
+    async function executeGalleryRuntimeCommand(rawCommand = null) {
+      const command = normalizeGalleryRuntimeCommand(rawCommand);
+      if (!command || !command.commandId || !command.command) return false;
+      if (command.commandId === lastHandledRuntimeCommandId) {
+        return false;
+      }
+      if (command.command !== "reload_gallery" && command.command !== "clear_cache_reload_gallery") {
+        return false;
+      }
+
+      persistLastHandledRuntimeCommandId(command.commandId);
+      galleryRuntimeCommand = command;
+      recordGalleryDebugEvent({
+        severity: "warn",
+        category: "runtime",
+        code: "ADMIN_RELOAD_RECEIVED",
+        subsystem: "runtime_command",
+        route: "/gallery/runtime-settings",
+        diagnosis: "ADMIN RELOAD RECEIVED",
+        message: `${command.command}${command.clearCache ? " (clear cache)" : ""}`,
+        action: "Gallery runtime will reload now.",
+      });
+      appendRuntimeLog("runtime_command", command.command, {
+        commandId: command.commandId,
+        issuedAt: command.issuedAt,
+        clearCache: Boolean(command.clearCache),
+        reason: command.reason || "",
+      });
+      setRecoveryAction(`admin_reload_command:${command.commandId}`);
+      void sendDeviceLog("warn", "admin_reload_received", `Admin reload command received (${command.commandId})`, {
+        command: command.command,
+        commandId: command.commandId,
+        issuedAt: command.issuedAt,
+        clearCache: Boolean(command.clearCache),
+        reason: command.reason || "admin_reload_button",
+      });
+
+      try {
+        await Promise.race([
+          Promise.allSettled([
+            sendTelemetryHeartbeat(),
+            sendDeviceLog("warn", "admin_reload_execute", `Reloading gallery runtime (${command.commandId})`, {
+              command: command.command,
+              commandId: command.commandId,
+              clearCache: Boolean(command.clearCache),
+            }),
+          ]),
+          new Promise((resolve) => setTimeout(resolve, 500)),
+        ]);
+      } catch (_) {}
+
+      if (command.clearCache) {
+        clearGalleryRuntimeStorage(command);
+      }
+      prepareGalleryRuntimeReload(command.command);
+      setTimeout(() => {
+        try {
+          window.location.replace(buildGalleryReloadUrl(command.commandId, Boolean(command.clearCache)));
+        } catch (_) {
+          window.location.reload();
+        }
+      }, 80);
+      return true;
+    }
+
     function installTelemetryErrorCapture() {
       try {
         if (telemetryErrorCaptureInstalled) return;
@@ -3549,6 +4139,11 @@
               route: sanitizeMonitorRoute(source || ""),
               message: formattedMessage,
             });
+            captureGallerySentryException(error || new Error(formattedMessage), {
+              category: "window.onerror",
+              route: sanitizeMonitorRoute(source || ""),
+              kind: "js_error",
+            });
           } catch (_) {}
           if (typeof previousOnError === "function") {
             return previousOnError.apply(this, arguments);
@@ -3573,6 +4168,10 @@
               code: "UNKNOWN_RUNTIME",
               subsystem: "unhandledrejection",
               message: formattedMessage,
+            });
+            captureGallerySentryException(reason, {
+              category: "unhandledrejection",
+              kind: "unhandled_promise_rejection",
             });
           } catch (_) {}
           if (typeof previousUnhandledRejection === "function") {
@@ -3691,6 +4290,7 @@
           const { signal, ...restOptions } = options || {};
           return await fetch(url, { ...restOptions, signal: controller.signal });
         } catch (err) {
+          captureGallerySentryFetchFailure(route, err, pendingMeta || { category: "fetch" });
           if (didTimeout) {
             throw createMonitorError("request_timeout", { route, code: "request_timeout", cause: err });
           }
@@ -3721,6 +4321,9 @@
           fetch(url, options),
           new Promise((_, reject) => setTimeout(() => reject(createMonitorError("request_timeout", { route, code: "request_timeout" })), timeoutMs)),
         ]);
+      } catch (err) {
+        captureGallerySentryFetchFailure(route, err, pendingMeta || { category: "fetch" });
+        throw err;
       } finally {
         if (registeredPendingName) unregisterPendingFetch(registeredPendingName);
       }
@@ -3758,8 +4361,10 @@
 
         if (!isFlattenedOverlayRuntimeEnabled()) {
           stopOverlayRefreshLoop();
+          abortPendingFetchesByCategory("overlay_fetch", "overlay_runtime_disabled");
           if (
             previousSettings.enableFlattenedOverlay ||
+            previousSettings.enableOverlayPolling ||
             currentOverlayFileId ||
             activeOverlayKey ||
             lastGoodOverlayMeta ||
@@ -3767,19 +4372,11 @@
           ) {
             clearOverlayLayer("runtime_overlay_disabled");
           }
-          if (settingsValueChanged && previousSettings.enableFlattenedOverlay) {
-            recordGalleryDebugEvent({
-              severity: "warn",
-              category: "overlay",
-              code: "OVERLAY_BYPASSED",
-              subsystem: "overlay",
-              route: "/gallery/active-overlay",
-              diagnosis: "OVERLAY BYPASSED — testing photos only",
-              message: "Flattened overlay disabled by runtime config",
-              action: "Leave overlay off while testing photo rotation stability.",
-            });
+          if (settingsValueChanged && (previousSettings.enableFlattenedOverlay || previousSettings.enableOverlayPolling)) {
+            recordOverlayBypassedIfNeeded("Flattened overlay runtime disabled by config");
           }
         } else if (settingsValueChanged || !overlayRefreshTimer) {
+          overlayBypassedLogged = false;
           scheduleOverlayPoll(0);
         }
 
@@ -3829,6 +4426,7 @@
             settingsApplyCount,
           });
         }
+        refreshGallerySentryScope({ source: "runtime_settings_applied" });
       } catch (_) {}
     }
 
@@ -3860,6 +4458,7 @@
 
         lastRuntimeSettingsFetchAt = new Date().toISOString();
         lastRuntimeSettingsError = "";
+        galleryRuntimeCommand = normalizeGalleryRuntimeCommand(data.galleryRuntimeCommand);
         appendSettingsRuntimeLog("SETTINGS_FETCH_OK", {
           runtimeSettingsVersion: data.runtimeSettingsVersion || "default",
         }, 10000);
@@ -3867,6 +4466,9 @@
           runtimeSettingsVersion: data.runtimeSettingsVersion || "default",
           disabledSystems: Array.isArray(data.disabledSystems) ? data.disabledSystems : [],
         });
+        if (galleryRuntimeCommand) {
+          await executeGalleryRuntimeCommand(galleryRuntimeCommand);
+        }
         return true;
       } catch (err) {
         settingsFetchFailures += 1;
@@ -5486,9 +6088,13 @@
     async function fetchActiveOverlay() {
       clearStaleInFlightLocks(Date.now());
       if (!isFlattenedOverlayRuntimeEnabled()) {
-        clearOverlayLayer("flattened_overlay_disabled");
+        if (currentOverlayFileId || activeOverlayKey || lastGoodOverlayMeta) {
+          clearOverlayLayer("flattened_overlay_disabled");
+        }
+        recordOverlayBypassedIfNeeded("Flattened overlay runtime disabled by config");
         return false;
       }
+      overlayBypassedLogged = false;
       if (overlayFetchInFlight) {
         galleryDebug("overlay fetch skipped because previous request is still running", {
           currentOverlayFileId,
@@ -5626,9 +6232,14 @@
     function startOverlayRefreshLoop() {
       if (!isFlattenedOverlayRuntimeEnabled()) {
         stopOverlayRefreshLoop();
-        clearOverlayLayer("flattened_overlay_disabled");
+        abortPendingFetchesByCategory("overlay_fetch", "overlay_runtime_disabled");
+        if (currentOverlayFileId || activeOverlayKey || lastGoodOverlayMeta) {
+          clearOverlayLayer("flattened_overlay_disabled");
+        }
+        recordOverlayBypassedIfNeeded("Flattened overlay runtime disabled by config");
         return;
       }
+      overlayBypassedLogged = false;
       scheduleOverlayPoll(0);
     }
 
@@ -5672,6 +6283,7 @@
       runtimeSettingsVersion: "default",
     });
     stopRuntimeWatchdogLoop();
+    void installGallerySentryDiagnostics();
     installTelemetryErrorCapture();
     startGalleryDebugOverlayLoop();
     installRuntimeLifecycleHandlers();

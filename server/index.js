@@ -258,6 +258,13 @@ const DEFAULT_APP_SETTINGS = {
   galleryDisplayLimit: 'all', // 'all', 'last10', 'last25'
   activeTemplateId: '',
   activeTemplateSnapshot: '',
+  galleryRuntimeCommand: {
+    command: '',
+    commandId: '',
+    issuedAt: '',
+    reason: '',
+    clearCache: false,
+  },
   intro: {
     title: '¿Desde dónde nos visitas? 😊',
     subtitle: 'Selecciona tu país y municipio/estado, escribe tus apellidos y continúa a tu selfie.'
@@ -340,6 +347,7 @@ const SETTINGS_FIELDS = [
   { key: 'Email Opt-in Label', type: 'string', path: ['form', 'newsletter', 'label'] },
   { key: 'Email Opt-in Helper', type: 'string', path: ['form', 'newsletter', 'helper'] },
 ];
+const GALLERY_RUNTIME_COMMAND_ROW_KEY = 'Gallery Runtime Command';
 
 function coerceBoolean(value, fallback) {
   if (typeof value === 'boolean') return value;
@@ -509,6 +517,8 @@ function sanitizeDeviceStatus(rawStatus) {
     devicePixelRatio: clampNumber(status.devicePixelRatio),
     memory: sanitizeDeviceMemory(status.memory),
     objectUrlCount: clampNumber(status.objectUrlCount),
+    objectUrlPeak: clampNumber(status.objectUrlPeak),
+    objectUrlWarningActive: clampBoolean(status.objectUrlWarningActive),
     activeBlobCount: clampNumber(status.activeBlobCount),
     activeImageSlotCount: clampNumber(status.activeImageSlotCount),
     activeTimers: Array.isArray(status.activeTimers)
@@ -567,6 +577,8 @@ function sanitizeDeviceStatus(rawStatus) {
       ? status.disabledSystems.map((entry) => clampString(entry || '', 60)).filter(Boolean).slice(0, 24)
       : [],
     qrWaitingReason: clampString(status.qrWaitingReason || '', 80),
+    lastHandledRuntimeCommandId: clampString(status.lastHandledRuntimeCommandId || '', 120),
+    lastHandledRuntimeCommandAt: clampIsoTimestamp(status.lastHandledRuntimeCommandAt),
     overlayStatus,
     templateStatus,
     debugTestMode: Boolean(status.debugTestMode),
@@ -691,6 +703,7 @@ function buildLiveGalleryDeviceAnalysis(device, context = {}) {
   const status = device && device.status ? device.status : {};
   const recentErrors = Array.isArray(device && device.recentErrors) ? device.recentErrors : [];
   const lastSeenAgoMs = Number.isFinite(context.lastSeenAgoMs) ? context.lastSeenAgoMs : null;
+  const lastSeenAtMs = Date.parse(device && device.lastSeenAt ? device.lastSeenAt : '') || 0;
   const browserHeartbeatOffline = lastSeenAgoMs != null && lastSeenAgoMs > DEVICE_OFFLINE_WINDOW_MS;
   const failureCategoryCounts = buildDeviceFailureCategoryCounts(recentErrors);
   const fetchFailureBurst = detectDeviceFetchFailureBurst(recentErrors);
@@ -699,6 +712,11 @@ function buildLiveGalleryDeviceAnalysis(device, context = {}) {
     (Number(status.totalImageFailures) || 0) > 0 ||
     (Number(status.totalOverlayFailures) || 0) > 0 ||
     failureCategoryCounts.template > 0
+  );
+  const currentFetchFailuresDetected = (
+    status.lastApprovedFetchStatus === 'fail' ||
+    status.lastPhotoFetchStatus === 'fail' ||
+    status.lastOverlayFetchStatus === 'fail'
   );
   const firstFailureAt = recentErrors.length ? clampIsoTimestamp(recentErrors[0].at) : '';
   const lastFailureAt = recentErrors.length ? clampIsoTimestamp(recentErrors[recentErrors.length - 1].at) : '';
@@ -715,15 +733,39 @@ function buildLiveGalleryDeviceAnalysis(device, context = {}) {
   const staleDataWarning = browserHeartbeatOffline && fetchFailuresDetected
     ? 'Device stopped reporting after repeated fetch errors. Pi may still be powered on, but gallery/browser may be frozen or network fetches may be failing.'
     : '';
+  const overlayActiveAtFailure = Boolean(status.overlayStatus && status.overlayStatus.enabled);
+  const recentPlaybackNearLastSeen = (() => {
+    const checkpoints = [
+      status.lastVisualSwapAt || status.lastPhotoChangeAt,
+      status.lastSuccessfulPollAt,
+      status.lastSuccessfulImageLoadAt,
+    ]
+      .map((value) => Date.parse(value || '') || 0)
+      .filter((value) => value > 0);
+    if (!lastSeenAtMs || !checkpoints.length) return false;
+    return checkpoints.every((value) => Math.abs(lastSeenAtMs - value) <= 45000);
+  })();
+  const heartbeatOnlyWarning = !browserHeartbeatOffline
+    && !currentFetchFailuresDetected
+    && !status.slideshowStalled
+    && (Number(status.heartbeatFailureCount) || 0) > 0
+    && recentPlaybackNearLastSeen;
+  const chromiumOrTelemetryStopped = browserHeartbeatOffline && !currentFetchFailuresDetected && recentPlaybackNearLastSeen;
 
   let lastKnownState = fetchFailuresDetected ? 'Fetch failures detected' : 'No recent fetch failures detected';
   if (fetchFailureBurst.detected) {
     lastKnownState = 'Fetch failure burst detected';
+  } else if (chromiumOrTelemetryStopped) {
+    lastKnownState = 'Playback looked healthy before browser heartbeats stopped';
   }
 
   let likelyDiagnosis = '';
   if (browserHeartbeatOffline && fetchFailuresDetected) {
     likelyDiagnosis = 'Gallery/browser stuck after repeated network fetch failures.';
+  } else if (chromiumOrTelemetryStopped) {
+    likelyDiagnosis = 'Chromium or the gallery telemetry loop stopped after otherwise healthy playback.';
+  } else if (heartbeatOnlyWarning) {
+    likelyDiagnosis = 'Telemetry post failures detected while gallery playback still appears healthy.';
   } else if (fetchFailureBurst.detected) {
     likelyDiagnosis = 'Repeated network fetch failures are occurring.';
   } else if (status.slideshowStalled) {
@@ -743,6 +785,11 @@ function buildLiveGalleryDeviceAnalysis(device, context = {}) {
     : browserVersionWarning || (fetchFailuresDetected
       ? 'Inspect gallery network fetches and browser stability before changing slideshow behavior.'
       : '');
+  if (chromiumOrTelemetryStopped) {
+    recommendedNextAction = 'Playback was healthy before telemetry stopped; inspect Chromium/Yodeck runtime stability and telemetry loop health.';
+  } else if (heartbeatOnlyWarning) {
+    recommendedNextAction = 'Telemetry post failures are happening while playback looks healthy; inspect /api/device-heartbeat and browser background network behavior.';
+  }
   if (yodeckChromiumFreezeLikely) {
     likelyDiagnosis = likelyDiagnosis || 'Likely Chromium/Yodeck runtime freeze on Raspberry Pi (Linux armv7l, Chrome 92).';
     recommendedNextAction = 'Update or reflash the Yodeck player browser, and add a Pi-level watchdog that restarts Chromium if heartbeats stop.';
@@ -771,6 +818,19 @@ function buildLiveGalleryDeviceAnalysis(device, context = {}) {
     yodeckFreezeRecommendedAction: yodeckChromiumFreezeLikely
       ? 'Update/reflash Yodeck player browser or add Pi-level watchdog.'
       : '',
+    playbackHealth: status.slideshowStalled
+      ? 'degraded'
+      : fetchFailuresDetected
+        ? 'warning'
+        : 'healthy',
+    telemetryHealth: browserHeartbeatOffline
+      ? 'offline'
+      : (Number(status.heartbeatFailureCount) || 0) > 0
+        ? 'warning'
+        : 'healthy',
+    heartbeatOnlyWarning,
+    chromiumOrTelemetryStopped,
+    overlayActiveAtFailure,
   };
 }
 
@@ -895,6 +955,10 @@ function getDefaultGalleryRuntimeSettings() {
   return JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS.galleryRuntime || {}));
 }
 
+function getDefaultGalleryRuntimeCommand() {
+  return JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS.galleryRuntimeCommand || {}));
+}
+
 function normalizeGalleryRuntimeSettings(rawSettings = {}) {
   const fallback = getDefaultGalleryRuntimeSettings();
   const candidate = rawSettings && typeof rawSettings === 'object' ? rawSettings : {};
@@ -907,6 +971,28 @@ function normalizeGalleryRuntimeSettings(rawSettings = {}) {
     enableGalleryDebugOverlay: coerceBoolean(candidate.enableGalleryDebugOverlay, fallback.enableGalleryDebugOverlay),
     enableRuntimeWatchdog: coerceBoolean(candidate.enableRuntimeWatchdog, fallback.enableRuntimeWatchdog),
     enableDirectSwapMode: coerceBoolean(candidate.enableDirectSwapMode, fallback.enableDirectSwapMode),
+  };
+}
+
+function normalizeGalleryRuntimeCommand(rawCommand = {}) {
+  const fallback = getDefaultGalleryRuntimeCommand();
+  const candidate = rawCommand && typeof rawCommand === 'object' ? rawCommand : {};
+  const command = clampString(candidate.command || fallback.command || '', 80);
+  const commandId = clampString(candidate.commandId || fallback.commandId || '', 120);
+  const issuedAt = clampIsoTimestamp(candidate.issuedAt) || '';
+  const reason = clampString(candidate.reason || fallback.reason || '', 160);
+  const clearCache = coerceBoolean(candidate.clearCache, fallback.clearCache);
+
+  if (!command || !commandId || !issuedAt) {
+    return { ...fallback, command: '', commandId: '', issuedAt: '', reason: '', clearCache: false };
+  }
+
+  return {
+    command,
+    commandId,
+    issuedAt,
+    reason,
+    clearCache,
   };
 }
 
@@ -928,6 +1014,9 @@ function buildGalleryRuntimeSettingsPayload(settings = appSettings) {
   const runtimeSettings = normalizeGalleryRuntimeSettings(
     settings && typeof settings === 'object' ? settings.galleryRuntime : null
   );
+  const galleryRuntimeCommand = normalizeGalleryRuntimeCommand(
+    settings && typeof settings === 'object' ? settings.galleryRuntimeCommand : null
+  );
   const runtimeSettingsVersion = crypto
     .createHash('sha1')
     .update(JSON.stringify(runtimeSettings))
@@ -938,6 +1027,7 @@ function buildGalleryRuntimeSettingsPayload(settings = appSettings) {
     runtimeSettings,
     runtimeSettingsVersion,
     disabledSystems: buildGalleryRuntimeDisabledSystems(runtimeSettings),
+    galleryRuntimeCommand,
   };
 }
 
@@ -985,6 +1075,10 @@ function mergeAppSettings(patch = {}) {
   if (Object.prototype.hasOwnProperty.call(patch, 'activeTemplateSnapshot')) {
     const rawSnapshot = patch.activeTemplateSnapshot;
     next.activeTemplateSnapshot = rawSnapshot == null ? '' : String(rawSnapshot).trim();
+  }
+
+  if (Object.prototype.hasOwnProperty.call(patch, 'galleryRuntimeCommand')) {
+    next.galleryRuntimeCommand = normalizeGalleryRuntimeCommand(patch.galleryRuntimeCommand);
   }
 
   if (patch.galleryRuntime && typeof patch.galleryRuntime === 'object') {
@@ -1144,6 +1238,16 @@ async function readSettingsFromSheet() {
         }
         continue;
       }
+      if (key === GALLERY_RUNTIME_COMMAND_ROW_KEY) {
+        if (typeof value === 'string' && value.trim()) {
+          try {
+            settingsPatch.galleryRuntimeCommand = normalizeGalleryRuntimeCommand(JSON.parse(value));
+          } catch (err) {
+            console.warn('Unable to parse gallery runtime command row:', err.message || err);
+          }
+        }
+        continue;
+      }
 
       const field = SETTINGS_FIELDS.find((item) => item.key === key);
       if (!field) continue;
@@ -1186,6 +1290,10 @@ async function writeSettingsToSheet(settings, enabledStatus, serverSessionId) {
         values.push([field.key, rawValue != null ? String(rawValue) : '']);
       }
     });
+    values.push([
+      GALLERY_RUNTIME_COMMAND_ROW_KEY,
+      JSON.stringify(normalizeGalleryRuntimeCommand(settings && typeof settings === 'object' ? settings.galleryRuntimeCommand : null)),
+    ]);
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SETTINGS_SHEET_ID,
@@ -3368,6 +3476,7 @@ app.get('/gallery/runtime-settings', (req, res) => {
       runtimeSettings: payload.runtimeSettings,
       runtimeSettingsVersion: payload.runtimeSettingsVersion,
       disabledSystems: payload.disabledSystems,
+      galleryRuntimeCommand: payload.galleryRuntimeCommand,
       fetchedAt: new Date().toISOString(),
       templateRenderingEnabled: false,
     });
