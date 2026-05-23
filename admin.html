@@ -1501,6 +1501,11 @@
   }
 
   .template-task-debug {
+    display: none;
+  }
+
+  .template-task-overlay.is-error .template-task-debug {
+    display: block;
     margin-top: 0.9rem;
     max-height: 9.5rem;
     overflow: auto;
@@ -11337,8 +11342,11 @@ function hideReportLoading() {
     let isUploadingTemplateAsset = false;
     let templateProgressSequence = 0;
     let templateProgressOverlayState = null;
+    let templateCanvasResizeObserver = null;
+    let templateCanvasViewportState = { width: 0, height: 0 };
     const TEMPLATE_MAX_LOGO_LAYERS = 2;
     const TEMPLATE_PROGRESS_HIDE_DELAY_MS = 220;
+    const TEMPLATE_PROGRESS_NEUTRAL_DETAIL = "Please wait. Large template assets can take a few seconds.";
 
     function hideTemplateEntryOverlay() {
       if (templateEntryOverlay) {
@@ -11464,7 +11472,9 @@ function hideReportLoading() {
 
       if (title) overlay.title.textContent = title;
       if (label) overlay.label.textContent = label;
-      overlay.detail.textContent = detail || "";
+      overlay.detail.textContent = overlay.root.classList.contains("is-error")
+        ? (detail || "Something went wrong.")
+        : TEMPLATE_PROGRESS_NEUTRAL_DETAIL;
 
       const nextProgress = clampProgress(progress);
       overlay.fill.style.width = `${nextProgress}%`;
@@ -11490,10 +11500,12 @@ function hideReportLoading() {
       const overlay = ensureTemplateProgressOverlay();
       const taskId = ++templateProgressSequence;
       overlay.activeTaskId = taskId;
+      overlay.root.classList.remove("is-error");
       overlay.debugEntries = [];
       overlay.debug.textContent = "";
       overlay.root.classList.add("visible");
       overlay.root.setAttribute("aria-hidden", "false");
+      overlay.detail.textContent = TEMPLATE_PROGRESS_NEUTRAL_DETAIL;
       updateTemplateProgressTask(taskId, { title, label, detail, progress });
       pushTemplateProgressDebug(taskId, "TASK_START", `${title} / ${label}`);
 
@@ -11507,6 +11519,7 @@ function hideReportLoading() {
         },
         async complete(labelText, detailText = "") {
           pushTemplateProgressDebug(taskId, "TASK_COMPLETE", labelText || "Completed");
+          overlay.root.classList.remove("is-error");
           updateTemplateProgressTask(taskId, {
             label: labelText || "Completed",
             detail: detailText,
@@ -11521,6 +11534,7 @@ function hideReportLoading() {
         },
         async fail(labelText, detailText = "") {
           pushTemplateProgressDebug(taskId, "TASK_FAIL", labelText || "Failed");
+          overlay.root.classList.add("is-error");
           updateTemplateProgressTask(taskId, {
             label: labelText || "Failed",
             detail: detailText,
@@ -11543,6 +11557,74 @@ function hideReportLoading() {
         const normalizedB = Number.isFinite(orderB) ? orderB : Number.MAX_SAFE_INTEGER;
         return normalizedA - normalizedB;
       });
+    }
+
+    function syncTemplateCanvasViewport({ reset = false } = {}) {
+      if (!templateCanvas) return;
+
+      const width = templateCanvas.offsetWidth || 0;
+      const height = templateCanvas.offsetHeight || 0;
+      if (!width || !height) return;
+
+      if (reset || !templateCanvasViewportState.width || !templateCanvasViewportState.height) {
+        templateCanvasViewportState = { width, height };
+        return;
+      }
+
+      if (isDragging || isResizing) {
+        return;
+      }
+
+      const prevWidth = templateCanvasViewportState.width;
+      const prevHeight = templateCanvasViewportState.height;
+      if (!prevWidth || !prevHeight) {
+        templateCanvasViewportState = { width, height };
+        return;
+      }
+
+      const scaleX = width / prevWidth;
+      const scaleY = height / prevHeight;
+
+      if (Math.abs(scaleX - 1) < 0.001 && Math.abs(scaleY - 1) < 0.001) {
+        templateCanvasViewportState = { width, height };
+        return;
+      }
+
+      getOrderedTemplateLayers().forEach((layer) => {
+        const currentLeft = parseFloat(layer.style.left) || 0;
+        const currentTop = parseFloat(layer.style.top) || 0;
+        const currentWidth = parseFloat(layer.style.width) || layer.offsetWidth || 0;
+        const currentHeight = parseFloat(layer.style.height) || layer.offsetHeight || 0;
+
+        layer.style.left = `${currentLeft * scaleX}px`;
+        layer.style.top = `${currentTop * scaleY}px`;
+        layer.style.width = `${currentWidth * scaleX}px`;
+        layer.style.height = `${currentHeight * scaleY}px`;
+      });
+
+      templateCanvasViewportState = { width, height };
+    }
+
+    function ensureTemplateCanvasResizeMonitoring() {
+      if (!templateCanvas || templateCanvasResizeObserver) return;
+
+      if (typeof ResizeObserver === "function") {
+        templateCanvasResizeObserver = new ResizeObserver(() => {
+          syncTemplateCanvasViewport();
+        });
+        templateCanvasResizeObserver.observe(templateCanvas);
+        return;
+      }
+
+      const onResize = () => {
+        syncTemplateCanvasViewport();
+      };
+      window.addEventListener("resize", onResize);
+      templateCanvasResizeObserver = {
+        disconnect() {
+          window.removeEventListener("resize", onResize);
+        },
+      };
     }
 
     function getLogoLayerCount() {
@@ -11827,6 +11909,9 @@ function hideReportLoading() {
       isCreatingNewTemplate = true;
       hideTemplateEntryOverlay();
       updateTemplateUiState();
+      requestAnimationFrame(() => {
+        syncTemplateCanvasViewport({ reset: true });
+      });
     }
 
     if (templateCreateBtn) {
@@ -11906,6 +11991,9 @@ function hideReportLoading() {
 
       closeTemplateAddAssetMenu();
       updateTemplateUiState();
+      requestAnimationFrame(() => {
+        syncTemplateCanvasViewport({ reset: true });
+      });
     }
 
     // Load template from backend
@@ -12104,6 +12192,7 @@ function hideReportLoading() {
         }
         closeTemplateAddAssetMenu();
         updateTemplateUiState();
+        syncTemplateCanvasViewport({ reset: true });
         await task.complete("Template ready", template.name || `Template ${templateId}`);
 
       } catch (err) {
@@ -13254,6 +13343,7 @@ function hideReportLoading() {
       if (wasDragging || wasResizing) {
         markTemplateDirty();
       }
+      syncTemplateCanvasViewport();
     });
 
     document.addEventListener("click", (e) => {
@@ -13275,6 +13365,10 @@ function hideReportLoading() {
     });
 
     updateTemplateUiState();
+    ensureTemplateCanvasResizeMonitoring();
+    requestAnimationFrame(() => {
+      syncTemplateCanvasViewport({ reset: true });
+    });
 
     if (templateSaveBtn) {
       templateSaveBtn.addEventListener("click", async () => {
