@@ -3473,6 +3473,60 @@
     line-height: 1.5;
   }
 
+  .runtime-toggle-list {
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .runtime-toggle-row {
+    display: block;
+    width: 100%;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--background) 88%, var(--secondary) 12%);
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  }
+
+  .runtime-toggle-row:hover {
+    border-color: color-mix(in srgb, var(--primary) 42%, var(--border) 58%);
+    background: color-mix(in srgb, var(--background) 78%, var(--primary) 22%);
+    transform: translateY(-1px);
+  }
+
+  .runtime-toggle-control {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    min-width: 0;
+  }
+
+  .runtime-toggle-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .runtime-toggle-title {
+    font-size: 0.75rem;
+    color: var(--foreground);
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.3;
+  }
+
+  .runtime-toggle-description {
+    font-size: 0.68rem;
+    color: var(--muted-foreground);
+    line-height: 1.45;
+    text-transform: none;
+    letter-spacing: 0.01em;
+  }
+
   /* QRC Button Styles - Standardized */
   .btn-ghost,
   .btn-primary,
@@ -3505,6 +3559,14 @@
     .settings-row {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .runtime-toggle-row {
+      padding: 0.8rem 0.85rem;
+    }
+
+    .runtime-toggle-control {
+      gap: 0.7rem;
     }
   }
 
@@ -5479,82 +5541,138 @@ View report to see the most recent interactions
                 <div class="settings-section-content">
                   <div class="settings-grid">
                     <div class="settings-help">Safe mode defaults keep photo rotation on while disabling overlay/template runtime systems for Raspberry Pi testing.</div>
-
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Pi Stable Player Mode</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnablePiStablePlayerMode" />
-                        <span class="toggle-slider"></span>
+                    <div class="runtime-toggle-list">
+                      <label class="runtime-toggle-row" for="settingsEnablePiStablePlayerMode">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnablePiStablePlayerMode" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Pi Stable Player Mode</span>
+                            <span class="runtime-toggle-description">Use the simplest low-pressure gallery player path for Raspberry Pi and old Chromium.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Blob Photo Loader</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableBlobPhotoLoader" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableBlobPhotoLoader">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableBlobPhotoLoader" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Blob Photo Loader</span>
+                            <span class="runtime-toggle-description">Restores the older fetch-to-blob-to-object-URL image loader for comparison testing.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Gallery Crossfade</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableGalleryCrossfade" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableGalleryCrossfade">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableGalleryCrossfade" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Gallery Crossfade</span>
+                            <span class="runtime-toggle-description">Keep normal visual transitions active when the browser can handle them cleanly.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Direct Swap Fallback</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableDirectSwapFallback" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableDirectSwapFallback">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableDirectSwapFallback" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Direct Swap Fallback</span>
+                            <span class="runtime-toggle-description">Falls back to direct image replacement if crossfade recovery fails.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Flattened Overlay</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableFlattenedOverlay" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableFlattenedOverlay">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableFlattenedOverlay" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Flattened Overlay</span>
+                            <span class="runtime-toggle-description">Allows the pre-rendered PNG overlay layer on top of photos.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Overlay Polling</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableOverlayPolling" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableOverlayPolling">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableOverlayPolling" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Overlay Polling</span>
+                            <span class="runtime-toggle-description">Allows live overlay refresh polling from the gallery runtime.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Dynamic Template Runtime</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableDynamicTemplateRuntime" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableDynamicTemplateRuntime">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableDynamicTemplateRuntime" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Dynamic Template Runtime</span>
+                            <span class="runtime-toggle-description">Turns on the older live template/background/logo composition path.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Template Polling</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableTemplatePolling" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableTemplatePolling">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableTemplatePolling" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Template Polling</span>
+                            <span class="runtime-toggle-description">Allows the gallery to poll for active template changes while running.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Gallery Debug Overlay</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableGalleryDebugOverlay" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableGalleryDebugOverlay">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableGalleryDebugOverlay" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Gallery Debug Overlay</span>
+                            <span class="runtime-toggle-description">Shows the temporary on-screen diagnostics overlay during gallery issues.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Runtime Watchdog</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableRuntimeWatchdog" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableRuntimeWatchdog">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableRuntimeWatchdog" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Runtime Watchdog</span>
+                            <span class="runtime-toggle-description">Lets the gallery recover from long stalls before a last-resort page reload.</span>
+                          </span>
+                        </span>
                       </label>
-                    </div>
-                    <div class="settings-row">
-                      <span class="settings-label">Enable Direct Swap Mode</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsEnableDirectSwapMode" />
-                        <span class="toggle-slider"></span>
+                      <label class="runtime-toggle-row" for="settingsEnableDirectSwapMode">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnableDirectSwapMode" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Direct Swap Mode</span>
+                            <span class="runtime-toggle-description">Forces direct image replacement instead of crossfade for targeted regression testing.</span>
+                          </span>
+                        </span>
                       </label>
                     </div>
                   </div>
