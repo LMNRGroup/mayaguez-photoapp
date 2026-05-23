@@ -327,6 +327,7 @@
     const PI_STABLE_APPROVED_REFRESH_MS = 30000;
     const PI_STABLE_HEARTBEAT_MS = 20000;
     const PI_STABLE_RUNTIME_SETTINGS_REFRESH_MS = 15000;
+    const STATIC_GALLERY_OVERLAY_URL = "Assets/template.png";
     const BURST_BACKOFF_REFRESH_MS = 20000;
     const BURST_BACKOFF_HEARTBEAT_MS = 10000;
     const EMPTY_GALLERY_MESSAGE = "ESCANEA EL CODIGO QR";
@@ -403,6 +404,7 @@
     const GALLERY_LAST_HANDLED_RUNTIME_COMMAND_KEY = "galleryLastHandledRuntimeCommandId";
     const TEMPLATE_RENDERING_ENABLED = false;
     const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
+      enablePiSafeLegacyRuntime: true,
       enablePiStablePlayerMode: true,
       enableBlobPhotoLoader: false,
       enableGalleryCrossfade: !DISABLE_GALLERY_TRANSITIONS,
@@ -412,7 +414,7 @@
       enableDynamicTemplateRuntime: false,
       enableTemplatePolling: false,
       enableGalleryDebugOverlay: SHOW_GALLERY_DEBUG_OVERLAY,
-      enableRuntimeWatchdog: true,
+      enableRuntimeWatchdog: false,
       enableDirectSwapMode: false,
     });
     const DEFAULT_PHOTO_BOX = Object.freeze({
@@ -953,6 +955,7 @@
     function normalizeGalleryRuntimeSettings(rawSettings = {}) {
       const candidate = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
       return {
+        enablePiSafeLegacyRuntime: candidate.enablePiSafeLegacyRuntime !== false,
         enablePiStablePlayerMode: candidate.enablePiStablePlayerMode !== false,
         enableBlobPhotoLoader: Boolean(candidate.enableBlobPhotoLoader),
         enableGalleryCrossfade: candidate.enableGalleryCrossfade !== false,
@@ -997,6 +1000,15 @@
     function buildDisabledSystemsList(settings = galleryRuntimeSettings) {
       const runtime = normalizeGalleryRuntimeSettings(settings);
       const nextDisabledSystems = [];
+      if (runtime.enablePiSafeLegacyRuntime) {
+        nextDisabledSystems.push("runtime_settings_polling");
+        nextDisabledSystems.push("telemetry_heartbeat_loop");
+        nextDisabledSystems.push("flattened_overlay");
+        nextDisabledSystems.push("overlay_polling");
+        nextDisabledSystems.push("dynamic_template_runtime");
+        nextDisabledSystems.push("template_polling");
+        nextDisabledSystems.push("blob_photo_loader");
+      }
       if (!runtime.enableBlobPhotoLoader) nextDisabledSystems.push("blob_photo_loader");
       if (!runtime.enableGalleryCrossfade) nextDisabledSystems.push("gallery_crossfade");
       if (!runtime.enableDirectSwapFallback) nextDisabledSystems.push("direct_swap_fallback");
@@ -1007,12 +1019,13 @@
       if (!runtime.enableGalleryDebugOverlay) nextDisabledSystems.push("gallery_debug_overlay");
       if (!runtime.enableRuntimeWatchdog) nextDisabledSystems.push("runtime_watchdog");
       if (!runtime.enableDirectSwapMode) nextDisabledSystems.push("direct_swap_mode");
-      return nextDisabledSystems;
+      return [...new Set(nextDisabledSystems)];
     }
 
     function isGallerySafeModeActive(settings = galleryRuntimeSettings) {
       const runtime = normalizeGalleryRuntimeSettings(settings);
       return Boolean(
+        runtime.enablePiSafeLegacyRuntime &&
         runtime.enablePiStablePlayerMode &&
         !runtime.enableBlobPhotoLoader &&
         runtime.enableGalleryCrossfade &&
@@ -1022,9 +1035,13 @@
         !runtime.enableDynamicTemplateRuntime &&
         !runtime.enableTemplatePolling &&
         runtime.enableGalleryDebugOverlay &&
-        runtime.enableRuntimeWatchdog &&
+        !runtime.enableRuntimeWatchdog &&
         !runtime.enableDirectSwapMode
       );
+    }
+
+    function isPiSafeLegacyRuntimeEnabled() {
+      return galleryRuntimeSettings.enablePiSafeLegacyRuntime !== false;
     }
 
     function isGalleryCrossfadeEnabled() {
@@ -1036,10 +1053,11 @@
     }
 
     function isPiStablePlayerModeEnabled() {
-      return galleryRuntimeSettings.enablePiStablePlayerMode !== false;
+      return isPiSafeLegacyRuntimeEnabled() || galleryRuntimeSettings.enablePiStablePlayerMode !== false;
     }
 
     function isBlobPhotoLoaderEnabled() {
+      if (isPiSafeLegacyRuntimeEnabled()) return false;
       return !isPiStablePlayerModeEnabled() && galleryRuntimeSettings.enableBlobPhotoLoader === true;
     }
 
@@ -1048,7 +1066,7 @@
     }
 
     function isStableImgSrcLoaderEnabled() {
-      return !isBlobPhotoLoaderEnabled();
+      return isPiSafeLegacyRuntimeEnabled() || !isBlobPhotoLoaderEnabled();
     }
 
     function getDebugOverlayRefreshMs() {
@@ -1064,15 +1082,33 @@
     }
 
     function isFlattenedOverlayRuntimeEnabled() {
+      if (isPiSafeLegacyRuntimeEnabled()) return false;
       return galleryRuntimeSettings.enableFlattenedOverlay === true && galleryRuntimeSettings.enableOverlayPolling === true;
     }
 
     function isDynamicTemplateRuntimeEnabled() {
+      if (isPiSafeLegacyRuntimeEnabled()) return false;
       return TEMPLATE_RENDERING_ENABLED && galleryRuntimeSettings.enableDynamicTemplateRuntime === true && galleryRuntimeSettings.enableTemplatePolling === true;
     }
 
     function isRuntimeWatchdogEnabled() {
       return galleryRuntimeSettings.enableRuntimeWatchdog !== false;
+    }
+
+    function shouldRunTelemetryHeartbeatLoop() {
+      return !isPiSafeLegacyRuntimeEnabled();
+    }
+
+    function shouldRunRuntimeSettingsPolling() {
+      return !isPiSafeLegacyRuntimeEnabled();
+    }
+
+    function shouldRunDebugOverlayInterval() {
+      return !isPiSafeLegacyRuntimeEnabled();
+    }
+
+    function shouldUseStaticLegacyOverlay() {
+      return isPiSafeLegacyRuntimeEnabled() && Boolean(String(STATIC_GALLERY_OVERLAY_URL || "").trim());
     }
 
     function recordOverlayBypassedIfNeeded(message = "Flattened overlay disabled by runtime config") {
@@ -1084,8 +1120,10 @@
         code: "OVERLAY_BYPASSED",
         subsystem: "overlay",
         route: "/gallery/active-overlay",
-        diagnosis: isPiStablePlayerModeEnabled()
-          ? "PI STABLE MODE — img src loader — overlay off"
+        diagnosis: isPiSafeLegacyRuntimeEnabled()
+          ? "PI SAFE LEGACY RUNTIME — static overlay only"
+          : isPiStablePlayerModeEnabled()
+            ? "PI STABLE MODE — img src loader — overlay off"
           : isGallerySafeModeActive()
             ? "SAFE MODE ACTIVE — photos + crossfade only"
             : "OVERLAY BYPASSED — testing photos only",
@@ -1679,6 +1717,8 @@
         diagnosisText = "TELEMETRY WARNING — playback may still be OK";
       } else if (latestEvent && latestEvent.code === "ADMIN_RELOAD_RECEIVED") {
         diagnosisText = "ADMIN RELOAD RECEIVED";
+      } else if (isPiSafeLegacyRuntimeEnabled() && (!latestEvent || latestEvent.code === "OVERLAY_BYPASSED")) {
+        diagnosisText = "PI SAFE LEGACY RUNTIME — static overlay only";
       } else if (isPiStablePlayerModeEnabled() && (!latestEvent || latestEvent.code === "OVERLAY_BYPASSED")) {
         diagnosisText = "PI STABLE MODE — img src loader — overlay off";
       } else if (latestEvent && latestEvent.code === "OVERLAY_BYPASSED" && isGallerySafeModeActive()) {
@@ -1975,6 +2015,10 @@
           return;
         }
         installGalleryDebugOverlayInteraction();
+        if (!shouldRunDebugOverlayInterval()) {
+          renderGalleryDebugOverlay();
+          return;
+        }
         debugOverlayInterval = registerInterval("debug_overlay", setInterval(() => {
           evaluateGalleryDebugOverlayHealth();
         }, getDebugOverlayRefreshMs()));
@@ -3574,6 +3618,11 @@
     }
 
     function scheduleTelemetryHeartbeat(delayMs = getHeartbeatDelayMs()) {
+      if (!shouldRunTelemetryHeartbeatLoop()) {
+        clearNamedTimer("telemetry_heartbeat");
+        telemetryHeartbeatTimer = null;
+        return;
+      }
       clearNamedTimer("telemetry_heartbeat");
       telemetryHeartbeatTimer = registerTimer("telemetry_heartbeat", setTimeout(async () => {
         clearNamedTimer("telemetry_heartbeat");
@@ -3591,6 +3640,11 @@
     }
 
     function scheduleRuntimeSettingsRefresh(delayMs = getRuntimeSettingsPollDelayMs()) {
+      if (!shouldRunRuntimeSettingsPolling()) {
+        clearNamedTimer("runtime_settings");
+        runtimeSettingsRefreshTimer = null;
+        return;
+      }
       clearNamedTimer("runtime_settings");
       runtimeSettingsRefreshTimer = registerTimer("runtime_settings", setTimeout(async () => {
         clearNamedTimer("runtime_settings");
@@ -3629,6 +3683,8 @@
           approvedDelayMs: getApprovedPollDelayMs(),
           overlayDelayMs: getOverlayPollDelayMs(),
           heartbeatDelayMs: getHeartbeatDelayMs(),
+          runtimeSettingsPollingEnabled: shouldRunRuntimeSettingsPolling(),
+          telemetryHeartbeatEnabled: shouldRunTelemetryHeartbeatLoop(),
           backoffUntil: fetchFailureBackoffUntilMs ? new Date(fetchFailureBackoffUntilMs).toISOString() : "",
         });
         scheduleApprovedPoll(getApprovedPollDelayMs());
@@ -3637,8 +3693,18 @@
         } else {
           stopOverlayRefreshLoop();
         }
-        scheduleTelemetryHeartbeat(getHeartbeatDelayMs());
-        scheduleRuntimeSettingsRefresh(getRuntimeSettingsPollDelayMs());
+        if (shouldRunTelemetryHeartbeatLoop()) {
+          scheduleTelemetryHeartbeat(getHeartbeatDelayMs());
+        } else {
+          clearNamedTimer("telemetry_heartbeat");
+          telemetryHeartbeatTimer = null;
+        }
+        if (shouldRunRuntimeSettingsPolling()) {
+          scheduleRuntimeSettingsRefresh(getRuntimeSettingsPollDelayMs());
+        } else {
+          clearNamedTimer("runtime_settings");
+          runtimeSettingsRefreshTimer = null;
+        }
       } catch (_) {}
     }
 
@@ -4629,6 +4695,11 @@
 
     function startTelemetryHeartbeatLoop() {
       try {
+        if (!shouldRunTelemetryHeartbeatLoop()) {
+          clearNamedTimer("telemetry_heartbeat");
+          telemetryHeartbeatTimer = null;
+          return;
+        }
         scheduleTelemetryHeartbeat(0);
       } catch (_) {}
     }
@@ -4779,14 +4850,22 @@
             debugOverlayEl.classList.remove("visible");
             debugOverlayEl.setAttribute("aria-hidden", "true");
           }
-        } else if (!debugOverlayInterval) {
+        } else if (!debugOverlayInterval || !shouldRunDebugOverlayInterval()) {
           startGalleryDebugOverlayLoop();
         }
         if (settingsValueChanged) {
           debugOverlayLatchedVisible = false;
         }
 
-        if (!isFlattenedOverlayRuntimeEnabled()) {
+        if (isPiSafeLegacyRuntimeEnabled()) {
+          stopOverlayRefreshLoop();
+          abortPendingFetchesByCategory("overlay_fetch", "pi_safe_legacy_runtime");
+          disableDynamicTemplateLayer();
+          clearTemplateLayers({ force: true, reason: "pi_safe_legacy_runtime" });
+          clearOverlayLayer("pi_safe_legacy_runtime");
+          applyStaticLegacyOverlay();
+          overlayBypassedLogged = false;
+        } else if (!isFlattenedOverlayRuntimeEnabled()) {
           stopOverlayRefreshLoop();
           abortPendingFetchesByCategory("overlay_fetch", "overlay_runtime_disabled");
           if (
@@ -4842,6 +4921,11 @@
           if (isPiStablePlayerModeEnabled()) {
             appendRuntimeLog("runtime_mode", "PI_STABLE_MODE_ON", {
               enablePiStablePlayerMode: true,
+            });
+          }
+          if (isPiSafeLegacyRuntimeEnabled()) {
+            appendRuntimeLog("runtime_mode", "PI_SAFE_LEGACY_RUNTIME_ON", {
+              staticOverlayUrl: STATIC_GALLERY_OVERLAY_URL,
             });
           }
           if (!isBlobPhotoLoaderEnabled()) {
@@ -4964,6 +5048,9 @@
 
     function clearOverlayLayer(reason = "unspecified") {
       if (templateOverlayEl) {
+        templateOverlayEl.onload = null;
+        templateOverlayEl.onerror = null;
+        delete templateOverlayEl.dataset.overlayMode;
         templateOverlayEl.removeAttribute("src");
         templateOverlayEl.style.display = "none";
       }
@@ -4974,6 +5061,45 @@
       applyPhotoBox(DEFAULT_PHOTO_BOX);
       setRecoveryAction(`overlay_cleared:${reason}`);
       galleryDebug("overlay cleared", { reason });
+    }
+
+    function applyStaticLegacyOverlay() {
+      if (!templateOverlayEl) return false;
+      const staticOverlayUrl = normalizeAssetUrl(String(STATIC_GALLERY_OVERLAY_URL || "").trim());
+      if (!staticOverlayUrl) {
+        clearOverlayLayer("static_legacy_overlay_missing");
+        return false;
+      }
+      try {
+        templateOverlayEl.onload = null;
+        templateOverlayEl.onerror = null;
+        templateOverlayEl.dataset.overlayMode = "static_legacy";
+        templateOverlayEl.onload = () => {
+          templateOverlayEl.style.display = "block";
+        };
+        templateOverlayEl.onerror = () => {
+          templateOverlayEl.style.display = "none";
+          templateOverlayEl.removeAttribute("src");
+          delete templateOverlayEl.dataset.overlayMode;
+          galleryDebug("static legacy overlay missing; continuing photo-only playback", {
+            staticOverlayUrl,
+          });
+        };
+        templateOverlayEl.src = staticOverlayUrl;
+        templateOverlayEl.style.display = "block";
+        activeOverlayKey = "static_legacy_overlay";
+        currentOverlayFileId = "static_legacy_overlay";
+        currentOverlayVersion = "static";
+        lastGoodOverlayMeta = {
+          overlayUrl: staticOverlayUrl,
+          overlayKey: "static_legacy_overlay",
+          photoBox: { ...DEFAULT_PHOTO_BOX },
+        };
+        applyPhotoBox(DEFAULT_PHOTO_BOX);
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
 
     function disableDynamicTemplateLayer() {
@@ -6895,6 +7021,7 @@
     } else {
       disableTemplateLayerForLiveMode();
     }
+    clearOverlayLayer("initial_boot");
     applyGalleryRuntimeSettings(DEFAULT_GALLERY_RUNTIME_SETTINGS, {
       runtimeSettingsVersion: "default",
     });
@@ -6904,14 +7031,13 @@
     startGalleryDebugOverlayLoop();
     installRuntimeLifecycleHandlers();
     setSlideshowState(SLIDESHOW_STATES.booting, "initial_boot");
-    clearOverlayLayer("initial_boot");
     showQrWaitingScreen("boot_waiting_for_manifest");
     startRefreshLoop();
     startTelemetryHeartbeatLoop();
     if (isRuntimeWatchdogEnabled()) {
       startRuntimeWatchdog();
     }
-    scheduleRuntimeSettingsRefresh(0);
+    void fetchGalleryRuntimeSettings();
     runDebugTelemetryTestIfNeeded();
   </script>
 </body>

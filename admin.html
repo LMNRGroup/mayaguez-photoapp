@@ -5542,6 +5542,18 @@ View report to see the most recent interactions
                   <div class="settings-grid">
                     <div class="settings-help">Safe mode defaults keep photo rotation on while disabling overlay/template runtime systems for Raspberry Pi testing.</div>
                     <div class="runtime-toggle-list">
+                      <label class="runtime-toggle-row" for="settingsEnablePiSafeLegacyRuntime">
+                        <span class="runtime-toggle-control">
+                          <span class="toggle">
+                            <input type="checkbox" id="settingsEnablePiSafeLegacyRuntime" />
+                            <span class="toggle-slider"></span>
+                          </span>
+                          <span class="runtime-toggle-meta">
+                            <span class="runtime-toggle-title">Enable Pi Safe Legacy Runtime</span>
+                            <span class="runtime-toggle-description">Mimics the older stable gallery player: direct image URLs, static overlay only, minimal timers.</span>
+                          </span>
+                        </span>
+                      </label>
                       <label class="runtime-toggle-row" for="settingsEnablePiStablePlayerMode">
                         <span class="runtime-toggle-control">
                           <span class="toggle">
@@ -8544,12 +8556,14 @@ function hideGlobalLoader() {
     const settingsEnableGalleryDebugOverlay = document.getElementById("settingsEnableGalleryDebugOverlay");
     const settingsEnableRuntimeWatchdog = document.getElementById("settingsEnableRuntimeWatchdog");
     const settingsEnableDirectSwapMode = document.getElementById("settingsEnableDirectSwapMode");
+    const settingsEnablePiSafeLegacyRuntime = document.getElementById("settingsEnablePiSafeLegacyRuntime");
     const settingsApplyGallerySafeModeBtn = document.getElementById("settingsApplyGallerySafeModeBtn");
     const settingsApplyFullGalleryModeBtn = document.getElementById("settingsApplyFullGalleryModeBtn");
     const settingsReloadGalleryPlayerBtn = document.getElementById("settingsReloadGalleryPlayerBtn");
     const settingsClearCacheReloadGalleryPlayerBtn = document.getElementById("settingsClearCacheReloadGalleryPlayerBtn");
     const settingsGalleryRuntimeCommandStatus = document.getElementById("settingsGalleryRuntimeCommandStatus");
     const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
+      enablePiSafeLegacyRuntime: true,
       enablePiStablePlayerMode: true,
       enableBlobPhotoLoader: false,
       enableGalleryCrossfade: true,
@@ -8559,7 +8573,7 @@ function hideGlobalLoader() {
       enableDynamicTemplateRuntime: false,
       enableTemplatePolling: false,
       enableGalleryDebugOverlay: true,
-      enableRuntimeWatchdog: true,
+      enableRuntimeWatchdog: false,
       enableDirectSwapMode: false,
     });
     const DEFAULT_GALLERY_RUNTIME_COMMAND = Object.freeze({
@@ -14048,6 +14062,7 @@ reportViewBtn.addEventListener("click", async () => {
           ? settings
           : {};
       return {
+        enablePiSafeLegacyRuntime: runtime.enablePiSafeLegacyRuntime !== false,
         enablePiStablePlayerMode: runtime.enablePiStablePlayerMode !== false,
         enableBlobPhotoLoader: Boolean(runtime.enableBlobPhotoLoader),
         enableGalleryCrossfade: runtime.enableGalleryCrossfade !== false,
@@ -14106,6 +14121,7 @@ reportViewBtn.addEventListener("click", async () => {
 
     function applyGalleryRuntimeSettingsToForm(runtimeSettings = DEFAULT_GALLERY_RUNTIME_SETTINGS) {
       const nextSettings = normalizeGalleryRuntimeSettings(runtimeSettings);
+      if (settingsEnablePiSafeLegacyRuntime) settingsEnablePiSafeLegacyRuntime.checked = nextSettings.enablePiSafeLegacyRuntime;
       if (settingsEnablePiStablePlayerMode) settingsEnablePiStablePlayerMode.checked = nextSettings.enablePiStablePlayerMode;
       if (settingsEnableBlobPhotoLoader) settingsEnableBlobPhotoLoader.checked = nextSettings.enableBlobPhotoLoader;
       if (settingsEnableGalleryCrossfade) settingsEnableGalleryCrossfade.checked = nextSettings.enableGalleryCrossfade;
@@ -14121,6 +14137,7 @@ reportViewBtn.addEventListener("click", async () => {
 
     function getGallerySafeModeRuntimeSettings() {
       return {
+        enablePiSafeLegacyRuntime: true,
         enablePiStablePlayerMode: true,
         enableBlobPhotoLoader: false,
         enableGalleryCrossfade: true,
@@ -14130,13 +14147,14 @@ reportViewBtn.addEventListener("click", async () => {
         enableDynamicTemplateRuntime: false,
         enableTemplatePolling: false,
         enableGalleryDebugOverlay: true,
-        enableRuntimeWatchdog: true,
+        enableRuntimeWatchdog: false,
         enableDirectSwapMode: false,
       };
     }
 
     function getGalleryFullModeRuntimeSettings() {
       return {
+        enablePiSafeLegacyRuntime: false,
         enablePiStablePlayerMode: true,
         enableBlobPhotoLoader: false,
         enableGalleryCrossfade: true,
@@ -14285,6 +14303,7 @@ reportViewBtn.addEventListener("click", async () => {
         activeTemplateId: settingsActiveTemplateId ? settingsActiveTemplateId.value : "",
         galleryRuntimeCommand: normalizeGalleryRuntimeCommand(DEFAULT_GALLERY_RUNTIME_COMMAND),
         galleryRuntime: {
+          enablePiSafeLegacyRuntime: settingsEnablePiSafeLegacyRuntime ? settingsEnablePiSafeLegacyRuntime.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enablePiSafeLegacyRuntime,
           enablePiStablePlayerMode: settingsEnablePiStablePlayerMode ? settingsEnablePiStablePlayerMode.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enablePiStablePlayerMode,
           enableBlobPhotoLoader: settingsEnableBlobPhotoLoader ? settingsEnableBlobPhotoLoader.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableBlobPhotoLoader,
           enableGalleryCrossfade: settingsEnableGalleryCrossfade ? settingsEnableGalleryCrossfade.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableGalleryCrossfade,

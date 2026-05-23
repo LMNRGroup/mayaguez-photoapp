@@ -289,6 +289,7 @@ const DEFAULT_APP_SETTINGS = {
     }
   },
   galleryRuntime: {
+    enablePiSafeLegacyRuntime: true,
     enablePiStablePlayerMode: true,
     enableBlobPhotoLoader: false,
     enableGalleryCrossfade: true,
@@ -298,7 +299,7 @@ const DEFAULT_APP_SETTINGS = {
     enableDynamicTemplateRuntime: false,
     enableTemplatePolling: false,
     enableGalleryDebugOverlay: true,
-    enableRuntimeWatchdog: true,
+    enableRuntimeWatchdog: false,
     enableDirectSwapMode: false,
   }
 };
@@ -328,6 +329,7 @@ const SETTINGS_FIELDS = [
   { key: 'Gallery Display Limit', type: 'string', path: ['galleryDisplayLimit'] },
   { key: 'Active Template ID', type: 'string', path: ['activeTemplateId'] },
   { key: 'Active Template Snapshot', type: 'string', path: ['activeTemplateSnapshot'] },
+  { key: 'Pi Safe Legacy Runtime Enabled', type: 'boolean', path: ['galleryRuntime', 'enablePiSafeLegacyRuntime'] },
   { key: 'Pi Stable Player Mode Enabled', type: 'boolean', path: ['galleryRuntime', 'enablePiStablePlayerMode'] },
   { key: 'Blob Photo Loader Enabled', type: 'boolean', path: ['galleryRuntime', 'enableBlobPhotoLoader'] },
   { key: 'Gallery Crossfade Enabled', type: 'boolean', path: ['galleryRuntime', 'enableGalleryCrossfade'] },
@@ -471,6 +473,7 @@ function sanitizeDeviceStatus(rawStatus) {
     : null;
   const galleryRuntimeSettings = status.galleryRuntimeSettings && typeof status.galleryRuntimeSettings === 'object'
     ? {
+        enablePiSafeLegacyRuntime: clampBoolean(status.galleryRuntimeSettings.enablePiSafeLegacyRuntime),
         enablePiStablePlayerMode: clampBoolean(status.galleryRuntimeSettings.enablePiStablePlayerMode),
         enableBlobPhotoLoader: clampBoolean(status.galleryRuntimeSettings.enableBlobPhotoLoader),
         enableGalleryCrossfade: clampBoolean(status.galleryRuntimeSettings.enableGalleryCrossfade),
@@ -976,6 +979,7 @@ function normalizeGalleryRuntimeSettings(rawSettings = {}) {
   const fallback = getDefaultGalleryRuntimeSettings();
   const candidate = rawSettings && typeof rawSettings === 'object' ? rawSettings : {};
   return {
+    enablePiSafeLegacyRuntime: coerceBoolean(candidate.enablePiSafeLegacyRuntime, fallback.enablePiSafeLegacyRuntime),
     enablePiStablePlayerMode: coerceBoolean(candidate.enablePiStablePlayerMode, fallback.enablePiStablePlayerMode),
     enableBlobPhotoLoader: coerceBoolean(candidate.enableBlobPhotoLoader, fallback.enableBlobPhotoLoader),
     enableGalleryCrossfade: coerceBoolean(candidate.enableGalleryCrossfade, fallback.enableGalleryCrossfade),
@@ -1015,6 +1019,14 @@ function normalizeGalleryRuntimeCommand(rawCommand = {}) {
 function buildGalleryRuntimeDisabledSystems(runtimeSettings = {}) {
   const runtime = normalizeGalleryRuntimeSettings(runtimeSettings);
   const disabledSystems = [];
+  if (runtime.enablePiSafeLegacyRuntime) {
+    disabledSystems.push('runtime_settings_polling');
+    disabledSystems.push('telemetry_heartbeat_loop');
+    disabledSystems.push('flattened_overlay');
+    disabledSystems.push('overlay_polling');
+    disabledSystems.push('dynamic_template_runtime');
+    disabledSystems.push('template_polling');
+  }
   if (!runtime.enableBlobPhotoLoader) disabledSystems.push('blob_photo_loader');
   if (!runtime.enableGalleryCrossfade) disabledSystems.push('gallery_crossfade');
   if (!runtime.enableDirectSwapFallback) disabledSystems.push('direct_swap_fallback');
@@ -1025,7 +1037,7 @@ function buildGalleryRuntimeDisabledSystems(runtimeSettings = {}) {
   if (!runtime.enableGalleryDebugOverlay) disabledSystems.push('gallery_debug_overlay');
   if (!runtime.enableRuntimeWatchdog) disabledSystems.push('runtime_watchdog');
   if (!runtime.enableDirectSwapMode) disabledSystems.push('direct_swap_mode');
-  return disabledSystems;
+  return [...new Set(disabledSystems)];
 }
 
 function buildGalleryRuntimeSettingsPayload(settings = appSettings) {
@@ -1103,6 +1115,7 @@ function mergeAppSettings(patch = {}) {
     const currentRuntimeSettings = normalizeGalleryRuntimeSettings(next.galleryRuntime);
     const runtimePatch = patch.galleryRuntime;
     next.galleryRuntime = {
+      enablePiSafeLegacyRuntime: coerceBoolean(runtimePatch.enablePiSafeLegacyRuntime, currentRuntimeSettings.enablePiSafeLegacyRuntime),
       enablePiStablePlayerMode: coerceBoolean(runtimePatch.enablePiStablePlayerMode, currentRuntimeSettings.enablePiStablePlayerMode),
       enableBlobPhotoLoader: coerceBoolean(runtimePatch.enableBlobPhotoLoader, currentRuntimeSettings.enableBlobPhotoLoader),
       enableGalleryCrossfade: coerceBoolean(runtimePatch.enableGalleryCrossfade, currentRuntimeSettings.enableGalleryCrossfade),
