@@ -1500,6 +1500,21 @@
     font-weight: 700;
   }
 
+  .template-task-debug {
+    margin-top: 0.9rem;
+    max-height: 9.5rem;
+    overflow: auto;
+    padding: 0.8rem 0.9rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.22);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: rgba(248, 250, 252, 0.86);
+    white-space: pre-wrap;
+  }
+
   /* Template Preview Overlay */
   .template-preview-overlay {
     position: fixed;
@@ -6213,12 +6228,30 @@ View report to see the most recent interactions
       return url;
     }
 
-    function loadImage(src, errorMessage = "Error loading image") {
+    function loadImage(src, errorMessage = "Error loading image", options = {}) {
       return new Promise((resolve, reject) => {
         const img = new Image();
+        const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 45000;
+        const code = options.code ? String(options.code) : "image_load_failed";
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(`${code}:timeout`));
+        }, timeoutMs);
         img.crossOrigin = "anonymous";
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(errorMessage));
+        img.onload = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(img);
+        };
+        img.onerror = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          reject(new Error(`${code}:${errorMessage}`));
+        };
         img.src = src;
       });
     }
@@ -11329,6 +11362,29 @@ function hideReportLoading() {
       });
     }
 
+    function withTimeout(promise, timeoutMs, code, detail = "") {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(`${code}${detail ? `:${detail}` : ""}`));
+        }, timeoutMs);
+
+        Promise.resolve(promise).then((value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(value);
+        }).catch((err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+    }
+
     function clampProgress(value) {
       const numeric = Number(value);
       if (!Number.isFinite(numeric)) return 0;
@@ -11374,11 +11430,16 @@ function hideReportLoading() {
       meta.appendChild(metaLabel);
       meta.appendChild(metaValue);
 
+      const debug = document.createElement("div");
+      debug.className = "template-task-debug";
+      debug.textContent = "";
+
       panel.appendChild(title);
       panel.appendChild(label);
       panel.appendChild(detail);
       panel.appendChild(progress);
       panel.appendChild(meta);
+      panel.appendChild(debug);
       root.appendChild(panel);
       document.body.appendChild(root);
 
@@ -11389,6 +11450,8 @@ function hideReportLoading() {
         detail,
         fill,
         metaValue,
+        debug,
+        debugEntries: [],
         activeTaskId: 0,
       };
 
@@ -11408,20 +11471,42 @@ function hideReportLoading() {
       overlay.metaValue.textContent = `${nextProgress}%`;
     }
 
+    function pushTemplateProgressDebug(taskId, code, message = "") {
+      const overlay = ensureTemplateProgressOverlay();
+      if (overlay.activeTaskId !== taskId) return;
+      const timestamp = new Date().toLocaleTimeString("en-US", {
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      overlay.debugEntries.push(`[${timestamp}] ${code}${message ? ` — ${message}` : ""}`);
+      overlay.debugEntries = overlay.debugEntries.slice(-8);
+      overlay.debug.textContent = overlay.debugEntries.join("\n");
+      overlay.debug.scrollTop = overlay.debug.scrollHeight;
+    }
+
     function beginTemplateProgressTask(title, label, detail = "", progress = 0) {
       const overlay = ensureTemplateProgressOverlay();
       const taskId = ++templateProgressSequence;
       overlay.activeTaskId = taskId;
+      overlay.debugEntries = [];
+      overlay.debug.textContent = "";
       overlay.root.classList.add("visible");
       overlay.root.setAttribute("aria-hidden", "false");
       updateTemplateProgressTask(taskId, { title, label, detail, progress });
+      pushTemplateProgressDebug(taskId, "TASK_START", `${title} / ${label}`);
 
       return {
         id: taskId,
         update(update = {}) {
           updateTemplateProgressTask(taskId, update);
         },
+        log(code, message = "") {
+          pushTemplateProgressDebug(taskId, code, message);
+        },
         async complete(labelText, detailText = "") {
+          pushTemplateProgressDebug(taskId, "TASK_COMPLETE", labelText || "Completed");
           updateTemplateProgressTask(taskId, {
             label: labelText || "Completed",
             detail: detailText,
@@ -11435,11 +11520,12 @@ function hideReportLoading() {
           }
         },
         async fail(labelText, detailText = "") {
+          pushTemplateProgressDebug(taskId, "TASK_FAIL", labelText || "Failed");
           updateTemplateProgressTask(taskId, {
             label: labelText || "Failed",
             detail: detailText,
           });
-          await wait(TEMPLATE_PROGRESS_HIDE_DELAY_MS);
+          await wait(1200);
           if (overlay.activeTaskId === taskId) {
             overlay.root.classList.remove("visible");
             overlay.root.setAttribute("aria-hidden", "true");
@@ -11874,6 +11960,7 @@ function hideReportLoading() {
 
         const template = data.template;
         const templateData = template.data;
+        task.log("TEMPLATE_DATA_OK", template.name || `template_${templateId}`);
         task.update({
           label: "Preparing editor",
           detail: template.name || `Template ${templateId}`,
@@ -11940,6 +12027,7 @@ function hideReportLoading() {
         if (assetPlans.length) {
           let assetsLoaded = 0;
           const totalAssets = assetPlans.length;
+          task.log("ASSET_PRELOAD_START", `${totalAssets} assets`);
           task.update({
             label: "Loading template assets",
             detail: `0 of ${totalAssets} assets loaded`,
@@ -11947,7 +12035,10 @@ function hideReportLoading() {
           });
 
           const loadedAssets = await Promise.all(assetPlans.map(async (plan) => {
-            const image = await loadImage(plan.src, `Error loading ${plan.kind} asset`);
+            const image = await loadImage(plan.src, `Error loading ${plan.kind} asset`, {
+              timeoutMs: 60000,
+              code: `template_${plan.kind}_load_failed`,
+            });
             assetsLoaded += 1;
             task.update({
               label: "Loading template assets",
@@ -11974,26 +12065,32 @@ function hideReportLoading() {
             .sort((a, b) => (a.layerOrder || 0) - (b.layerOrder || 0));
 
           if (loadedLayers.length) {
+            task.log("LAYER_ATTACH_START", `${loadedLayers.length} layers`);
             task.update({
               label: "Applying template layers",
               detail: `${loadedLayers.length} overlay layer${loadedLayers.length === 1 ? "" : "s"}`,
               progress: 86,
             });
 
-            await Promise.all(loadedLayers.map((asset) => addLogoToCanvasWithPosition(
-              asset.src,
-              asset.layer.x || null,
-              asset.layer.y || null,
-              asset.layer.width || null,
-              asset.layer.height || null,
-              {
-                type: asset.layer.type || (asset.layer.value && String(asset.layer.value).startsWith("http") ? "uploaded" : "preloaded"),
-                value: asset.layer.value || "",
-                assetRole: asset.layer.assetRole || "logo",
-                label: asset.layer.label || "",
-                layerOrder: asset.layerOrder,
-                preloadedImage: asset.image,
-              }
+            await Promise.all(loadedLayers.map((asset) => withTimeout(
+              addLogoToCanvasWithPosition(
+                asset.src,
+                asset.layer.x || null,
+                asset.layer.y || null,
+                asset.layer.width || null,
+                asset.layer.height || null,
+                {
+                  type: asset.layer.type || (asset.layer.value && String(asset.layer.value).startsWith("http") ? "uploaded" : "preloaded"),
+                  value: asset.layer.value || "",
+                  assetRole: asset.layer.assetRole || "logo",
+                  label: asset.layer.label || "",
+                  layerOrder: asset.layer.order,
+                  preloadedImage: asset.image,
+                }
+              ),
+              8000,
+              "template_layer_attach_timeout",
+              asset.label || `${asset.kind}_${asset.layerOrder + 1}`
             )));
           }
         }
@@ -12011,8 +12108,9 @@ function hideReportLoading() {
 
       } catch (err) {
         console.error("Error loading template:", err);
+        task.log("TEMPLATE_LOAD_ERROR", err && err.message ? err.message : "unknown");
         await task.fail("Template load failed", err && err.message ? err.message : "Please try again.");
-        await appAlert("Failed to load template. Please try again.", {
+        await appAlert(`Failed to load template.\n\nCode: ${err && err.message ? err.message : "template_load_failed"}`, {
           title: "Load Failed",
           tone: "error",
         });
@@ -12820,7 +12918,8 @@ function hideReportLoading() {
       logoDiv.dataset.layerOrder = Number.isFinite(Number(metadata.layerOrder)) ? String(Number(metadata.layerOrder)) : String(Date.now());
 
       const img = new Image();
-      img.src = preloadedImage?.src || logoPath;
+      const resolvedImageSrc = preloadedImage?.currentSrc || preloadedImage?.src || logoPath;
+      img.src = resolvedImageSrc;
       img.alt = assetRole === "qr" ? (metadata.label || "QR code") : "Logo";
       img.loading = "lazy";
       
@@ -12911,6 +13010,7 @@ function hideReportLoading() {
           settled = true;
           const canvasWidth = templateCanvas.offsetWidth;
           const canvasHeight = templateCanvas.offsetHeight;
+          const dimensionSource = preloadedImage && preloadedImage.naturalWidth > 0 ? preloadedImage : img;
           
           if (x !== null && y !== null && width !== null && height !== null) {
             // Use provided position/size
@@ -12921,7 +13021,7 @@ function hideReportLoading() {
           } else {
             // Calculate initial size (max 200px width, maintain aspect ratio)
             const maxWidth = Math.min(200, canvasWidth * 0.2);
-            const aspectRatio = img.naturalWidth / img.naturalHeight;
+            const aspectRatio = (dimensionSource.naturalWidth || 1) / (dimensionSource.naturalHeight || 1);
             const calcWidth = maxWidth;
             const calcHeight = maxWidth / aspectRatio;
             const existingLayerCount = templateLogosContainer.querySelectorAll(".template-logo").length;
@@ -12948,6 +13048,11 @@ function hideReportLoading() {
           settled = true;
           reject(new Error(assetRole === "qr" ? "qr_asset_load_failed" : "logo_asset_load_failed"));
         };
+
+        if (preloadedImage && preloadedImage.naturalWidth > 0 && preloadedImage.naturalHeight > 0) {
+          finalizePlacement();
+          return;
+        }
 
         if (img.complete && img.naturalWidth > 0) {
           finalizePlacement();
@@ -13684,7 +13789,10 @@ function hideReportLoading() {
         return false;
       } catch (err) {
         console.error("Error saving template:", err);
-        showToast("Failed to save template.", "error");
+        await appAlert(`Failed to save template.\n\nCode: ${err && err.message ? err.message : "template_save_failed"}`, {
+          title: "Save Failed",
+          tone: "error",
+        });
         return false;
       } finally {
         isSavingTemplate = false;
@@ -13758,7 +13866,10 @@ function hideReportLoading() {
           await runTemplateSaveFlow(name, setActiveAfterSave);
         } catch (err) {
           console.error("Error saving template:", err);
-          showToast("Failed to save template.", "error");
+          await appAlert(`Failed to save template.\n\nCode: ${err && err.message ? err.message : "template_save_failed"}`, {
+            title: "Save Failed",
+            tone: "error",
+          });
         } finally {
           setButtonLoading(saveBtn, "Saving...", false);
         }
