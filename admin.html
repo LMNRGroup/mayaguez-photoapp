@@ -5563,192 +5563,21 @@ View report to see the most recent interactions
 
               <div class="settings-section">
                 <div class="settings-section-header">
-                  <div class="settings-section-title">GALLERY RUNTIME SAFETY TOGGLES</div>
+                  <div class="settings-section-title">GALLERY PLAYER</div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </div>
                 <div class="settings-section-content">
                   <div class="settings-grid">
-                    <div class="settings-help">Production kiosk mode keeps the gallery lightweight: direct image URLs, one published overlay image, minimal timers, and no live template runtime on the Pi.</div>
-                    <div class="runtime-toggle-list">
-                      <label class="runtime-toggle-row" for="settingsEnablePiSafeLegacyRuntime">
-                        <span class="runtime-toggle-control">
-                          <span class="toggle">
-                            <input type="checkbox" id="settingsEnablePiSafeLegacyRuntime" />
-                            <span class="toggle-slider"></span>
-                          </span>
-                          <span class="runtime-toggle-meta">
-                            <span class="runtime-toggle-title">Enable Pi Safe Legacy Runtime</span>
-                            <span class="runtime-toggle-description">Mimics the older stable gallery player: direct image URLs, static overlay only, minimal timers.</span>
-                          </span>
-                        </span>
-                      </label>
-                      <label class="runtime-toggle-row" for="settingsEnableGalleryCrossfade">
-                        <span class="runtime-toggle-control">
-                          <span class="toggle">
-                            <input type="checkbox" id="settingsEnableGalleryCrossfade" />
-                            <span class="toggle-slider"></span>
-                          </span>
-                          <span class="runtime-toggle-meta">
-                            <span class="runtime-toggle-title">Enable Gallery Crossfade</span>
-                            <span class="runtime-toggle-description">Keep normal visual transitions active when the browser can handle them cleanly.</span>
-                          </span>
-                        </span>
-                      </label>
-                      <label class="runtime-toggle-row" for="settingsEnableFlattenedOverlay">
-                        <span class="runtime-toggle-control">
-                          <span class="toggle">
-                            <input type="checkbox" id="settingsEnableFlattenedOverlay" />
-                            <span class="toggle-slider"></span>
-                          </span>
-                          <span class="runtime-toggle-meta">
-                            <span class="runtime-toggle-title">Enable Flattened Overlay</span>
-                            <span class="runtime-toggle-description">Loads the published flattened PNG overlay once at startup through the stable gallery overlay route.</span>
-                          </span>
-                        </span>
-                      </label>
-                    </div>
-                    <details class="runtime-diagnostics-group">
-                      <summary>Developer Diagnostics</summary>
-                      <div class="runtime-diagnostics-content">
-                        <div class="runtime-toggle-list">
-                          <label class="runtime-toggle-row" for="settingsEnablePiStablePlayerMode">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnablePiStablePlayerMode" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Pi Stable Player Mode</span>
-                                <span class="runtime-toggle-description">Keeps slower poll timings and direct image loading even outside the full legacy runtime.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableBlobPhotoLoader">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableBlobPhotoLoader" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Blob Photo Loader</span>
-                                <span class="runtime-toggle-description">Restores the fetch-to-blob-to-object-URL image path for targeted regression testing only.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableDirectSwapFallback">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableDirectSwapFallback" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Direct Swap Fallback</span>
-                                <span class="runtime-toggle-description">Keeps the non-production direct-swap recovery path available outside legacy mode.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableOverlayPolling">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableOverlayPolling" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Overlay Polling</span>
-                                <span class="runtime-toggle-description">Developer only. Restores live overlay refresh polling while the gallery is open.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableDynamicTemplateRuntime">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableDynamicTemplateRuntime" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Dynamic Template Runtime</span>
-                                <span class="runtime-toggle-description">Developer only. Re-enables live background/logo composition in the gallery browser.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableTemplatePolling">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableTemplatePolling" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Template Polling</span>
-                                <span class="runtime-toggle-description">Developer only. Polls for active template changes during runtime.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableGalleryDebugOverlay">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableGalleryDebugOverlay" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Gallery Debug Overlay</span>
-                                <span class="runtime-toggle-description">Developer only. The stable kiosk build keeps the on-screen diagnostics overlay disabled unless it is re-enabled in code.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableRuntimeWatchdog">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableRuntimeWatchdog" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Runtime Watchdog</span>
-                                <span class="runtime-toggle-description">Developer only. Re-enables the heavier watchdog loop outside the stable kiosk runtime.</span>
-                              </span>
-                            </span>
-                          </label>
-                          <label class="runtime-toggle-row" for="settingsEnableDirectSwapMode">
-                            <span class="runtime-toggle-control">
-                              <span class="toggle">
-                                <input type="checkbox" id="settingsEnableDirectSwapMode" />
-                                <span class="toggle-slider"></span>
-                              </span>
-                              <span class="runtime-toggle-meta">
-                                <span class="runtime-toggle-title">Enable Direct Swap Mode</span>
-                                <span class="runtime-toggle-description">Developer only. Forces direct image replacement instead of crossfade.</span>
-                              </span>
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </details>
+                    <div class="settings-help">The live Raspberry Pi gallery now stays in one stable playback mode: approved photos, direct image URLs, and one published flattened overlay image. Template editing remains here in Admin only.</div>
                   </div>
 
                   <div class="settings-actions" style="margin-top: 1rem;">
-                    <button id="settingsApplyGallerySafeModeBtn" class="btn-secondary" type="button">
-                      <span class="btn-inline-content">
-                        <i data-lucide="shield-check"></i>
-                        <span>APPLY GALLERY SAFE MODE</span>
-                      </span>
-                    </button>
-                    <button id="settingsApplyFullGalleryModeBtn" class="btn-secondary" type="button">
-                      <span class="btn-inline-content">
-                        <i data-lucide="sliders-horizontal"></i>
-                        <span>APPLY FULL GALLERY MODE</span>
-                      </span>
-                    </button>
                     <button id="settingsReloadGalleryPlayerBtn" class="btn-secondary" type="button">
                       <span class="btn-inline-content">
                         <i data-lucide="refresh-cw"></i>
                         <span>RELOAD GALLERY PLAYER</span>
-                      </span>
-                    </button>
-                    <button id="settingsClearCacheReloadGalleryPlayerBtn" class="btn-secondary" type="button">
-                      <span class="btn-inline-content">
-                        <i data-lucide="rotate-ccw"></i>
-                        <span>CLEAR GALLERY CACHE + RELOAD</span>
                       </span>
                     </button>
                   </div>
