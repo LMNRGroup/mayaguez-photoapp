@@ -408,7 +408,7 @@
       enablePiStablePlayerMode: true,
       enableBlobPhotoLoader: false,
       enableGalleryCrossfade: !DISABLE_GALLERY_TRANSITIONS,
-      enableDirectSwapFallback: true,
+      enableDirectSwapFallback: false,
       enableFlattenedOverlay: false,
       enableOverlayPolling: false,
       enableDynamicTemplateRuntime: false,
@@ -575,6 +575,7 @@
     let runtimeDriftState = "";
     let lastRuntimeDriftAt = "";
     let galleryRuntimeSettings = { ...DEFAULT_GALLERY_RUNTIME_SETTINGS };
+    let legacyOverlayConfig = null;
     let disabledSystems = [];
     let galleryRuntimeCommand = null;
     let lastHandledRuntimeCommandId = "";
@@ -604,6 +605,9 @@
     let objectUrlPeak = 0;
     let objectUrlWarningActive = false;
     let objectUrlWarningSinceMs = 0;
+    let legacyVisualStallRecoveryCount = 0;
+    let legacyLastRecoveredPhotoId = "";
+    let legacyLastVisualRecoveryAtMs = 0;
     let imageLifecycleDetections = {
       fetchFailed: false,
       decodeFailed: false,
@@ -987,6 +991,42 @@
       };
     }
 
+    function normalizeLegacyOverlayConfig(rawConfig = null) {
+      const candidate = rawConfig && typeof rawConfig === "object" ? rawConfig : {};
+      const normalizedPhotoBox = normalizePhotoBox(candidate.photoBox);
+      return {
+        enabled: candidate.enabled !== false,
+        mode: clampMonitorString(candidate.mode || "", 40) || "static_repo_fallback",
+        overlayFileId: clampMonitorString(candidate.overlayFileId || "", 120),
+        overlayUrl: normalizeAssetUrl(String(candidate.overlayUrl || "").trim()),
+        overlayVersion: clampMonitorString(candidate.overlayVersion || "", 120),
+        templateId: clampMonitorString(candidate.templateId || "", 120),
+        templateName: clampMonitorString(candidate.templateName || "", 200),
+        updatedAt: clampMonitorString(candidate.updatedAt || "", 80),
+        photoBox: normalizedPhotoBox,
+        source: clampMonitorString(candidate.source || "", 80) || "unknown",
+      };
+    }
+
+    function getEffectiveLegacyOverlayConfig() {
+      const normalized = normalizeLegacyOverlayConfig(legacyOverlayConfig);
+      if (normalized.enabled && normalized.overlayUrl) {
+        return normalized;
+      }
+      return {
+        enabled: Boolean(String(STATIC_GALLERY_OVERLAY_URL || "").trim()),
+        mode: "static_repo_fallback",
+        overlayFileId: "",
+        overlayUrl: normalizeAssetUrl(String(STATIC_GALLERY_OVERLAY_URL || "").trim()),
+        overlayVersion: "static",
+        templateId: "",
+        templateName: "",
+        updatedAt: "",
+        photoBox: { ...DEFAULT_PHOTO_BOX },
+        source: "repo_static_asset",
+      };
+    }
+
     function persistLastHandledRuntimeCommandId(commandId = "") {
       lastHandledRuntimeCommandId = clampMonitorString(commandId || "", 120);
       lastHandledRuntimeCommandAt = lastHandledRuntimeCommandId ? new Date().toISOString() : "";
@@ -1008,6 +1048,7 @@
         nextDisabledSystems.push("dynamic_template_runtime");
         nextDisabledSystems.push("template_polling");
         nextDisabledSystems.push("blob_photo_loader");
+        nextDisabledSystems.push("runtime_watchdog");
       }
       if (!runtime.enableBlobPhotoLoader) nextDisabledSystems.push("blob_photo_loader");
       if (!runtime.enableGalleryCrossfade) nextDisabledSystems.push("gallery_crossfade");
@@ -1029,7 +1070,7 @@
         runtime.enablePiStablePlayerMode &&
         !runtime.enableBlobPhotoLoader &&
         runtime.enableGalleryCrossfade &&
-        runtime.enableDirectSwapFallback &&
+        !runtime.enableDirectSwapFallback &&
         !runtime.enableFlattenedOverlay &&
         !runtime.enableOverlayPolling &&
         !runtime.enableDynamicTemplateRuntime &&
@@ -1049,6 +1090,7 @@
     }
 
     function isDirectSwapModeEnabled() {
+      if (isPiSafeLegacyRuntimeEnabled()) return false;
       return galleryRuntimeSettings.enableDirectSwapMode === true || directSwapFallbackActive === true || !isGalleryCrossfadeEnabled();
     }
 
@@ -1062,6 +1104,7 @@
     }
 
     function isDirectSwapFallbackEnabled() {
+      if (isPiSafeLegacyRuntimeEnabled()) return false;
       return galleryRuntimeSettings.enableDirectSwapFallback !== false;
     }
 
@@ -1092,6 +1135,7 @@
     }
 
     function isRuntimeWatchdogEnabled() {
+      if (isPiSafeLegacyRuntimeEnabled()) return false;
       return galleryRuntimeSettings.enableRuntimeWatchdog !== false;
     }
 
@@ -3867,6 +3911,9 @@
           route: meta.route || "/gallery/approved",
           message: normalizedMessage,
         });
+        if (isPiSafeLegacyRuntimeEnabled()) {
+          return;
+        }
         if (consecutivePollFailures === 1 || consecutivePollFailures % 5 === 0) {
           void sendDeviceLog("warn", "poll_failure", normalizedMessage, {
             category: "poll",
@@ -3915,6 +3962,9 @@
           diagnosis: debugDetails.diagnosis,
           message: normalizedMessage,
         });
+        if (isPiSafeLegacyRuntimeEnabled()) {
+          return;
+        }
         if (consecutiveImageFailures === 1 || consecutiveImageFailures % 5 === 0) {
           void sendDeviceLog("warn", "image_failure", normalizedMessage, {
             category: "image",
@@ -3955,6 +4005,9 @@
           route: meta.route || "/gallery/active-overlay",
           message: normalizedMessage,
         });
+        if (isPiSafeLegacyRuntimeEnabled()) {
+          return;
+        }
         if (consecutiveOverlayFailures === 1 || consecutiveOverlayFailures % 5 === 0) {
           void sendDeviceLog("warn", "overlay_failure", normalizedMessage, {
             category: "overlay",
@@ -3980,6 +4033,9 @@
         consecutivePollFailures = 0;
         lastApprovedFetchStatus = "success";
         lastApprovedFetchError = "";
+        if (isPiSafeLegacyRuntimeEnabled()) {
+          return;
+        }
         maybeClearBackoffAfterStableWindow();
         refreshGallerySentryScope({ source: "poll_success" });
       } catch (_) {}
@@ -3991,6 +4047,9 @@
         consecutiveImageFailures = 0;
         lastPhotoFetchStatus = "success";
         lastPhotoFetchError = "";
+        if (isPiSafeLegacyRuntimeEnabled()) {
+          return;
+        }
         maybeClearBackoffAfterStableWindow();
         refreshGallerySentryScope({ source: "image_success" });
       } catch (_) {}
@@ -4002,6 +4061,9 @@
         consecutiveOverlayFailures = 0;
         lastOverlayFetchStatus = "success";
         lastOverlayFetchError = "";
+        if (isPiSafeLegacyRuntimeEnabled()) {
+          return;
+        }
         maybeClearBackoffAfterStableWindow();
         refreshGallerySentryScope({ source: "overlay_success" });
       } catch (_) {}
@@ -4081,6 +4143,9 @@
         softRecoveryAttemptCount = 0;
         hardReloadScheduled = false;
         keptCurrentPhotoLogCount = 0;
+        legacyVisualStallRecoveryCount = 0;
+        legacyLastRecoveredPhotoId = "";
+        legacyLastVisualRecoveryAtMs = 0;
       } catch (_) {}
     }
 
@@ -4979,6 +5044,7 @@
         lastRuntimeSettingsFetchAt = new Date().toISOString();
         lastRuntimeSettingsError = "";
         galleryRuntimeCommand = normalizeGalleryRuntimeCommand(data.galleryRuntimeCommand);
+        legacyOverlayConfig = normalizeLegacyOverlayConfig(data.legacyOverlay || null);
         appendSettingsRuntimeLog("SETTINGS_FETCH_OK", {
           runtimeSettingsVersion: data.runtimeSettingsVersion || "default",
         }, 10000);
@@ -5065,8 +5131,13 @@
 
     function applyStaticLegacyOverlay() {
       if (!templateOverlayEl) return false;
-      const staticOverlayUrl = normalizeAssetUrl(String(STATIC_GALLERY_OVERLAY_URL || "").trim());
-      if (!staticOverlayUrl) {
+      const overlayConfig = getEffectiveLegacyOverlayConfig();
+      const overlayUrl = overlayConfig.overlayUrl
+        ? (overlayConfig.overlayVersion
+            ? `${overlayConfig.overlayUrl}${overlayConfig.overlayUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(overlayConfig.overlayVersion))}`
+            : overlayConfig.overlayUrl)
+        : "";
+      if (!overlayUrl) {
         clearOverlayLayer("static_legacy_overlay_missing");
         return false;
       }
@@ -5082,20 +5153,21 @@
           templateOverlayEl.removeAttribute("src");
           delete templateOverlayEl.dataset.overlayMode;
           galleryDebug("static legacy overlay missing; continuing photo-only playback", {
-            staticOverlayUrl,
+            overlayUrl,
+            overlayConfig,
           });
         };
-        templateOverlayEl.src = staticOverlayUrl;
+        templateOverlayEl.src = overlayUrl;
         templateOverlayEl.style.display = "block";
-        activeOverlayKey = "static_legacy_overlay";
-        currentOverlayFileId = "static_legacy_overlay";
-        currentOverlayVersion = "static";
+        activeOverlayKey = overlayConfig.overlayFileId || overlayConfig.mode || "static_legacy_overlay";
+        currentOverlayFileId = overlayConfig.overlayFileId || "";
+        currentOverlayVersion = overlayConfig.overlayVersion || "static";
         lastGoodOverlayMeta = {
-          overlayUrl: staticOverlayUrl,
-          overlayKey: "static_legacy_overlay",
-          photoBox: { ...DEFAULT_PHOTO_BOX },
+          overlayUrl,
+          overlayKey: activeOverlayKey,
+          photoBox: normalizePhotoBox(overlayConfig.photoBox),
         };
-        applyPhotoBox(DEFAULT_PHOTO_BOX);
+        applyPhotoBox(overlayConfig.photoBox || DEFAULT_PHOTO_BOX);
         return true;
       } catch (_) {
         return false;
@@ -5698,8 +5770,10 @@
     }
 
     async function loadImageIntoSlotStable(slotIndex, url, timeoutMs = IMAGE_LOAD_TIMEOUT_MS, photoId = "", options = {}) {
-      clearStaleInFlightLocks(Date.now());
-      const { transitionToken = null, photo = null } = options;
+      const { transitionToken = null, photo = null, minimalLegacy = false } = options;
+      if (!minimalLegacy) {
+        clearStaleInFlightLocks(Date.now());
+      }
       const img = imgSlots[slotIndex];
       const targetPhoto = photo && typeof photo === "object" ? photo : null;
       const targetPhotoId = targetPhoto && targetPhoto.id ? String(targetPhoto.id) : (photoId ? String(photoId) : "");
@@ -5716,16 +5790,18 @@
         startedAtMs: lifecycleStartedAtMs,
       };
 
-      recordImageLifecycleEvent("img_src_load_start", lifecycleBase);
-      registerPendingFetch({
-        name: pendingFetchName,
-        category: "photo_fetch",
-        route: photoRoute,
-        startAt: lifecycleStartedAtMs,
-        timeoutMs,
-        photoId: targetPhotoId,
-        photoName: targetPhotoName,
-      });
+      if (!minimalLegacy) {
+        recordImageLifecycleEvent("img_src_load_start", lifecycleBase);
+        registerPendingFetch({
+          name: pendingFetchName,
+          category: "photo_fetch",
+          route: photoRoute,
+          startAt: lifecycleStartedAtMs,
+          timeoutMs,
+          photoId: targetPhotoId,
+          photoName: targetPhotoName,
+        });
+      }
 
       try {
         if (!img) {
@@ -5740,11 +5816,13 @@
           const timer = setTimeout(() => {
             if (settled) return;
             settled = true;
-            imageLifecycleDetections.onloadNeverFired = true;
-            recordImageLifecycleEvent("img_src_timeout", {
-              ...lifecycleBase,
-              error: "image_load_timeout",
-            });
+            if (!minimalLegacy) {
+              imageLifecycleDetections.onloadNeverFired = true;
+              recordImageLifecycleEvent("img_src_timeout", {
+                ...lifecycleBase,
+                error: "image_load_timeout",
+              });
+            }
             cleanup(true);
             reject(new Error("image_load_timeout"));
           }, timeoutMs);
@@ -5768,11 +5846,13 @@
             if (settled) return;
             if (!img.naturalWidth || !img.naturalHeight) {
               settled = true;
-              imageLifecycleDetections.decodeFailed = true;
-              recordImageLifecycleEvent("img_src_invalid_dimensions", {
-                ...lifecycleBase,
-                error: "image_invalid_dimensions",
-              });
+              if (!minimalLegacy) {
+                imageLifecycleDetections.decodeFailed = true;
+                recordImageLifecycleEvent("img_src_invalid_dimensions", {
+                  ...lifecycleBase,
+                  error: "image_invalid_dimensions",
+                });
+              }
               cleanup(true);
               reject(new Error("image_load_failed"));
               return;
@@ -5783,18 +5863,20 @@
             slotObjectUrls[slotIndex] = null;
             slotPhotoIds[slotIndex] = targetPhotoId;
             recordSuccessfulImageLoad();
-            recordImageLifecycleEvent(source, {
-              ...lifecycleBase,
-              naturalWidth: img.naturalWidth || 0,
-              naturalHeight: img.naturalHeight || 0,
-              durationMs: Date.now() - lifecycleStartedAtMs,
-            });
-            recordImageLifecycleEvent("slot_loaded", {
-              ...lifecycleBase,
-              naturalWidth: img.naturalWidth || 0,
-              naturalHeight: img.naturalHeight || 0,
-              durationMs: Date.now() - lifecycleStartedAtMs,
-            });
+            if (!minimalLegacy) {
+              recordImageLifecycleEvent(source, {
+                ...lifecycleBase,
+                naturalWidth: img.naturalWidth || 0,
+                naturalHeight: img.naturalHeight || 0,
+                durationMs: Date.now() - lifecycleStartedAtMs,
+              });
+              recordImageLifecycleEvent("slot_loaded", {
+                ...lifecycleBase,
+                naturalWidth: img.naturalWidth || 0,
+                naturalHeight: img.naturalHeight || 0,
+                durationMs: Date.now() - lifecycleStartedAtMs,
+              });
+            }
             resolve(playbackUrl);
           }
 
@@ -5802,17 +5884,21 @@
           img.onerror = () => {
             if (settled) return;
             settled = true;
-            recordImageLifecycleEvent("img_src_load_fail", {
-              ...lifecycleBase,
-              error: "image_load_failed",
-            });
+            if (!minimalLegacy) {
+              recordImageLifecycleEvent("img_src_load_fail", {
+                ...lifecycleBase,
+                error: "image_load_failed",
+              });
+            }
             cleanup(true);
             reject(new Error("image_load_failed"));
           };
 
-          recordImageLifecycleEvent("img_src_assigned", {
-            ...lifecycleBase,
-          });
+          if (!minimalLegacy) {
+            recordImageLifecycleEvent("img_src_assigned", {
+              ...lifecycleBase,
+            });
+          }
           img.src = playbackUrl;
 
           if (img.complete && img.naturalWidth > 0) {
@@ -5834,7 +5920,9 @@
         }
         throw err;
       } finally {
-        unregisterPendingFetch(pendingFetchName);
+        if (!minimalLegacy) {
+          unregisterPendingFetch(pendingFetchName);
+        }
       }
     }
 
@@ -6512,7 +6600,405 @@
       }
     }
 
+    async function fetchLegacyJsonWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+      const fetchOptions = options && typeof options === "object" ? { ...options } : {};
+      let controller = null;
+      let timer = null;
+      try {
+        if (typeof AbortController === "function") {
+          controller = new AbortController();
+          fetchOptions.signal = controller.signal;
+          timer = setTimeout(() => {
+            try {
+              controller.abort();
+            } catch (_) {}
+          }, timeoutMs);
+        }
+        return await fetch(url, fetchOptions);
+      } catch (err) {
+        if (err && err.name === "AbortError") {
+          throw new Error("request_timeout");
+        }
+        throw err;
+      } finally {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+    }
+
+    async function legacyCrossfadeTo(url, photoId = "", photo = null) {
+      const targetPhotoId = photoId ? String(photoId) : "";
+      const transitionToken = ++photoTransitionToken;
+      const transitionStartedAtMs = Date.now();
+      const nextIndex = hasImage ? (1 - activeIndex) : activeIndex;
+      const previousIndex = hasImage ? activeIndex : -1;
+      const nextImg = imgSlots[nextIndex];
+      const currentImg = previousIndex >= 0 ? imgSlots[previousIndex] : null;
+
+      if (!nextImg) return false;
+
+      loadingSlotIndex = nextIndex;
+      setSlideshowState(SLIDESHOW_STATES.transitioning, `legacy_crossfade:${targetPhotoId || "unknown"}`);
+
+      try {
+        nextImg.classList.remove("visible");
+        await loadImageIntoSlotStable(nextIndex, url, IMAGE_LOAD_TIMEOUT_MS, photoId, {
+          transitionToken,
+          photo,
+          minimalLegacy: true,
+        });
+
+        if (transitionToken !== photoTransitionToken) {
+          clearSlotObjectUrl(nextIndex, { clearSrc: true, clearPhotoId: true });
+          return false;
+        }
+
+        return await new Promise((resolve) => {
+          let settled = false;
+          let fallbackId = null;
+
+          const cleanupPreviousSlot = () => {
+            if (previousIndex >= 0 && previousIndex !== nextIndex) {
+              clearSlotObjectUrl(previousIndex, { clearSrc: true, clearPhotoId: true });
+            }
+          };
+
+          const finalize = (reason = "transitionend") => {
+            if (settled) return;
+            settled = true;
+            if (fallbackId) {
+              clearTimeout(fallbackId);
+              fallbackId = null;
+            }
+            try {
+              nextImg.removeEventListener("transitionend", handleTransitionEnd);
+            } catch (_) {}
+            if (reason === "fallback") {
+              setRecoveryAction("legacy_transition_timeout_fallback");
+            }
+            cleanupPreviousSlot();
+            resolve(true);
+          };
+
+          const handleTransitionEnd = (event) => {
+            if (event && event.target !== nextImg) return;
+            finalize("transitionend");
+          };
+
+          try {
+            nextImg.addEventListener("transitionend", handleTransitionEnd);
+          } catch (_) {}
+
+          commitVisualSwapFrame(() => {
+            nextImg.classList.add("visible");
+            if (currentImg && currentImg !== nextImg) {
+              currentImg.classList.remove("visible");
+            }
+            hideQrWaitingScreen();
+            hasImage = true;
+            activeIndex = nextIndex;
+            currentPhotoId = targetPhotoId;
+            currentDisplayedPhotoIndex = currentIndex;
+            lastPhotoChangeAt = new Date().toISOString();
+            recordVisualSwap("crossfade", transitionStartedAtMs);
+            setSlideshowState(
+              SLIDESHOW_STATES.displaying,
+              previousIndex >= 0 ? "legacy_crossfade_visible" : "legacy_first_photo_visible"
+            );
+          });
+
+          fallbackId = setTimeout(() => finalize("fallback"), PHOTO_TRANSITION_FALLBACK_MS);
+          if (previousIndex < 0) {
+            finalize("first_photo");
+          }
+        });
+      } catch (_) {
+        clearSlotObjectUrl(nextIndex, { clearSrc: true, clearPhotoId: true });
+        setRecoveryAction("legacy_photo_load_failed");
+        setSlideshowState(hasImage ? SLIDESHOW_STATES.displaying : SLIDESHOW_STATES.ready, "legacy_crossfade_failed");
+        return false;
+      } finally {
+        loadingSlotIndex = -1;
+      }
+    }
+
+    async function showCurrentPhotoLegacy(options = {}) {
+      const { targetIndex = null, advanceReason = "legacy_show_current_photo" } = options;
+      const approvedPhotoCount = getApprovedPhotoCount();
+      if (!approvedPhotoCount) {
+        setEmptyState({ force: true, reason: "legacy_show_current_photo_without_photos" });
+        return false;
+      }
+
+      let nextPhotoIndex = Number.isFinite(targetIndex) ? targetIndex : currentIndex;
+      if (!Number.isFinite(nextPhotoIndex) || nextPhotoIndex < 0) {
+        nextPhotoIndex = 0;
+      } else if (nextPhotoIndex >= approvedPhotoCount) {
+        nextPhotoIndex = nextPhotoIndex % approvedPhotoCount;
+      }
+
+      setSlideshowState(SLIDESHOW_STATES.loading, `${advanceReason}:index_${nextPhotoIndex}`);
+
+      for (let attempt = 0; attempt < approvedPhotoCount; attempt += 1) {
+        const candidateIndex = attempt === 0
+          ? nextPhotoIndex
+          : ((nextPhotoIndex + attempt) % approvedPhotoCount);
+        const file = photos[candidateIndex];
+        if (!file || !file.id) continue;
+
+        const didShow = await legacyCrossfadeTo(buildPhotoPlaybackUrl(file), file.id, file);
+        if (!didShow) {
+          continue;
+        }
+
+        currentIndex = candidateIndex;
+        normalizeCurrentPhotoIndex();
+        markVisiblePhoto(file);
+        recordSlideshowAdvance(advanceReason, file);
+        updateTicketBadge(file.name);
+        legacyVisualStallRecoveryCount = 0;
+        legacyLastRecoveredPhotoId = "";
+        legacyLastVisualRecoveryAtMs = 0;
+        return true;
+      }
+
+      setSlideshowState(SLIDESHOW_STATES.displaying, `${advanceReason}:failed`);
+      return false;
+    }
+
+    function performLegacyKioskReload(reason = "legacy_visual_stall") {
+      const now = Date.now();
+      if (!canPerformKioskReload(now)) {
+        return false;
+      }
+      hardReloadScheduled = true;
+      reloadCount += 1;
+      lastReloadAt = new Date().toISOString();
+      setRecoveryAction(`legacy_runtime_reload:${reason}`);
+      try {
+        window.sessionStorage.setItem(GALLERY_KIOSK_RELOAD_COUNT_KEY, String(reloadCount));
+        window.sessionStorage.setItem(GALLERY_KIOSK_LAST_RELOAD_AT_KEY, lastReloadAt);
+      } catch (_) {}
+      setTimeout(() => {
+        try {
+          window.location.replace(buildGalleryReloadUrl(`legacy-${Date.now()}`, false));
+        } catch (_) {
+          window.location.reload();
+        }
+      }, HARD_RELOAD_DELAY_MS);
+      return true;
+    }
+
+    async function maybeRecoverLegacyVisualStall(reason = "legacy_runtime") {
+      if (!isPiSafeLegacyRuntimeEnabled()) return false;
+      if (!hasImage || getApprovedPhotoCount() < 2) return false;
+      if (loadingSlotIndex >= 0 || slideshowState === SLIDESHOW_STATES.loading || slideshowState === SLIDESHOW_STATES.transitioning) {
+        return false;
+      }
+      if (getVisibleImageAgeMs() < HARD_VISUAL_STALL_RECOVERY_MS) return false;
+
+      const visiblePhotoKey = currentPhotoId || `index_${currentIndex}`;
+      if (legacyLastRecoveredPhotoId !== visiblePhotoKey) {
+        legacyLastRecoveredPhotoId = visiblePhotoKey;
+        legacyVisualStallRecoveryCount = 0;
+      }
+
+      if (legacyVisualStallRecoveryCount >= 1) {
+        return performLegacyKioskReload(`legacy_visual_stall:${reason}`);
+      }
+
+      legacyVisualStallRecoveryCount += 1;
+      legacyLastVisualRecoveryAtMs = Date.now();
+      clearNamedTimer("rotation");
+      rotateTimer = null;
+      loadingSlotIndex = -1;
+      clearInactiveImageSlots(`legacy_visual_stall:${reason}`);
+      setRecoveryAction(`legacy_visual_stall_recovery:${reason}`);
+      rotationLoopToken += 1;
+      const loopToken = rotationLoopToken;
+      const nextIndex = getNextPhotoIndex(currentIndex);
+      const didShow = await showCurrentPhotoLegacy({
+        targetIndex: nextIndex,
+        advanceReason: "legacy_visual_stall_recovery",
+      });
+      if (loopToken === rotationLoopToken && !isSinglePhotoMode()) {
+        scheduleNextRotation(loopToken, didShow ? DISPLAY_MS : 1500);
+      }
+      return didShow;
+    }
+
+    async function advanceLegacySlideshowPhoto(loopToken) {
+      if (loopToken !== rotationLoopToken) return;
+
+      if (!photos.length) {
+        setEmptyState({ force: true, reason: "legacy_rotation_without_photos" });
+        return;
+      }
+
+      normalizeCurrentPhotoIndex();
+
+      if (isSinglePhotoMode()) {
+        setSlideshowState(SLIDESHOW_STATES.displaying, "legacy_single_photo_mode");
+        return;
+      }
+
+      const nextIndex = (currentIndex + 1) % photos.length;
+      const didShow = await showCurrentPhotoLegacy({
+        targetIndex: nextIndex,
+        advanceReason: "legacy_rotation_tick",
+      });
+
+      if (loopToken !== rotationLoopToken) return;
+      scheduleNextRotation(loopToken, didShow ? DISPLAY_MS : 1500);
+    }
+
+    async function startLegacyRotation(options = {}) {
+      const { preserveCurrentVisible = false, loopToken: externalLoopToken = null } = options;
+      if (!Number.isFinite(externalLoopToken)) {
+        rotationLoopToken += 1;
+      }
+      const loopToken = Number.isFinite(externalLoopToken) ? externalLoopToken : rotationLoopToken;
+      clearNamedTimer("rotation");
+      rotateTimer = null;
+
+      if (!photos.length) {
+        setEmptyState({ force: true, reason: "legacy_start_rotation_without_photos" });
+        return;
+      }
+
+      normalizeCurrentPhotoIndex();
+      setSlideshowState(SLIDESHOW_STATES.ready, preserveCurrentVisible ? "legacy_rotation_resume" : "legacy_rotation_start");
+
+      if (!preserveCurrentVisible || !hasImage) {
+        const didShow = await showCurrentPhotoLegacy({ advanceReason: "legacy_rotation_start" });
+        if (loopToken !== rotationLoopToken) return;
+        if (!didShow) {
+          scheduleNextRotation(loopToken, 1500);
+          return;
+        }
+      } else {
+        setSlideshowState(SLIDESHOW_STATES.displaying, "legacy_rotation_resume_visible");
+      }
+
+      if (isSinglePhotoMode()) {
+        setSlideshowState(SLIDESHOW_STATES.displaying, "legacy_single_photo_mode");
+        return;
+      }
+
+      scheduleNextRotation(loopToken, DISPLAY_MS);
+    }
+
+    async function fetchApprovedLegacy() {
+      if (approvedFetchInFlight) {
+        return false;
+      }
+      approvedFetchInFlight = true;
+      approvedFetchStartedAtMs = Date.now();
+      approvedPollCount += 1;
+      const pollStartedAt = Date.now();
+
+      try {
+        const res = await fetchLegacyJsonWithTimeout(`${BASE_URL}/gallery/approved`, {
+          cache: "no-store",
+        }, REQUEST_TIMEOUT_MS);
+        if (!res.ok) {
+          lastPollDurationMs = Date.now() - pollStartedAt;
+          recordPollFailure(`approved_poll_http_${res.status}`, {
+            route: "/gallery/approved",
+            type: "approved_fetch_failure",
+          });
+          if (!hasImage && !photos.length) {
+            showQrWaitingScreen("manifest_failed_no_cached_photos");
+          }
+          await maybeRecoverLegacyVisualStall("approved_http_error");
+          return false;
+        }
+
+        const data = await res.json();
+        if (!data || !data.ok) {
+          lastPollDurationMs = Date.now() - pollStartedAt;
+          recordPollFailure("approved_poll_payload_not_ok", {
+            route: "/gallery/approved",
+            type: "approved_fetch_failure",
+          });
+          if (!hasImage && !photos.length) {
+            showQrWaitingScreen("manifest_failed_no_cached_photos");
+          }
+          await maybeRecoverLegacyVisualStall("approved_payload_error");
+          return false;
+        }
+
+        const newPhotos = Array.isArray(data.files) ? [...data.files] : [];
+        approvedManifestVersion = clampMonitorString(String(data.manifestVersion || ""), 40);
+        recordSuccessfulPoll(Date.now() - pollStartedAt);
+        sortPhotosList(newPhotos);
+
+        if (!newPhotos.length) {
+          photos = [];
+          currentIndex = 0;
+          setEmptyState({ force: true, reason: "approved_empty" });
+          return true;
+        }
+
+        const oldIds = photos.map((p) => p.id).join(",");
+        const newIds = newPhotos.map((p) => p.id).join(",");
+        photos = newPhotos;
+        normalizeCurrentPhotoIndex();
+
+        if (!hasImage) {
+          const currentPhotoIndex = currentPhotoId
+            ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
+            : -1;
+          currentIndex = currentPhotoIndex >= 0 ? currentPhotoIndex : 0;
+          await startLegacyRotation({ preserveCurrentVisible: false });
+          return true;
+        }
+
+        if (oldIds !== newIds) {
+          const currentPhotoIndex = currentPhotoId
+            ? photos.findIndex((photo) => String(photo.id) === String(currentPhotoId))
+            : -1;
+          currentIndex = currentPhotoIndex >= 0 ? currentPhotoIndex : 0;
+          normalizeCurrentPhotoIndex();
+          if (currentPhotoIndex < 0 && loadingSlotIndex < 0) {
+            await startLegacyRotation({ preserveCurrentVisible: false });
+            return true;
+          }
+          if (!rotateTimer && !isSinglePhotoMode() && loadingSlotIndex < 0 && slideshowState !== SLIDESHOW_STATES.loading && slideshowState !== SLIDESHOW_STATES.transitioning) {
+            await startLegacyRotation({ preserveCurrentVisible: true });
+            return true;
+          }
+        }
+
+        if (!rotateTimer && !isSinglePhotoMode() && loadingSlotIndex < 0 && slideshowState !== SLIDESHOW_STATES.loading && slideshowState !== SLIDESHOW_STATES.transitioning) {
+          await startLegacyRotation({ preserveCurrentVisible: true });
+          return true;
+        }
+
+        await maybeRecoverLegacyVisualStall("approved_poll_success");
+        return true;
+      } catch (err) {
+        lastPollDurationMs = Date.now() - pollStartedAt;
+        recordPollFailure(err && err.message ? err.message : String(err), {
+          route: "/gallery/approved",
+          type: "approved_fetch_failure",
+        });
+        if (!hasImage && !photos.length) {
+          showQrWaitingScreen("manifest_failed_no_cached_photos");
+        }
+        await maybeRecoverLegacyVisualStall("approved_poll_exception");
+        return false;
+      } finally {
+        approvedFetchInFlight = false;
+        approvedFetchStartedAtMs = 0;
+      }
+    }
+
     async function showCurrentPhoto(options = {}) {
+      if (isPiSafeLegacyRuntimeEnabled()) {
+        return showCurrentPhotoLegacy(options);
+      }
       const { targetIndex = null, advanceReason = "show_current_photo" } = options;
       if (!photos.length) {
         setSlideshowState(SLIDESHOW_STATES.empty, "show_current_photo_without_confirmed_empty");
@@ -6575,6 +7061,9 @@
     }
 
     async function advanceSlideshowPhoto(loopToken) {
+      if (isPiSafeLegacyRuntimeEnabled()) {
+        return advanceLegacySlideshowPhoto(loopToken);
+      }
       if (loopToken !== rotationLoopToken) return;
 
       if (!photos.length) {
@@ -6618,6 +7107,9 @@
     }
 
     async function startRotation(options = {}) {
+      if (isPiSafeLegacyRuntimeEnabled()) {
+        return startLegacyRotation(options);
+      }
       const { preserveCurrentVisible = false, loopToken: externalLoopToken = null } = options;
       if (!Number.isFinite(externalLoopToken)) {
         rotationLoopToken += 1;
@@ -6654,6 +7146,9 @@
     }
 
     async function fetchApproved() {
+      if (isPiSafeLegacyRuntimeEnabled()) {
+        return fetchApprovedLegacy();
+      }
       clearStaleInFlightLocks(Date.now());
       if (approvedFetchInFlight) {
         galleryDebug("approved poll skipped because previous request is still running", {

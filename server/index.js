@@ -293,7 +293,7 @@ const DEFAULT_APP_SETTINGS = {
     enablePiStablePlayerMode: true,
     enableBlobPhotoLoader: false,
     enableGalleryCrossfade: true,
-    enableDirectSwapFallback: true,
+    enableDirectSwapFallback: false,
     enableFlattenedOverlay: false,
     enableOverlayPolling: false,
     enableDynamicTemplateRuntime: false,
@@ -1026,6 +1026,7 @@ function buildGalleryRuntimeDisabledSystems(runtimeSettings = {}) {
     disabledSystems.push('overlay_polling');
     disabledSystems.push('dynamic_template_runtime');
     disabledSystems.push('template_polling');
+    disabledSystems.push('runtime_watchdog');
   }
   if (!runtime.enableBlobPhotoLoader) disabledSystems.push('blob_photo_loader');
   if (!runtime.enableGalleryCrossfade) disabledSystems.push('gallery_crossfade');
@@ -1047,6 +1048,7 @@ function buildGalleryRuntimeSettingsPayload(settings = appSettings) {
   const galleryRuntimeCommand = normalizeGalleryRuntimeCommand(
     settings && typeof settings === 'object' ? settings.galleryRuntimeCommand : null
   );
+  const legacyOverlay = buildLegacyKioskOverlayPayload(settings);
   const runtimeSettingsVersion = crypto
     .createHash('sha1')
     .update(JSON.stringify(runtimeSettings))
@@ -1058,6 +1060,7 @@ function buildGalleryRuntimeSettingsPayload(settings = appSettings) {
     runtimeSettingsVersion,
     disabledSystems: buildGalleryRuntimeDisabledSystems(runtimeSettings),
     galleryRuntimeCommand,
+    legacyOverlay,
   };
 }
 
@@ -1887,6 +1890,58 @@ function buildActiveOverlayResponse(template, meta = {}) {
       source: meta.source || 'unknown',
       disabled: Boolean(meta.disabled),
     }
+  };
+}
+
+function buildLegacyKioskOverlayPayload(settings = appSettings) {
+  const activeTemplateId = settings && settings.activeTemplateId != null
+    ? String(settings.activeTemplateId).trim()
+    : '';
+  const snapshot = parseActiveTemplateSnapshot(settings && settings.activeTemplateSnapshot);
+  const hasMatchingSnapshot =
+    snapshot &&
+    snapshot.data &&
+    String(snapshot.id || '').trim() &&
+    (!activeTemplateId || String(snapshot.id || '').trim() === activeTemplateId);
+
+  if (!hasMatchingSnapshot) {
+    return {
+      enabled: false,
+      mode: 'static_repo_fallback',
+      overlayFileId: '',
+      overlayUrl: '',
+      overlayVersion: '',
+      templateId: activeTemplateId,
+      templateName: '',
+      updatedAt: '',
+      photoBox: { ...DEFAULT_TEMPLATE_PHOTO_BOX },
+      source: activeTemplateId ? 'active_template_without_snapshot' : 'no_active_template',
+    };
+  }
+
+  const overlayResponse = buildActiveOverlayResponse({
+    id: String(snapshot.id || activeTemplateId || ''),
+    name: snapshot.name || '',
+    createdAt: snapshot.createdAt || '',
+    data: snapshot.data,
+  }, {
+    source: 'settings_snapshot',
+    reason: 'legacy_kiosk_overlay_snapshot',
+  });
+
+  return {
+    enabled: Boolean(overlayResponse.enabled && overlayResponse.overlayUrl),
+    mode: overlayResponse.enabled ? 'published_flattened_overlay' : 'static_repo_fallback',
+    overlayFileId: overlayResponse.overlayFileId || '',
+    overlayUrl: overlayResponse.overlayUrl || '',
+    overlayVersion: overlayResponse.templateVersion || '',
+    templateId: overlayResponse.templateId || activeTemplateId,
+    templateName: overlayResponse.templateName || '',
+    updatedAt: overlayResponse.updatedAt || '',
+    photoBox: overlayResponse.photoBox || { ...DEFAULT_TEMPLATE_PHOTO_BOX },
+    source: overlayResponse.meta && overlayResponse.meta.source
+      ? String(overlayResponse.meta.source)
+      : 'settings_snapshot',
   };
 }
 

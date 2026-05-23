@@ -3475,31 +3475,33 @@
 
   .runtime-toggle-list {
     display: grid;
-    gap: 0.7rem;
+    gap: 0.55rem;
   }
 
   .runtime-toggle-row {
-    display: block;
+    display: flex;
+    align-items: center;
     width: 100%;
-    padding: 0.85rem 0.95rem;
+    padding: 0.72rem 0.82rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--background) 88%, var(--secondary) 12%);
     cursor: pointer;
-    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    transition: border-color 0.18s ease, background 0.18s ease;
   }
 
   .runtime-toggle-row:hover {
     border-color: color-mix(in srgb, var(--primary) 42%, var(--border) 58%);
     background: color-mix(in srgb, var(--background) 78%, var(--primary) 22%);
-    transform: translateY(-1px);
   }
 
   .runtime-toggle-control {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.8rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.68rem;
     min-width: 0;
+    width: 100%;
   }
 
   .runtime-toggle-meta {
@@ -3562,11 +3564,12 @@
     }
 
     .runtime-toggle-row {
-      padding: 0.8rem 0.85rem;
+      padding: 0.72rem 0.8rem;
     }
 
     .runtime-toggle-control {
-      gap: 0.7rem;
+      align-items: flex-start;
+      gap: 0.62rem;
     }
   }
 
@@ -5598,7 +5601,7 @@ View report to see the most recent interactions
                           </span>
                           <span class="runtime-toggle-meta">
                             <span class="runtime-toggle-title">Enable Direct Swap Fallback</span>
-                            <span class="runtime-toggle-description">Falls back to direct image replacement if crossfade recovery fails.</span>
+                            <span class="runtime-toggle-description">Modern runtime only. Keeps the direct-swap recovery path available outside Pi Safe Legacy Runtime.</span>
                           </span>
                         </span>
                       </label>
@@ -5610,7 +5613,7 @@ View report to see the most recent interactions
                           </span>
                           <span class="runtime-toggle-meta">
                             <span class="runtime-toggle-title">Enable Flattened Overlay</span>
-                            <span class="runtime-toggle-description">Allows the pre-rendered PNG overlay layer on top of photos.</span>
+                            <span class="runtime-toggle-description">Uses the published flattened PNG overlay. Pi Safe Legacy Runtime loads this once at startup instead of polling it live.</span>
                           </span>
                         </span>
                       </label>
@@ -5622,7 +5625,7 @@ View report to see the most recent interactions
                           </span>
                           <span class="runtime-toggle-meta">
                             <span class="runtime-toggle-title">Enable Overlay Polling</span>
-                            <span class="runtime-toggle-description">Allows live overlay refresh polling from the gallery runtime.</span>
+                            <span class="runtime-toggle-description">Modern runtime only. Allows live overlay refresh polling while the gallery is running.</span>
                           </span>
                         </span>
                       </label>
@@ -5634,7 +5637,7 @@ View report to see the most recent interactions
                           </span>
                           <span class="runtime-toggle-meta">
                             <span class="runtime-toggle-title">Enable Dynamic Template Runtime</span>
-                            <span class="runtime-toggle-description">Turns on the older live template/background/logo composition path.</span>
+                            <span class="runtime-toggle-description">Modern runtime only. Turns on live template/background/logo composition in the gallery browser.</span>
                           </span>
                         </span>
                       </label>
@@ -5646,7 +5649,7 @@ View report to see the most recent interactions
                           </span>
                           <span class="runtime-toggle-meta">
                             <span class="runtime-toggle-title">Enable Template Polling</span>
-                            <span class="runtime-toggle-description">Allows the gallery to poll for active template changes while running.</span>
+                            <span class="runtime-toggle-description">Modern runtime only. Allows the gallery to poll for active template changes while running.</span>
                           </span>
                         </span>
                       </label>
@@ -5670,7 +5673,7 @@ View report to see the most recent interactions
                           </span>
                           <span class="runtime-toggle-meta">
                             <span class="runtime-toggle-title">Enable Runtime Watchdog</span>
-                            <span class="runtime-toggle-description">Lets the gallery recover from long stalls before a last-resort page reload.</span>
+                            <span class="runtime-toggle-description">Modern runtime only. Pi Safe Legacy Runtime uses a simpler single reload path instead of the watchdog loop.</span>
                           </span>
                         </span>
                       </label>
@@ -8567,7 +8570,7 @@ function hideGlobalLoader() {
       enablePiStablePlayerMode: true,
       enableBlobPhotoLoader: false,
       enableGalleryCrossfade: true,
-      enableDirectSwapFallback: true,
+      enableDirectSwapFallback: false,
       enableFlattenedOverlay: false,
       enableOverlayPolling: false,
       enableDynamicTemplateRuntime: false,
@@ -14141,7 +14144,7 @@ reportViewBtn.addEventListener("click", async () => {
         enablePiStablePlayerMode: true,
         enableBlobPhotoLoader: false,
         enableGalleryCrossfade: true,
-        enableDirectSwapFallback: true,
+        enableDirectSwapFallback: false,
         enableFlattenedOverlay: false,
         enableOverlayPolling: false,
         enableDynamicTemplateRuntime: false,
@@ -14158,7 +14161,7 @@ reportViewBtn.addEventListener("click", async () => {
         enablePiStablePlayerMode: true,
         enableBlobPhotoLoader: false,
         enableGalleryCrossfade: true,
-        enableDirectSwapFallback: true,
+        enableDirectSwapFallback: false,
         enableFlattenedOverlay: true,
         enableOverlayPolling: true,
         enableDynamicTemplateRuntime: false,
