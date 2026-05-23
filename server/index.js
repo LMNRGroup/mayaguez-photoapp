@@ -522,8 +522,33 @@ function sanitizeDeviceStatus(rawStatus) {
     pendingFetches: Array.isArray(status.pendingFetches)
       ? status.pendingFetches.map((entry) => clampString(entry || '', 120)).filter(Boolean).slice(0, 24)
       : [],
+    pendingFetchDetails: Array.isArray(status.pendingFetchDetails)
+      ? status.pendingFetchDetails.slice(0, 24).map((entry) => ({
+          name: clampString(entry && entry.name ? entry.name : '', 120),
+          category: clampString(entry && entry.category ? entry.category : '', 40),
+          route: clampString(entry && entry.route ? entry.route : '', 200),
+          ageSec: clampNumber(entry && entry.ageSec),
+          timeoutSec: clampNumber(entry && entry.timeoutSec),
+          stale: clampBoolean(entry && entry.stale),
+          photoId: clampString(entry && entry.photoId ? entry.photoId : '', 120),
+        }))
+      : [],
     pendingFetchCount: clampNumber(status.pendingFetchCount),
     staleInFlightFetches: clampNumber(status.staleInFlightFetches),
+    totalStaleFetchAborts: clampNumber(status.totalStaleFetchAborts),
+    staleFetchEvents: Array.isArray(status.staleFetchEvents)
+      ? status.staleFetchEvents.slice(-20).map((entry) => ({
+          at: clampIsoTimestamp(entry && entry.at),
+          code: clampString(entry && entry.code ? entry.code : '', 40),
+          name: clampString(entry && entry.name ? entry.name : '', 120),
+          category: clampString(entry && entry.category ? entry.category : '', 40),
+          route: clampString(entry && entry.route ? entry.route : '', 200),
+          ageMs: clampNumber(entry && entry.ageMs),
+          timeoutMs: clampNumber(entry && entry.timeoutMs),
+          photoId: clampString(entry && entry.photoId ? entry.photoId : '', 120),
+          message: clampString(entry && entry.message ? entry.message : '', 200),
+        }))
+      : [],
     lastErrorMessage: clampString(status.lastErrorMessage || '', 500),
     lastRecoveryAction: clampString(status.lastRecoveryAction || '', 200),
     galleryRuntimeSettings,

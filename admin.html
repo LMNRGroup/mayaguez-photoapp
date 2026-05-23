@@ -6971,6 +6971,7 @@ function hideGlobalLoader() {
         `  Object URL Count: ${Number(status.objectUrlCount) || 0}`,
         `  Last Error: ${status.lastErrorMessage || "None"}`,
         `  Last Recovery Action: ${status.lastRecoveryAction || "None"}`,
+        `  Pending Fetches: ${Number(status.pendingFetchCount) || 0} (stale in-flight: ${Number(status.staleInFlightFetches) || 0}, total stale aborts: ${Number(status.totalStaleFetchAborts) || 0})`,
         `  Overlay Status: enabled=${overlayStatus.enabled ? "yes" : "no"}, file=${overlayStatus.overlayFileId || "—"}, version=${overlayStatus.overlayVersion || "—"}`,
         `  Template Status: enabled=${templateStatus.enabled ? "yes" : "no"}, key=${templateStatus.activeTemplateKey || "—"}`,
         "",
@@ -6993,6 +6994,22 @@ function hideGlobalLoader() {
 
       if (analysis.browserVersionWarning) {
         lines.push(`  Browser Version Warning: ${analysis.browserVersionWarning}`);
+      }
+
+      lines.push(
+        "",
+        `Stale Fetch Events (${Array.isArray(status.staleFetchEvents) ? status.staleFetchEvents.length : 0})`,
+      );
+
+      if (Array.isArray(status.staleFetchEvents) && status.staleFetchEvents.length) {
+        status.staleFetchEvents.slice(-20).forEach((entry, index) => {
+          const ageSec = Number.isFinite(Number(entry.ageMs)) ? Math.round(Number(entry.ageMs) / 1000) : "—";
+          lines.push(
+            `  ${index + 1}. [${entry.code || "STALE_FETCH"}] ${formatPuertoRicoDateTime(entry.at)} - ${entry.name || "—"} (${ageSec}s, timeout ${entry.timeoutMs || "—"}ms) ${entry.message || ""}`.trim()
+          );
+        });
+      } else {
+        lines.push("  None");
       }
 
       lines.push(
