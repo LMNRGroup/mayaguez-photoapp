@@ -1416,6 +1416,90 @@
     flex-wrap: wrap;
   }
 
+  .template-task-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: hsla(225, 10%, 8%, 0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .template-task-overlay.visible {
+    display: flex;
+  }
+
+  .template-task-panel {
+    width: min(480px, calc(100vw - 2rem));
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: clamp(1.25rem, 3vw, 1.75rem);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  }
+
+  .template-task-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: var(--muted-foreground);
+  }
+
+  .template-task-label {
+    margin-top: 0.65rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .template-task-detail {
+    margin-top: 0.5rem;
+    min-height: 1.25rem;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    line-height: 1.45;
+  }
+
+  .template-task-progress {
+    margin-top: 1rem;
+    width: 100%;
+    height: 0.8rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .template-task-progress-fill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--primary));
+    transition: width 0.22s ease;
+  }
+
+  .template-task-meta {
+    margin-top: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  .template-task-meta-value {
+    color: var(--foreground);
+    font-weight: 700;
+  }
+
   /* Template Preview Overlay */
   .template-preview-overlay {
     position: fixed;
@@ -5206,7 +5290,6 @@
 
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" integrity="sha512-tB17y8UnF6R45OZyeP+fM4x6hzFH6qC1t1PmiJdWWYV7eonbbyrcF0av8RyzZkjIl95QoUiG+2l3OjVhL7Jqmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
   <!-- LOCK OVERLAY -->
@@ -6137,6 +6220,43 @@ View report to see the most recent interactions
         img.onload = () => resolve(img);
         img.onerror = () => reject(new Error(errorMessage));
         img.src = src;
+      });
+    }
+
+    function uploadMultipartWithProgress(url, formData, { onProgress = null } = {}) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+
+        const headers = withAdminHeaders();
+        Object.entries(headers).forEach(([key, value]) => {
+          xhr.setRequestHeader(key, value);
+        });
+
+        xhr.upload.onprogress = (event) => {
+          if (!onProgress || !event.lengthComputable) return;
+          onProgress({
+            loaded: event.loaded,
+            total: event.total,
+            percent: event.total > 0 ? (event.loaded / event.total) * 100 : 0,
+          });
+        };
+
+        xhr.onerror = () => reject(new Error("upload_network_failed"));
+        xhr.onload = () => {
+          let data = {};
+          try {
+            data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+          } catch (_) {}
+
+          resolve({
+            ok: xhr.status >= 200 && xhr.status < 300,
+            status: xhr.status,
+            data,
+          });
+        };
+
+        xhr.send(formData);
       });
     }
 
@@ -11180,6 +11300,12 @@ function hideReportLoading() {
     let currentOverlayFileId = "";
     let currentOverlayUpdatedAt = "";
     let currentOverlayVersion = "";
+    let isLoadingTemplate = false;
+    let isUploadingTemplateAsset = false;
+    let templateProgressSequence = 0;
+    let templateProgressOverlayState = null;
+    const TEMPLATE_MAX_LOGO_LAYERS = 2;
+    const TEMPLATE_PROGRESS_HIDE_DELAY_MS = 220;
 
     function hideTemplateEntryOverlay() {
       if (templateEntryOverlay) {
@@ -11195,6 +11321,168 @@ function hideReportLoading() {
 
     function hasTemplateBackground() {
       return Boolean(templateBackgroundImg && templateBackgroundImg.getAttribute("src"));
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+      });
+    }
+
+    function clampProgress(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.min(100, Math.round(numeric)));
+    }
+
+    function ensureTemplateProgressOverlay() {
+      if (templateProgressOverlayState) return templateProgressOverlayState;
+
+      const root = document.createElement("div");
+      root.className = "template-task-overlay";
+      root.setAttribute("aria-hidden", "true");
+
+      const panel = document.createElement("div");
+      panel.className = "template-task-panel";
+
+      const title = document.createElement("div");
+      title.className = "template-task-title";
+
+      const label = document.createElement("div");
+      label.className = "template-task-label";
+
+      const detail = document.createElement("div");
+      detail.className = "template-task-detail";
+
+      const progress = document.createElement("div");
+      progress.className = "template-task-progress";
+
+      const fill = document.createElement("div");
+      fill.className = "template-task-progress-fill";
+      progress.appendChild(fill);
+
+      const meta = document.createElement("div");
+      meta.className = "template-task-meta";
+
+      const metaLabel = document.createElement("span");
+      metaLabel.textContent = "Progress";
+
+      const metaValue = document.createElement("span");
+      metaValue.className = "template-task-meta-value";
+      metaValue.textContent = "0%";
+
+      meta.appendChild(metaLabel);
+      meta.appendChild(metaValue);
+
+      panel.appendChild(title);
+      panel.appendChild(label);
+      panel.appendChild(detail);
+      panel.appendChild(progress);
+      panel.appendChild(meta);
+      root.appendChild(panel);
+      document.body.appendChild(root);
+
+      templateProgressOverlayState = {
+        root,
+        title,
+        label,
+        detail,
+        fill,
+        metaValue,
+        activeTaskId: 0,
+      };
+
+      return templateProgressOverlayState;
+    }
+
+    function updateTemplateProgressTask(taskId, { title = "", label = "", detail = "", progress = 0 } = {}) {
+      const overlay = ensureTemplateProgressOverlay();
+      if (overlay.activeTaskId !== taskId) return;
+
+      if (title) overlay.title.textContent = title;
+      if (label) overlay.label.textContent = label;
+      overlay.detail.textContent = detail || "";
+
+      const nextProgress = clampProgress(progress);
+      overlay.fill.style.width = `${nextProgress}%`;
+      overlay.metaValue.textContent = `${nextProgress}%`;
+    }
+
+    function beginTemplateProgressTask(title, label, detail = "", progress = 0) {
+      const overlay = ensureTemplateProgressOverlay();
+      const taskId = ++templateProgressSequence;
+      overlay.activeTaskId = taskId;
+      overlay.root.classList.add("visible");
+      overlay.root.setAttribute("aria-hidden", "false");
+      updateTemplateProgressTask(taskId, { title, label, detail, progress });
+
+      return {
+        id: taskId,
+        update(update = {}) {
+          updateTemplateProgressTask(taskId, update);
+        },
+        async complete(labelText, detailText = "") {
+          updateTemplateProgressTask(taskId, {
+            label: labelText || "Completed",
+            detail: detailText,
+            progress: 100,
+          });
+          await wait(TEMPLATE_PROGRESS_HIDE_DELAY_MS);
+          if (overlay.activeTaskId === taskId) {
+            overlay.root.classList.remove("visible");
+            overlay.root.setAttribute("aria-hidden", "true");
+            overlay.activeTaskId = 0;
+          }
+        },
+        async fail(labelText, detailText = "") {
+          updateTemplateProgressTask(taskId, {
+            label: labelText || "Failed",
+            detail: detailText,
+          });
+          await wait(TEMPLATE_PROGRESS_HIDE_DELAY_MS);
+          if (overlay.activeTaskId === taskId) {
+            overlay.root.classList.remove("visible");
+            overlay.root.setAttribute("aria-hidden", "true");
+            overlay.activeTaskId = 0;
+          }
+        },
+      };
+    }
+
+    function getOrderedTemplateLayers() {
+      return Array.from(templateLogosContainer?.querySelectorAll(".template-logo") || []).sort((a, b) => {
+        const orderA = Number.parseInt(a.dataset.layerOrder || "", 10);
+        const orderB = Number.parseInt(b.dataset.layerOrder || "", 10);
+        const normalizedA = Number.isFinite(orderA) ? orderA : Number.MAX_SAFE_INTEGER;
+        const normalizedB = Number.isFinite(orderB) ? orderB : Number.MAX_SAFE_INTEGER;
+        return normalizedA - normalizedB;
+      });
+    }
+
+    function getLogoLayerCount() {
+      return getOrderedTemplateLayers().filter((layer) => (layer.dataset.assetRole || "logo") !== "qr").length;
+    }
+
+    async function ensureLogoLayerCapacity() {
+      if (getLogoLayerCount() < TEMPLATE_MAX_LOGO_LAYERS) {
+        return true;
+      }
+
+      await appAlert(`You can add up to ${TEMPLATE_MAX_LOGO_LAYERS} logos per template. Remove one before adding another.`, {
+        title: "Logo Limit Reached",
+        tone: "error",
+      });
+      return false;
+    }
+
+    function buildTemplateSaveSuccessMessage(name, setActiveAfterSave, wasLiveTemplate) {
+      if (setActiveAfterSave) {
+        return `Template "${name}" saved. Active gallery overlay updated.`;
+      }
+      if (wasLiveTemplate) {
+        return `Template "${name}" saved. Active gallery overlay updated.`;
+      }
+      return `Template "${name}" saved.`;
     }
 
     function closeTemplateAddAssetMenu() {
@@ -11541,17 +11829,32 @@ function hideReportLoading() {
         return;
       }
 
+      if (isLoadingTemplate) {
+        showToast("A template is already loading.", "error");
+        return;
+      }
+
+      isLoadingTemplate = true;
+      const task = beginTemplateProgressTask(
+        "Opening Template",
+        "Fetching template data",
+        `Template ${templateId}`,
+        8
+      );
+
       try {
         const res = await fetch(`${BASE_URL}/admin/templates/${templateId}`, {
           headers: withAdminHeaders()
         });
 
         if (res.status === 401 || res.status === 403) {
+          await task.fail("Session expired", "Sign in again to continue.");
           showLock("Session expired. Enter the access code.");
           return;
         }
 
         if (!res.ok) {
+          await task.fail("Template load failed", "The server could not return this template.");
           await appAlert("Failed to load template. Please try again.", {
             title: "Load Failed",
             tone: "error",
@@ -11561,6 +11864,7 @@ function hideReportLoading() {
 
         const data = await res.json();
         if (!data || !data.template || !data.template.data) {
+          await task.fail("Template load failed", "The saved template data is invalid.");
           await appAlert("Invalid template data.", {
             title: "Load Failed",
             tone: "error",
@@ -11570,6 +11874,11 @@ function hideReportLoading() {
 
         const template = data.template;
         const templateData = template.data;
+        task.update({
+          label: "Preparing editor",
+          detail: template.name || `Template ${templateId}`,
+          progress: 18,
+        });
 
         // Reset editor first
         resetTemplateEditor();
@@ -11583,31 +11892,17 @@ function hideReportLoading() {
         currentOverlayUpdatedAt = templateData.overlayUpdatedAt ? String(templateData.overlayUpdatedAt) : "";
         currentOverlayVersion = templateData.overlayVersion ? String(templateData.overlayVersion) : "";
 
-        // Load background
+        let backgroundPlan = null;
         if (templateData.background) {
-          let bgSrc = null;
-          if (templateData.background.type === "uploaded") {
-            // Load from Drive
-            bgSrc = buildAdminTemplateAssetUrl(templateData.background.value);
-          } else {
-            // Preloaded asset
-            bgSrc = templateData.background.value;
-          }
-
-          if (bgSrc && templateBackgroundImg) {
-            setTemplateBackgroundSource({
-              type: templateData.background.type,
-              value: templateData.background.value,
-              src: bgSrc,
-            });
-            // Only set select value for preloaded assets
-            if (templateBackgroundSelect && templateData.background.type === "preloaded") {
-              templateBackgroundSelect.value = templateData.background.value;
-            }
-          }
+          backgroundPlan = {
+            type: templateData.background.type,
+            value: templateData.background.value,
+            src: templateData.background.type === "uploaded"
+              ? buildAdminTemplateAssetUrl(templateData.background.value)
+              : templateData.background.value,
+          };
         }
 
-        // Load logos
         const overlayLayers = [
           ...((Array.isArray(templateData.logos) ? templateData.logos : []).map((logoData) => ({
             ...logoData,
@@ -11619,34 +11914,87 @@ function hideReportLoading() {
           }))),
         ].sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 
-        if (overlayLayers.length) {
-          for (const logoData of overlayLayers) {
-            let logoSrc = null;
-            
-            if (logoData.type === "uploaded") {
-              // Load from Drive
-              logoSrc = buildAdminTemplateAssetUrl(logoData.value);
-            } else {
-              // Preloaded asset
-              logoSrc = logoData.value;
-            }
+        const assetPlans = [];
+        if (backgroundPlan?.src) {
+          assetPlans.push({
+            kind: "background",
+            src: backgroundPlan.src,
+            label: "Background",
+            backgroundPlan,
+          });
+        }
+        overlayLayers.forEach((layer, index) => {
+          const logoSrc = layer.type === "uploaded"
+            ? buildAdminTemplateAssetUrl(layer.value)
+            : layer.value;
+          if (!logoSrc) return;
+          assetPlans.push({
+            kind: layer.assetRole === "qr" ? "qr" : "logo",
+            src: logoSrc,
+            label: layer.label || (layer.assetRole === "qr" ? `QR ${index + 1}` : `Logo ${index + 1}`),
+            layer,
+            layerOrder: index,
+          });
+        });
 
-            if (logoSrc) {
-              // Use the stored position and size
-              await addLogoToCanvasWithPosition(
-                logoSrc,
-                logoData.x || null,
-                logoData.y || null,
-                logoData.width || null,
-                logoData.height || null,
-                {
-                  type: logoData.type || (logoData.value && String(logoData.value).startsWith("http") ? "uploaded" : "preloaded"),
-                  value: logoData.value || "",
-                  assetRole: logoData.assetRole || "logo",
-                  label: logoData.label || "",
-                }
-              );
+        if (assetPlans.length) {
+          let assetsLoaded = 0;
+          const totalAssets = assetPlans.length;
+          task.update({
+            label: "Loading template assets",
+            detail: `0 of ${totalAssets} assets loaded`,
+            progress: 24,
+          });
+
+          const loadedAssets = await Promise.all(assetPlans.map(async (plan) => {
+            const image = await loadImage(plan.src, `Error loading ${plan.kind} asset`);
+            assetsLoaded += 1;
+            task.update({
+              label: "Loading template assets",
+              detail: `${assetsLoaded} of ${totalAssets} assets loaded`,
+              progress: 24 + ((assetsLoaded / totalAssets) * 56),
+            });
+            return { ...plan, image };
+          }));
+
+          const loadedBackground = loadedAssets.find((asset) => asset.kind === "background");
+          if (loadedBackground?.backgroundPlan && templateBackgroundImg) {
+            setTemplateBackgroundSource({
+              type: loadedBackground.backgroundPlan.type,
+              value: loadedBackground.backgroundPlan.value,
+              src: loadedBackground.backgroundPlan.src,
+            });
+            if (templateBackgroundSelect && loadedBackground.backgroundPlan.type === "preloaded") {
+              templateBackgroundSelect.value = loadedBackground.backgroundPlan.value;
             }
+          }
+
+          const loadedLayers = loadedAssets
+            .filter((asset) => asset.kind !== "background")
+            .sort((a, b) => (a.layerOrder || 0) - (b.layerOrder || 0));
+
+          if (loadedLayers.length) {
+            task.update({
+              label: "Applying template layers",
+              detail: `${loadedLayers.length} overlay layer${loadedLayers.length === 1 ? "" : "s"}`,
+              progress: 86,
+            });
+
+            await Promise.all(loadedLayers.map((asset) => addLogoToCanvasWithPosition(
+              asset.src,
+              asset.layer.x || null,
+              asset.layer.y || null,
+              asset.layer.width || null,
+              asset.layer.height || null,
+              {
+                type: asset.layer.type || (asset.layer.value && String(asset.layer.value).startsWith("http") ? "uploaded" : "preloaded"),
+                value: asset.layer.value || "",
+                assetRole: asset.layer.assetRole || "logo",
+                label: asset.layer.label || "",
+                layerOrder: asset.layerOrder,
+                preloadedImage: asset.image,
+              }
+            )));
           }
         }
 
@@ -11659,13 +12007,17 @@ function hideReportLoading() {
         }
         closeTemplateAddAssetMenu();
         updateTemplateUiState();
+        await task.complete("Template ready", template.name || `Template ${templateId}`);
 
       } catch (err) {
         console.error("Error loading template:", err);
+        await task.fail("Template load failed", err && err.message ? err.message : "Please try again.");
         await appAlert("Failed to load template. Please try again.", {
           title: "Load Failed",
           tone: "error",
         });
+      } finally {
+        isLoadingTemplate = false;
       }
     }
 
@@ -11883,7 +12235,11 @@ function hideReportLoading() {
     }
 
     // Add Logo Overlay
-    function showAddLogoOverlay() {
+    async function showAddLogoOverlay() {
+      if (!(await ensureLogoLayerCapacity())) {
+        return;
+      }
+
       const overlay = document.createElement("div");
       overlay.className = "template-name-overlay";
       overlay.style.zIndex = "2000";
@@ -11910,10 +12266,19 @@ function hideReportLoading() {
         btn.className = "btn-ghost";
         btn.style.cssText = "width: 100%; text-align: left; padding: 0.75rem 1rem;";
         btn.textContent = asset.label;
-        btn.addEventListener("click", () => {
-          addLogoToCanvas(asset.value);
-          markTemplateDirty();
-          document.body.removeChild(overlay);
+        btn.addEventListener("click", async () => {
+          if (!(await ensureLogoLayerCapacity())) return;
+          try {
+            await addLogoToCanvas(asset.value);
+            markTemplateDirty();
+            document.body.removeChild(overlay);
+          } catch (err) {
+            console.error("Error adding preloaded logo:", err);
+            await appAlert("Failed to add this logo. Please try again.", {
+              title: "Logo Failed",
+              tone: "error",
+            });
+          }
         });
         content.appendChild(btn);
       });
@@ -11981,24 +12346,32 @@ function hideReportLoading() {
         btn.style.cssText = "width: 100%; text-align: left; padding: 0.75rem 1rem;";
         btn.textContent = asset.label;
         btn.addEventListener("click", async () => {
-          const assetSrc = buildAdminTemplateAssetUrl(asset.value);
-          if (replaceTarget) {
-            applyOverlayAssetToElement(replaceTarget, assetSrc, {
-              type: "uploaded",
-              value: asset.value,
-              assetRole: "qr",
-              label: asset.label,
-            });
-          } else {
-            await addLogoToCanvas(assetSrc, null, null, null, null, {
-              type: "uploaded",
-              value: asset.value,
-              assetRole: "qr",
-              label: asset.label,
+          try {
+            const assetSrc = buildAdminTemplateAssetUrl(asset.value);
+            if (replaceTarget) {
+              applyOverlayAssetToElement(replaceTarget, assetSrc, {
+                type: "uploaded",
+                value: asset.value,
+                assetRole: "qr",
+                label: asset.label,
+              });
+            } else {
+              await addLogoToCanvas(assetSrc, null, null, null, null, {
+                type: "uploaded",
+                value: asset.value,
+                assetRole: "qr",
+                label: asset.label,
+              });
+            }
+            markTemplateDirty();
+            document.body.removeChild(overlay);
+          } catch (err) {
+            console.error("Error adding QR asset:", err);
+            await appAlert("Failed to add this QR code. Please try again.", {
+              title: "QR Failed",
+              tone: "error",
             });
           }
-          markTemplateDirty();
-          document.body.removeChild(overlay);
         });
         content.appendChild(btn);
       });
@@ -12055,7 +12428,7 @@ function hideReportLoading() {
       });
     }
 
-    async function uploadTemplateAsset(file, assetType, assetLabel = "") {
+    async function uploadTemplateAsset(file, assetType, assetLabel = "", options = {}) {
       if (!file) return null;
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
@@ -12069,10 +12442,8 @@ function hideReportLoading() {
         formData.append("assetLabel", assetLabel);
       }
 
-      const res = await fetch(`${BASE_URL}/admin/templates/upload-asset`, {
-        method: "POST",
-        headers: withAdminHeaders(),
-        body: formData,
+      const res = await uploadMultipartWithProgress(`${BASE_URL}/admin/templates/upload-asset`, formData, {
+        onProgress: options.onProgress,
       });
 
       if (res.status === 401 || res.status === 403) {
@@ -12080,10 +12451,7 @@ function hideReportLoading() {
         return null;
       }
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (_) {}
+      const data = res.data || {};
 
       if (!res.ok || !data.ok || !data.fileId) {
         throw new Error(data.error || "upload_asset_failed");
@@ -12253,15 +12621,52 @@ function hideReportLoading() {
         if (!file) return;
 
         try {
-          await validateTemplateLogoFile(file);
-          const uploaded = await uploadTemplateAsset(file, "logo");
-          if (!uploaded) return;
+          if (isUploadingTemplateAsset) {
+            showToast("Another upload is already in progress.", "error");
+            return;
+          }
+          if (!(await ensureLogoLayerCapacity())) {
+            return;
+          }
 
+          isUploadingTemplateAsset = true;
+          const task = beginTemplateProgressTask(
+            "Uploading Logo",
+            "Validating logo file",
+            file.name,
+            8
+          );
+          await validateTemplateLogoFile(file);
+          task.update({
+            label: "Uploading logo to template library",
+            detail: `${file.name} · ${formatBytes(file.size)}`,
+            progress: 18,
+          });
+          const uploaded = await uploadTemplateAsset(file, "logo", "", {
+            onProgress: ({ loaded, total, percent }) => {
+              task.update({
+                label: "Uploading logo to template library",
+                detail: `${formatBytes(loaded)} of ${formatBytes(total)}`,
+                progress: 18 + (percent * 0.62),
+              });
+            },
+          });
+          if (!uploaded) {
+            await task.fail("Upload cancelled", "Please sign in again and retry.");
+            return;
+          }
+
+          task.update({
+            label: "Adding logo to template",
+            detail: "Preparing editor layer",
+            progress: 84,
+          });
           await addLogoToCanvas(buildAdminTemplateAssetUrl(uploaded.fileId), null, null, null, null, {
             type: "uploaded",
             value: uploaded.fileId,
           });
           markTemplateDirty();
+          await task.complete("Logo ready", "The logo is now available on the template.");
         } catch (err) {
           console.error("Error uploading template logo:", err);
           await appAlert(err && err.message ? err.message : "Failed to upload logo. Please try again.", {
@@ -12269,6 +12674,7 @@ function hideReportLoading() {
             tone: "error",
           });
         } finally {
+          isUploadingTemplateAsset = false;
           templateLogoUpload.value = "";
         }
       });
@@ -12280,6 +12686,11 @@ function hideReportLoading() {
         if (!file) return;
 
         try {
+          if (isUploadingTemplateAsset) {
+            showToast("Another upload is already in progress.", "error");
+            return;
+          }
+          isUploadingTemplateAsset = true;
           await validateTemplateQrFile(file);
           const qrLabel = await appPrompt("What is this QR Code for?", {
             title: "Name QR Code",
@@ -12291,8 +12702,25 @@ function hideReportLoading() {
           });
           if (!qrLabel) return;
 
-          const uploaded = await uploadTemplateAsset(file, "qr", qrLabel);
-          if (!uploaded) return;
+          const task = beginTemplateProgressTask(
+            "Uploading QR Code",
+            "Uploading QR asset",
+            `${qrLabel} · ${formatBytes(file.size)}`,
+            12
+          );
+          const uploaded = await uploadTemplateAsset(file, "qr", qrLabel, {
+            onProgress: ({ loaded, total, percent }) => {
+              task.update({
+                label: "Uploading QR asset",
+                detail: `${formatBytes(loaded)} of ${formatBytes(total)}`,
+                progress: 12 + (percent * 0.7),
+              });
+            },
+          });
+          if (!uploaded) {
+            await task.fail("Upload cancelled", "Please sign in again and retry.");
+            return;
+          }
 
           const assetSrc = buildAdminTemplateAssetUrl(uploaded.fileId);
           const qrMetadata = {
@@ -12306,10 +12734,16 @@ function hideReportLoading() {
             applyOverlayAssetToElement(pendingQrReplaceTarget, assetSrc, qrMetadata);
             pendingQrReplaceTarget = null;
           } else {
+            task.update({
+              label: "Adding QR layer to template",
+              detail: "Preparing editor layer",
+              progress: 88,
+            });
             await addLogoToCanvas(assetSrc, null, null, null, null, qrMetadata);
           }
           markTemplateDirty();
           await loadQrAssets();
+          await task.complete("QR code ready", "The QR layer is now available on the template.");
         } catch (err) {
           console.error("Error uploading QR code overlay:", err);
           await appAlert(err && err.message ? err.message : "Failed to upload QR code image. Please try again.", {
@@ -12317,6 +12751,7 @@ function hideReportLoading() {
             tone: "error",
           });
         } finally {
+          isUploadingTemplateAsset = false;
           pendingQrReplaceTarget = null;
           templateQrUpload.value = "";
         }
@@ -12325,12 +12760,25 @@ function hideReportLoading() {
 
     // Add logo on dropdown change (no Add button needed)
     if (templateLogoSelect && templateLogosContainer) {
-      templateLogoSelect.addEventListener("change", (e) => {
+      templateLogoSelect.addEventListener("change", async (e) => {
         const logoPath = e.target.value;
         if (logoPath) {
-          addLogoToCanvas(logoPath);
-          templateLogoSelect.value = ""; // Reset dropdown
-          markTemplateDirty();
+          if (!(await ensureLogoLayerCapacity())) {
+            templateLogoSelect.value = "";
+            return;
+          }
+          try {
+            await addLogoToCanvas(logoPath);
+            markTemplateDirty();
+          } catch (err) {
+            console.error("Error adding selected logo:", err);
+            await appAlert("Failed to add this logo. Please try again.", {
+              title: "Logo Failed",
+              tone: "error",
+            });
+          } finally {
+            templateLogoSelect.value = ""; // Reset dropdown
+          }
         }
       });
     }
@@ -12362,15 +12810,17 @@ function hideReportLoading() {
         metadata.value ||
         (resolvedLogoType === "uploaded" ? extractTemplateAssetFileId(logoPath) : logoPath);
       const assetRole = metadata.assetRole || "logo";
+      const preloadedImage = metadata.preloadedImage instanceof HTMLImageElement ? metadata.preloadedImage : null;
       logoDiv.className = "template-logo";
       logoDiv.dataset.logoPath = logoPath;
       logoDiv.dataset.logoType = resolvedLogoType;
       logoDiv.dataset.logoValue = resolvedLogoValue;
       logoDiv.dataset.assetRole = assetRole;
       logoDiv.dataset.assetLabel = metadata.label || "";
+      logoDiv.dataset.layerOrder = Number.isFinite(Number(metadata.layerOrder)) ? String(Number(metadata.layerOrder)) : String(Date.now());
 
-      const img = document.createElement("img");
-      img.src = logoPath;
+      const img = new Image();
+      img.src = preloadedImage?.src || logoPath;
       img.alt = assetRole === "qr" ? (metadata.label || "QR code") : "Logo";
       img.loading = "lazy";
       
@@ -12453,8 +12903,12 @@ function hideReportLoading() {
         });
       }
 
-      return new Promise((resolve) => {
-        img.onload = () => {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+
+        function finalizePlacement() {
+          if (settled) return;
+          settled = true;
           const canvasWidth = templateCanvas.offsetWidth;
           const canvasHeight = templateCanvas.offsetHeight;
           
@@ -12470,10 +12924,12 @@ function hideReportLoading() {
             const aspectRatio = img.naturalWidth / img.naturalHeight;
             const calcWidth = maxWidth;
             const calcHeight = maxWidth / aspectRatio;
+            const existingLayerCount = templateLogosContainer.querySelectorAll(".template-logo").length;
+            const placementOffset = Math.min(existingLayerCount, 4) * 28;
 
             // Center the logo initially
-            const left = (canvasWidth - calcWidth) / 2;
-            const top = 50; // 50px from top
+            const left = Math.max(0, Math.min((canvasWidth - calcWidth) / 2 + placementOffset, canvasWidth - calcWidth));
+            const top = Math.max(0, Math.min(50 + placementOffset, Math.max(50, canvasHeight - calcHeight)));
 
             logoDiv.style.width = `${calcWidth}px`;
             logoDiv.style.height = `${calcHeight}px`;
@@ -12484,7 +12940,18 @@ function hideReportLoading() {
           templateLogosContainer.appendChild(logoDiv);
           selectLogo(logoDiv);
           resolve();
+        }
+
+        img.onload = finalizePlacement;
+        img.onerror = () => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(assetRole === "qr" ? "qr_asset_load_failed" : "logo_asset_load_failed"));
         };
+
+        if (img.complete && img.naturalWidth > 0) {
+          finalizePlacement();
+        }
       });
     }
 
@@ -12717,9 +13184,18 @@ function hideReportLoading() {
           return;
         }
 
-        const success = await setTemplateAsActive(currentTemplateId);
+        const task = beginTemplateProgressTask(
+          "Updating Active Overlay",
+          "Publishing live gallery overlay",
+          currentTemplateName || currentTemplateId || "",
+          22
+        );
+        const success = await setTemplateAsActive(currentTemplateId, currentTemplateName, collectTemplateData(), { silentSuccess: true });
         if (success) {
+          await task.complete("Active gallery overlay updated", currentTemplateName || currentTemplateId || "");
           showToast(`"${currentTemplateName || currentTemplateId}" is live on screen.`, "success");
+        } else {
+          await task.fail("Live overlay update failed", "Please try again.");
         }
       });
     }
@@ -12806,7 +13282,7 @@ function hideReportLoading() {
       const logos = [];
       const qrLayers = [];
 
-      Array.from(templateLogosContainer.querySelectorAll(".template-logo")).forEach((logo, index) => {
+      getOrderedTemplateLayers().forEach((logo, index) => {
         const logoType = logo.dataset.logoType || (logo.dataset.logoPath && logo.dataset.logoPath.startsWith(BASE_URL) ? "uploaded" : "preloaded");
         const logoValue = logo.dataset.logoValue || logo.dataset.logoPath;
         const assetRole = logo.dataset.assetRole || "logo";
@@ -12851,7 +13327,7 @@ function hideReportLoading() {
       });
     }
 
-    async function setTemplateAsActive(templateId, templateName = currentTemplateName, templateData = collectTemplateData()) {
+    async function setTemplateAsActive(templateId, templateName = currentTemplateName, templateData = collectTemplateData(), options = {}) {
       if (!templateId) {
         showToast("Save the template first, then set it live.", "error");
         return false;
@@ -12910,7 +13386,9 @@ function hideReportLoading() {
         }
         currentActiveTemplateId = String(templateId);
         updateTemplateUiState();
-        showToast(`Active gallery overlay updated: "${templateName || templateId}".`, "success");
+        if (!options.silentSuccess) {
+          showToast(`Active gallery overlay updated: "${templateName || templateId}".`, "success");
+        }
 
         return true;
       } catch (err) {
@@ -12943,7 +13421,7 @@ function hideReportLoading() {
       const editorHeight = templateCanvas?.offsetHeight || TEMPLATE_STAGE_HEIGHT;
       const scaleX = TEMPLATE_STAGE_WIDTH / editorWidth;
       const scaleY = TEMPLATE_STAGE_HEIGHT / editorHeight;
-      const overlayLayers = Array.from(templateLogosContainer.querySelectorAll(".template-logo"));
+      const overlayLayers = getOrderedTemplateLayers();
 
       for (const layer of overlayLayers) {
         const imgEl = layer.querySelector("img");
@@ -12966,7 +13444,7 @@ function hideReportLoading() {
       };
     }
 
-    async function uploadFlattenedTemplateOverlay(templateId, templateName) {
+    async function uploadFlattenedTemplateOverlay(templateId, templateName, options = {}) {
       const overlayVersion = new Date().toISOString();
       const { canvas, photoBox } = await renderTemplateOverlayCanvas();
       const overlayBlob = await canvasToPngBlob(canvas);
@@ -12976,18 +13454,18 @@ function hideReportLoading() {
       formData.append("templateVersion", overlayVersion);
       formData.append("photoBox", JSON.stringify(photoBox));
 
-      const res = await fetch(`${BASE_URL}/admin/templates/${encodeURIComponent(templateId)}/flattened-overlay`, {
-        method: "POST",
-        headers: withAdminHeaders(),
-        body: formData,
-      });
+      const res = await uploadMultipartWithProgress(
+        `${BASE_URL}/admin/templates/${encodeURIComponent(templateId)}/flattened-overlay`,
+        formData,
+        { onProgress: options.onProgress }
+      );
 
       if (res.status === 401 || res.status === 403) {
         showLock("Session expired. Enter the access code.");
         return null;
       }
 
-      const data = await res.json();
+      const data = res.data || {};
       if (!res.ok || !data?.ok || !data.overlayFileId) {
         throw new Error(data?.error || "flattened_overlay_upload_failed");
       }
@@ -13004,10 +13482,24 @@ function hideReportLoading() {
       };
     }
 
-    async function persistTemplate(name) {
+    async function persistTemplate(name, options = {}) {
+      const progressTask = options.progressTask || null;
       const templateData = collectTemplateData();
       if (templateData.background && templateData.background.type === "local" && pendingBackgroundFile) {
-        const uploaded = await uploadTemplateAsset(pendingBackgroundFile, "background");
+        progressTask?.update({
+          label: "Uploading background image",
+          detail: `${pendingBackgroundFile.name} · ${formatBytes(pendingBackgroundFile.size)}`,
+          progress: 10,
+        });
+        const uploaded = await uploadTemplateAsset(pendingBackgroundFile, "background", "", {
+          onProgress: ({ loaded, total, percent }) => {
+            progressTask?.update({
+              label: "Uploading background image",
+              detail: `${formatBytes(loaded)} of ${formatBytes(total)}`,
+              progress: 10 + (percent * 0.22),
+            });
+          },
+        });
         if (!uploaded) {
           throw new Error("upload_background_failed");
         }
@@ -13022,6 +13514,12 @@ function hideReportLoading() {
         };
         await loadBackgroundAssets();
       }
+
+      progressTask?.update({
+        label: currentTemplateId ? "Updating template record" : "Creating template record",
+        detail: name,
+        progress: 38,
+      });
 
       let res;
       if (currentTemplateId) {
@@ -13053,13 +13551,119 @@ function hideReportLoading() {
       }
       currentTemplateName = name;
       markTemplateSaved();
-      await loadTemplatesSidebar();
+      loadTemplatesSidebar().catch((err) => {
+        console.error("Error refreshing template sidebar after save:", err);
+      });
       return {
         ...data,
         savedTemplateId: currentTemplateId ? String(currentTemplateId) : "",
         savedTemplateName: currentTemplateName || "",
         savedTemplateData: templateData,
       };
+    }
+
+    async function runTemplateSaveFlow(name, setActiveAfterSave = false) {
+      const progressTask = beginTemplateProgressTask(
+        setActiveAfterSave ? "Publishing Template" : "Saving Template",
+        currentTemplateId ? "Updating template" : "Creating template",
+        name,
+        4
+      );
+
+      try {
+        const saved = await persistTemplate(name, { progressTask });
+        if (!saved) {
+          await progressTask.fail("Save cancelled", "Please sign in again and retry.");
+          return false;
+        }
+        const savedTemplateId = saved?.savedTemplateId || (currentTemplateId ? String(currentTemplateId) : "");
+        const savedTemplateName = saved?.savedTemplateName || currentTemplateName || name || "";
+        const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
+        const wasLiveTemplate = savedTemplateId && String(savedTemplateId) === String(currentActiveTemplateId || "");
+        let overlayUploadWarning = "";
+
+        try {
+          progressTask.update({
+            label: "Flattening gallery overlay",
+            detail: "Rendering 1920 × 1080 overlay PNG",
+            progress: 56,
+          });
+          const overlayResult = await uploadFlattenedTemplateOverlay(savedTemplateId, savedTemplateName, {
+            onProgress: ({ loaded, total, percent }) => {
+              progressTask.update({
+                label: "Uploading live overlay",
+                detail: `${formatBytes(loaded)} of ${formatBytes(total)}`,
+                progress: 68 + (percent * 0.24),
+              });
+            },
+          });
+          if (overlayResult) {
+            savedTemplateData.overlayFileId = overlayResult.overlayFileId;
+            savedTemplateData.overlayUpdatedAt = overlayResult.overlayUpdatedAt;
+            savedTemplateData.overlayVersion = overlayResult.overlayVersion;
+            savedTemplateData.photoBox = overlayResult.photoBox;
+          }
+        } catch (overlayErr) {
+          console.error("Error generating/uploading flattened template overlay:", overlayErr);
+          overlayUploadWarning = overlayErr && overlayErr.message
+            ? overlayErr.message
+            : "flattened_overlay_upload_failed";
+        }
+
+        if (setActiveAfterSave) {
+          if (overlayUploadWarning || !savedTemplateData.overlayFileId) {
+            await progressTask.fail("Live overlay not updated", "Template saved for editing only.");
+            await appAlert(
+              "The template was saved for editing, but the flattened live overlay failed to update. The gallery was not changed.",
+              {
+                title: "Live Overlay Not Updated",
+                tone: "error",
+              }
+            );
+            return false;
+          }
+          progressTask.update({
+            label: "Updating active gallery overlay",
+            detail: savedTemplateName || savedTemplateId,
+            progress: 94,
+          });
+          const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData, { silentSuccess: true });
+          if (!success) {
+            await progressTask.fail("Live overlay update failed", "The template was saved but not pushed live.");
+            return false;
+          }
+          currentActiveTemplateId = String(savedTemplateId);
+          updateTemplateUiState();
+        } else if (wasLiveTemplate && savedTemplateData.overlayFileId) {
+          currentActiveTemplateId = String(savedTemplateId);
+          updateTemplateUiState();
+        }
+
+        if (overlayUploadWarning) {
+          await progressTask.complete("Template saved", "Previous live overlay remains active.");
+          await appAlert(
+            "The template was saved for editing, but the flattened overlay could not be updated for the live gallery. The previous live overlay remains in place.",
+            {
+              title: "Overlay Update Failed",
+              tone: "error",
+            }
+          );
+        } else {
+          await progressTask.complete(
+            setActiveAfterSave || wasLiveTemplate ? "Active gallery overlay updated" : "Template saved",
+            savedTemplateName || name
+          );
+          showToast(
+            buildTemplateSaveSuccessMessage(savedTemplateName || name, setActiveAfterSave, wasLiveTemplate),
+            "success"
+          );
+        }
+
+        return true;
+      } catch (err) {
+        await progressTask.fail("Save failed", err && err.message ? err.message : "Please try again.");
+        throw err;
+      }
     }
 
     async function saveCurrentTemplate(setActiveAfterSave = false) {
@@ -13073,68 +13677,7 @@ function hideReportLoading() {
         updateTemplateUiState();
 
         if (currentTemplateId && currentTemplateName) {
-          const saved = await persistTemplate(currentTemplateName);
-          const savedTemplateId = saved?.savedTemplateId || (currentTemplateId ? String(currentTemplateId) : "");
-          const savedTemplateName = saved?.savedTemplateName || currentTemplateName || "";
-          const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
-          const wasLiveTemplate = savedTemplateId && String(savedTemplateId) === String(currentActiveTemplateId || "");
-          let overlayUploadWarning = "";
-
-          try {
-            const overlayResult = await uploadFlattenedTemplateOverlay(savedTemplateId, savedTemplateName);
-            if (overlayResult) {
-              savedTemplateData.overlayFileId = overlayResult.overlayFileId;
-              savedTemplateData.overlayUpdatedAt = overlayResult.overlayUpdatedAt;
-              savedTemplateData.overlayVersion = overlayResult.overlayVersion;
-              savedTemplateData.photoBox = overlayResult.photoBox;
-            }
-          } catch (overlayErr) {
-            console.error("Error generating/uploading flattened template overlay:", overlayErr);
-            overlayUploadWarning = overlayErr && overlayErr.message
-              ? overlayErr.message
-              : "flattened_overlay_upload_failed";
-          }
-
-          if (setActiveAfterSave) {
-            if (overlayUploadWarning || !savedTemplateData.overlayFileId) {
-              await appAlert(
-                "The template was saved for editing, but the flattened live overlay failed to update. The gallery was not changed.",
-                {
-                  title: "Live Overlay Not Updated",
-                  tone: "error",
-                }
-              );
-              return false;
-            }
-            const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData);
-            if (success) {
-              currentActiveTemplateId = String(savedTemplateId);
-              updateTemplateUiState();
-            }
-          } else if (wasLiveTemplate && savedTemplateData.overlayFileId) {
-            currentActiveTemplateId = String(savedTemplateId);
-            updateTemplateUiState();
-          }
-
-          if (overlayUploadWarning) {
-            await appAlert(
-              "The template was saved for editing, but the flattened overlay could not be updated for the live gallery. The previous live overlay remains in place.",
-              {
-                title: "Overlay Update Failed",
-                tone: "error",
-              }
-            );
-          } else {
-            showToast(
-              setActiveAfterSave
-                ? `Template "${currentTemplateName}" saved. Active gallery overlay updated.`
-                : wasLiveTemplate
-                  ? `Template "${currentTemplateName}" saved. Active gallery overlay updated.`
-                  : `Template "${currentTemplateName}" saved.`,
-              "success"
-            );
-          }
-          return true;
+          return await runTemplateSaveFlow(currentTemplateName, setActiveAfterSave);
         }
 
         showTemplateNameOverlay(setActiveAfterSave);
@@ -13209,67 +13752,10 @@ function hideReportLoading() {
 
         try {
           setButtonLoading(saveBtn, "Saving...", true);
-          const saved = await persistTemplate(name);
-          const savedTemplateId = saved?.savedTemplateId || (currentTemplateId ? String(currentTemplateId) : "");
-          const savedTemplateName = saved?.savedTemplateName || currentTemplateName || "";
-          const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
-          const wasLiveTemplate = savedTemplateId && String(savedTemplateId) === String(currentActiveTemplateId || "");
-          let overlayUploadWarning = "";
-
-          try {
-            const overlayResult = await uploadFlattenedTemplateOverlay(savedTemplateId, savedTemplateName);
-            if (overlayResult) {
-              savedTemplateData.overlayFileId = overlayResult.overlayFileId;
-              savedTemplateData.overlayUpdatedAt = overlayResult.overlayUpdatedAt;
-              savedTemplateData.overlayVersion = overlayResult.overlayVersion;
-              savedTemplateData.photoBox = overlayResult.photoBox;
-            }
-          } catch (overlayErr) {
-            console.error("Error generating/uploading flattened template overlay:", overlayErr);
-            overlayUploadWarning = overlayErr && overlayErr.message
-              ? overlayErr.message
-              : "flattened_overlay_upload_failed";
-          }
-
-          if (setActiveAfterSave) {
-            if (overlayUploadWarning || !savedTemplateData.overlayFileId) {
-              await appAlert(
-                "The template was saved for editing, but the flattened live overlay failed to update. The gallery was not changed.",
-                {
-                  title: "Live Overlay Not Updated",
-                  tone: "error",
-                }
-              );
-              return;
-            }
-            const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData);
-            if (success) {
-              currentActiveTemplateId = String(savedTemplateId);
-            }
-          } else if (wasLiveTemplate && savedTemplateData.overlayFileId) {
-            currentActiveTemplateId = String(savedTemplateId);
-          }
           if (overlay.parentNode) {
             document.body.removeChild(overlay);
           }
-          if (overlayUploadWarning) {
-            await appAlert(
-              "The template was saved for editing, but the flattened overlay could not be updated for the live gallery. The previous live overlay remains in place.",
-              {
-                title: "Overlay Update Failed",
-                tone: "error",
-              }
-            );
-          } else {
-            showToast(
-              setActiveAfterSave
-                ? `Template "${name}" saved. Active gallery overlay updated.`
-                : wasLiveTemplate
-                  ? `Template "${name}" saved. Active gallery overlay updated.`
-                  : `Template "${name}" saved.`,
-              "success"
-            );
-          }
+          await runTemplateSaveFlow(name, setActiveAfterSave);
         } catch (err) {
           console.error("Error saving template:", err);
           showToast("Failed to save template.", "error");

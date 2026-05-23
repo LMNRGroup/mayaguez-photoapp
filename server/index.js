@@ -6230,6 +6230,8 @@ app.get('/admin/templates/asset/:fileId', ensureAdminAuth, async (req, res) => {
       res.setHeader('Content-Type', 'image/jpeg');
     }
 
+    res.setHeader('Cache-Control', 'private, max-age=3600, stale-while-revalidate=86400');
+
     driveRes.data
       .on('error', (err) => {
         console.error('Drive stream error (template asset):', err);
