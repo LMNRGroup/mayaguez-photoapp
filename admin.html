@@ -8411,37 +8411,8 @@ function hideGlobalLoader() {
     const settingsNewsletterEnabled = document.getElementById("settingsNewsletterEnabled");
     const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
     const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
-    const settingsEnablePiStablePlayerMode = document.getElementById("settingsEnablePiStablePlayerMode");
-    const settingsEnableBlobPhotoLoader = document.getElementById("settingsEnableBlobPhotoLoader");
-    const settingsEnableGalleryCrossfade = document.getElementById("settingsEnableGalleryCrossfade");
-    const settingsEnableDirectSwapFallback = document.getElementById("settingsEnableDirectSwapFallback");
-    const settingsEnableFlattenedOverlay = document.getElementById("settingsEnableFlattenedOverlay");
-    const settingsEnableOverlayPolling = document.getElementById("settingsEnableOverlayPolling");
-    const settingsEnableDynamicTemplateRuntime = document.getElementById("settingsEnableDynamicTemplateRuntime");
-    const settingsEnableTemplatePolling = document.getElementById("settingsEnableTemplatePolling");
-    const settingsEnableGalleryDebugOverlay = document.getElementById("settingsEnableGalleryDebugOverlay");
-    const settingsEnableRuntimeWatchdog = document.getElementById("settingsEnableRuntimeWatchdog");
-    const settingsEnableDirectSwapMode = document.getElementById("settingsEnableDirectSwapMode");
-    const settingsEnablePiSafeLegacyRuntime = document.getElementById("settingsEnablePiSafeLegacyRuntime");
-    const settingsApplyGallerySafeModeBtn = document.getElementById("settingsApplyGallerySafeModeBtn");
-    const settingsApplyFullGalleryModeBtn = document.getElementById("settingsApplyFullGalleryModeBtn");
     const settingsReloadGalleryPlayerBtn = document.getElementById("settingsReloadGalleryPlayerBtn");
-    const settingsClearCacheReloadGalleryPlayerBtn = document.getElementById("settingsClearCacheReloadGalleryPlayerBtn");
     const settingsGalleryRuntimeCommandStatus = document.getElementById("settingsGalleryRuntimeCommandStatus");
-    const DEFAULT_GALLERY_RUNTIME_SETTINGS = Object.freeze({
-      enablePiSafeLegacyRuntime: true,
-      enablePiStablePlayerMode: true,
-      enableBlobPhotoLoader: false,
-      enableGalleryCrossfade: true,
-      enableDirectSwapFallback: false,
-      enableFlattenedOverlay: true,
-      enableOverlayPolling: false,
-      enableDynamicTemplateRuntime: false,
-      enableTemplatePolling: false,
-      enableGalleryDebugOverlay: false,
-      enableRuntimeWatchdog: false,
-      enableDirectSwapMode: false,
-    });
     const DEFAULT_GALLERY_RUNTIME_COMMAND = Object.freeze({
       command: "",
       commandId: "",
@@ -8467,17 +8438,6 @@ function hideGlobalLoader() {
       settingsNewsletterEnabled,
       settingsNewsletterLabel,
       settingsNewsletterHelper,
-      settingsEnablePiStablePlayerMode,
-      settingsEnableBlobPhotoLoader,
-      settingsEnableGalleryCrossfade,
-      settingsEnableDirectSwapFallback,
-      settingsEnableFlattenedOverlay,
-      settingsEnableOverlayPolling,
-      settingsEnableDynamicTemplateRuntime,
-      settingsEnableTemplatePolling,
-      settingsEnableGalleryDebugOverlay,
-      settingsEnableRuntimeWatchdog,
-      settingsEnableDirectSwapMode,
     ].filter(Boolean);
     let settingsBaselineSerialized = "";
     let settingsLoadedOnce = false;
@@ -13921,28 +13881,6 @@ reportViewBtn.addEventListener("click", async () => {
       refreshSettingsLivePreview();
     }
 
-    function normalizeGalleryRuntimeSettings(settings = {}) {
-      const runtime = settings && typeof settings === "object" && settings.galleryRuntime && typeof settings.galleryRuntime === "object"
-        ? settings.galleryRuntime
-        : settings && typeof settings === "object" && !Array.isArray(settings)
-          ? settings
-          : {};
-      return {
-        enablePiSafeLegacyRuntime: runtime.enablePiSafeLegacyRuntime !== false,
-        enablePiStablePlayerMode: runtime.enablePiStablePlayerMode !== false,
-        enableBlobPhotoLoader: Boolean(runtime.enableBlobPhotoLoader),
-        enableGalleryCrossfade: runtime.enableGalleryCrossfade !== false,
-        enableDirectSwapFallback: runtime.enableDirectSwapFallback !== false,
-        enableFlattenedOverlay: Boolean(runtime.enableFlattenedOverlay),
-        enableOverlayPolling: Boolean(runtime.enableOverlayPolling),
-        enableDynamicTemplateRuntime: Boolean(runtime.enableDynamicTemplateRuntime),
-        enableTemplatePolling: Boolean(runtime.enableTemplatePolling),
-        enableGalleryDebugOverlay: runtime.enableGalleryDebugOverlay !== false,
-        enableRuntimeWatchdog: runtime.enableRuntimeWatchdog !== false,
-        enableDirectSwapMode: Boolean(runtime.enableDirectSwapMode),
-      };
-    }
-
     function normalizeGalleryRuntimeCommand(settings = {}) {
       const command = settings && typeof settings === "object" && settings.galleryRuntimeCommand && typeof settings.galleryRuntimeCommand === "object"
         ? settings.galleryRuntimeCommand
@@ -13982,56 +13920,6 @@ reportViewBtn.addEventListener("click", async () => {
         issuedAt,
         reason: options.reason || "admin_reload_button",
         clearCache: Boolean(options.clearCache),
-      };
-    }
-
-    function applyGalleryRuntimeSettingsToForm(runtimeSettings = DEFAULT_GALLERY_RUNTIME_SETTINGS) {
-      const nextSettings = normalizeGalleryRuntimeSettings(runtimeSettings);
-      if (settingsEnablePiSafeLegacyRuntime) settingsEnablePiSafeLegacyRuntime.checked = nextSettings.enablePiSafeLegacyRuntime;
-      if (settingsEnablePiStablePlayerMode) settingsEnablePiStablePlayerMode.checked = nextSettings.enablePiStablePlayerMode;
-      if (settingsEnableBlobPhotoLoader) settingsEnableBlobPhotoLoader.checked = nextSettings.enableBlobPhotoLoader;
-      if (settingsEnableGalleryCrossfade) settingsEnableGalleryCrossfade.checked = nextSettings.enableGalleryCrossfade;
-      if (settingsEnableDirectSwapFallback) settingsEnableDirectSwapFallback.checked = nextSettings.enableDirectSwapFallback;
-      if (settingsEnableFlattenedOverlay) settingsEnableFlattenedOverlay.checked = nextSettings.enableFlattenedOverlay;
-      if (settingsEnableOverlayPolling) settingsEnableOverlayPolling.checked = nextSettings.enableOverlayPolling;
-      if (settingsEnableDynamicTemplateRuntime) settingsEnableDynamicTemplateRuntime.checked = nextSettings.enableDynamicTemplateRuntime;
-      if (settingsEnableTemplatePolling) settingsEnableTemplatePolling.checked = nextSettings.enableTemplatePolling;
-      if (settingsEnableGalleryDebugOverlay) settingsEnableGalleryDebugOverlay.checked = nextSettings.enableGalleryDebugOverlay;
-      if (settingsEnableRuntimeWatchdog) settingsEnableRuntimeWatchdog.checked = nextSettings.enableRuntimeWatchdog;
-      if (settingsEnableDirectSwapMode) settingsEnableDirectSwapMode.checked = nextSettings.enableDirectSwapMode;
-    }
-
-    function getGallerySafeModeRuntimeSettings() {
-      return {
-        enablePiSafeLegacyRuntime: true,
-        enablePiStablePlayerMode: true,
-        enableBlobPhotoLoader: false,
-        enableGalleryCrossfade: true,
-        enableDirectSwapFallback: false,
-        enableFlattenedOverlay: true,
-        enableOverlayPolling: false,
-        enableDynamicTemplateRuntime: false,
-        enableTemplatePolling: false,
-        enableGalleryDebugOverlay: false,
-        enableRuntimeWatchdog: false,
-        enableDirectSwapMode: false,
-      };
-    }
-
-    function getGalleryFullModeRuntimeSettings() {
-      return {
-        enablePiSafeLegacyRuntime: false,
-        enablePiStablePlayerMode: true,
-        enableBlobPhotoLoader: false,
-        enableGalleryCrossfade: true,
-        enableDirectSwapFallback: false,
-        enableFlattenedOverlay: true,
-        enableOverlayPolling: false,
-        enableDynamicTemplateRuntime: false,
-        enableTemplatePolling: false,
-        enableGalleryDebugOverlay: false,
-        enableRuntimeWatchdog: false,
-        enableDirectSwapMode: false,
       };
     }
 
@@ -14079,7 +13967,6 @@ reportViewBtn.addEventListener("click", async () => {
       settingsNewsletterEnabled.checked = Boolean(settings.form?.newsletter?.enabled);
       settingsNewsletterLabel.value = settings.form?.newsletter?.label || "";
       settingsNewsletterHelper.value = settings.form?.newsletter?.helper || "";
-      applyGalleryRuntimeSettingsToForm(settings.galleryRuntime || DEFAULT_GALLERY_RUNTIME_SETTINGS);
       renderGalleryRuntimeCommandStatus(settings.galleryRuntimeCommand || DEFAULT_GALLERY_RUNTIME_COMMAND);
       refreshSettingsLivePreview();
     }
@@ -14168,20 +14055,6 @@ reportViewBtn.addEventListener("click", async () => {
         galleryDisplayLimit: galleryDisplayLimit,
         activeTemplateId: settingsActiveTemplateId ? settingsActiveTemplateId.value : "",
         galleryRuntimeCommand: normalizeGalleryRuntimeCommand(DEFAULT_GALLERY_RUNTIME_COMMAND),
-        galleryRuntime: {
-          enablePiSafeLegacyRuntime: settingsEnablePiSafeLegacyRuntime ? settingsEnablePiSafeLegacyRuntime.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enablePiSafeLegacyRuntime,
-          enablePiStablePlayerMode: settingsEnablePiStablePlayerMode ? settingsEnablePiStablePlayerMode.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enablePiStablePlayerMode,
-          enableBlobPhotoLoader: settingsEnableBlobPhotoLoader ? settingsEnableBlobPhotoLoader.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableBlobPhotoLoader,
-          enableGalleryCrossfade: settingsEnableGalleryCrossfade ? settingsEnableGalleryCrossfade.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableGalleryCrossfade,
-          enableDirectSwapFallback: settingsEnableDirectSwapFallback ? settingsEnableDirectSwapFallback.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableDirectSwapFallback,
-          enableFlattenedOverlay: settingsEnableFlattenedOverlay ? settingsEnableFlattenedOverlay.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableFlattenedOverlay,
-          enableOverlayPolling: settingsEnableOverlayPolling ? settingsEnableOverlayPolling.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableOverlayPolling,
-          enableDynamicTemplateRuntime: settingsEnableDynamicTemplateRuntime ? settingsEnableDynamicTemplateRuntime.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableDynamicTemplateRuntime,
-          enableTemplatePolling: settingsEnableTemplatePolling ? settingsEnableTemplatePolling.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableTemplatePolling,
-          enableGalleryDebugOverlay: settingsEnableGalleryDebugOverlay ? settingsEnableGalleryDebugOverlay.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableGalleryDebugOverlay,
-          enableRuntimeWatchdog: settingsEnableRuntimeWatchdog ? settingsEnableRuntimeWatchdog.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableRuntimeWatchdog,
-          enableDirectSwapMode: settingsEnableDirectSwapMode ? settingsEnableDirectSwapMode.checked : DEFAULT_GALLERY_RUNTIME_SETTINGS.enableDirectSwapMode,
-        },
         intro: {
           title: settingsIntroTitle.value.trim(),
           subtitle: settingsIntroSubtitle.value.trim(),
@@ -14366,45 +14239,18 @@ reportViewBtn.addEventListener("click", async () => {
       });
     }
 
-    if (settingsApplyGallerySafeModeBtn) {
-      settingsApplyGallerySafeModeBtn.addEventListener("click", async () => {
-        applyGalleryRuntimeSettingsToForm(getGallerySafeModeRuntimeSettings());
-        syncSettingsDirtyState();
-        await persistSettingsPayload(collectSettingsPayload(), {
-          button: settingsApplyGallerySafeModeBtn,
-          loadingLabel: "Applying...",
-          successMessage: "GALLERY SAFE MODE APPLIED",
-        });
-      });
-    }
-
-    if (settingsApplyFullGalleryModeBtn) {
-      settingsApplyFullGalleryModeBtn.addEventListener("click", async () => {
-        applyGalleryRuntimeSettingsToForm(getGalleryFullModeRuntimeSettings());
-        syncSettingsDirtyState();
-        await persistSettingsPayload(collectSettingsPayload(), {
-          button: settingsApplyFullGalleryModeBtn,
-          loadingLabel: "Applying...",
-          successMessage: "FULL GALLERY MODE APPLIED",
-        });
-      });
-    }
-
-    async function issueGalleryReloadCommand(options = {}) {
+    async function issueGalleryReloadCommand() {
       if (!adminToken) {
         showLock("Session expired. Enter the access code.");
         return false;
       }
 
-      const clearCache = Boolean(options.clearCache);
       const confirmReload = await appConfirm(
-        clearCache
-          ? "Request a gallery cache clear and gallery webpage reload on connected displays?"
-          : "Request a gallery webpage reload on connected displays without rebooting the Pi?",
+        "Request a gallery webpage reload on connected displays without rebooting the Pi?",
         {
-          title: clearCache ? "Clear Cache + Reload Gallery" : "Reload Gallery Player",
+          title: "Reload Gallery Player",
           tone: "primary",
-          confirmLabel: clearCache ? "Clear + Reload" : "Reload Gallery",
+          confirmLabel: "Reload Gallery",
           cancelLabel: "Cancel",
         }
       );
@@ -14413,22 +14259,19 @@ reportViewBtn.addEventListener("click", async () => {
         return false;
       }
 
-      const command = buildGalleryRuntimeCommand(
-        clearCache ? "clear_cache_reload_gallery" : "reload_gallery",
-        {
-          reason: clearCache ? "admin_clear_cache_reload_button" : "admin_reload_button",
-          clearCache,
-        }
-      );
+      const command = buildGalleryRuntimeCommand("reload_gallery", {
+        reason: "admin_reload_button",
+        clearCache: false,
+      });
       const payload = {
         galleryRuntimeCommand: command,
       };
 
-      const button = clearCache ? settingsClearCacheReloadGalleryPlayerBtn : settingsReloadGalleryPlayerBtn;
+      const button = settingsReloadGalleryPlayerBtn;
       const success = await persistSettingsPayload(payload, {
         button,
-        loadingLabel: clearCache ? "Requesting..." : "Reloading...",
-        successMessage: clearCache ? "GALLERY CACHE CLEAR + RELOAD REQUESTED" : "GALLERY RELOAD REQUESTED",
+        loadingLabel: "Reloading...",
+        successMessage: "GALLERY RELOAD REQUESTED",
       });
 
       if (success) {
@@ -14439,13 +14282,7 @@ reportViewBtn.addEventListener("click", async () => {
 
     if (settingsReloadGalleryPlayerBtn) {
       settingsReloadGalleryPlayerBtn.addEventListener("click", async () => {
-        await issueGalleryReloadCommand({ clearCache: false });
-      });
-    }
-
-    if (settingsClearCacheReloadGalleryPlayerBtn) {
-      settingsClearCacheReloadGalleryPlayerBtn.addEventListener("click", async () => {
-        await issueGalleryReloadCommand({ clearCache: true });
+        await issueGalleryReloadCommand();
       });
     }
     (function bootstrapAdmin() {
