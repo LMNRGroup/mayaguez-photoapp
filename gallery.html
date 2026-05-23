@@ -304,22 +304,12 @@
     </div>
   </div>
 
-  <aside id="galleryDebugOverlay" class="gallery-debug-overlay" aria-hidden="true" role="button" tabindex="0" title="Tap to copy debug report">
-    <div id="galleryDebugOverlayInner" class="gallery-debug-overlay-inner">
-      <div id="galleryDebugOverlayDiagnosis" class="gallery-debug-diagnosis">DEBUG ACTIVE</div>
-      <div id="galleryDebugOverlayFeedback" class="gallery-debug-feedback" data-state="idle"></div>
-      <pre id="galleryDebugOverlaySnapshot" class="gallery-debug-panel gallery-debug-snapshot"></pre>
-      <pre id="galleryDebugOverlayEvents" class="gallery-debug-panel gallery-debug-events"></pre>
-      <pre id="galleryDebugOverlayExpanded" class="gallery-debug-panel gallery-debug-expanded"></pre>
-    </div>
-  </aside>
-
   <script>
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
 
     const DISPLAY_MS = 8000;
     const DISABLE_GALLERY_TRANSITIONS = false;
-    const SHOW_GALLERY_DEBUG_OVERLAY = true;
+    const SHOW_GALLERY_DEBUG_OVERLAY = false;
     const DEBUG_OVERLAY_ERRORS_ONLY = true;
     const REFRESH_MS = 10000;
     const GALLERY_HEARTBEAT_MS = 5000;
@@ -327,7 +317,7 @@
     const PI_STABLE_APPROVED_REFRESH_MS = 30000;
     const PI_STABLE_HEARTBEAT_MS = 20000;
     const PI_STABLE_RUNTIME_SETTINGS_REFRESH_MS = 15000;
-    const STATIC_GALLERY_OVERLAY_URL = "Assets/template.png";
+    const STATIC_GALLERY_OVERLAY_URL = `${BASE_URL}/gallery/active-overlay-image`;
     const BURST_BACKOFF_REFRESH_MS = 20000;
     const BURST_BACKOFF_HEARTBEAT_MS = 10000;
     const EMPTY_GALLERY_MESSAGE = "ESCANEA EL CODIGO QR";
@@ -409,11 +399,11 @@
       enableBlobPhotoLoader: false,
       enableGalleryCrossfade: !DISABLE_GALLERY_TRANSITIONS,
       enableDirectSwapFallback: false,
-      enableFlattenedOverlay: false,
+      enableFlattenedOverlay: true,
       enableOverlayPolling: false,
       enableDynamicTemplateRuntime: false,
       enableTemplatePolling: false,
-      enableGalleryDebugOverlay: SHOW_GALLERY_DEBUG_OVERLAY,
+      enableGalleryDebugOverlay: false,
       enableRuntimeWatchdog: false,
       enableDirectSwapMode: false,
     });
@@ -1010,20 +1000,35 @@
 
     function getEffectiveLegacyOverlayConfig() {
       const normalized = normalizeLegacyOverlayConfig(legacyOverlayConfig);
+      const staticOverlayUrl = normalizeAssetUrl(String(STATIC_GALLERY_OVERLAY_URL || "").trim());
+      if (galleryRuntimeSettings.enableFlattenedOverlay === false) {
+        return {
+          enabled: false,
+          mode: "overlay_disabled",
+          overlayFileId: "",
+          overlayUrl: "",
+          overlayVersion: "",
+          templateId: "",
+          templateName: "",
+          updatedAt: "",
+          photoBox: { ...DEFAULT_PHOTO_BOX },
+          source: "runtime_overlay_disabled",
+        };
+      }
       if (normalized.enabled && normalized.overlayUrl) {
         return normalized;
       }
       return {
-        enabled: Boolean(String(STATIC_GALLERY_OVERLAY_URL || "").trim()),
-        mode: "static_repo_fallback",
+        enabled: Boolean(staticOverlayUrl),
+        mode: "active_overlay_image_route",
         overlayFileId: "",
-        overlayUrl: normalizeAssetUrl(String(STATIC_GALLERY_OVERLAY_URL || "").trim()),
-        overlayVersion: "static",
-        templateId: "",
-        templateName: "",
-        updatedAt: "",
-        photoBox: { ...DEFAULT_PHOTO_BOX },
-        source: "repo_static_asset",
+        overlayUrl: staticOverlayUrl,
+        overlayVersion: normalized.overlayVersion || "current",
+        templateId: normalized.templateId || "",
+        templateName: normalized.templateName || "",
+        updatedAt: normalized.updatedAt || "",
+        photoBox: normalized.photoBox || { ...DEFAULT_PHOTO_BOX },
+        source: "active_overlay_image_route",
       };
     }
 
@@ -1043,7 +1048,6 @@
       if (runtime.enablePiSafeLegacyRuntime) {
         nextDisabledSystems.push("runtime_settings_polling");
         nextDisabledSystems.push("telemetry_heartbeat_loop");
-        nextDisabledSystems.push("flattened_overlay");
         nextDisabledSystems.push("overlay_polling");
         nextDisabledSystems.push("dynamic_template_runtime");
         nextDisabledSystems.push("template_polling");
@@ -1071,11 +1075,11 @@
         !runtime.enableBlobPhotoLoader &&
         runtime.enableGalleryCrossfade &&
         !runtime.enableDirectSwapFallback &&
-        !runtime.enableFlattenedOverlay &&
+        runtime.enableFlattenedOverlay &&
         !runtime.enableOverlayPolling &&
         !runtime.enableDynamicTemplateRuntime &&
         !runtime.enableTemplatePolling &&
-        runtime.enableGalleryDebugOverlay &&
+        !runtime.enableGalleryDebugOverlay &&
         !runtime.enableRuntimeWatchdog &&
         !runtime.enableDirectSwapMode
       );
@@ -1121,7 +1125,7 @@
     }
 
     function isGalleryDebugOverlayEnabled() {
-      return SHOW_GALLERY_DEBUG_OVERLAY && galleryRuntimeSettings.enableGalleryDebugOverlay !== false;
+      return false;
     }
 
     function isFlattenedOverlayRuntimeEnabled() {
@@ -1148,7 +1152,7 @@
     }
 
     function shouldRunDebugOverlayInterval() {
-      return !isPiSafeLegacyRuntimeEnabled();
+      return false;
     }
 
     function shouldUseStaticLegacyOverlay() {
@@ -6929,6 +6933,41 @@
           return false;
         }
 
+        if (data.galleryRuntimeCommand) {
+          galleryRuntimeCommand = normalizeGalleryRuntimeCommand(data.galleryRuntimeCommand);
+          if (galleryRuntimeCommand) {
+            const executedCommand = await executeGalleryRuntimeCommand(galleryRuntimeCommand);
+            if (executedCommand) {
+              return true;
+            }
+          }
+        }
+
+        if (data.legacyOverlay && typeof data.legacyOverlay === "object") {
+          const previousLegacyOverlay = normalizeLegacyOverlayConfig(legacyOverlayConfig);
+          const nextLegacyOverlay = normalizeLegacyOverlayConfig(data.legacyOverlay);
+          const overlayChanged =
+            JSON.stringify({
+              enabled: previousLegacyOverlay.enabled,
+              overlayVersion: previousLegacyOverlay.overlayVersion,
+              overlayFileId: previousLegacyOverlay.overlayFileId,
+              photoBox: previousLegacyOverlay.photoBox,
+            }) !== JSON.stringify({
+              enabled: nextLegacyOverlay.enabled,
+              overlayVersion: nextLegacyOverlay.overlayVersion,
+              overlayFileId: nextLegacyOverlay.overlayFileId,
+              photoBox: nextLegacyOverlay.photoBox,
+            });
+
+          legacyOverlayConfig = nextLegacyOverlay;
+
+          if (galleryRuntimeSettings.enableFlattenedOverlay === false || nextLegacyOverlay.enabled === false) {
+            clearOverlayLayer("legacy_overlay_disabled");
+          } else if (overlayChanged) {
+            applyStaticLegacyOverlay();
+          }
+        }
+
         const newPhotos = Array.isArray(data.files) ? [...data.files] : [];
         approvedManifestVersion = clampMonitorString(String(data.manifestVersion || ""), 40);
         recordSuccessfulPoll(Date.now() - pollStartedAt);
@@ -7521,19 +7560,11 @@
       runtimeSettingsVersion: "default",
     });
     stopRuntimeWatchdogLoop();
-    void installGallerySentryDiagnostics();
-    installTelemetryErrorCapture();
-    startGalleryDebugOverlayLoop();
     installRuntimeLifecycleHandlers();
     setSlideshowState(SLIDESHOW_STATES.booting, "initial_boot");
     showQrWaitingScreen("boot_waiting_for_manifest");
     startRefreshLoop();
-    startTelemetryHeartbeatLoop();
-    if (isRuntimeWatchdogEnabled()) {
-      startRuntimeWatchdog();
-    }
     void fetchGalleryRuntimeSettings();
-    runDebugTelemetryTestIfNeeded();
   </script>
 </body>
 </html>

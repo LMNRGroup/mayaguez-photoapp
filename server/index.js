@@ -294,11 +294,11 @@ const DEFAULT_APP_SETTINGS = {
     enableBlobPhotoLoader: false,
     enableGalleryCrossfade: true,
     enableDirectSwapFallback: false,
-    enableFlattenedOverlay: false,
+    enableFlattenedOverlay: true,
     enableOverlayPolling: false,
     enableDynamicTemplateRuntime: false,
     enableTemplatePolling: false,
-    enableGalleryDebugOverlay: true,
+    enableGalleryDebugOverlay: false,
     enableRuntimeWatchdog: false,
     enableDirectSwapMode: false,
   }
@@ -1022,7 +1022,6 @@ function buildGalleryRuntimeDisabledSystems(runtimeSettings = {}) {
   if (runtime.enablePiSafeLegacyRuntime) {
     disabledSystems.push('runtime_settings_polling');
     disabledSystems.push('telemetry_heartbeat_loop');
-    disabledSystems.push('flattened_overlay');
     disabledSystems.push('overlay_polling');
     disabledSystems.push('dynamic_template_runtime');
     disabledSystems.push('template_polling');
@@ -1496,6 +1495,14 @@ function buildPublicTemplateOverlayUrl(fileId) {
   return `/gallery/template-overlay/${encodeURIComponent(fileId)}`;
 }
 
+function buildPublicActiveOverlayImageUrl(version = '') {
+  const baseUrl = '/gallery/active-overlay-image';
+  const normalizedVersion = clampString(version || '', 120);
+  return normalizedVersion
+    ? `${baseUrl}?v=${encodeURIComponent(normalizedVersion)}`
+    : baseUrl;
+}
+
 function getApprovedPlaybackTimestamp(file) {
   if (!file || typeof file !== 'object') return '';
 
@@ -1898,50 +1905,49 @@ function buildLegacyKioskOverlayPayload(settings = appSettings) {
     ? String(settings.activeTemplateId).trim()
     : '';
   const snapshot = parseActiveTemplateSnapshot(settings && settings.activeTemplateSnapshot);
-  const hasMatchingSnapshot =
+  const snapshotId = snapshot && snapshot.id ? String(snapshot.id).trim() : '';
+  const snapshotMatchesActiveTemplate = Boolean(
     snapshot &&
     snapshot.data &&
-    String(snapshot.id || '').trim() &&
-    (!activeTemplateId || String(snapshot.id || '').trim() === activeTemplateId);
+    snapshotId &&
+    (!activeTemplateId || snapshotId === activeTemplateId)
+  );
+  const snapshotOverlayFileId = snapshotMatchesActiveTemplate
+    ? normalizeTemplateAssetFileId(snapshot.data?.overlayFileId || '')
+    : '';
+  const overlayVersion = snapshotMatchesActiveTemplate
+    ? clampString(snapshot.data?.overlayVersion || snapshot.data?.overlayUpdatedAt || '', 120)
+    : '';
+  const hasPublishedOverlay = Boolean(snapshotOverlayFileId || activeTemplateId);
 
-  if (!hasMatchingSnapshot) {
+  if (!hasPublishedOverlay) {
     return {
       enabled: false,
-      mode: 'static_repo_fallback',
+      mode: 'no_active_overlay',
       overlayFileId: '',
       overlayUrl: '',
       overlayVersion: '',
       templateId: activeTemplateId,
-      templateName: '',
-      updatedAt: '',
+      templateName: snapshotMatchesActiveTemplate ? snapshot.name || '' : '',
+      updatedAt: snapshotMatchesActiveTemplate ? snapshot.data?.overlayUpdatedAt || '' : '',
       photoBox: { ...DEFAULT_TEMPLATE_PHOTO_BOX },
-      source: activeTemplateId ? 'active_template_without_snapshot' : 'no_active_template',
+      source: activeTemplateId ? 'active_template_without_overlay_snapshot' : 'no_active_template',
     };
   }
 
-  const overlayResponse = buildActiveOverlayResponse({
-    id: String(snapshot.id || activeTemplateId || ''),
-    name: snapshot.name || '',
-    createdAt: snapshot.createdAt || '',
-    data: snapshot.data,
-  }, {
-    source: 'settings_snapshot',
-    reason: 'legacy_kiosk_overlay_snapshot',
-  });
-
   return {
-    enabled: Boolean(overlayResponse.enabled && overlayResponse.overlayUrl),
-    mode: overlayResponse.enabled ? 'published_flattened_overlay' : 'static_repo_fallback',
-    overlayFileId: overlayResponse.overlayFileId || '',
-    overlayUrl: overlayResponse.overlayUrl || '',
-    overlayVersion: overlayResponse.templateVersion || '',
-    templateId: overlayResponse.templateId || activeTemplateId,
-    templateName: overlayResponse.templateName || '',
-    updatedAt: overlayResponse.updatedAt || '',
-    photoBox: overlayResponse.photoBox || { ...DEFAULT_TEMPLATE_PHOTO_BOX },
-    source: overlayResponse.meta && overlayResponse.meta.source
-      ? String(overlayResponse.meta.source)
-      : 'settings_snapshot',
+    enabled: true,
+    mode: 'published_flattened_overlay',
+    overlayFileId: snapshotOverlayFileId,
+    overlayUrl: buildPublicActiveOverlayImageUrl(),
+    overlayVersion,
+    templateId: snapshotMatchesActiveTemplate ? snapshotId : activeTemplateId,
+    templateName: snapshotMatchesActiveTemplate ? snapshot.name || '' : '',
+    updatedAt: snapshotMatchesActiveTemplate ? snapshot.data?.overlayUpdatedAt || '' : '',
+    photoBox: snapshotMatchesActiveTemplate
+      ? normalizeTemplatePhotoBox(snapshot.data?.photoBox)
+      : { ...DEFAULT_TEMPLATE_PHOTO_BOX },
+    source: snapshotMatchesActiveTemplate ? 'settings_snapshot' : 'active_template_id_only',
   };
 }
 
@@ -5023,6 +5029,8 @@ app.get('/gallery/approved', async (req, res) => {
     setGalleryJsonNoStoreHeaders(res);
     const manifest = await getGalleryApprovedManifest();
     const files = manifest.files || [];
+    const galleryRuntimeCommand = normalizeGalleryRuntimeCommand(appSettings.galleryRuntimeCommand);
+    const legacyOverlay = buildLegacyKioskOverlayPayload(appSettings);
     logObservedRouteResult(
       '/gallery/approved',
       startedAtMs,
@@ -5034,6 +5042,8 @@ app.get('/gallery/approved', async (req, res) => {
       files,
       manifestVersion: manifest.manifestVersion || '',
       generatedAt: manifest.generatedAt || '',
+      galleryRuntimeCommand,
+      legacyOverlay,
     });
   } catch (err) {
     console.error('Error listing approved files for gallery', err);
@@ -5199,6 +5209,136 @@ app.get('/gallery/template-asset/:fileId', async (req, res) => {
       durationMs: Date.now() - startedAt,
       error: err && err.message ? err.message : err,
     });
+    if (!res.headersSent) {
+      res.status(404).end();
+    }
+  }
+});
+
+async function resolveActiveGalleryOverlayTemplate() {
+  const snapshot = parseActiveTemplateSnapshot(appSettings.activeTemplateSnapshot);
+  const activeTemplateId = String(appSettings.activeTemplateId || '').trim();
+
+  if (snapshot && snapshot.data && String(snapshot.id || '').trim()) {
+    const snapshotTemplate = {
+      id: snapshot.id || activeTemplateId || '',
+      name: snapshot.name || '',
+      createdAt: snapshot.createdAt || '',
+      data: snapshot.data,
+    };
+    if (normalizeTemplateAssetFileId(snapshotTemplate.data?.overlayFileId || '')) {
+      return {
+        template: snapshotTemplate,
+        source: 'settings_snapshot',
+        reason: 'active_overlay_snapshot',
+      };
+    }
+  }
+
+  if (activeTemplateId) {
+    const liveTemplate = await getTemplateById(activeTemplateId);
+    if (liveTemplate && normalizeTemplateAssetFileId(liveTemplate.data?.overlayFileId || '')) {
+      return {
+        template: liveTemplate,
+        source: 'template_sheet_row',
+        reason: 'active_overlay_row_loaded',
+      };
+    }
+  }
+
+  if (snapshot && snapshot.data && String(snapshot.id || '').trim()) {
+    const fallbackTemplate = {
+      id: snapshot.id || activeTemplateId || '',
+      name: snapshot.name || '',
+      createdAt: snapshot.createdAt || '',
+      data: snapshot.data,
+    };
+    if (normalizeTemplateAssetFileId(fallbackTemplate.data?.overlayFileId || '')) {
+      return {
+        template: fallbackTemplate,
+        source: 'stale_snapshot_fallback',
+        reason: 'overlay_row_missing_using_snapshot',
+      };
+    }
+  }
+
+  return {
+    template: null,
+    source: activeTemplateId ? 'overlay_row_missing_no_snapshot' : 'no_active_template_id',
+    reason: activeTemplateId ? 'overlay_row_missing_no_snapshot' : 'no_active_template_id',
+  };
+}
+
+app.get('/gallery/active-overlay-image', async (req, res) => {
+  const startedAtMs = Date.now();
+  let respondedStatus = 200;
+
+  try {
+    try {
+      await hydrateSettingsFromSheet();
+    } catch (hydrateErr) {
+      console.warn('Active overlay image settings hydration failed; using last in-memory state.', hydrateErr.message || hydrateErr);
+    }
+
+    const resolved = await resolveActiveGalleryOverlayTemplate();
+    const template = resolved.template;
+    const overlayFileId = normalizeTemplateAssetFileId(template?.data?.overlayFileId || '');
+
+    if (!overlayFileId) {
+      respondedStatus = 404;
+      logObservedRouteResult('/gallery/active-overlay-image', startedAtMs, respondedStatus, resolved.reason || 'no_overlay_file');
+      return res.status(404).end();
+    }
+
+    const driveRes = await drive.files.get(
+      {
+        fileId: overlayFileId,
+        alt: 'media',
+      },
+      { responseType: 'stream' }
+    );
+
+    try {
+      const metadata = await drive.files.get({
+        fileId: overlayFileId,
+        fields: 'mimeType',
+      });
+      res.setHeader('Content-Type', metadata.data.mimeType || 'image/png');
+    } catch {
+      res.setHeader('Content-Type', 'image/png');
+    }
+    res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
+
+    driveRes.data
+      .on('error', (err) => {
+        respondedStatus = res.headersSent ? respondedStatus : 502;
+        console.error('Drive stream error (active gallery overlay image):', {
+          overlayFileId,
+          status: respondedStatus,
+          durationMs: Date.now() - startedAtMs,
+          error: err && err.message ? err.message : err,
+        });
+        if (!res.headersSent) {
+          res.end();
+        }
+      })
+      .on('end', () => {
+        logObservedRouteResult(
+          '/gallery/active-overlay-image',
+          startedAtMs,
+          respondedStatus,
+          `ok source=${resolved.source || 'unknown'}`
+        );
+      })
+      .pipe(res);
+  } catch (err) {
+    respondedStatus = 404;
+    console.error('Error streaming active gallery overlay image', {
+      status: respondedStatus,
+      durationMs: Date.now() - startedAtMs,
+      error: err && err.message ? err.message : err,
+    });
+    logObservedRouteResult('/gallery/active-overlay-image', startedAtMs, respondedStatus, err && err.message ? err.message : 'active_overlay_image_failed');
     if (!res.headersSent) {
       res.status(404).end();
     }
