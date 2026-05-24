@@ -4836,7 +4836,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 50;
+    z-index: 1000;
     overflow-y: auto;
     overflow-x: hidden;
   }
@@ -5025,10 +5025,7 @@
   }
 
   .mobile-admin-toolbar {
-    width: calc(100% - 1rem);
-    margin: 0 auto;
-    gap: 0.625rem;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: none !important;
   }
 
   .mobile-utility-btn {
@@ -5230,7 +5227,7 @@
     right: 0;
     bottom: 0;
     z-index: 60;
-    padding: 0.7rem 0.8rem calc(0.8rem + env(safe-area-inset-bottom));
+    padding: 0.4rem 0.6rem calc(0.55rem + env(safe-area-inset-bottom));
     background: linear-gradient(180deg, rgba(7, 12, 21, 0), rgba(7, 12, 21, 0.88) 25%, rgba(7, 12, 21, 0.96));
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
@@ -5239,33 +5236,35 @@
   .mobile-bottom-nav-inner {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.4rem;
+    gap: 0.22rem;
     width: min(100%, 34rem);
     margin: 0 auto;
-    padding: 0.35rem;
-    border-radius: 1.15rem;
+    padding: 0.2rem;
+    border-radius: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(10, 16, 28, 0.92);
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
   }
 
   .mobile-nav-item {
-    min-height: 4rem;
+    min-height: 3.1rem;
     border: none;
-    border-radius: 0.95rem;
+    border-radius: 0.85rem;
     background: transparent;
     color: rgba(228, 236, 247, 0.76);
     display: inline-flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 0.32rem;
-    font-size: 0.63rem;
+    gap: 0;
+    font-size: 0.58rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
     touch-action: manipulation;
+    overflow: hidden;
+    padding: 0 0.25rem;
   }
 
   .mobile-nav-item.active {
@@ -5274,8 +5273,79 @@
   }
 
   .mobile-nav-item svg {
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+  }
+
+  .mobile-nav-item span {
+    display: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-nav-item.is-drag-target {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--foreground);
+  }
+
+  .settings-status-message {
+    display: none;
+    margin-top: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--secondary) 80%, transparent);
+    color: var(--muted-foreground);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  .settings-status-message.is-visible {
+    display: block;
+  }
+
+  .settings-status-message.is-error {
+    border-color: color-mix(in srgb, var(--destructive) 44%, transparent);
+    color: var(--destructive);
+  }
+
+  .settings-tool-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm);
+  }
+
+  .settings-tool-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mobile-template-sheet-badge {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.34rem 0.62rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  }
+
+  body.admin-locked {
+    overflow: hidden;
+  }
+
+  body.admin-locked .page-wrapper,
+  body.admin-locked .admin-footer,
+  body.admin-locked .mobile-bottom-nav,
+  body.admin-locked .mobile-admin-toolbar {
+    display: none !important;
   }
 
   /* RESPONSIVE */
@@ -5327,7 +5397,7 @@
       min-width: 0;
       max-width: 100%;
       overflow: visible;
-      padding-bottom: 6.8rem;
+      padding-bottom: calc(4.9rem + env(safe-area-inset-bottom));
     }
 
     .admin-header {
@@ -5377,7 +5447,7 @@
     .status-pill {
       font-size: 0.56rem;
       padding: 0.34rem 0.55rem;
-      max-width: 11.5rem;
+      max-width: 9.5rem;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -5452,9 +5522,6 @@
     }
 
     .view-actions,
-    .approved-view-actions,
-    .approved-footer,
-    .approved-footer-controls,
     .settings-actions,
     .buttons {
       justify-content: stretch;
@@ -5480,14 +5547,70 @@
       padding: 0;
     }
 
+    #viewApproved .view-header {
+      gap: 0.75rem;
+      margin-bottom: 0;
+    }
+
+    #viewApproved .approved-view-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    #viewApproved .approved-view-actions .btn-ghost,
+    #viewApproved .approved-view-actions .btn-reject {
+      width: auto;
+      min-width: 0;
+      min-height: 2.5rem;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+    }
+
+    #viewApproved .approved-footer {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding-top: 0.2rem;
+      margin-top: 0.35rem;
+    }
+
+    #viewApproved .approved-footer-controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      flex-wrap: nowrap;
+    }
+
+    #viewApproved .approved-footer-controls .btn-reject,
+    #viewApproved .approved-footer-controls .btn-approve {
+      width: auto;
+      min-width: 4.25rem;
+      min-height: 2.35rem;
+      padding: 0.45rem 0.65rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+    }
+
+    #approvedFooterText {
+      font-size: 0.7rem;
+      line-height: 1.45;
+    }
+
+    .approved-thumb {
+      padding: 0.35rem;
+      border-radius: 0.9rem;
+    }
+
     .approved-viewer-panel,
     .template-name-panel,
     .app-dialog {
       width: min(100%, calc(100vw - 1rem));
-    }
-
-    .approved-footer {
-      gap: 0.75rem;
     }
 
     .settings-section.expanded .settings-section-content {
@@ -5496,6 +5619,11 @@
 
     .settings-grid {
       gap: 0.85rem;
+    }
+
+    .settings-content {
+      gap: 0.85rem;
+      padding: 0;
     }
 
     .settings-row {
@@ -5530,7 +5658,6 @@
       margin-top: 0.4rem;
     }
 
-    .mobile-admin-toolbar,
     .mobile-dashboard-summary,
     .mobile-bottom-nav {
       display: grid;
@@ -5539,6 +5666,10 @@
     .mobile-template-manager,
     .mobile-view-note {
       display: flex;
+    }
+
+    .mobile-admin-toolbar {
+      display: none !important;
     }
 
     .template-editor-container {
@@ -5572,6 +5703,14 @@
     }
 
     .template-library-item-create {
+      display: none;
+    }
+
+    .mobile-template-manager {
+      margin-top: 0;
+    }
+
+    .mobile-template-card {
       display: none;
     }
 
@@ -5644,12 +5783,19 @@
     }
 
     .admin-footer {
-      padding: 1rem 1rem calc(6.8rem + env(safe-area-inset-bottom));
-      margin-top: 0;
+      display: none;
     }
 
     #viewTemplates .view-subtitle {
       margin-bottom: 0.1rem;
+    }
+
+    .settings-tool-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .event-logs-modal-title {
+      max-width: calc(100vw - 7rem);
     }
   }
 
@@ -5674,8 +5820,19 @@
 
   @media (max-width: 768px) {
     .admin-footer {
-      padding: 1rem;
-      margin-top: 1rem;
+      display: none;
+    }
+
+    .mobile-nav-item.active span {
+      display: block;
+      max-width: 3.4rem;
+      margin-left: 0.35rem;
+    }
+  }
+
+  @media (max-width: 389px) {
+    .mobile-nav-item.active span {
+      display: none;
     }
   }
 
@@ -6007,6 +6164,7 @@ View report to see the most recent interactions
               <div class="view-subtitle">
                 Customize the public form and ticket experience without editing code.
               </div>
+              <div id="settingsStatusMessage" class="settings-status-message" aria-live="polite"></div>
             </div>
 
             <div class="settings-content">
@@ -6098,6 +6256,46 @@ View report to see the most recent interactions
                     </button>
                   </div>
                   <div id="settingsGalleryRuntimeCommandStatus" class="settings-help" style="margin-top: 0.85rem;">No gallery reload command issued yet.</div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">SYSTEM TOOLS</div>
+                  <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="settings-section-content">
+                  <div class="settings-grid">
+                    <div class="settings-help">Open the operational tools here on mobile instead of keeping them pinned on every screen.</div>
+                    <div class="settings-tool-grid">
+                      <button id="settingsOpenEventLogsBtn" class="btn-ghost settings-tool-btn" type="button">
+                        <span class="btn-inline-content">
+                          <i data-lucide="scroll-text"></i>
+                          <span>EVENT LOGS</span>
+                        </span>
+                      </button>
+                      <button id="settingsOpenDevicesBtn" class="btn-ghost settings-tool-btn" type="button">
+                        <span class="btn-inline-content">
+                          <i data-lucide="monitor-play"></i>
+                          <span>LIVE DEVICES</span>
+                        </span>
+                      </button>
+                      <button id="settingsOpenHealthBtn" class="btn-ghost settings-tool-btn" type="button">
+                        <span class="btn-inline-content">
+                          <i data-lucide="heart-pulse"></i>
+                          <span>SYSTEM HEALTH</span>
+                        </span>
+                      </button>
+                      <button id="settingsOpenActivityBtn" class="btn-ghost settings-tool-btn" type="button">
+                        <span class="btn-inline-content">
+                          <i data-lucide="chart-line"></i>
+                          <span>ACTIVITY</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -6667,7 +6865,8 @@ View report to see the most recent interactions
     // Backend origin – this is where your Node/Express lives
     const BASE_URL = "https://mayaguez-photoapp.vercel.app";
     const ADMIN_TOKEN_KEY = "lumi_admin_token_v1";
-    const INACTIVITY_MS = 10 * 60 * 1000; // 10 minutes
+    const ADMIN_SESSION_EXPIRES_KEY = "lumi_admin_session_expires_v1";
+    const INACTIVITY_MS = 30 * 60 * 1000;
     const ADMIN_METRICS_UI_ENABLED = false;
     const ADMIN_TEMPLATES_UI_ENABLED = true;
 
@@ -7063,6 +7262,16 @@ function hideGlobalLoader() {
     const mobileTemplatePreviewBtn = document.getElementById("mobileTemplatePreviewBtn");
     const mobileTemplateDeleteBtn = document.getElementById("mobileTemplateDeleteBtn");
     const mobileTemplateDesktopNoticeBtn = document.getElementById("mobileTemplateDesktopNoticeBtn");
+    const mobileTemplateSheet = document.getElementById("mobileTemplateSheet");
+    const mobileTemplateSheetTitle = document.getElementById("mobileTemplateSheetTitle");
+    const mobileTemplateSheetMeta = document.getElementById("mobileTemplateSheetMeta");
+    const mobileTemplateSheetBadge = document.getElementById("mobileTemplateSheetBadge");
+    const mobileTemplateSheetClose = document.getElementById("mobileTemplateSheetClose");
+    const mobileTemplateSheetPreviewWrap = document.getElementById("mobileTemplateSheetPreviewWrap");
+    const mobileTemplateSheetPreviewImg = document.getElementById("mobileTemplateSheetPreviewImg");
+    const mobileTemplateSheetPreviewEmpty = document.getElementById("mobileTemplateSheetPreviewEmpty");
+    const mobileTemplateSheetSetActiveBtn = document.getElementById("mobileTemplateSheetSetActiveBtn");
+    const mobileTemplateSheetDeleteBtn = document.getElementById("mobileTemplateSheetDeleteBtn");
     let latestReportPreviewText = 'Tap "View report" to load the current summary.';
     let currentAdminView = "dashboard";
     let latestActivityCounts = new Array(24).fill(0);
@@ -9129,7 +9338,12 @@ function hideGlobalLoader() {
     const settingsNewsletterEnabled = document.getElementById("settingsNewsletterEnabled");
     const settingsNewsletterLabel = document.getElementById("settingsNewsletterLabel");
     const settingsNewsletterHelper = document.getElementById("settingsNewsletterHelper");
+    const settingsStatusMessage = document.getElementById("settingsStatusMessage");
     const settingsReloadGalleryPlayerBtn = document.getElementById("settingsReloadGalleryPlayerBtn");
+    const settingsOpenEventLogsBtn = document.getElementById("settingsOpenEventLogsBtn");
+    const settingsOpenDevicesBtn = document.getElementById("settingsOpenDevicesBtn");
+    const settingsOpenHealthBtn = document.getElementById("settingsOpenHealthBtn");
+    const settingsOpenActivityBtn = document.getElementById("settingsOpenActivityBtn");
     const settingsGalleryRuntimeCommandStatus = document.getElementById("settingsGalleryRuntimeCommandStatus");
     const DEFAULT_GALLERY_RUNTIME_COMMAND = Object.freeze({
       command: "",
@@ -9275,6 +9489,9 @@ function hideGlobalLoader() {
       }
       if (mobileTemplateDeleteBtn) {
         mobileTemplateDeleteBtn.disabled = !hasSelection;
+      }
+      if (mobileTemplateSheet && mobileTemplateSheet.classList.contains("visible")) {
+        renderMobileTemplateSheet();
       }
     }
 
@@ -9517,6 +9734,7 @@ function hideReportLoading() {
     let isBusy = false;
     let autoRefreshId = null;
     let inactivityTimer = null;
+    let adminSessionExpiresAt = 0;
 
     // Currently viewed approved file in zoom viewer
     let viewerCurrentFileId = null;
@@ -9586,9 +9804,11 @@ function hideReportLoading() {
 
       approvedSelectModeBtn.textContent = approvedSelectionMode ? "CANCEL SELECT" : "SELECT";
       approvedSelectPageBtn.disabled = !approvedSelectionMode || currentPageIds.length === 0;
+      approvedSelectPageBtn.style.display = approvedSelectionMode ? "inline-flex" : "none";
       approvedSelectPageBtn.textContent =
         approvedSelectionMode && allCurrentSelected ? "CLEAR PAGE" : "SELECT PAGE";
       approvedDeleteSelectedBtn.disabled = selectedCount === 0;
+      approvedDeleteSelectedBtn.style.display = approvedSelectionMode ? "inline-flex" : "none";
       approvedDeleteSelectedBtn.textContent =
         selectedCount > 0 ? `DELETE SELECTED (${selectedCount})` : "DELETE SELECTED";
     }
@@ -9672,22 +9892,67 @@ function hideReportLoading() {
     }
 
     // --- Inactivity handling ---
+    function getStoredSessionExpiry() {
+      const raw = Number(localStorage.getItem(ADMIN_SESSION_EXPIRES_KEY) || "0");
+      return Number.isFinite(raw) ? raw : 0;
+    }
+
+    function persistAdminSessionExpiry(nextExpiry = Date.now() + INACTIVITY_MS, force = false) {
+      if (!adminToken) return;
+      const target = Number(nextExpiry) || (Date.now() + INACTIVITY_MS);
+      if (!force && adminSessionExpiresAt && Math.abs(target - adminSessionExpiresAt) < 15000) {
+        return;
+      }
+      adminSessionExpiresAt = target;
+      localStorage.setItem(ADMIN_SESSION_EXPIRES_KEY, String(target));
+    }
+
     function clearAdminToken() {
       adminToken = null;
+      adminSessionExpiresAt = 0;
       localStorage.removeItem(ADMIN_TOKEN_KEY);
+      localStorage.removeItem(ADMIN_SESSION_EXPIRES_KEY);
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+      }
+    }
+
+    function isAdminSessionExpired() {
+      const expiresAt = adminSessionExpiresAt || getStoredSessionExpiry();
+      return !expiresAt || Date.now() >= expiresAt;
     }
 
     function resetInactivityTimer() {
       if (!adminToken) return;
+      persistAdminSessionExpiry(Date.now() + INACTIVITY_MS);
       if (inactivityTimer) clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
-        clearAdminToken();
         showLock("Session closed due to inactivity.");
       }, INACTIVITY_MS);
     }
 
     ["click", "keydown", "mousemove", "touchstart"].forEach((evt) => {
-      window.addEventListener(evt, resetInactivityTimer, { passive: true });
+      window.addEventListener(evt, () => {
+        if (!adminToken || document.body.classList.contains("admin-locked")) return;
+        resetInactivityTimer();
+      }, { passive: true });
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!adminToken) return;
+      if (document.visibilityState === "hidden") {
+        if (inactivityTimer) {
+          clearTimeout(inactivityTimer);
+          inactivityTimer = null;
+        }
+        return;
+      }
+      if (isAdminSessionExpired()) {
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+      resetInactivityTimer();
     });
 
     // --- Lock helpers ---
@@ -9708,6 +9973,17 @@ function hideReportLoading() {
       lockTitle.style.color = "#f97373";
       lockCard.classList.remove("success");
 
+      document.body.classList.add("admin-locked");
+      document.body.style.overflow = "";
+      closeMoreMenu();
+      closeApprovedViewer();
+      closeReportOverlay();
+      closeExpandedEventLogs();
+      closeSystemHealthOverlay();
+      closeLiveGalleryDeviceDetail();
+      closeLiveGalleryDevicesOverlay();
+      closeActivityOverlay();
+      closeMobileTemplateSheet();
       lockScreen.style.display = "flex";
       stopAutoRefresh();
       currentFileId = null;
@@ -9719,6 +9995,7 @@ function hideReportLoading() {
 
     function hideLock() {
       accessError.textContent = "";
+      document.body.classList.remove("admin-locked");
       lockScreen.style.display = "none";
       resetInactivityTimer();
     }
@@ -9809,6 +10086,7 @@ function hideReportLoading() {
         if (res.ok && data.ok && data.token) {
           adminToken = data.token;
           localStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
+          persistAdminSessionExpiry(Date.now() + INACTIVITY_MS, true);
 
           lockTitle.textContent = "Access granted";
           lockTitle.style.color = "#22c55e";
@@ -9923,7 +10201,7 @@ function hideReportLoading() {
 
         if (data.empty) {
           currentFileId = null;
-          emptyText.textContent = "There are no pending photos at this moment.";
+          emptyText.textContent = "No pending photos right now.";
           statusPill.textContent = appServerEnabled
             ? "SERVER STATUS: READY · NO PENDING"
             : "SERVER STATUS: OFFLINE";
@@ -11757,6 +12035,76 @@ function hideReportLoading() {
       });
     }
 
+    if (mobileTemplateSheetClose) {
+      mobileTemplateSheetClose.addEventListener("click", () => {
+        closeMobileTemplateSheet();
+      });
+    }
+
+    if (mobileTemplateSheet) {
+      mobileTemplateSheet.addEventListener("click", (event) => {
+        if (event.target === mobileTemplateSheet) {
+          closeMobileTemplateSheet();
+        }
+      });
+    }
+
+    if (mobileTemplateSheetPreviewWrap) {
+      mobileTemplateSheetPreviewWrap.addEventListener("click", () => {
+        const template = mobileSelectedTemplateRecord?.template;
+        if (template?.data?.overlayFileId) {
+          showMobileTemplatePreview();
+        }
+      });
+    }
+
+    if (mobileTemplateSheetSetActiveBtn) {
+      mobileTemplateSheetSetActiveBtn.addEventListener("click", async () => {
+        const template = mobileSelectedTemplateRecord?.template;
+        if (!template?.id || !template?.data) return;
+        setButtonLoading(mobileTemplateSheetSetActiveBtn, "Setting...", true);
+        try {
+          const success = await setTemplateAsActive(template.id, template.name, template.data, { silentSuccess: true });
+          if (success) {
+            showToast(`Active gallery overlay updated: "${template.name || template.id}".`, "success");
+            updateTemplateUiState();
+          }
+        } finally {
+          setButtonLoading(mobileTemplateSheetSetActiveBtn, "Setting...", false);
+        }
+      });
+    }
+
+    if (mobileTemplateSheetDeleteBtn) {
+      mobileTemplateSheetDeleteBtn.addEventListener("click", async () => {
+        await handleMobileTemplateDelete();
+      });
+    }
+
+    if (settingsOpenEventLogsBtn) {
+      settingsOpenEventLogsBtn.addEventListener("click", () => {
+        openExpandedEventLogs();
+      });
+    }
+
+    if (settingsOpenDevicesBtn) {
+      settingsOpenDevicesBtn.addEventListener("click", () => {
+        openLiveGalleryDevicesOverlay();
+      });
+    }
+
+    if (settingsOpenHealthBtn) {
+      settingsOpenHealthBtn.addEventListener("click", () => {
+        openSystemHealthOverlay();
+      });
+    }
+
+    if (settingsOpenActivityBtn) {
+      settingsOpenActivityBtn.addEventListener("click", () => {
+        openActivityOverlay();
+      });
+    }
+
     const commandPaletteCatalog = [
       { id: "dashboard", title: "Dashboard", meta: "Review pending uploads", tag: "View", keywords: "dashboard pending review approve reject", run: () => { setActiveNav(navDashboard); switchView("dashboard"); } },
       { id: "approved", title: "Approved Photos", meta: "Browse, select, and delete approved images", tag: "View", keywords: "approved photos gallery delete selection", run: () => { setActiveNav(navApproved); switchView("approved"); } },
@@ -12603,6 +12951,7 @@ function hideReportLoading() {
 
       const {
         silentErrors = false,
+        openSheet = true,
       } = options;
 
       try {
@@ -12623,6 +12972,9 @@ function hideReportLoading() {
         mobileSelectedTemplateId = String(templateId);
         mobileSelectedTemplateRecord = data;
         updateTemplateUiState();
+        if (openSheet) {
+          openMobileTemplateSheet();
+        }
         return data;
       } catch (err) {
         console.error("Error loading template for mobile:", err);
@@ -12631,6 +12983,63 @@ function hideReportLoading() {
         }
         return null;
       }
+    }
+
+    function renderMobileTemplateSheet() {
+      const template = mobileSelectedTemplateRecord?.template || null;
+      const templateData = template?.data || null;
+      const overlayFileId = templateData?.overlayFileId ? String(templateData.overlayFileId) : "";
+      const overlayVersion = templateData?.overlayVersion || templateData?.overlayUpdatedAt || template?.id || "";
+      const previewUrl = overlayFileId ? buildPublicTemplateOverlayPreviewUrl(overlayFileId, overlayVersion) : "";
+      const isActiveTemplate = template && String(template.id) === String(currentActiveTemplateId || "");
+
+      if (mobileTemplateSheetTitle) {
+        mobileTemplateSheetTitle.textContent = template?.name || "Template";
+      }
+      if (mobileTemplateSheetMeta) {
+        mobileTemplateSheetMeta.textContent = template
+          ? (template.createdAt ? `Saved ${new Date(template.createdAt).toLocaleDateString()} · ${overlayFileId ? "Ready to publish" : "Overlay missing"}` : "Saved template")
+          : "Select a template to preview it and push it live.";
+      }
+      if (mobileTemplateSheetBadge) {
+        mobileTemplateSheetBadge.style.display = isActiveTemplate ? "inline-flex" : "none";
+      }
+      if (mobileTemplateSheetPreviewImg) {
+        if (previewUrl) {
+          mobileTemplateSheetPreviewImg.src = previewUrl;
+          mobileTemplateSheetPreviewImg.style.display = "block";
+        } else {
+          mobileTemplateSheetPreviewImg.removeAttribute("src");
+          mobileTemplateSheetPreviewImg.style.display = "none";
+        }
+      }
+      if (mobileTemplateSheetPreviewEmpty) {
+        mobileTemplateSheetPreviewEmpty.style.display = previewUrl ? "none" : "flex";
+      }
+      if (mobileTemplateSheetPreviewWrap) {
+        mobileTemplateSheetPreviewWrap.disabled = !previewUrl;
+      }
+      if (mobileTemplateSheetSetActiveBtn) {
+        mobileTemplateSheetSetActiveBtn.disabled = !template?.id || !overlayFileId || isActiveTemplate;
+      }
+      if (mobileTemplateSheetDeleteBtn) {
+        mobileTemplateSheetDeleteBtn.disabled = !template?.id;
+      }
+    }
+
+    function openMobileTemplateSheet() {
+      if (!mobileTemplateSheet) return;
+      renderMobileTemplateSheet();
+      mobileTemplateSheet.classList.add("visible");
+      mobileTemplateSheet.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeMobileTemplateSheet() {
+      if (!mobileTemplateSheet) return;
+      mobileTemplateSheet.classList.remove("visible");
+      mobileTemplateSheet.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
     }
 
     function showMobileTemplatePreview() {
@@ -12727,6 +13136,7 @@ function hideReportLoading() {
         }
         mobileSelectedTemplateId = "";
         mobileSelectedTemplateRecord = null;
+        closeMobileTemplateSheet();
         await loadTemplatesSidebar();
       } catch (err) {
         console.error("Error deleting template from mobile:", err);
@@ -12815,7 +13225,7 @@ function hideReportLoading() {
             || currentActiveTemplateId
             || (templates[0] ? String(templates[0].id) : "");
           if (preferredTemplateId && preferredTemplateId !== mobileSelectedTemplateId) {
-            await loadTemplateForMobile(preferredTemplateId, { silentErrors: true });
+            await loadTemplateForMobile(preferredTemplateId, { silentErrors: true, openSheet: false });
           } else {
             updateTemplateUiState();
           }
@@ -15409,6 +15819,12 @@ function hideReportLoading() {
       if (key === "escape" && reportOverlay && reportOverlay.classList.contains("visible")) {
         event.preventDefault();
         closeReportOverlay();
+        return;
+      }
+
+      if (key === "escape" && mobileTemplateSheet && mobileTemplateSheet.classList.contains("visible")) {
+        event.preventDefault();
+        closeMobileTemplateSheet();
       }
     });
 
@@ -15504,6 +15920,11 @@ reportViewBtn.addEventListener("click", async () => {
     // --- Try to restore existing session on load ---
 
     function setSettingsStatus(message, tone = "muted") {
+      if (settingsStatusMessage) {
+        settingsStatusMessage.textContent = message || "";
+        settingsStatusMessage.classList.toggle("is-visible", Boolean(message));
+        settingsStatusMessage.classList.toggle("is-error", tone === "error");
+      }
       if (tone === "error" && message) {
         showToast(message, "error");
       }
@@ -15758,10 +16179,17 @@ reportViewBtn.addEventListener("click", async () => {
     function initSettingsAccordion() {
       const sections = document.querySelectorAll('.settings-section');
       sections.forEach((section) => {
+        if (isMobileAdminViewport()) {
+          section.classList.add('expanded');
+        }
         const header = section.querySelector('.settings-section-header');
         if (header && !header.dataset.accordionInitialized) {
           header.dataset.accordionInitialized = 'true';
           header.addEventListener('click', () => {
+            if (isMobileAdminViewport()) {
+              section.classList.toggle('expanded');
+              return;
+            }
             section.classList.toggle('expanded');
           });
         }
@@ -15775,6 +16203,7 @@ reportViewBtn.addEventListener("click", async () => {
       }
 
       try {
+        setSettingsStatus("Loading settings…");
         const res = await fetch(`${BASE_URL}/admin/settings`, {
           headers: withAdminHeaders(),
         });
@@ -15787,12 +16216,13 @@ reportViewBtn.addEventListener("click", async () => {
           await loadTemplateSettingsOptions(data.settings.activeTemplateId || "");
           fillSettingsForm(data.settings);
           captureSettingsBaseline();
+          setSettingsStatus("");
         } else {
-          showToast("No settings were returned from the server.", "error");
+          setSettingsStatus("Settings are currently unavailable.", "error");
         }
       } catch (err) {
         console.error("Error loading settings", err);
-        showToast("Failed to load settings.", "error");
+        setSettingsStatus("Failed to load settings.", "error");
       }
     }
 
@@ -15964,12 +16394,21 @@ reportViewBtn.addEventListener("click", async () => {
       });
 
       const saved = localStorage.getItem(ADMIN_TOKEN_KEY);
+      const savedExpiry = getStoredSessionExpiry();
       if (!saved) {
         showLock();
         return;
       }
 
+      if (savedExpiry && Date.now() >= savedExpiry) {
+        clearAdminToken();
+        showLock("Session expired. Enter the access code.");
+        return;
+      }
+
       adminToken = saved;
+      adminSessionExpiresAt = savedExpiry || (Date.now() + INACTIVITY_MS);
+      persistAdminSessionExpiry(adminSessionExpiresAt, true);
       hideLock();
 
       fetchAppStatus()
@@ -16165,6 +16604,47 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
       <div class="event-logs-modal-body">
         <pre id="reportOverlayPreview" class="report-preview overlay-report-preview">Tap "View report" to load the current summary.</pre>
+      </div>
+    </div>
+  </div>
+  <div id="mobileTemplateSheet" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="mobileTemplateSheetTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="mobileTemplateSheetTitle" class="event-logs-modal-title">Template</h3>
+          <p id="mobileTemplateSheetMeta" class="event-logs-modal-subtitle">Preview the published layout and push it live on the gallery screen.</p>
+        </div>
+        <button id="mobileTemplateSheetClose" type="button" class="event-logs-modal-close" aria-label="Close template preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div class="mobile-view-note" style="margin-bottom: 0.9rem;">
+          <div id="mobileTemplateSheetBadge" class="mobile-template-sheet-badge" style="display:none;">Active on screen</div>
+          <div class="mobile-view-note-copy">Template editing stays on desktop. Mobile can preview, activate, and delete saved layouts.</div>
+        </div>
+        <button id="mobileTemplateSheetPreviewWrap" class="mobile-template-preview-wrap" type="button" aria-label="Open template preview image">
+          <img id="mobileTemplateSheetPreviewImg" alt="Template preview" style="display:none;" />
+          <div id="mobileTemplateSheetPreviewEmpty" class="mobile-template-preview-empty">No published overlay preview is available yet.</div>
+        </button>
+        <div class="mobile-template-actions" style="margin-top: 1rem;">
+          <button id="mobileTemplateSheetSetActiveBtn" type="button" class="btn-primary" disabled>
+            <span class="btn-inline-content">
+              <i data-lucide="monitor"></i>
+              <span>SET TO SCREEN</span>
+            </span>
+          </button>
+          <button id="mobileTemplateSheetDeleteBtn" type="button" class="btn-reject" disabled>
+            <span class="btn-inline-content">
+              <i data-lucide="trash-2"></i>
+              <span>DELETE</span>
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
