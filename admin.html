@@ -5016,6 +5016,268 @@
     min-width: 0;
   }
 
+  .mobile-admin-toolbar,
+  .mobile-bottom-nav,
+  .mobile-dashboard-summary,
+  .mobile-template-manager,
+  .mobile-view-note {
+    display: none;
+  }
+
+  .mobile-admin-toolbar {
+    width: calc(100% - 1rem);
+    margin: 0 auto;
+    gap: 0.625rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .mobile-utility-btn {
+    min-height: 3.4rem;
+    border: 1px solid var(--glass-border);
+    border-radius: 1.05rem;
+    background: color-mix(in srgb, var(--card) 90%, transparent);
+    color: var(--foreground);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.65rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-utility-btn svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .mobile-dashboard-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .mobile-status-card {
+    min-height: 5.35rem;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white 4%), color-mix(in srgb, var(--card) 88%, transparent));
+    padding: 0.85rem 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    justify-content: center;
+  }
+
+  .mobile-status-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--muted-foreground);
+    font-weight: 600;
+  }
+
+  .mobile-status-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1.1;
+  }
+
+  .mobile-status-meta {
+    font-size: 0.76rem;
+    color: var(--muted-foreground);
+    line-height: 1.4;
+  }
+
+  .mobile-template-manager {
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-top: 0.95rem;
+  }
+
+  .mobile-template-card,
+  .mobile-view-note {
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--card) 94%, transparent);
+    padding: 1rem;
+  }
+
+  .mobile-template-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .mobile-template-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .mobile-template-card-title {
+    font-size: 0.75rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    font-weight: 600;
+  }
+
+  .mobile-template-selected-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1.3;
+  }
+
+  .mobile-template-selected-meta {
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+    line-height: 1.45;
+  }
+
+  .mobile-template-active-badge {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 999px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary);
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  }
+
+  .mobile-template-preview-wrap {
+    position: relative;
+    appearance: none;
+    padding: 0;
+    border-radius: 0.95rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #0b1220;
+    aspect-ratio: 16 / 9;
+    cursor: pointer;
+  }
+
+  .mobile-template-preview-wrap:disabled {
+    cursor: default;
+  }
+
+  .mobile-template-preview-wrap img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .mobile-template-preview-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.78);
+    background: linear-gradient(180deg, rgba(11, 18, 32, 0.82), rgba(11, 18, 32, 0.94));
+  }
+
+  .mobile-template-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .mobile-template-actions .btn-primary,
+  .mobile-template-actions .btn-ghost,
+  .mobile-template-actions .btn-reject {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mobile-view-note {
+    gap: 0.5rem;
+  }
+
+  .mobile-view-note-title {
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--foreground);
+    font-weight: 700;
+  }
+
+  .mobile-view-note-copy {
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--muted-foreground);
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    padding: 0.7rem 0.8rem calc(0.8rem + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(7, 12, 21, 0), rgba(7, 12, 21, 0.88) 25%, rgba(7, 12, 21, 0.96));
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .mobile-bottom-nav-inner {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.4rem;
+    width: min(100%, 34rem);
+    margin: 0 auto;
+    padding: 0.35rem;
+    border-radius: 1.15rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(10, 16, 28, 0.92);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  }
+
+  .mobile-nav-item {
+    min-height: 4rem;
+    border: none;
+    border-radius: 0.95rem;
+    background: transparent;
+    color: rgba(228, 236, 247, 0.76);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.32rem;
+    font-size: 0.63rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-nav-item.active {
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    color: var(--foreground);
+  }
+
+  .mobile-nav-item svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
   /* RESPONSIVE */
 
   /* Tablets / small laptops */
@@ -5050,198 +5312,154 @@
     }
   }
 
-  /* Phones – stacked vertical layout, mobile-friendly nav + header */
+  /* Phones – dedicated task-first mobile control app */
   @media (max-width: 768px) {
     body {
       max-width: 100vw;
-      overflow: hidden;
+      overflow-y: auto;
       overflow-x: hidden;
+      min-height: 100dvh;
+      touch-action: manipulation;
     }
 
     .page-wrapper {
-      gap: var(--space-sm);
+      gap: 0.75rem;
       min-width: 0;
       max-width: 100%;
+      overflow: visible;
+      padding-bottom: 6.8rem;
     }
 
     .admin-header {
       display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      text-align: center;
+      align-items: center;
+      justify-content: space-between;
       border-radius: 0;
-      padding: var(--space-sm) var(--space-md);
-      gap: var(--space-sm);
+      padding: 0.8rem 1rem 0.75rem;
+      gap: 0.65rem;
       min-width: 0;
-    }
-
-    .header-left,
-    .header-right {
-      width: 100%;
-      justify-content: center;
-      min-width: 0;
+      position: sticky;
+      top: 0;
+      z-index: 40;
     }
 
     .header-left {
+      position: static;
+      transform: none;
+      pointer-events: auto;
+      align-items: flex-start;
       justify-content: center;
-      gap: 0.16rem;
+      width: auto;
+      gap: 0.08rem;
     }
 
     .header-brand-top {
-      font-size: 0.68rem;
-      letter-spacing: 0.3em;
+      font-size: 0.6rem;
+      letter-spacing: 0.22em;
     }
 
     .header-brand-bottom {
-      font-size: 1.02rem;
-      letter-spacing: 0.06em;
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
     }
 
     .header-title {
-      white-space: normal;
-      line-height: 1.3;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
+      display: none;
     }
 
     .header-right {
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+      width: auto;
+      flex-wrap: nowrap;
+      justify-content: flex-end;
+      gap: 0.45rem;
     }
 
     .status-pill {
-      font-size: 0.5625rem;
-      padding: 0.3125rem 0.625rem;
-      min-width: 0;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
+      font-size: 0.56rem;
+      padding: 0.34rem 0.55rem;
+      max-width: 11.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .card {
       width: calc(100% - 1rem);
-      margin: 0.75rem auto 0;
-      padding: var(--space-md) var(--space-sm);
-      border-radius: var(--radius-lg);
+      margin: 0 auto;
+      padding: 0.95rem;
+      border-radius: 1.1rem;
       min-width: 0;
       max-width: 100%;
+      min-height: 0;
+      overflow: visible;
     }
 
     .card-main {
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: auto auto auto;
       grid-template-areas:
-        "nav"
-        "center"
-        "right";
-      gap: var(--space-sm);
+        "center";
+      gap: 0;
       min-width: 0;
+      height: auto;
     }
 
     .sidebar-left {
-      grid-area: nav;
-      border-right: none;
-      border-bottom: 1px solid var(--border);
-      padding: 0.375rem 0 0.75rem;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      min-width: 0;
-    }
-
-    .nav-label {
       display: none;
     }
 
-    .nav-group {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-sm);
-    }
-
-    .nav-group-secondary {
-      margin-top: 0.5rem;
-      padding-top: 0.75rem;
-    }
-
-    .nav-item {
-      padding: 0.75rem 0.95rem;
-      text-align: left;
-      border-radius: var(--radius);
-      background: var(--card);
-      border: 1px solid var(--border);
-      font-size: 0.8125rem;
-      width: 100%;
-      min-width: 0;
-    }
-
-    .nav-item-icon {
-      opacity: 0.72;
-      transform: none;
-    }
-
-    .nav-item.nav-item-secondary {
-      font-size: 0.75rem;
-      padding: 0.55rem 0.875rem;
-      opacity: 0.9;
-    }
-
-    .nav-item::before {
+    .sidebar-right,
+    #settingsLivePanel,
+    .template-editor-main,
+    #templateEntryOverlay,
+    #navMetrics,
+    .command-palette-shortcut {
       display: none;
-    }
-
-    .nav-item.active {
-      background: var(--card);
-      color: var(--primary);
-      border-color: var(--primary);
-    }
-
-    .nav-item-lock {
-      align-self: center;
-      margin-top: 0.875rem;
-      font-size: 14px;
-      letter-spacing: 0.18em;
     }
 
     .center-panel {
       grid-area: center;
+      overflow: visible;
+      height: auto;
+      gap: 0.9rem;
+    }
+
+    .center-view,
+    #viewSettings,
+    #viewApproved,
+    .settings-content,
+    #viewApproved .approved-grid,
+    .settings-section.expanded .settings-section-content {
+      overflow: visible;
+      height: auto;
+      min-height: 0;
+      max-height: none;
     }
 
     .photo-meta-row {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.25rem;
-      font-size: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      font-size: 0.72rem;
     }
 
     .pending-count {
-      font-size: 0.875rem;
+      font-size: 0.8rem;
     }
 
     .photo-frame {
-      aspect-ratio: 3 / 2; /* Maintain consistent aspect ratio */
-    }
-
-    .sidebar-right {
-      grid-area: right;
-      border-left: none;
-      padding-left: 0;
-      border-top: 1px solid var(--border);
-      padding-top: 0.75rem;
-      margin-top: 0;
-      min-width: 0;
+      aspect-ratio: 4 / 5;
+      min-height: 0;
     }
 
     .view-actions,
     .approved-view-actions,
     .approved-footer,
     .approved-footer-controls,
-    .template-toolbar-actions,
-    .template-name-actions,
     .settings-actions,
     .buttons {
       justify-content: stretch;
+      flex-direction: column;
+      align-items: stretch;
     }
 
     .btn-reject,
@@ -5251,12 +5469,15 @@
     .btn-secondary,
     .template-toolbar-btn {
       width: 100%;
+      min-height: 3.25rem;
+      font-size: 0.86rem;
+      touch-action: manipulation;
     }
 
     .approved-grid {
-      grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-      gap: var(--space-sm);
-      padding: var(--space-sm);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      padding: 0;
     }
 
     .approved-viewer-panel,
@@ -5265,20 +5486,170 @@
       width: min(100%, calc(100vw - 1rem));
     }
 
-    .panel-box {
-      min-height: 0;
+    .approved-footer {
+      gap: 0.75rem;
     }
 
-    .event-log-list {
-      max-height: 10rem;
+    .settings-section.expanded .settings-section-content {
+      padding: 0 0 1rem;
     }
 
-    .activity-bars {
-      gap: 0.25rem;
+    .settings-grid {
+      gap: 0.85rem;
     }
 
-    .activity-chart {
-      height: 8.5rem;
+    .settings-row {
+      justify-content: flex-start;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: nowrap;
+    }
+
+    .settings-row > .toggle {
+      order: 1;
+    }
+
+    .settings-row > .settings-label {
+      order: 2;
+      flex: 1 1 auto;
+    }
+
+    .settings-label {
+      font-size: 0.73rem;
+      line-height: 1.45;
+    }
+
+    .settings-input,
+    select.settings-input,
+    .template-name-input,
+    .lock-input {
+      font-size: 16px;
+    }
+
+    .settings-actions {
+      margin-top: 0.4rem;
+    }
+
+    .mobile-admin-toolbar,
+    .mobile-dashboard-summary,
+    .mobile-bottom-nav {
+      display: grid;
+    }
+
+    .mobile-template-manager,
+    .mobile-view-note {
+      display: flex;
+    }
+
+    .template-editor-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .template-library {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .template-library-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .template-library-item {
+      padding: 0.9rem 1rem;
+      border-radius: 0.95rem;
+    }
+
+    .template-library-item-name {
+      font-size: 0.86rem;
+    }
+
+    .template-library-item-meta {
+      font-size: 0.76rem;
+    }
+
+    .template-library-item-create {
+      display: none;
+    }
+
+    #viewMetrics .metrics-toolbar,
+    #viewMetrics .metrics-date-range,
+    #viewMetrics .metrics-card-grid,
+    #viewMetrics .metrics-layout,
+    #viewReports .view-actions {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    #viewMetrics .metrics-date-range,
+    #viewMetrics .metrics-toolbar-block,
+    #viewMetrics .metrics-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    #viewMetrics .metrics-layout + .metrics-layout {
+      display: none;
+    }
+
+    #viewReports .report-preview {
+      display: none;
+    }
+
+    .event-logs-overlay {
+      align-items: flex-end;
+      padding: 0;
+      background:
+        linear-gradient(180deg, rgba(4, 9, 18, 0.14), rgba(4, 9, 18, 0.8) 45%, rgba(4, 9, 18, 0.92));
+    }
+
+    .event-logs-modal,
+    #liveGalleryDevicesOverlay .event-logs-modal,
+    #deviceDetailOverlay .event-logs-modal {
+      width: 100%;
+      max-width: none;
+      max-height: min(88vh, 960px);
+      border-radius: 1.4rem 1.4rem 0 0;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+      box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    .event-logs-modal-header {
+      padding: 1rem 1rem 0.85rem;
+    }
+
+    .event-logs-modal-title {
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+    }
+
+    .event-logs-modal-subtitle {
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .event-logs-modal-body,
+    #liveGalleryDevicesOverlay .event-logs-modal-body,
+    #deviceDetailOverlay .event-logs-modal-body {
+      padding: 0.85rem 1rem 1.25rem;
+    }
+
+    #deviceDetailOverlay .device-detail-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admin-footer {
+      padding: 1rem 1rem calc(6.8rem + env(safe-area-inset-bottom));
+      margin-top: 0;
+    }
+
+    #viewTemplates .view-subtitle {
+      margin-bottom: 0.1rem;
     }
   }
 
@@ -5368,6 +5739,25 @@
       </div>
     </header>
 
+    <div class="mobile-admin-toolbar" aria-label="Mobile utility actions">
+      <button id="mobileLogsBtn" class="mobile-utility-btn" type="button">
+        <i data-lucide="scroll-text"></i>
+        <span>Logs</span>
+      </button>
+      <button id="mobileDevicesBtn" class="mobile-utility-btn" type="button">
+        <i data-lucide="monitor-play"></i>
+        <span>Devices</span>
+      </button>
+      <button id="mobileHealthBtn" class="mobile-utility-btn" type="button">
+        <i data-lucide="heart-pulse"></i>
+        <span>Health</span>
+      </button>
+      <button id="mobileActivityBtn" class="mobile-utility-btn" type="button">
+        <i data-lucide="chart-line"></i>
+        <span>Activity</span>
+      </button>
+    </div>
+
     <!-- MAIN CARD -->
     <div class="card">
       <div class="card-main">
@@ -5410,6 +5800,29 @@
           <div class="buttons">
             <button id="rejectBtn" class="btn-reject" disabled>REJECT</button>
             <button id="approveBtn" class="btn-approve" disabled>APPROVE</button>
+            </div>
+
+            <div class="mobile-dashboard-summary" aria-label="Dashboard summary">
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Pending</div>
+                <div id="mobilePendingValue" class="mobile-status-value">0</div>
+                <div class="mobile-status-meta">Photos awaiting review right now.</div>
+              </div>
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Approved</div>
+                <div id="mobileApprovedValue" class="mobile-status-value">—</div>
+                <div class="mobile-status-meta">Live playlist file count.</div>
+              </div>
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Devices</div>
+                <div id="mobileDevicesValue" class="mobile-status-value">—</div>
+                <div class="mobile-status-meta">Connected gallery screens.</div>
+              </div>
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Server</div>
+                <div id="mobileServerValue" class="mobile-status-value">Checking</div>
+                <div id="mobileServerMeta" class="mobile-status-meta">System status updates appear here.</div>
+              </div>
             </div>
           </div>
 
@@ -5797,6 +6210,51 @@ View report to see the most recent interactions
                 <div id="templateList" class="template-library-list"></div>
               </div>
 
+              <div class="mobile-template-manager">
+                <div class="mobile-view-note">
+                  <div class="mobile-view-note-title">Edit on desktop</div>
+                  <div class="mobile-view-note-copy">Use mobile to preview, activate, and manage templates. Full template composition stays on the desktop workstation.</div>
+                </div>
+                <div class="mobile-template-card">
+                  <div class="mobile-template-card-header">
+                    <div class="mobile-template-card-title">Selected Template</div>
+                    <div id="mobileTemplateSelectedName" class="mobile-template-selected-name">Select a template</div>
+                    <div id="mobileTemplateSelectedMeta" class="mobile-template-selected-meta">Pick a saved template to preview it and push it live.</div>
+                  </div>
+                  <div id="mobileTemplateActiveBadge" class="mobile-template-active-badge" style="display:none;">Active on screen</div>
+                  <button id="mobileTemplatePreviewWrap" class="mobile-template-preview-wrap" type="button" aria-label="Open template preview">
+                    <img id="mobileTemplatePreviewImg" alt="Template preview" style="display:none;" />
+                    <div id="mobileTemplatePreviewEmpty" class="mobile-template-preview-empty">No published overlay preview is available yet.</div>
+                  </button>
+                  <div class="mobile-template-actions">
+                    <button id="mobileTemplateSetActiveBtn" type="button" class="btn-primary" disabled>
+                      <span class="btn-inline-content">
+                        <i data-lucide="monitor"></i>
+                        <span>Set To Screen</span>
+                      </span>
+                    </button>
+                    <button id="mobileTemplatePreviewBtn" type="button" class="btn-ghost" disabled>
+                      <span class="btn-inline-content">
+                        <i data-lucide="eye"></i>
+                        <span>Preview</span>
+                      </span>
+                    </button>
+                    <button id="mobileTemplateDeleteBtn" type="button" class="btn-reject" disabled>
+                      <span class="btn-inline-content">
+                        <i data-lucide="trash-2"></i>
+                        <span>Delete</span>
+                      </span>
+                    </button>
+                    <button id="mobileTemplateDesktopNoticeBtn" type="button" class="btn-ghost">
+                      <span class="btn-inline-content">
+                        <i data-lucide="monitor-smartphone"></i>
+                        <span>Edit on Desktop</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div class="template-editor-main">
                 <div class="template-editor-toolbar">
                   <div class="template-toolbar-meta">
@@ -6034,6 +6492,31 @@ View report to see the most recent interactions
   <footer class="admin-footer">
     <p class="admin-footer-text">© 2026 Luminar Apps. Puerto Rico.</p>
   </footer>
+
+  <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+    <div class="mobile-bottom-nav-inner">
+      <button id="mobileNavDashboard" class="mobile-nav-item active" type="button">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Dashboard</span>
+      </button>
+      <button id="mobileNavApproved" class="mobile-nav-item" type="button">
+        <i data-lucide="images"></i>
+        <span>Approved</span>
+      </button>
+      <button id="mobileNavTemplates" class="mobile-nav-item" type="button">
+        <i data-lucide="palette"></i>
+        <span>Templates</span>
+      </button>
+      <button id="mobileNavReports" class="mobile-nav-item" type="button">
+        <i data-lucide="file-text"></i>
+        <span>Reports</span>
+      </button>
+      <button id="mobileNavSettings" class="mobile-nav-item" type="button">
+        <i data-lucide="settings-2"></i>
+        <span>Settings</span>
+      </button>
+    </div>
+  </nav>
 
   <!-- HIDDEN BUTTONS (kept for existing JS logic, but not shown in UI) -->
   <button id="moreButton" class="kebab-button" type="button">⚙︎</button>
@@ -6556,7 +7039,37 @@ function hideGlobalLoader() {
     const settingsLiveNewsletterHelper = document.getElementById("settingsLiveNewsletterHelper");
     const settingsLivePlaylistValue = document.getElementById("settingsLivePlaylistValue");
     const settingsLiveTemplateValue = document.getElementById("settingsLiveTemplateValue");
+    const mobileLogsBtn = document.getElementById("mobileLogsBtn");
+    const mobileDevicesBtn = document.getElementById("mobileDevicesBtn");
+    const mobileHealthBtn = document.getElementById("mobileHealthBtn");
+    const mobileActivityBtn = document.getElementById("mobileActivityBtn");
+    const mobileNavDashboard = document.getElementById("mobileNavDashboard");
+    const mobileNavApproved = document.getElementById("mobileNavApproved");
+    const mobileNavTemplates = document.getElementById("mobileNavTemplates");
+    const mobileNavReports = document.getElementById("mobileNavReports");
+    const mobileNavSettings = document.getElementById("mobileNavSettings");
+    const mobilePendingValue = document.getElementById("mobilePendingValue");
+    const mobileApprovedValue = document.getElementById("mobileApprovedValue");
+    const mobileDevicesValue = document.getElementById("mobileDevicesValue");
+    const mobileServerValue = document.getElementById("mobileServerValue");
+    const mobileServerMeta = document.getElementById("mobileServerMeta");
+    const mobileTemplateSelectedName = document.getElementById("mobileTemplateSelectedName");
+    const mobileTemplateSelectedMeta = document.getElementById("mobileTemplateSelectedMeta");
+    const mobileTemplateActiveBadge = document.getElementById("mobileTemplateActiveBadge");
+    const mobileTemplatePreviewWrap = document.getElementById("mobileTemplatePreviewWrap");
+    const mobileTemplatePreviewImg = document.getElementById("mobileTemplatePreviewImg");
+    const mobileTemplatePreviewEmpty = document.getElementById("mobileTemplatePreviewEmpty");
+    const mobileTemplateSetActiveBtn = document.getElementById("mobileTemplateSetActiveBtn");
+    const mobileTemplatePreviewBtn = document.getElementById("mobileTemplatePreviewBtn");
+    const mobileTemplateDeleteBtn = document.getElementById("mobileTemplateDeleteBtn");
+    const mobileTemplateDesktopNoticeBtn = document.getElementById("mobileTemplateDesktopNoticeBtn");
     let latestReportPreviewText = 'Tap "View report" to load the current summary.';
+    let currentAdminView = "dashboard";
+    let latestActivityCounts = new Array(24).fill(0);
+    let latestActivityCurrentHour = new Date().getHours();
+    let latestTemplateCatalog = [];
+    let mobileSelectedTemplateId = "";
+    let mobileSelectedTemplateRecord = null;
     const metricsState = {
       activePreset: "1h",
       startDate: "",
@@ -6572,6 +7085,7 @@ function hideGlobalLoader() {
     function updatePendingDisplay() {
       if (!pendingCountEl) return;
       pendingCountEl.textContent = `AWAITING APPROVAL: ${pendingCountState}`;
+      updateMobileSummaryCards();
     }
 
     // Use backend count, but adjust if we know we just removed some items
@@ -7516,6 +8030,7 @@ function hideGlobalLoader() {
       if (detailOverlay && detailOverlay.classList.contains("visible") && selectedLiveGalleryDeviceId) {
         renderLiveGalleryDeviceDetail(selectedLiveGalleryDeviceId);
       }
+      updateMobileSummaryCards();
     }
 
     function buildDeviceDetailEntries(entries = [], emptyLabel = "No recent entries.") {
@@ -7950,6 +8465,23 @@ function hideGlobalLoader() {
       }
     }
 
+    function openActivityOverlay() {
+      const { overlay } = getActivityOverlayElements();
+      if (!overlay) return;
+      overlay.classList.add("visible");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      renderActivityBars(latestActivityCounts, latestActivityCurrentHour);
+    }
+
+    function closeActivityOverlay() {
+      const { overlay } = getActivityOverlayElements();
+      if (!overlay) return;
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
     function updateEventLogsScrollFade(container) {
       if (!container) return;
 
@@ -7974,8 +8506,8 @@ function hideGlobalLoader() {
       return rough || 50;
     }
 
-    function renderActivityBars(counts, currentHour) {
-      if (!activityBars || !activityChart || !activityXAxis || !activityYAxis) return;
+    function renderActivityBarsInto(targets, counts, currentHour) {
+      if (!targets?.chart || !targets?.xAxis || !targets?.yAxis) return;
       if (!Array.isArray(counts) || counts.length !== 24) return;
 
       const displayHours = 6;
@@ -7997,19 +8529,19 @@ function hideGlobalLoader() {
       const usableHeight = svgHeight - paddingTop - paddingBottom;
       const usableWidth = svgWidth - paddingLeft - paddingRight;
 
-      activityYAxis.innerHTML = "";
+      targets.yAxis.innerHTML = "";
       for (let i = 9; i >= 0; i -= 1) {
         const label = document.createElement("span");
         label.textContent = `${i * step}`;
-        activityYAxis.appendChild(label);
+        targets.yAxis.appendChild(label);
       }
 
-      activityXAxis.innerHTML = "";
-      activityXAxis.style.gridTemplateColumns = `repeat(${hours.length}, minmax(0, 1fr))`;
+      targets.xAxis.innerHTML = "";
+      targets.xAxis.style.gridTemplateColumns = `repeat(${hours.length}, minmax(0, 1fr))`;
       hours.forEach((hour) => {
         const label = document.createElement("span");
         label.textContent = formatHourLabel(hour);
-        activityXAxis.appendChild(label);
+        targets.xAxis.appendChild(label);
       });
 
       const points = displayCounts.map((count, index) => {
@@ -8025,7 +8557,7 @@ function hideGlobalLoader() {
 
       const currentX = paddingLeft + usableWidth;
 
-      activityChart.innerHTML = `
+      targets.chart.innerHTML = `
         <line class="activity-grid-line" x1="${paddingLeft}" x2="${paddingLeft + usableWidth}" y1="${paddingTop + usableHeight}" y2="${paddingTop + usableHeight}" />
         ${Array.from({ length: 9 }, (_, i) => {
           const y = paddingTop + usableHeight - ((i + 1) / 9) * usableHeight;
@@ -8036,6 +8568,33 @@ function hideGlobalLoader() {
         ${points.map((pt) => `<circle class="activity-point" cx="${pt.x}" cy="${pt.y}" r="2" />`).join("")}
         <line class="activity-grid-line" x1="${currentX}" x2="${currentX}" y1="${paddingTop}" y2="${paddingTop + usableHeight}" />
       `;
+    }
+
+    function renderActivityBars(counts, currentHour) {
+      if (!Array.isArray(counts) || counts.length !== 24) return;
+      latestActivityCounts = counts.slice(0, 24);
+      latestActivityCurrentHour = Number.isInteger(currentHour) ? currentHour : new Date().getHours();
+
+      renderActivityBarsInto(
+        {
+          chart: activityChart,
+          xAxis: activityXAxis,
+          yAxis: activityYAxis,
+        },
+        latestActivityCounts,
+        latestActivityCurrentHour
+      );
+
+      const overlayTargets = getActivityOverlayElements();
+      renderActivityBarsInto(
+        {
+          chart: overlayTargets.chart,
+          xAxis: overlayTargets.xAxis,
+          yAxis: overlayTargets.yAxis,
+        },
+        latestActivityCounts,
+        latestActivityCurrentHour
+      );
     }
 
     async function fetchActivityStats() {
@@ -8422,6 +8981,7 @@ function hideGlobalLoader() {
       if (expandedGrid) {
         expandedGrid.innerHTML = markup;
       }
+      updateMobileSummaryCards();
     }
 
     async function fetchSystemHealth() {
@@ -8609,6 +9169,113 @@ function hideGlobalLoader() {
 
     function lucideIcon(name) {
       return `<i data-lucide="${name}"></i>`;
+    }
+
+    const MOBILE_ADMIN_BREAKPOINT = 768;
+
+    function isMobileAdminViewport() {
+      return typeof window !== "undefined" && window.matchMedia(`(max-width: ${MOBILE_ADMIN_BREAKPOINT}px)`).matches;
+    }
+
+    function buildPublicTemplateOverlayPreviewUrl(fileId, version = "") {
+      if (!fileId) return "";
+      const suffix = version ? `?v=${encodeURIComponent(version)}` : "";
+      return `${BASE_URL}/gallery/template-overlay/${encodeURIComponent(fileId)}${suffix}`;
+    }
+
+    function getActivityOverlayElements() {
+      return {
+        overlay: document.getElementById("activityOverlay"),
+        closeBtn: document.getElementById("activityOverlayClose"),
+        chart: document.getElementById("activityOverlayChart"),
+        xAxis: document.getElementById("activityOverlayXAxis"),
+        yAxis: document.getElementById("activityOverlayYAxis"),
+      };
+    }
+
+    function setMobileNavActive(viewName) {
+      const mapping = {
+        dashboard: mobileNavDashboard,
+        approved: mobileNavApproved,
+        templates: mobileNavTemplates,
+        reports: mobileNavReports,
+        settings: mobileNavSettings,
+      };
+      Object.entries(mapping).forEach(([key, button]) => {
+        if (!button) return;
+        button.classList.toggle("active", key === viewName);
+      });
+    }
+
+    function updateMobileSummaryCards() {
+      if (mobilePendingValue) {
+        mobilePendingValue.textContent = String(pendingCountState || 0);
+      }
+      if (mobileApprovedValue) {
+        mobileApprovedValue.textContent = latestSystemHealth && typeof latestSystemHealth.approvedCount === "number"
+          ? String(latestSystemHealth.approvedCount)
+          : "—";
+      }
+      if (mobileDevicesValue) {
+        mobileDevicesValue.textContent = latestLiveGalleryDevices.length ? String(latestLiveGalleryDevices.length) : "0";
+      }
+      if (mobileServerValue) {
+        mobileServerValue.textContent = appServerEnabled ? "Online" : "Offline";
+      }
+      if (mobileServerMeta) {
+        if (latestSystemHealth && latestSystemHealth.checkedAt) {
+          mobileServerMeta.textContent = `Last check ${new Date(latestSystemHealth.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+        } else {
+          mobileServerMeta.textContent = "System status updates appear here.";
+        }
+      }
+    }
+
+    function updateMobileTemplatePanel() {
+      const record = mobileSelectedTemplateRecord;
+      const hasSelection = Boolean(record && record.template && record.template.id);
+      const template = hasSelection ? record.template : null;
+      const templateData = template && template.data ? template.data : null;
+      const overlayFileId = templateData && templateData.overlayFileId ? String(templateData.overlayFileId) : "";
+      const overlayVersion = templateData && templateData.overlayVersion ? String(templateData.overlayVersion) : "";
+      const isActiveTemplate = hasSelection && String(template.id) === String(currentActiveTemplateId || "");
+      const previewUrl = overlayFileId ? buildPublicTemplateOverlayPreviewUrl(overlayFileId, overlayVersion || templateData?.overlayUpdatedAt || template.id) : "";
+
+      if (mobileTemplateSelectedName) {
+        mobileTemplateSelectedName.textContent = hasSelection ? (template.name || `Template ${template.id}`) : "Select a template";
+      }
+      if (mobileTemplateSelectedMeta) {
+        mobileTemplateSelectedMeta.textContent = hasSelection
+          ? (template.createdAt ? `Saved ${new Date(template.createdAt).toLocaleDateString()} · ${overlayFileId ? "Ready to publish" : "Overlay missing"}` : "Saved template")
+          : "Pick a saved template to preview it and push it live.";
+      }
+      if (mobileTemplateActiveBadge) {
+        mobileTemplateActiveBadge.style.display = isActiveTemplate ? "inline-flex" : "none";
+      }
+      if (mobileTemplatePreviewImg) {
+        if (previewUrl) {
+          mobileTemplatePreviewImg.src = previewUrl;
+          mobileTemplatePreviewImg.style.display = "block";
+        } else {
+          mobileTemplatePreviewImg.removeAttribute("src");
+          mobileTemplatePreviewImg.style.display = "none";
+        }
+      }
+      if (mobileTemplatePreviewEmpty) {
+        mobileTemplatePreviewEmpty.style.display = previewUrl ? "none" : "flex";
+      }
+      if (mobileTemplatePreviewWrap) {
+        mobileTemplatePreviewWrap.disabled = !previewUrl;
+      }
+      if (mobileTemplateSetActiveBtn) {
+        mobileTemplateSetActiveBtn.disabled = !hasSelection || !overlayFileId || isActiveTemplate;
+      }
+      if (mobileTemplatePreviewBtn) {
+        mobileTemplatePreviewBtn.disabled = !previewUrl;
+      }
+      if (mobileTemplateDeleteBtn) {
+        mobileTemplateDeleteBtn.disabled = !hasSelection;
+      }
     }
 
     function getAppToastStack() {
@@ -8945,6 +9612,7 @@ function hideReportLoading() {
         statusPill.textContent = "SERVER STATUS: OFFLINE";
         statusPill.classList.add("offline");
       }
+      updateMobileSummaryCards();
     }
 
     function updateAppToggleUI(enabled) {
@@ -10850,12 +11518,16 @@ function hideReportLoading() {
 
     // Switch to a specific view (global function for compatibility)
     window.switchView = function switchView(viewName) {
+      if (isMobileAdminViewport() && viewName === "metrics") {
+        viewName = "dashboard";
+      }
       if (viewName === "metrics" && !ADMIN_METRICS_UI_ENABLED) {
         viewName = "dashboard";
       }
       if (viewName === "templates" && !ADMIN_TEMPLATES_UI_ENABLED) {
         viewName = "dashboard";
       }
+      currentAdminView = viewName;
 
       if (pageWrapper) {
         pageWrapper.classList.toggle("settings-preview-mode", viewName === "settings");
@@ -10905,7 +11577,7 @@ function hideReportLoading() {
         case "templates":
           targetView = viewTemplates;
           loadTemplatesSidebar();
-          if (!currentTemplateId && !isCreatingNewTemplate) {
+          if (!isMobileAdminViewport() && !currentTemplateId && !isCreatingNewTemplate) {
             showTemplateEntryOverlay();
           }
           updateTemplateUiState();
@@ -10915,6 +11587,10 @@ function hideReportLoading() {
       if (targetView) {
         targetView.classList.add("active");
         targetView.style.display = "flex";
+      }
+      setMobileNavActive(viewName);
+      if (isMobileAdminViewport()) {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       }
     };
 
@@ -10976,6 +11652,108 @@ function hideReportLoading() {
         }
         setActiveNav(navTemplates);
         switchView("templates");
+      });
+    }
+
+    [
+      [mobileNavDashboard, "dashboard"],
+      [mobileNavApproved, "approved"],
+      [mobileNavTemplates, "templates"],
+      [mobileNavReports, "reports"],
+      [mobileNavSettings, "settings"],
+    ].forEach(([button, viewName]) => {
+      if (!button) return;
+      button.addEventListener("click", () => {
+        switch (viewName) {
+          case "dashboard":
+            setActiveNav(navDashboard);
+            break;
+          case "approved":
+            setActiveNav(navApproved);
+            break;
+          case "templates":
+            setActiveNav(navTemplates);
+            break;
+          case "reports":
+            setActiveNav(navReports);
+            break;
+          case "settings":
+            setActiveNav(navSettings);
+            break;
+          default:
+            break;
+        }
+        switchView(viewName);
+      });
+    });
+
+    if (mobileLogsBtn) {
+      mobileLogsBtn.addEventListener("click", () => {
+        openExpandedEventLogs();
+      });
+    }
+
+    if (mobileDevicesBtn) {
+      mobileDevicesBtn.addEventListener("click", () => {
+        openLiveGalleryDevicesOverlay();
+      });
+    }
+
+    if (mobileHealthBtn) {
+      mobileHealthBtn.addEventListener("click", () => {
+        openSystemHealthOverlay();
+      });
+    }
+
+    if (mobileActivityBtn) {
+      mobileActivityBtn.addEventListener("click", () => {
+        openActivityOverlay();
+      });
+    }
+
+    if (mobileTemplateDesktopNoticeBtn) {
+      mobileTemplateDesktopNoticeBtn.addEventListener("click", async () => {
+        await appAlert("Full template editing, asset placement, and QR composition are available on desktop only.", {
+          title: "Desktop Editing",
+          tone: "primary",
+        });
+      });
+    }
+
+    if (mobileTemplatePreviewWrap) {
+      mobileTemplatePreviewWrap.addEventListener("click", () => {
+        if (!mobileTemplatePreviewWrap.disabled) {
+          showMobileTemplatePreview();
+        }
+      });
+    }
+
+    if (mobileTemplatePreviewBtn) {
+      mobileTemplatePreviewBtn.addEventListener("click", () => {
+        showMobileTemplatePreview();
+      });
+    }
+
+    if (mobileTemplateSetActiveBtn) {
+      mobileTemplateSetActiveBtn.addEventListener("click", async () => {
+        const template = mobileSelectedTemplateRecord?.template;
+        if (!template?.id || !template?.data) return;
+        setButtonLoading(mobileTemplateSetActiveBtn, "Setting...", true);
+        try {
+          const success = await setTemplateAsActive(template.id, template.name, template.data, { silentSuccess: true });
+          if (success) {
+            showToast(`Active gallery overlay updated: "${template.name || template.id}".`, "success");
+            updateTemplateUiState();
+          }
+        } finally {
+          setButtonLoading(mobileTemplateSetActiveBtn, "Setting...", false);
+        }
+      });
+    }
+
+    if (mobileTemplateDeleteBtn) {
+      mobileTemplateDeleteBtn.addEventListener("click", async () => {
+        await handleMobileTemplateDelete();
       });
     }
 
@@ -11208,6 +11986,16 @@ function hideReportLoading() {
       }
       if (eventOverlay && event.target === eventOverlay) {
         closeExpandedEventLogs();
+        return;
+      }
+
+      const { overlay: activityOverlay, closeBtn: activityCloseBtn } = getActivityOverlayElements();
+      if (activityCloseBtn && event.target.closest("#activityOverlayClose")) {
+        closeActivityOverlay();
+        return;
+      }
+      if (activityOverlay && event.target === activityOverlay) {
+        closeActivityOverlay();
         return;
       }
 
@@ -11695,6 +12483,9 @@ function hideReportLoading() {
       const hasBackground = hasTemplateBackground();
       const needsSave = !savedTemplateLoaded || currentTemplateDirty;
       const isCurrentlyLive = currentTemplateId && String(currentTemplateId) === String(currentActiveTemplateId || "");
+      const selectedTemplateListId = isMobileAdminViewport()
+        ? String(mobileSelectedTemplateId || currentTemplateId || "")
+        : String(currentTemplateId || "");
 
       if (templateBackgroundImg) {
         templateBackgroundImg.classList.toggle("is-empty", !hasBackground);
@@ -11762,10 +12553,11 @@ function hideReportLoading() {
 
       if (templateList) {
         Array.from(templateList.querySelectorAll(".template-library-item")).forEach((item) => {
-          item.classList.toggle("active", item.dataset.templateId === String(currentTemplateId || ""));
+          item.classList.toggle("active", item.dataset.templateId === selectedTemplateListId);
         });
       }
       updateSnapToggleUi();
+      updateMobileTemplatePanel();
     }
 
     function markTemplateDirty() {
@@ -11778,6 +12570,171 @@ function hideReportLoading() {
       currentTemplateDirty = false;
       isCreatingNewTemplate = false;
       updateTemplateUiState();
+    }
+
+    async function syncCurrentActiveTemplateId() {
+      if (!adminToken) return currentActiveTemplateId;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/settings`, {
+          headers: withAdminHeaders(),
+        });
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return currentActiveTemplateId;
+        }
+        const data = await res.json();
+        if (data && data.settings) {
+          currentActiveTemplateId = data.settings.activeTemplateId ? String(data.settings.activeTemplateId) : "";
+        }
+      } catch (err) {
+        console.error("Error syncing active template state:", err);
+      }
+
+      updateTemplateUiState();
+      return currentActiveTemplateId;
+    }
+
+    async function loadTemplateForMobile(templateId, options = {}) {
+      if (!adminToken) {
+        showLock("Session expired. Enter the access code.");
+        return null;
+      }
+
+      const {
+        silentErrors = false,
+      } = options;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates/${templateId}`, {
+          headers: withAdminHeaders(),
+        });
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return null;
+        }
+        if (!res.ok) {
+          throw new Error("mobile_template_load_failed");
+        }
+        const data = await res.json();
+        if (!data || !data.template || !data.template.data) {
+          throw new Error("mobile_template_data_invalid");
+        }
+        mobileSelectedTemplateId = String(templateId);
+        mobileSelectedTemplateRecord = data;
+        updateTemplateUiState();
+        return data;
+      } catch (err) {
+        console.error("Error loading template for mobile:", err);
+        if (!silentErrors) {
+          showToast("Could not load this template on mobile.", "error");
+        }
+        return null;
+      }
+    }
+
+    function showMobileTemplatePreview() {
+      const template = mobileSelectedTemplateRecord?.template;
+      const overlayFileId = template?.data?.overlayFileId ? String(template.data.overlayFileId) : "";
+      if (!overlayFileId) {
+        showToast("No published overlay preview is available for this template.", "error");
+        return;
+      }
+
+      const overlay = document.createElement("div");
+      overlay.className = "template-preview-overlay";
+      const container = document.createElement("div");
+      container.className = "template-preview-container";
+
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "template-preview-close";
+      closeBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      `;
+
+      const shell = document.createElement("div");
+      shell.className = "template-preview-shell";
+
+      const stage = document.createElement("div");
+      stage.className = "template-preview-stage";
+
+      const image = document.createElement("img");
+      image.className = "template-preview-bg";
+      image.src = buildPublicTemplateOverlayPreviewUrl(
+        overlayFileId,
+        template.data.overlayVersion || template.data.overlayUpdatedAt || template.id
+      );
+      image.alt = template.name || "Template preview";
+      image.style.objectFit = "contain";
+
+      stage.appendChild(image);
+      shell.appendChild(stage);
+      container.appendChild(closeBtn);
+      container.appendChild(shell);
+      overlay.appendChild(container);
+
+      const closePreview = () => {
+        if (overlay.parentNode) {
+          document.body.removeChild(overlay);
+        }
+      };
+
+      closeBtn.addEventListener("click", closePreview);
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+          closePreview();
+        }
+      });
+
+      document.body.appendChild(overlay);
+    }
+
+    async function handleMobileTemplateDelete() {
+      const template = mobileSelectedTemplateRecord?.template;
+      if (!template?.id) return;
+
+      const confirmDelete = await appConfirm(`Delete template "${template.name || template.id}"?`, {
+        title: "Delete Template",
+        tone: "error",
+        confirmLabel: "Delete Template",
+        cancelLabel: "Cancel",
+        confirmStyle: "danger",
+      });
+      if (!confirmDelete) return;
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates/${template.id}`, {
+          method: "DELETE",
+          headers: withAdminHeaders(),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        const data = await res.json();
+        if (!data || !data.ok) {
+          throw new Error("mobile_template_delete_failed");
+        }
+
+        showToast("Template deleted successfully.", "success");
+        if (String(template.id) === String(currentActiveTemplateId || "")) {
+          currentActiveTemplateId = "";
+        }
+        mobileSelectedTemplateId = "";
+        mobileSelectedTemplateRecord = null;
+        await loadTemplatesSidebar();
+      } catch (err) {
+        console.error("Error deleting template from mobile:", err);
+        await appAlert("Failed to delete template.", {
+          title: "Delete Failed",
+          tone: "error",
+        });
+      }
     }
 
     async function loadTemplatesSidebar() {
@@ -11804,23 +12761,31 @@ function hideReportLoading() {
           return;
         }
         const templates = (data.templates || []).filter((template) => template && template.isActive);
+        latestTemplateCatalog = templates.slice();
         lastKnownTemplateCount = templates.length;
         clearTemplateListSkeleton();
         templateList.innerHTML = "";
-        const createButton = document.createElement("button");
-        createButton.type = "button";
-        createButton.className = "template-library-item template-library-item-create template-create-btn";
-        createButton.innerHTML = `
-          <span class="template-library-item-name">Create New +</span>
-          <span class="template-library-item-meta">Start a blank template from scratch.</span>
-        `;
-        createButton.addEventListener("click", () => {
-          beginCreateTemplate();
-        });
-        templateList.appendChild(createButton);
+        if (!isMobileAdminViewport()) {
+          const createButton = document.createElement("button");
+          createButton.type = "button";
+          createButton.className = "template-library-item template-library-item-create template-create-btn";
+          createButton.innerHTML = `
+            <span class="template-library-item-name">Create New +</span>
+            <span class="template-library-item-meta">Start a blank template from scratch.</span>
+          `;
+          createButton.addEventListener("click", () => {
+            beginCreateTemplate();
+          });
+          templateList.appendChild(createButton);
+        }
         if (!templates.length) {
-          templateListEmpty.textContent = "No templates yet. Create one to get started.";
+          templateListEmpty.textContent = isMobileAdminViewport()
+            ? "No templates yet. Create one from the desktop editor."
+            : "No templates yet. Create one to get started.";
           templateListEmpty.style.display = "block";
+          mobileSelectedTemplateId = "";
+          mobileSelectedTemplateRecord = null;
+          updateTemplateUiState();
           return;
         }
         templateListEmpty.style.display = "none";
@@ -11834,11 +12799,27 @@ function hideReportLoading() {
             <span class="template-library-item-meta">${template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "Saved template"}</span>
           `;
           button.addEventListener("click", async () => {
+            if (isMobileAdminViewport()) {
+              await loadTemplateForMobile(template.id);
+              return;
+            }
             hideTemplateEntryOverlay();
             await loadTemplate(template.id);
           });
           templateList.appendChild(button);
         });
+
+        if (isMobileAdminViewport()) {
+          await syncCurrentActiveTemplateId();
+          const preferredTemplateId = mobileSelectedTemplateId
+            || currentActiveTemplateId
+            || (templates[0] ? String(templates[0].id) : "");
+          if (preferredTemplateId && preferredTemplateId !== mobileSelectedTemplateId) {
+            await loadTemplateForMobile(preferredTemplateId, { silentErrors: true });
+          } else {
+            updateTemplateUiState();
+          }
+        }
         updateTemplateUiState();
       } catch (err) {
         console.error("Error loading template sidebar:", err);
@@ -14660,6 +15641,7 @@ reportViewBtn.addEventListener("click", async () => {
       settingsNewsletterHelper.value = settings.form?.newsletter?.helper || "";
       renderGalleryRuntimeCommandStatus(settings.galleryRuntimeCommand || DEFAULT_GALLERY_RUNTIME_COMMAND);
       refreshSettingsLivePreview();
+      updateTemplateUiState();
     }
 
     function getGalleryDisplayLimitLabel(value) {
@@ -15039,6 +16021,35 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
       <div class="event-logs-modal-body">
         <ul id="eventLogExpandedList" class="event-log-list expanded"></ul>
+      </div>
+    </div>
+  </div>
+  <div id="activityOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="activityOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="activityOverlayTitle" class="event-logs-modal-title">Activity</h3>
+          <p class="event-logs-modal-subtitle">Recent traffic and upload intensity for the last six hours.</p>
+        </div>
+        <button id="activityOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close activity">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div class="panel-box">
+          <div class="panel-title">Recent activity</div>
+          <div class="activity-bars">
+            <div class="activity-chart">
+              <div id="activityOverlayYAxis" class="activity-axis y"></div>
+              <svg id="activityOverlayChart" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
+            </div>
+            <div id="activityOverlayXAxis" class="activity-axis x"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
