@@ -5571,8 +5571,10 @@
       border-radius: 1.1rem;
       min-width: 0;
       max-width: 100%;
-      min-height: 0;
+      min-height: calc(100dvh - 8.9rem - env(safe-area-inset-bottom));
       overflow: visible;
+      display: flex;
+      flex-direction: column;
     }
 
     .card-main {
@@ -5581,7 +5583,9 @@
         "center";
       gap: 0;
       min-width: 0;
-      height: auto;
+      height: 100%;
+      min-height: 0;
+      flex: 1 1 auto;
     }
 
     .sidebar-left {
@@ -5600,7 +5604,8 @@
     .center-panel {
       grid-area: center;
       overflow: visible;
-      height: auto;
+      height: 100%;
+      min-height: 0;
       gap: 0.9rem;
     }
 
@@ -5650,27 +5655,31 @@
     }
 
     .approved-grid {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: repeat(10, minmax(0, 1fr));
       gap: 0.32rem;
       padding: 0;
       flex: 1 1 auto;
-      min-height: 30.9rem;
-      max-height: 30.9rem;
-      overflow-y: auto;
-      overflow-x: hidden;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      align-content: stretch;
     }
 
     #viewApproved .view-header {
       gap: 0.48rem;
       margin-bottom: 0;
+      flex-shrink: 0;
     }
 
     #viewApproved {
       display: flex;
       flex-direction: column;
       gap: 0.55rem;
-      min-height: clamp(34rem, 78dvh, 42rem);
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
     }
 
     #viewApproved .view-subtitle {
@@ -5702,7 +5711,8 @@
       justify-content: space-between;
       gap: 0.75rem;
       padding-top: 0.35rem;
-      margin-top: auto;
+      margin-top: 0;
+      flex-shrink: 0;
     }
 
     #viewApproved .approved-footer-controls {
@@ -5731,19 +5741,20 @@
 
     .approved-thumb {
       display: grid;
-      grid-template-columns: 2.7rem minmax(0, 1fr) auto;
+      grid-template-columns: 2.28rem minmax(0, 1fr) auto;
       align-items: center;
-      gap: 0.52rem;
-      min-height: 2.8rem;
+      gap: 0.44rem;
+      min-height: 0;
+      height: 100%;
       aspect-ratio: auto;
-      padding: 0.18rem;
-      border-radius: 0.78rem;
+      padding: 0.14rem;
+      border-radius: 0.72rem;
     }
 
     .approved-thumb img {
-      width: 2.7rem;
-      height: 2.7rem;
-      border-radius: 0.62rem;
+      width: 2.28rem;
+      height: 2.28rem;
+      border-radius: 0.54rem;
       object-fit: cover;
     }
 
@@ -5764,13 +5775,13 @@
     }
 
     .approved-thumb-title {
-      font-size: 0.68rem;
-      line-height: 1.28;
+      font-size: 0.64rem;
+      line-height: 1.2;
     }
 
     .approved-thumb-meta {
-      font-size: 0.58rem;
-      line-height: 1.22;
+      font-size: 0.54rem;
+      line-height: 1.18;
     }
 
     .approved-thumb-chevron {
@@ -5788,7 +5799,7 @@
 
     .approved-thumb-skeleton {
       width: 100%;
-      height: 2.8rem;
+      height: 100%;
       aspect-ratio: auto;
     }
 
@@ -12590,6 +12601,37 @@ function hideReportLoading() {
       settingsOpenActivityBtn.addEventListener("click", () => {
         openActivityOverlay();
       });
+    }
+
+    if (settingsPlaylistHeader) {
+      settingsPlaylistHeader.addEventListener("click", (event) => {
+        if (!isMobileAdminViewport()) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        openSettingsPlaylistOverlay();
+      }, { capture: true });
+    }
+
+    if (settingsGalleryPlayerHeader) {
+      settingsGalleryPlayerHeader.addEventListener("click", async (event) => {
+        if (!isMobileAdminViewport()) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        await issueGalleryReloadCommand();
+        scrollElementIntoViewWithOffset(settingsGalleryPlayerHeader, { behavior: "smooth" });
+      }, { capture: true });
+    }
+
+    if (settingsIntroHeader) {
+      settingsIntroHeader.addEventListener("click", (event) => {
+        if (!isMobileAdminViewport()) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        openSettingsIntroOverlay();
+      }, { capture: true });
     }
 
     if (settingsPlaylistOverlayClose) {
