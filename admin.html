@@ -2610,6 +2610,25 @@
     border-radius: var(--radius-sm);
   }
 
+  .approved-thumb-copy,
+  .approved-thumb-chevron {
+    display: none;
+  }
+
+  .approved-thumb-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--foreground);
+    line-height: 1.35;
+  }
+
+  .approved-thumb-meta {
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+  }
+
   .approved-grid.is-loading {
     display: grid;
   }
@@ -3164,9 +3183,40 @@
     background: var(--secondary);
   }
 
+  .settings-inline-toggle {
+    position: relative;
+    z-index: 2;
+    flex-shrink: 0;
+  }
+
+  .settings-section-action-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+    flex-shrink: 0;
+  }
+
+  .settings-section-action-icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
   .settings-section.expanded .settings-section-header {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
+  }
+
+  .settings-section-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.24rem;
+    min-width: 0;
   }
 
   .settings-section-title {
@@ -3176,6 +3226,17 @@
     color: var(--foreground);
     font-weight: 600;
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .settings-section-summary {
+    font-size: 0.74rem;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+    letter-spacing: 0.01em;
+    text-transform: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .settings-section-chevron {
@@ -5059,33 +5120,34 @@
   }
 
   .mobile-status-card {
-    min-height: 5.35rem;
+    min-height: 0;
     border: 1px solid var(--border);
     border-radius: 1rem;
     background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white 4%), color-mix(in srgb, var(--card) 88%, transparent));
-    padding: 0.85rem 0.95rem;
+    padding: 0.65rem 0.78rem;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.18rem;
     justify-content: center;
   }
 
   .mobile-status-label {
-    font-size: 0.65rem;
+    font-size: 0.58rem;
     text-transform: uppercase;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.16em;
     color: var(--muted-foreground);
     font-weight: 600;
   }
 
   .mobile-status-value {
-    font-size: 1.05rem;
+    font-size: 0.98rem;
     font-weight: 700;
     color: var(--foreground);
     line-height: 1.1;
   }
 
   .mobile-status-meta {
+    display: none;
     font-size: 0.76rem;
     color: var(--muted-foreground);
     line-height: 1.4;
@@ -5203,6 +5265,46 @@
     justify-content: center;
   }
 
+  .mobile-template-sheet-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.9rem 1rem;
+    border-radius: 0.95rem;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--secondary) 68%, transparent);
+  }
+
+  .mobile-template-sheet-summary-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--foreground);
+    font-weight: 700;
+  }
+
+  .mobile-template-sheet-summary-copy {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--muted-foreground);
+  }
+
+  .template-preview-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: linear-gradient(180deg, rgba(7, 12, 21, 0.78), rgba(7, 12, 21, 0.92));
+    z-index: 4;
+    color: rgba(248, 250, 252, 0.92);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
   .mobile-view-note {
     gap: 0.5rem;
   }
@@ -5279,7 +5381,7 @@
   }
 
   .mobile-nav-item span {
-    display: none;
+    display: none !important;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -5320,6 +5422,7 @@
   .settings-tool-btn {
     width: 100%;
     justify-content: center;
+    min-height: 2.85rem;
   }
 
   .mobile-template-sheet-badge {
@@ -5346,6 +5449,10 @@
   body.admin-locked .mobile-bottom-nav,
   body.admin-locked .mobile-admin-toolbar {
     display: none !important;
+  }
+
+  .mobile-lock-btn {
+    display: none;
   }
 
   /* RESPONSIVE */
@@ -5445,11 +5552,16 @@
     }
 
     .status-pill {
+      display: none;
       font-size: 0.56rem;
       padding: 0.34rem 0.55rem;
       max-width: 9.5rem;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .mobile-lock-btn {
+      display: inline-flex;
     }
 
     .card {
@@ -5505,11 +5617,7 @@
     }
 
     .photo-meta-row {
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      font-size: 0.72rem;
+      display: none;
     }
 
     .pending-count {
@@ -5542,21 +5650,39 @@
     }
 
     .approved-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.32rem;
       padding: 0;
+      flex: 1 1 auto;
+      min-height: 30.9rem;
+      max-height: 30.9rem;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     #viewApproved .view-header {
-      gap: 0.75rem;
+      gap: 0.48rem;
       margin-bottom: 0;
+    }
+
+    #viewApproved {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      min-height: clamp(34rem, 78dvh, 42rem);
+    }
+
+    #viewApproved .view-subtitle {
+      font-size: 0.72rem;
+      line-height: 1.42;
     }
 
     #viewApproved .approved-view-actions {
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 0.5rem;
+      gap: 0.4rem;
       flex-wrap: wrap;
     }
 
@@ -5564,9 +5690,9 @@
     #viewApproved .approved-view-actions .btn-reject {
       width: auto;
       min-width: 0;
-      min-height: 2.5rem;
-      padding: 0.55rem 0.75rem;
-      font-size: 0.72rem;
+      min-height: 2.15rem;
+      padding: 0.38rem 0.62rem;
+      font-size: 0.66rem;
       letter-spacing: 0.08em;
     }
 
@@ -5575,8 +5701,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
-      padding-top: 0.2rem;
-      margin-top: 0.35rem;
+      padding-top: 0.35rem;
+      margin-top: auto;
     }
 
     #viewApproved .approved-footer-controls {
@@ -5598,13 +5724,72 @@
     }
 
     #approvedFooterText {
-      font-size: 0.7rem;
-      line-height: 1.45;
+      flex: 1 1 auto;
+      font-size: 0.65rem;
+      line-height: 1.35;
     }
 
     .approved-thumb {
-      padding: 0.35rem;
-      border-radius: 0.9rem;
+      display: grid;
+      grid-template-columns: 2.7rem minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.52rem;
+      min-height: 2.8rem;
+      aspect-ratio: auto;
+      padding: 0.18rem;
+      border-radius: 0.78rem;
+    }
+
+    .approved-thumb img {
+      width: 2.7rem;
+      height: 2.7rem;
+      border-radius: 0.62rem;
+      object-fit: cover;
+    }
+
+    .approved-thumb-copy {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      gap: 0.08rem;
+      text-align: left;
+    }
+
+    .approved-thumb-title,
+    .approved-thumb-meta {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .approved-thumb-title {
+      font-size: 0.68rem;
+      line-height: 1.28;
+    }
+
+    .approved-thumb-meta {
+      font-size: 0.58rem;
+      line-height: 1.22;
+    }
+
+    .approved-thumb-chevron {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted-foreground);
+      padding-right: 0.08rem;
+    }
+
+    .approved-thumb-chevron svg {
+      width: 0.72rem;
+      height: 0.72rem;
+    }
+
+    .approved-thumb-skeleton {
+      width: 100%;
+      height: 2.8rem;
+      aspect-ratio: auto;
     }
 
     .approved-viewer-panel,
@@ -5614,6 +5799,8 @@
     }
 
     .settings-section.expanded .settings-section-content {
+      max-height: none;
+      overflow: visible;
       padding: 0 0 1rem;
     }
 
@@ -5622,8 +5809,52 @@
     }
 
     .settings-content {
-      gap: 0.85rem;
+      gap: 0.65rem;
       padding: 0;
+    }
+
+    #viewSettings .view-subtitle {
+      display: none;
+    }
+
+    .settings-section {
+      border-radius: 0.95rem;
+    }
+
+    .settings-section-header {
+      min-height: 3.15rem;
+      padding: 0.8rem 0.9rem;
+    }
+
+    .settings-section-title {
+      font-size: 0.69rem;
+      letter-spacing: 0.16em;
+    }
+
+    .settings-section-summary {
+      font-size: 0.66rem;
+      line-height: 1.28;
+    }
+
+    .settings-section-content {
+      padding: 0 0.95rem;
+    }
+
+    .settings-section[data-mobile-mode] .settings-section-chevron,
+    .settings-section[data-mobile-mode] .settings-section-content {
+      display: none;
+    }
+
+    .settings-section[data-mobile-mode] .settings-section-action-icon {
+      display: inline-flex;
+    }
+
+    .settings-section[data-mobile-mode="toggle"] .settings-inline-toggle {
+      display: inline-flex;
+    }
+
+    .settings-section[data-mobile-mode="toggle"] .settings-section-action-icon {
+      display: none;
     }
 
     .settings-row {
@@ -5656,6 +5887,27 @@
 
     .settings-actions {
       margin-top: 0.4rem;
+    }
+
+    .settings-tool-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+
+    .settings-tool-btn {
+      min-height: 2.55rem;
+      padding: 0.62rem 0.65rem;
+      font-size: 0.74rem;
+      letter-spacing: 0.12em;
+    }
+
+    .settings-tool-btn .btn-inline-content {
+      gap: 0.42rem;
+    }
+
+    .settings-tool-btn svg {
+      width: 0.9rem;
+      height: 0.9rem;
     }
 
     .mobile-dashboard-summary,
@@ -5823,16 +6075,8 @@
       display: none;
     }
 
-    .mobile-nav-item.active span {
-      display: block;
-      max-width: 3.4rem;
-      margin-left: 0.35rem;
-    }
-  }
-
-  @media (max-width: 389px) {
-    .mobile-nav-item.active span {
-      display: none;
+    .mobile-nav-item span {
+      display: none !important;
     }
   }
 
@@ -5892,6 +6136,9 @@
           <i class="icon-moon" data-lucide="moon"></i>
           <i class="icon-sun" data-lucide="sun" style="display: none;"></i>
         </button>
+        <button class="theme-toggle-btn mobile-lock-btn" id="mobileLockAdminBtn" title="Lock Admin" aria-label="Lock Admin">
+          <i data-lucide="lock"></i>
+        </button>
         <span id="statusPill" class="status-pill">SERVER STATUS: LOADING…</span>
       </div>
     </header>
@@ -5942,6 +6189,26 @@
         <section class="center-panel">
           <!-- DASHBOARD VIEW (Photo Review) -->
           <div id="viewDashboard" class="center-view active">
+            <div class="mobile-dashboard-summary" aria-label="Dashboard summary">
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Pending</div>
+                <div id="mobilePendingValue" class="mobile-status-value">0</div>
+              </div>
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Approved</div>
+                <div id="mobileApprovedValue" class="mobile-status-value">—</div>
+              </div>
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Devices</div>
+                <div id="mobileDevicesValue" class="mobile-status-value">—</div>
+              </div>
+              <div class="mobile-status-card">
+                <div class="mobile-status-label">Server</div>
+                <div id="mobileServerValue" class="mobile-status-value">Checking</div>
+                <div id="mobileServerMeta" class="mobile-status-meta">System status updates appear here.</div>
+              </div>
+            </div>
+
           <div class="photo-meta-row">
             <div id="photoLabel" class="photo-label">PHOTO</div>
             <div id="pendingCount" class="pending-count">AWAITING APPROVAL: 0</div>
@@ -5957,29 +6224,6 @@
           <div class="buttons">
             <button id="rejectBtn" class="btn-reject" disabled>REJECT</button>
             <button id="approveBtn" class="btn-approve" disabled>APPROVE</button>
-            </div>
-
-            <div class="mobile-dashboard-summary" aria-label="Dashboard summary">
-              <div class="mobile-status-card">
-                <div class="mobile-status-label">Pending</div>
-                <div id="mobilePendingValue" class="mobile-status-value">0</div>
-                <div class="mobile-status-meta">Photos awaiting review right now.</div>
-              </div>
-              <div class="mobile-status-card">
-                <div class="mobile-status-label">Approved</div>
-                <div id="mobileApprovedValue" class="mobile-status-value">—</div>
-                <div class="mobile-status-meta">Live playlist file count.</div>
-              </div>
-              <div class="mobile-status-card">
-                <div class="mobile-status-label">Devices</div>
-                <div id="mobileDevicesValue" class="mobile-status-value">—</div>
-                <div class="mobile-status-meta">Connected gallery screens.</div>
-              </div>
-              <div class="mobile-status-card">
-                <div class="mobile-status-label">Server</div>
-                <div id="mobileServerValue" class="mobile-status-value">Checking</div>
-                <div id="mobileServerMeta" class="mobile-status-meta">System status updates appear here.</div>
-              </div>
             </div>
           </div>
 
@@ -6168,29 +6412,36 @@ View report to see the most recent interactions
             </div>
 
             <div class="settings-content">
-              <div class="settings-section">
-                <div class="settings-section-header">
-                  <div class="settings-section-title">TICKET OVERLAY</div>
+              <div id="settingsTicketSection" class="settings-section" data-mobile-mode="toggle">
+                <div id="settingsTicketHeader" class="settings-section-header">
+                  <div class="settings-section-heading">
+                    <div class="settings-section-title">TICKET OVERLAY</div>
+                    <div id="settingsTicketSummary" class="settings-section-summary">Show ticket number after upload</div>
+                  </div>
+                  <label class="toggle settings-inline-toggle" aria-label="Toggle ticket overlay">
+                    <input type="checkbox" id="settingsTicketEnabled" />
+                    <span class="toggle-slider"></span>
+                  </label>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </div>
                 <div class="settings-section-content">
                   <div class="settings-grid">
-                    <div class="settings-row">
-                      <span class="settings-label">Show ticket number after upload</span>
-                      <label class="toggle">
-                        <input type="checkbox" id="settingsTicketEnabled" />
-                        <span class="toggle-slider"></span>
-                      </label>
-                    </div>
+                    <div class="settings-help">Show the ticket number after the public upload flow finishes.</div>
                   </div>
                 </div>
               </div>
 
-              <div class="settings-section">
-                <div class="settings-section-header">
-                  <div class="settings-section-title">PLAYLIST</div>
+              <div id="settingsPlaylistSection" class="settings-section" data-mobile-mode="playlist">
+                <div id="settingsPlaylistHeader" class="settings-section-header">
+                  <div class="settings-section-heading">
+                    <div class="settings-section-title">PLAYLIST</div>
+                    <div id="settingsPlaylistSummary" class="settings-section-summary">Choose how many approved photos play on screen.</div>
+                  </div>
+                  <div class="settings-section-action-icon" aria-hidden="true">
+                    <i data-lucide="list-video"></i>
+                  </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -6220,7 +6471,9 @@ View report to see the most recent interactions
 
               <div class="settings-section">
                 <div class="settings-section-header">
-                  <div class="settings-section-title">GALLERY TEMPLATE</div>
+                  <div class="settings-section-heading">
+                    <div class="settings-section-title">GALLERY TEMPLATE</div>
+                  </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -6235,9 +6488,15 @@ View report to see the most recent interactions
                 </div>
               </div>
 
-              <div class="settings-section">
-                <div class="settings-section-header">
-                  <div class="settings-section-title">GALLERY PLAYER</div>
+              <div id="settingsGalleryPlayerSection" class="settings-section" data-mobile-mode="action">
+                <div id="settingsGalleryPlayerHeader" class="settings-section-header">
+                  <div class="settings-section-heading">
+                    <div class="settings-section-title">RELOAD GALLERY PLAYER</div>
+                    <div id="settingsGalleryPlayerSummary" class="settings-section-summary">Request a live gallery refresh.</div>
+                  </div>
+                  <div class="settings-section-action-icon" aria-hidden="true">
+                    <i data-lucide="refresh-cw"></i>
+                  </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -6261,7 +6520,9 @@ View report to see the most recent interactions
 
               <div class="settings-section">
                 <div class="settings-section-header">
-                  <div class="settings-section-title">SYSTEM TOOLS</div>
+                  <div class="settings-section-heading">
+                    <div class="settings-section-title">SYSTEM TOOLS</div>
+                  </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -6299,9 +6560,15 @@ View report to see the most recent interactions
                 </div>
               </div>
 
-              <div class="settings-section">
-                <div class="settings-section-header">
-                  <div class="settings-section-title">INTRO COPY</div>
+              <div id="settingsIntroSection" class="settings-section" data-mobile-mode="overlay">
+                <div id="settingsIntroHeader" class="settings-section-header">
+                  <div class="settings-section-heading">
+                    <div class="settings-section-title">INTRO COPY</div>
+                    <div id="settingsIntroSummary" class="settings-section-summary">Tap to edit title and subtitle.</div>
+                  </div>
+                  <div class="settings-section-action-icon" aria-hidden="true">
+                    <i data-lucide="square-pen"></i>
+                  </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -6318,7 +6585,9 @@ View report to see the most recent interactions
 
               <div class="settings-section">
                 <div class="settings-section-header">
-                  <div class="settings-section-title">FORM FIELDS</div>
+                  <div class="settings-section-heading">
+                    <div class="settings-section-title">FORM FIELDS</div>
+                  </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -6693,23 +6962,23 @@ View report to see the most recent interactions
 
   <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
     <div class="mobile-bottom-nav-inner">
-      <button id="mobileNavDashboard" class="mobile-nav-item active" type="button">
+      <button id="mobileNavDashboard" class="mobile-nav-item active" type="button" data-view="dashboard" aria-label="Dashboard" title="Dashboard">
         <i data-lucide="layout-dashboard"></i>
         <span>Dashboard</span>
       </button>
-      <button id="mobileNavApproved" class="mobile-nav-item" type="button">
+      <button id="mobileNavApproved" class="mobile-nav-item" type="button" data-view="approved" aria-label="Approved Photos" title="Approved Photos">
         <i data-lucide="images"></i>
         <span>Approved</span>
       </button>
-      <button id="mobileNavTemplates" class="mobile-nav-item" type="button">
+      <button id="mobileNavTemplates" class="mobile-nav-item" type="button" data-view="templates" aria-label="Templates" title="Templates">
         <i data-lucide="palette"></i>
         <span>Templates</span>
       </button>
-      <button id="mobileNavReports" class="mobile-nav-item" type="button">
+      <button id="mobileNavReports" class="mobile-nav-item" type="button" data-view="reports" aria-label="Reports" title="Reports">
         <i data-lucide="file-text"></i>
         <span>Reports</span>
       </button>
-      <button id="mobileNavSettings" class="mobile-nav-item" type="button">
+      <button id="mobileNavSettings" class="mobile-nav-item" type="button" data-view="settings" aria-label="Settings" title="Settings">
         <i data-lucide="settings-2"></i>
         <span>Settings</span>
       </button>
@@ -7247,6 +7516,8 @@ function hideGlobalLoader() {
     const mobileNavTemplates = document.getElementById("mobileNavTemplates");
     const mobileNavReports = document.getElementById("mobileNavReports");
     const mobileNavSettings = document.getElementById("mobileNavSettings");
+    const mobileBottomNavInner = document.querySelector(".mobile-bottom-nav-inner");
+    const mobileLockAdminBtn = document.getElementById("mobileLockAdminBtn");
     const mobilePendingValue = document.getElementById("mobilePendingValue");
     const mobileApprovedValue = document.getElementById("mobileApprovedValue");
     const mobileDevicesValue = document.getElementById("mobileDevicesValue");
@@ -7270,6 +7541,7 @@ function hideGlobalLoader() {
     const mobileTemplateSheetPreviewWrap = document.getElementById("mobileTemplateSheetPreviewWrap");
     const mobileTemplateSheetPreviewImg = document.getElementById("mobileTemplateSheetPreviewImg");
     const mobileTemplateSheetPreviewEmpty = document.getElementById("mobileTemplateSheetPreviewEmpty");
+    const mobileTemplateSheetPreviewBtn = document.getElementById("mobileTemplateSheetPreviewBtn");
     const mobileTemplateSheetSetActiveBtn = document.getElementById("mobileTemplateSheetSetActiveBtn");
     const mobileTemplateSheetDeleteBtn = document.getElementById("mobileTemplateSheetDeleteBtn");
     let latestReportPreviewText = 'Tap "View report" to load the current summary.';
@@ -9086,7 +9358,7 @@ function hideGlobalLoader() {
       }
     }
 
-    function renderApprovedSkeletonGrid(count = APPROVED_PAGE_SIZE) {
+    function renderApprovedSkeletonGrid(count = getApprovedPageSize()) {
       if (!approvedGrid) return;
       approvedGrid.classList.add("is-loading");
       approvedGrid.innerHTML = "";
@@ -9321,10 +9593,22 @@ function hideGlobalLoader() {
     // SETTINGS MODAL ELEMENTS
     const settingsSaveBtn = document.getElementById("settingsSaveBtn");
     const settingsTicketEnabled = document.getElementById("settingsTicketEnabled");
+    const settingsTicketSection = document.getElementById("settingsTicketSection");
+    const settingsTicketHeader = document.getElementById("settingsTicketHeader");
+    const settingsTicketSummary = document.getElementById("settingsTicketSummary");
+    const settingsPlaylistSection = document.getElementById("settingsPlaylistSection");
+    const settingsPlaylistHeader = document.getElementById("settingsPlaylistHeader");
+    const settingsPlaylistSummary = document.getElementById("settingsPlaylistSummary");
     const settingsGalleryDisplayLimit = document.getElementById("settingsGalleryDisplayLimit");
     const settingsGalleryDisplayCustom = document.getElementById("settingsGalleryDisplayCustom");
     const settingsGalleryDisplayCustomLabel = document.getElementById("settingsGalleryDisplayCustomLabel");
+    const settingsGalleryPlayerSection = document.getElementById("settingsGalleryPlayerSection");
+    const settingsGalleryPlayerHeader = document.getElementById("settingsGalleryPlayerHeader");
+    const settingsGalleryPlayerSummary = document.getElementById("settingsGalleryPlayerSummary");
     const settingsActiveTemplateId = document.getElementById("settingsActiveTemplateId");
+    const settingsIntroSection = document.getElementById("settingsIntroSection");
+    const settingsIntroHeader = document.getElementById("settingsIntroHeader");
+    const settingsIntroSummary = document.getElementById("settingsIntroSummary");
     const settingsIntroTitle = document.getElementById("settingsIntroTitle");
     const settingsIntroSubtitle = document.getElementById("settingsIntroSubtitle");
     const settingsLocationEnabled = document.getElementById("settingsLocationEnabled");
@@ -9345,6 +9629,18 @@ function hideGlobalLoader() {
     const settingsOpenHealthBtn = document.getElementById("settingsOpenHealthBtn");
     const settingsOpenActivityBtn = document.getElementById("settingsOpenActivityBtn");
     const settingsGalleryRuntimeCommandStatus = document.getElementById("settingsGalleryRuntimeCommandStatus");
+    const settingsPlaylistOverlay = document.getElementById("settingsPlaylistOverlay");
+    const settingsPlaylistOverlayClose = document.getElementById("settingsPlaylistOverlayClose");
+    const settingsPlaylistAllBtn = document.getElementById("settingsPlaylistAllBtn");
+    const settingsPlaylist25Btn = document.getElementById("settingsPlaylist25Btn");
+    const settingsPlaylist10Btn = document.getElementById("settingsPlaylist10Btn");
+    const settingsPlaylistCustomInput = document.getElementById("settingsPlaylistCustomInput");
+    const settingsPlaylistApplyCustomBtn = document.getElementById("settingsPlaylistApplyCustomBtn");
+    const settingsIntroOverlay = document.getElementById("settingsIntroOverlay");
+    const settingsIntroOverlayClose = document.getElementById("settingsIntroOverlayClose");
+    const settingsIntroOverlayTitleInput = document.getElementById("settingsIntroOverlayTitleInput");
+    const settingsIntroOverlaySubtitleInput = document.getElementById("settingsIntroOverlaySubtitleInput");
+    const settingsIntroOverlayApplyBtn = document.getElementById("settingsIntroOverlayApplyBtn");
     const DEFAULT_GALLERY_RUNTIME_COMMAND = Object.freeze({
       command: "",
       commandId: "",
@@ -9419,6 +9715,58 @@ function hideGlobalLoader() {
         if (!button) return;
         button.classList.toggle("active", key === viewName);
       });
+    }
+
+    function scrollElementIntoViewWithOffset(element, { behavior = "smooth", offset = 92 } = {}) {
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      const targetTop = Math.max(0, rect.top + window.scrollY - offset);
+      window.scrollTo({ top: targetTop, behavior });
+    }
+
+    function getSettingsSections() {
+      return Array.from(document.querySelectorAll(".settings-section"));
+    }
+
+    function collapseMobileSettingsSections(exceptSection = null) {
+      if (!isMobileAdminViewport()) return;
+      getSettingsSections().forEach((section) => {
+        if (exceptSection && section === exceptSection) return;
+        section.classList.remove("expanded");
+      });
+    }
+
+    function setSettingsSectionExpanded(section, expanded, options = {}) {
+      if (!section) return;
+      const { focusTarget = null, behavior = "smooth" } = options;
+
+      if (!isMobileAdminViewport()) {
+        section.classList.toggle("expanded", expanded);
+        if (expanded && focusTarget && typeof focusTarget.focus === "function") {
+          window.setTimeout(() => {
+            focusTarget.focus({ preventScroll: true });
+          }, 200);
+        }
+        return;
+      }
+
+      if (expanded) {
+        collapseMobileSettingsSections(section);
+        section.classList.add("expanded");
+        window.setTimeout(() => {
+          scrollElementIntoViewWithOffset(section, { behavior });
+          if (focusTarget && typeof focusTarget.focus === "function") {
+            focusTarget.focus({ preventScroll: true });
+          }
+        }, 220);
+        return;
+      }
+
+      section.classList.remove("expanded");
+      window.setTimeout(() => {
+        const header = section.querySelector(".settings-section-header");
+        scrollElementIntoViewWithOffset(header || section, { behavior });
+      }, 120);
     }
 
     function updateMobileSummaryCards() {
@@ -9763,7 +10111,12 @@ function hideReportLoading() {
     let approvedHasNextPage = false;
     let approvedSelectionMode = false;
     let approvedSelectedIds = new Set();
-    const APPROVED_PAGE_SIZE = 24;
+    const APPROVED_PAGE_SIZE_DESKTOP = 24;
+    const APPROVED_PAGE_SIZE_MOBILE = 10;
+
+    function getApprovedPageSize() {
+      return isMobileAdminViewport() ? APPROVED_PAGE_SIZE_MOBILE : APPROVED_PAGE_SIZE_DESKTOP;
+    }
 
     // Helper: Get all cached files as flat array (for finding items)
     function getAllCachedFiles() {
@@ -9802,11 +10155,13 @@ function hideReportLoading() {
         currentPageIds.length > 0 &&
         currentPageIds.every((fileId) => approvedSelectedIds.has(fileId));
 
-      approvedSelectModeBtn.textContent = approvedSelectionMode ? "CANCEL SELECT" : "SELECT";
+      approvedSelectModeBtn.textContent = approvedSelectionMode ? "CANCEL" : "SELECT";
       approvedSelectPageBtn.disabled = !approvedSelectionMode || currentPageIds.length === 0;
       approvedSelectPageBtn.style.display = approvedSelectionMode ? "inline-flex" : "none";
       approvedSelectPageBtn.textContent =
-        approvedSelectionMode && allCurrentSelected ? "CLEAR PAGE" : "SELECT PAGE";
+        approvedSelectionMode && allCurrentSelected
+          ? (isMobileAdminViewport() ? "CLEAR ALL" : "CLEAR PAGE")
+          : (isMobileAdminViewport() ? "SELECT ALL" : "SELECT PAGE");
       approvedDeleteSelectedBtn.disabled = selectedCount === 0;
       approvedDeleteSelectedBtn.style.display = approvedSelectionMode ? "inline-flex" : "none";
       approvedDeleteSelectedBtn.textContent =
@@ -10462,7 +10817,29 @@ function hideReportLoading() {
       return null;
     }
 
-    function buildApprovedThumb(fileId, imgUrl, fullImageUrl, createdTime = null) {
+    function formatApprovedThumbMeta(item = {}) {
+      const parts = [];
+      if (item.createdTime) {
+        const date = new Date(item.createdTime);
+        if (!Number.isNaN(date.getTime())) {
+          parts.push(date.toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }));
+        }
+      }
+      if (item.fileId) {
+        parts.push(String(item.fileId).slice(0, 10));
+      }
+      return parts.join(" · ");
+    }
+
+    function buildApprovedThumb(item) {
+      const fileId = item?.fileId;
+      const imgUrl = item?.imgUrl || "";
+      const fullImageUrl = item?.fullImageUrl || imgUrl;
+      const fileName = item?.fileName || fileId || "Approved photo";
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "approved-thumb";
@@ -10490,7 +10867,27 @@ function hideReportLoading() {
       check.className = "approved-thumb-check";
       check.textContent = "✓";
 
+      const copy = document.createElement("span");
+      copy.className = "approved-thumb-copy";
+
+      const title = document.createElement("span");
+      title.className = "approved-thumb-title";
+      title.textContent = fileName || "Approved photo";
+
+      const meta = document.createElement("span");
+      meta.className = "approved-thumb-meta";
+      meta.textContent = formatApprovedThumbMeta(item) || "Tap to preview";
+
+      copy.appendChild(title);
+      copy.appendChild(meta);
+
+      const chevron = document.createElement("span");
+      chevron.className = "approved-thumb-chevron";
+      chevron.innerHTML = lucideIcon("chevron-right");
+
       btn.appendChild(img);
+      btn.appendChild(copy);
+      btn.appendChild(chevron);
       btn.appendChild(check);
 
       btn.addEventListener("click", () => {
@@ -10498,13 +10895,15 @@ function hideReportLoading() {
           toggleApprovedSelection(fileId);
           return;
         }
-        // Get full item data from cache
-        const item = findFileInCache(fileId);
-        const fileName = item?.fileName || fileId;
-        const itemCreatedTime = item?.createdTime || createdTime;
-        openPhotoInfoOverlay(fileId, fileName, true);
+        if (isMobileAdminViewport()) {
+          openApprovedViewer(fileId, fullImageUrl || imgUrl);
+          return;
+        }
+        const selectedItem = findFileInCache(fileId);
+        openPhotoInfoOverlay(fileId, selectedItem?.fileName || fileId, true);
       });
 
+      renderLucideIcons();
       return btn;
     }
 
@@ -10537,13 +10936,14 @@ function hideReportLoading() {
       }
 
       currentPageFiles.forEach((item) => {
-        const { fileId, imgUrl, fullImageUrl } = item;
+        const { imgUrl } = item;
         if (!imgUrl) return;
-        const thumb = buildApprovedThumb(fileId, imgUrl, fullImageUrl, item.createdTime);
+        const thumb = buildApprovedThumb(item);
         approvedGrid.appendChild(thumb);
       });
 
-      const start = (approvedPageIndex - 1) * APPROVED_PAGE_SIZE + 1;
+      const pageSize = getApprovedPageSize();
+      const start = (approvedPageIndex - 1) * pageSize + 1;
       const end = knownTotal
         ? Math.min(start + currentPageFiles.length - 1, approvedTotalCount)
         : start + currentPageFiles.length - 1;
@@ -10627,7 +11027,7 @@ function hideReportLoading() {
       }
 
       try {
-        const res = await fetch(`${BASE_URL}/admin/approved-list?page=${pageNumber}&pageSize=${APPROVED_PAGE_SIZE}`, {
+        const res = await fetch(`${BASE_URL}/admin/approved-list?page=${pageNumber}&pageSize=${getApprovedPageSize()}`, {
           headers: withAdminHeaders(),
         });
 
@@ -10749,7 +11149,7 @@ function hideReportLoading() {
           ? Math.max(0, approvedTotalCount - deletedCount)
           : 0;
       const maxPage = nextKnownTotal > 0
-        ? Math.max(1, Math.ceil(nextKnownTotal / APPROVED_PAGE_SIZE))
+        ? Math.max(1, Math.ceil(nextKnownTotal / getApprovedPageSize()))
         : 1;
 
       approvedPageIndex = Math.min(approvedPageIndex, maxPage);
@@ -11045,7 +11445,7 @@ function hideReportLoading() {
       viewerCurrentIndex -= 1;
       const item = allFiles[viewerCurrentIndex];
       if (!item) return;
-      openApprovedViewer(item.fileId, item.imgUrl);
+      openApprovedViewer(item.fileId, item.fullImageUrl || item.imgUrl);
     });
 
     viewerNextBtn.addEventListener("click", () => {
@@ -11055,7 +11455,7 @@ function hideReportLoading() {
       viewerCurrentIndex += 1;
       const item = allFiles[viewerCurrentIndex];
       if (!item) return;
-      openApprovedViewer(item.fileId, item.imgUrl);
+      openApprovedViewer(item.fileId, item.fullImageUrl || item.imgUrl);
     });
 
     // Photo Info Overlay Variables
@@ -11879,6 +12279,33 @@ function hideReportLoading() {
       });
     }
 
+    function activateDesktopNavForMobileView(viewName) {
+      switch (viewName) {
+        case "dashboard":
+          setActiveNav(navDashboard);
+          break;
+        case "approved":
+          setActiveNav(navApproved);
+          break;
+        case "templates":
+          setActiveNav(navTemplates);
+          break;
+        case "reports":
+          setActiveNav(navReports);
+          break;
+        case "settings":
+          setActiveNav(navSettings);
+          break;
+        default:
+          break;
+      }
+    }
+
+    function runMobileNavSelection(viewName) {
+      activateDesktopNavForMobileView(viewName);
+      switchView(viewName);
+    }
+
     if (navDashboard) {
       navDashboard.addEventListener("click", () => {
         setActiveNav(navDashboard);
@@ -11933,37 +12360,91 @@ function hideReportLoading() {
       });
     }
 
-    [
+    const mobileNavButtons = [
       [mobileNavDashboard, "dashboard"],
       [mobileNavApproved, "approved"],
       [mobileNavTemplates, "templates"],
       [mobileNavReports, "reports"],
       [mobileNavSettings, "settings"],
-    ].forEach(([button, viewName]) => {
+    ];
+    let mobileNavGestureActive = false;
+    let mobileNavGestureTarget = "";
+    let mobileNavSuppressClickUntil = 0;
+
+    function clearMobileNavDragState() {
+      mobileNavButtons.forEach(([button]) => {
+        if (button) button.classList.remove("is-drag-target");
+      });
+    }
+
+    function getMobileNavViewFromPoint(clientX, clientY) {
+      const element = document.elementFromPoint(clientX, clientY);
+      const button = element && element.closest ? element.closest(".mobile-nav-item") : null;
+      return button ? String(button.dataset.view || "") : "";
+    }
+
+    function setMobileNavDragTarget(viewName) {
+      mobileNavGestureTarget = viewName || "";
+      mobileNavButtons.forEach(([button, mappedView]) => {
+        if (!button) return;
+        button.classList.toggle("is-drag-target", Boolean(viewName) && mappedView === viewName);
+      });
+    }
+
+    mobileNavButtons.forEach(([button, viewName]) => {
       if (!button) return;
-      button.addEventListener("click", () => {
-        switch (viewName) {
-          case "dashboard":
-            setActiveNav(navDashboard);
-            break;
-          case "approved":
-            setActiveNav(navApproved);
-            break;
-          case "templates":
-            setActiveNav(navTemplates);
-            break;
-          case "reports":
-            setActiveNav(navReports);
-            break;
-          case "settings":
-            setActiveNav(navSettings);
-            break;
-          default:
-            break;
+      button.addEventListener("click", (event) => {
+        if (Date.now() < mobileNavSuppressClickUntil) {
+          event.preventDefault();
+          return;
         }
-        switchView(viewName);
+        runMobileNavSelection(viewName);
       });
     });
+
+    if (mobileBottomNavInner) {
+      mobileBottomNavInner.addEventListener("pointerdown", (event) => {
+        if (!isMobileAdminViewport()) return;
+        const viewName = getMobileNavViewFromPoint(event.clientX, event.clientY);
+        if (!viewName) return;
+        mobileNavGestureActive = true;
+        setMobileNavDragTarget(viewName);
+        if (typeof mobileBottomNavInner.setPointerCapture === "function") {
+          try {
+            mobileBottomNavInner.setPointerCapture(event.pointerId);
+          } catch (_) {}
+        }
+      });
+
+      mobileBottomNavInner.addEventListener("pointermove", (event) => {
+        if (!mobileNavGestureActive) return;
+        const viewName = getMobileNavViewFromPoint(event.clientX, event.clientY);
+        setMobileNavDragTarget(viewName);
+      });
+
+      const finishMobileNavGesture = (event) => {
+        if (!mobileNavGestureActive) return;
+        mobileNavGestureActive = false;
+        const releaseView = getMobileNavViewFromPoint(event.clientX, event.clientY) || mobileNavGestureTarget;
+        clearMobileNavDragState();
+        if (!releaseView) return;
+        mobileNavSuppressClickUntil = Date.now() + 300;
+        runMobileNavSelection(releaseView);
+      };
+
+      mobileBottomNavInner.addEventListener("pointerup", finishMobileNavGesture);
+      mobileBottomNavInner.addEventListener("pointercancel", () => {
+        mobileNavGestureActive = false;
+        mobileNavGestureTarget = "";
+        clearMobileNavDragState();
+      });
+      mobileBottomNavInner.addEventListener("pointerleave", (event) => {
+        if (!mobileNavGestureActive || event.buttons) return;
+        mobileNavGestureActive = false;
+        mobileNavGestureTarget = "";
+        clearMobileNavDragState();
+      });
+    }
 
     if (mobileLogsBtn) {
       mobileLogsBtn.addEventListener("click", () => {
@@ -12058,6 +12539,12 @@ function hideReportLoading() {
       });
     }
 
+    if (mobileTemplateSheetPreviewBtn) {
+      mobileTemplateSheetPreviewBtn.addEventListener("click", () => {
+        showMobileTemplatePreview();
+      });
+    }
+
     if (mobileTemplateSheetSetActiveBtn) {
       mobileTemplateSheetSetActiveBtn.addEventListener("click", async () => {
         const template = mobileSelectedTemplateRecord?.template;
@@ -12102,6 +12589,71 @@ function hideReportLoading() {
     if (settingsOpenActivityBtn) {
       settingsOpenActivityBtn.addEventListener("click", () => {
         openActivityOverlay();
+      });
+    }
+
+    if (settingsPlaylistOverlayClose) {
+      settingsPlaylistOverlayClose.addEventListener("click", () => {
+        closeSettingsPlaylistOverlay();
+      });
+    }
+
+    if (settingsPlaylistOverlay) {
+      settingsPlaylistOverlay.addEventListener("click", (event) => {
+        if (event.target === settingsPlaylistOverlay) {
+          closeSettingsPlaylistOverlay();
+        }
+      });
+    }
+
+    if (settingsPlaylistAllBtn) {
+      settingsPlaylistAllBtn.addEventListener("click", () => {
+        applyPlaylistSelection("all");
+      });
+    }
+
+    if (settingsPlaylist25Btn) {
+      settingsPlaylist25Btn.addEventListener("click", () => {
+        applyPlaylistSelection("last25");
+      });
+    }
+
+    if (settingsPlaylist10Btn) {
+      settingsPlaylist10Btn.addEventListener("click", () => {
+        applyPlaylistSelection("last10");
+      });
+    }
+
+    if (settingsPlaylistApplyCustomBtn) {
+      settingsPlaylistApplyCustomBtn.addEventListener("click", () => {
+        const rawValue = String(settingsPlaylistCustomInput?.value || "").trim();
+        const parsedValue = Number.parseInt(rawValue, 10);
+        if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+          showToast("Enter a valid number of photos first.", "error");
+          settingsPlaylistCustomInput?.focus();
+          return;
+        }
+        applyPlaylistSelection("custom", String(parsedValue));
+      });
+    }
+
+    if (settingsIntroOverlayClose) {
+      settingsIntroOverlayClose.addEventListener("click", () => {
+        closeSettingsIntroOverlay();
+      });
+    }
+
+    if (settingsIntroOverlay) {
+      settingsIntroOverlay.addEventListener("click", (event) => {
+        if (event.target === settingsIntroOverlay) {
+          closeSettingsIntroOverlay();
+        }
+      });
+    }
+
+    if (settingsIntroOverlayApplyBtn) {
+      settingsIntroOverlayApplyBtn.addEventListener("click", () => {
+        applyIntroOverlayValues();
       });
     }
 
@@ -12160,18 +12712,20 @@ function hideReportLoading() {
 
       const section = field.closest(".settings-section");
       if (section) {
-        section.classList.add("expanded");
+        setSettingsSectionExpanded(section, true, { focusTarget: field });
       }
 
-      field.scrollIntoView({ behavior: "smooth", block: "center" });
-      window.setTimeout(() => {
-        if (typeof field.focus === "function") {
-          field.focus({ preventScroll: true });
-        }
-        if (typeof field.select === "function" && (field.tagName === "INPUT" || field.tagName === "TEXTAREA")) {
-          field.select();
-        }
-      }, 220);
+      if (!section) {
+        field.scrollIntoView({ behavior: "smooth", block: "center" });
+        window.setTimeout(() => {
+          if (typeof field.focus === "function") {
+            field.focus({ preventScroll: true });
+          }
+          if (typeof field.select === "function" && (field.tagName === "INPUT" || field.tagName === "TEXTAREA")) {
+            field.select();
+          }
+        }, 220);
+      }
     }
 
     function renderCommandPaletteResults(query = "") {
@@ -12952,7 +13506,20 @@ function hideReportLoading() {
       const {
         silentErrors = false,
         openSheet = true,
+        prefillTemplate = null,
       } = options;
+
+      if (prefillTemplate && String(prefillTemplate.id || "") === String(templateId)) {
+        mobileSelectedTemplateId = String(templateId);
+        mobileSelectedTemplateRecord = { template: prefillTemplate };
+        updateTemplateUiState();
+        if (openSheet) {
+          openMobileTemplateSheet();
+        }
+        if (prefillTemplate.data) {
+          return { template: prefillTemplate };
+        }
+      }
 
       try {
         const res = await fetch(`${BASE_URL}/admin/templates/${templateId}`, {
@@ -12978,7 +13545,7 @@ function hideReportLoading() {
         return data;
       } catch (err) {
         console.error("Error loading template for mobile:", err);
-        if (!silentErrors) {
+        if (!silentErrors && !prefillTemplate) {
           showToast("Could not load this template on mobile.", "error");
         }
         return null;
@@ -13017,7 +13584,11 @@ function hideReportLoading() {
         mobileTemplateSheetPreviewEmpty.style.display = previewUrl ? "none" : "flex";
       }
       if (mobileTemplateSheetPreviewWrap) {
+        mobileTemplateSheetPreviewWrap.style.display = "block";
         mobileTemplateSheetPreviewWrap.disabled = !previewUrl;
+      }
+      if (mobileTemplateSheetPreviewBtn) {
+        mobileTemplateSheetPreviewBtn.disabled = !previewUrl;
       }
       if (mobileTemplateSheetSetActiveBtn) {
         mobileTemplateSheetSetActiveBtn.disabled = !template?.id || !overlayFileId || isActiveTemplate;
@@ -13070,6 +13641,10 @@ function hideReportLoading() {
       const stage = document.createElement("div");
       stage.className = "template-preview-stage";
 
+      const loading = document.createElement("div");
+      loading.className = "template-preview-loading";
+      loading.innerHTML = `<div class="minimal-loader" aria-hidden="true"></div><div>Loading Preview…</div>`;
+
       const image = document.createElement("img");
       image.className = "template-preview-bg";
       image.src = buildPublicTemplateOverlayPreviewUrl(
@@ -13078,8 +13653,15 @@ function hideReportLoading() {
       );
       image.alt = template.name || "Template preview";
       image.style.objectFit = "contain";
+      image.addEventListener("load", () => {
+        loading.remove();
+      }, { once: true });
+      image.addEventListener("error", () => {
+        loading.innerHTML = `<div>Preview unavailable</div>`;
+      }, { once: true });
 
       stage.appendChild(image);
+      stage.appendChild(loading);
       shell.appendChild(stage);
       container.appendChild(closeBtn);
       container.appendChild(shell);
@@ -13208,9 +13790,15 @@ function hideReportLoading() {
             <span class="template-library-item-name">${template.name}</span>
             <span class="template-library-item-meta">${template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "Saved template"}</span>
           `;
-          button.addEventListener("click", async () => {
+          button.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             if (isMobileAdminViewport()) {
-              await loadTemplateForMobile(template.id);
+              await loadTemplateForMobile(template.id, {
+                prefillTemplate: template,
+                openSheet: true,
+                silentErrors: true,
+              });
               return;
             }
             hideTemplateEntryOverlay();
@@ -13224,8 +13812,13 @@ function hideReportLoading() {
           const preferredTemplateId = mobileSelectedTemplateId
             || currentActiveTemplateId
             || (templates[0] ? String(templates[0].id) : "");
+          const preferredTemplate = templates.find((template) => String(template.id) === String(preferredTemplateId));
           if (preferredTemplateId && preferredTemplateId !== mobileSelectedTemplateId) {
-            await loadTemplateForMobile(preferredTemplateId, { silentErrors: true, openSheet: false });
+            await loadTemplateForMobile(preferredTemplateId, {
+              silentErrors: true,
+              openSheet: false,
+              prefillTemplate: preferredTemplate || null,
+            });
           } else {
             updateTemplateUiState();
           }
@@ -15822,6 +16415,18 @@ function hideReportLoading() {
         return;
       }
 
+      if (key === "escape" && settingsPlaylistOverlay && settingsPlaylistOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeSettingsPlaylistOverlay();
+        return;
+      }
+
+      if (key === "escape" && settingsIntroOverlay && settingsIntroOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeSettingsIntroOverlay();
+        return;
+      }
+
       if (key === "escape" && mobileTemplateSheet && mobileTemplateSheet.classList.contains("visible")) {
         event.preventDefault();
         closeMobileTemplateSheet();
@@ -15830,6 +16435,13 @@ function hideReportLoading() {
 
     if (lockAdminBtn) {
       lockAdminBtn.addEventListener("click", () => {
+        clearAdminToken();
+        showLock("Session locked. Enter the access code to continue.");
+      });
+    }
+
+    if (mobileLockAdminBtn) {
+      mobileLockAdminBtn.addEventListener("click", () => {
         clearAdminToken();
         showLock("Session locked. Enter the access code to continue.");
       });
@@ -16084,6 +16696,94 @@ reportViewBtn.addEventListener("click", async () => {
       return selectedOption.textContent || "Default";
     }
 
+    function updateSettingsQuickActionSummaries() {
+      if (settingsTicketSummary) {
+        settingsTicketSummary.textContent = settingsTicketEnabled?.checked
+          ? "On"
+          : "Off";
+      }
+      if (settingsPlaylistSummary) {
+        settingsPlaylistSummary.textContent = getGalleryDisplayLimitLabel(collectSettingsPayload().galleryDisplayLimit);
+      }
+      if (settingsGalleryPlayerSummary) {
+        settingsGalleryPlayerSummary.textContent = "Tap to refresh the live gallery.";
+      }
+      if (settingsIntroSummary) {
+        const title = settingsIntroTitle?.value.trim() || "Tap to edit title and subtitle.";
+        settingsIntroSummary.textContent = title;
+      }
+    }
+
+    function openSettingsPlaylistOverlay() {
+      if (!settingsPlaylistOverlay) return;
+      settingsPlaylistCustomInput.value = settingsGalleryDisplayLimit?.value === "custom"
+        ? (settingsGalleryDisplayCustom?.value || "")
+        : "";
+      settingsPlaylistOverlay.classList.add("visible");
+      settingsPlaylistOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeSettingsPlaylistOverlay() {
+      if (!settingsPlaylistOverlay) return;
+      settingsPlaylistOverlay.classList.remove("visible");
+      settingsPlaylistOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    function applyPlaylistSelection(value, customValue = "") {
+      if (!settingsGalleryDisplayLimit) return;
+      settingsGalleryDisplayLimit.value = value;
+      if (value === "custom") {
+        settingsGalleryDisplayCustom.value = customValue;
+        settingsGalleryDisplayCustom.style.display = "block";
+        settingsGalleryDisplayCustomLabel.style.display = "block";
+      } else {
+        settingsGalleryDisplayCustom.value = "";
+        settingsGalleryDisplayCustom.style.display = "none";
+        settingsGalleryDisplayCustomLabel.style.display = "none";
+      }
+      syncSettingsDirtyState();
+      closeSettingsPlaylistOverlay();
+      if (settingsPlaylistHeader) {
+        scrollElementIntoViewWithOffset(settingsPlaylistHeader, { behavior: "smooth" });
+      }
+    }
+
+    function openSettingsIntroOverlay() {
+      if (!settingsIntroOverlay) return;
+      if (settingsIntroOverlayTitleInput) {
+        settingsIntroOverlayTitleInput.value = settingsIntroTitle?.value || "";
+      }
+      if (settingsIntroOverlaySubtitleInput) {
+        settingsIntroOverlaySubtitleInput.value = settingsIntroSubtitle?.value || "";
+      }
+      settingsIntroOverlay.classList.add("visible");
+      settingsIntroOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeSettingsIntroOverlay() {
+      if (!settingsIntroOverlay) return;
+      settingsIntroOverlay.classList.remove("visible");
+      settingsIntroOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    function applyIntroOverlayValues() {
+      if (settingsIntroTitle && settingsIntroOverlayTitleInput) {
+        settingsIntroTitle.value = settingsIntroOverlayTitleInput.value;
+      }
+      if (settingsIntroSubtitle && settingsIntroOverlaySubtitleInput) {
+        settingsIntroSubtitle.value = settingsIntroOverlaySubtitleInput.value;
+      }
+      syncSettingsDirtyState();
+      closeSettingsIntroOverlay();
+      if (settingsIntroHeader) {
+        scrollElementIntoViewWithOffset(settingsIntroHeader, { behavior: "smooth" });
+      }
+    }
+
     function refreshSettingsLivePreview() {
       if (!settingsLivePanel) return;
 
@@ -16113,6 +16813,7 @@ reportViewBtn.addEventListener("click", async () => {
       if (settingsLiveNewsletterHelper) settingsLiveNewsletterHelper.textContent = newsletterHelper;
       if (settingsLivePlaylistValue) settingsLivePlaylistValue.textContent = getGalleryDisplayLimitLabel(galleryDisplayLimit);
       if (settingsLiveTemplateValue) settingsLiveTemplateValue.textContent = getSelectedTemplateLabel();
+      updateSettingsQuickActionSummaries();
     }
 
     function serializeSettingsPayload(payload = collectSettingsPayload()) {
@@ -16180,17 +16881,44 @@ reportViewBtn.addEventListener("click", async () => {
       const sections = document.querySelectorAll('.settings-section');
       sections.forEach((section) => {
         if (isMobileAdminViewport()) {
-          section.classList.add('expanded');
+          section.classList.remove('expanded');
         }
         const header = section.querySelector('.settings-section-header');
         if (header && !header.dataset.accordionInitialized) {
           header.dataset.accordionInitialized = 'true';
-          header.addEventListener('click', () => {
+          header.addEventListener('click', async (event) => {
             if (isMobileAdminViewport()) {
-              section.classList.toggle('expanded');
-              return;
+              const mobileMode = String(section.dataset.mobileMode || "").trim();
+              if (mobileMode === "toggle") {
+                if (event.target && event.target.closest(".settings-inline-toggle")) {
+                  syncSettingsDirtyState();
+                  updateSettingsQuickActionSummaries();
+                  scrollElementIntoViewWithOffset(header, { behavior: "smooth" });
+                  return;
+                }
+                if (settingsTicketEnabled) {
+                  settingsTicketEnabled.checked = !settingsTicketEnabled.checked;
+                  syncSettingsDirtyState();
+                }
+                scrollElementIntoViewWithOffset(header, { behavior: "smooth" });
+                return;
+              }
+              if (mobileMode === "playlist") {
+                openSettingsPlaylistOverlay();
+                return;
+              }
+              if (mobileMode === "action") {
+                await issueGalleryReloadCommand();
+                scrollElementIntoViewWithOffset(header, { behavior: "smooth" });
+                return;
+              }
+              if (mobileMode === "overlay") {
+                openSettingsIntroOverlay();
+                return;
+              }
             }
-            section.classList.toggle('expanded');
+            const shouldExpand = !section.classList.contains('expanded');
+            setSettingsSectionExpanded(section, shouldExpand);
           });
         }
       });
@@ -16607,6 +17335,73 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
     </div>
   </div>
+  <div id="settingsPlaylistOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="settingsPlaylistOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="settingsPlaylistOverlayTitle" class="event-logs-modal-title">Playlist</h3>
+          <p class="event-logs-modal-subtitle">Choose how many approved photos appear in the live gallery rotation.</p>
+        </div>
+        <button id="settingsPlaylistOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close playlist options">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div class="settings-grid">
+          <button id="settingsPlaylistAllBtn" type="button" class="btn-ghost">All Photos</button>
+          <button id="settingsPlaylist25Btn" type="button" class="btn-ghost">Last 25 Photos</button>
+          <button id="settingsPlaylist10Btn" type="button" class="btn-ghost">Last 10 Photos</button>
+          <label class="settings-label" for="settingsPlaylistCustomInput">Custom number of photos</label>
+          <input id="settingsPlaylistCustomInput" class="settings-input" type="number" min="1" max="1000" placeholder="Enter number of photos" />
+          <div class="settings-actions" style="margin-top:0;">
+            <button id="settingsPlaylistApplyCustomBtn" class="btn-primary" type="button">
+              <span class="btn-inline-content">
+                <i data-lucide="list-video"></i>
+                <span>APPLY PLAYLIST</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="settingsIntroOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="settingsIntroOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="settingsIntroOverlayTitle" class="event-logs-modal-title">Intro Copy</h3>
+          <p class="event-logs-modal-subtitle">Edit the greeting and helper copy in a full-screen mobile form.</p>
+        </div>
+        <button id="settingsIntroOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close intro copy editor">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div class="settings-grid">
+          <label class="settings-label" for="settingsIntroOverlayTitleInput">Intro title</label>
+          <input id="settingsIntroOverlayTitleInput" class="settings-input" type="text" />
+          <label class="settings-label" for="settingsIntroOverlaySubtitleInput">Intro subtitle</label>
+          <textarea id="settingsIntroOverlaySubtitleInput" class="settings-input" rows="6" style="resize:vertical;"></textarea>
+          <div class="settings-actions" style="margin-top:0;">
+            <button id="settingsIntroOverlayApplyBtn" class="btn-primary" type="button">
+              <span class="btn-inline-content">
+                <i data-lucide="save"></i>
+                <span>APPLY INTRO COPY</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="mobileTemplateSheet" class="event-logs-overlay" aria-hidden="true">
     <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="mobileTemplateSheetTitle">
       <div class="event-logs-modal-band"></div>
@@ -16627,11 +17422,21 @@ reportViewBtn.addEventListener("click", async () => {
           <div id="mobileTemplateSheetBadge" class="mobile-template-sheet-badge" style="display:none;">Active on screen</div>
           <div class="mobile-view-note-copy">Template editing stays on desktop. Mobile can preview, activate, and delete saved layouts.</div>
         </div>
-        <button id="mobileTemplateSheetPreviewWrap" class="mobile-template-preview-wrap" type="button" aria-label="Open template preview image">
+        <div class="mobile-template-sheet-summary">
+          <div class="mobile-template-sheet-summary-title">Template Actions</div>
+          <div class="mobile-template-sheet-summary-copy">Preview the published layout, set it live on screen, or delete the saved template.</div>
+        </div>
+        <button id="mobileTemplateSheetPreviewWrap" class="mobile-template-preview-wrap" type="button" aria-label="Open template preview image" style="display:none;">
           <img id="mobileTemplateSheetPreviewImg" alt="Template preview" style="display:none;" />
           <div id="mobileTemplateSheetPreviewEmpty" class="mobile-template-preview-empty">No published overlay preview is available yet.</div>
         </button>
         <div class="mobile-template-actions" style="margin-top: 1rem;">
+          <button id="mobileTemplateSheetPreviewBtn" type="button" class="btn-ghost" disabled>
+            <span class="btn-inline-content">
+              <i data-lucide="eye"></i>
+              <span>PREVIEW</span>
+            </span>
+          </button>
           <button id="mobileTemplateSheetSetActiveBtn" type="button" class="btn-primary" disabled>
             <span class="btn-inline-content">
               <i data-lucide="monitor"></i>
