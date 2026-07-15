@@ -356,7 +356,9 @@
       if (!overlayEl) return;
       const nextVersion = String(version || "").trim();
       if (nextVersion && nextVersion === activeOverlayVersion && overlayEl.getAttribute("src")) {
-        applyPhotoBox(photoBox);
+        // The photo box and flattened overlay are one atomic layout. A box
+        // update without a new overlay version would expose the black stage
+        // through the previous overlay's transparent opening.
         return;
       }
 

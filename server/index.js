@@ -5937,23 +5937,11 @@ app.put('/admin/templates/:id(\\d+)', ensureAdminAuth, async (req, res) => {
       return res.status(500).json({ ok: false, error: 'update_template_failed' });
     }
 
-    if (String(appSettings.activeTemplateId || '') === String(id)) {
-      appSettings = await syncActiveTemplateSettings({
-        ...appSettings,
-        activeTemplateId: String(id),
-        activeTemplateSnapshot: buildActiveTemplateSnapshotString({
-          id: String(id),
-          name,
-          createdAt: new Date().toISOString(),
-          data
-        })
-      });
-
-      const settingsPersisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
-      if (!settingsPersisted) {
-        return res.status(500).json({ ok: false, error: 'active_template_sync_failed' });
-      }
-    }
+    // Do not publish active-template layout changes here. The editor uploads
+    // the matching flattened overlay immediately after this record update;
+    // that endpoint publishes the overlay file, version, and photo box
+    // together. Keeping the previous snapshot live until then prevents the
+    // photo window from moving underneath an older overlay cutout.
 
     res.json({ ok: true });
   } catch (err) {
