@@ -1160,6 +1160,56 @@
     border-color: rgba(255,255,255,0.8);
   }
 
+  .template-photo-box-action {
+    position: absolute;
+    top: calc(50% + 3.35rem);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 14;
+    border: 1px solid rgba(255,255,255,0.38);
+    background: rgba(10, 16, 30, 0.82);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.65rem 1rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .template-canvas:hover .template-photo-box-action,
+  .template-photo-box-action.visible {
+    opacity: 1;
+  }
+
+  .template-photo-box-action:hover {
+    border-color: rgba(255,255,255,0.82);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+  }
+
+  .template-photo-box-action:disabled {
+    display: none;
+  }
+
+  .template-canvas.photo-box-editing .template-background-action,
+  .template-canvas.photo-box-editing .template-add-asset-fab,
+  .template-canvas.photo-box-editing .template-add-asset-menu {
+    display: none !important;
+  }
+
+  .template-canvas.photo-box-editing .template-photo-box-action {
+    top: 0.85rem;
+    right: 0.85rem;
+    left: auto;
+    transform: none;
+    z-index: 20;
+    opacity: 1;
+    background: color-mix(in srgb, var(--primary) 76%, rgba(10, 16, 30, 0.94));
+    border-color: color-mix(in srgb, var(--primary) 74%, white 12%);
+  }
+
   .template-photo-area {
     position: absolute;
     /* Center 1500x1000 in 1920x1080 */
@@ -1199,6 +1249,8 @@
     background: rgba(0, 0, 0, 0.5);
     padding: 0.25rem 0.75rem;
     border-radius: calc(var(--radius) - 4px);
+    white-space: nowrap;
+    pointer-events: none;
   }
 
   .template-logos-container {
@@ -1206,6 +1258,46 @@
     inset: 0;
     z-index: 10;
     pointer-events: none;
+    user-select: none;
+    touch-action: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  }
+
+  .template-canvas.photo-box-editing .template-photo-area {
+    pointer-events: auto;
+    cursor: move;
+    z-index: 16;
+    border-color: rgba(255, 255, 255, 0.92);
+    background: rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35), 0 12px 35px rgba(0, 0, 0, 0.28);
+  }
+
+  .template-canvas.photo-box-editing .template-photo-area.at-min-size,
+  .template-canvas.photo-box-editing .template-photo-area.at-max-size {
+    border-color: rgba(125, 211, 252, 0.98);
+    box-shadow:
+      0 0 0 2px rgba(56, 189, 248, 0.5),
+      0 0 24px rgba(56, 189, 248, 0.42),
+      0 12px 35px rgba(0, 0, 0, 0.28);
+  }
+
+  .template-photo-resize-handle {
+    position: absolute;
+    right: -0.55rem;
+    bottom: -0.55rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    display: none;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.96);
+    background: var(--primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    cursor: nwse-resize;
+    z-index: 3;
+  }
+
+  .template-canvas.photo-box-editing .template-photo-resize-handle {
+    display: block;
   }
 
   .template-add-asset-fab {
@@ -1279,6 +1371,18 @@
   .template-logo.selected {
     border-color: var(--primary);
     box-shadow: 0 0 0 2px hsla(var(--primary), 0.3);
+  }
+
+  .template-logo:not(.selected):hover {
+    border-color: rgba(125, 211, 252, 0.72);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2), 0 0 16px rgba(56, 189, 248, 0.18);
+  }
+
+  .template-canvas.photo-box-editing .template-logo {
+    pointer-events: none;
+    opacity: 0.58;
+    border-color: transparent;
+    box-shadow: none;
   }
 
   .template-logo img {
@@ -1645,7 +1749,7 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     display: block;
     opacity: 0;
     transition: opacity 0.8s ease;
@@ -6802,11 +6906,13 @@ View report to see the most recent interactions
                 <div id="templateCanvas" class="template-canvas">
                   <img id="templateBackgroundImg" class="template-background" alt="Background" />
                   <button id="templateBackgroundAction" class="template-background-action" type="button">Add Background</button>
+                  <button id="templatePhotoBoxAction" class="template-photo-box-action" type="button">Edit Photo Box</button>
                   <div id="templateGuideVertical" class="template-guide-line template-guide-line-vertical"></div>
                   <div id="templateGuideHorizontal" class="template-guide-line template-guide-line-horizontal"></div>
-                  <div class="template-photo-area">
+                  <div id="templatePhotoArea" class="template-photo-area">
                     <div class="template-photo-grid"></div>
                     <div class="template-photo-label">PHOTO AREA (1500×1000)</div>
+                    <div class="template-photo-resize-handle" aria-hidden="true"></div>
                   </div>
                   <div id="templateLogosContainer" class="template-logos-container"></div>
                   <div id="templateAddAssetMenu" class="template-add-asset-menu">
@@ -7313,10 +7419,10 @@ View report to see the most recent interactions
     function drawPhotoIntoTemplate(ctx, photoImgEl, stageWidth, stageHeight, photoBox = null) {
       const targetPhotoBox = photoBox && Number.isFinite(Number(photoBox.width)) && Number.isFinite(Number(photoBox.height))
         ? {
-            x: Number(photoBox.x) || DOWNLOAD_PHOTO_X,
-            y: Number(photoBox.y) || DOWNLOAD_PHOTO_Y,
-            width: Number(photoBox.width) || DOWNLOAD_PHOTO_WIDTH,
-            height: Number(photoBox.height) || DOWNLOAD_PHOTO_HEIGHT,
+            x: Number.isFinite(Number(photoBox.x)) ? Number(photoBox.x) : DOWNLOAD_PHOTO_X,
+            y: Number.isFinite(Number(photoBox.y)) ? Number(photoBox.y) : DOWNLOAD_PHOTO_Y,
+            width: Number(photoBox.width),
+            height: Number(photoBox.height),
           }
         : {
             x: DOWNLOAD_PHOTO_X,
@@ -12987,6 +13093,8 @@ function hideReportLoading() {
     const templateEntryLoadBtn = document.getElementById("templateEntryLoadBtn");
     const templateEntryCreateBtn = document.getElementById("templateEntryCreateBtn");
     const templateBackgroundAction = document.getElementById("templateBackgroundAction");
+    const templatePhotoBoxAction = document.getElementById("templatePhotoBoxAction");
+    const templatePhotoArea = document.getElementById("templatePhotoArea");
     const templateAddLogoFab = document.getElementById("templateAddLogoFab");
     const templateAddQrFab = document.getElementById("templateAddQrFab");
     const templateAddAssetFab = document.getElementById("templateAddAssetFab");
@@ -13032,7 +13140,20 @@ function hideReportLoading() {
     const TEMPLATE_STAGE_HEIGHT = 1080;
     const TEMPLATE_PHOTO_WIDTH = 1500;
     const TEMPLATE_PHOTO_HEIGHT = 1000;
+    const TEMPLATE_PHOTO_MIN_WIDTH = 600;
+    const TEMPLATE_PHOTO_MIN_HEIGHT = 400;
+    const TEMPLATE_PHOTO_ASPECT_RATIO = TEMPLATE_PHOTO_WIDTH / TEMPLATE_PHOTO_HEIGHT;
     const TEMPLATE_CENTER_SNAP_THRESHOLD = 14;
+    const DEFAULT_TEMPLATE_PHOTO_BOX = Object.freeze({
+      x: (TEMPLATE_STAGE_WIDTH - TEMPLATE_PHOTO_WIDTH) / 2,
+      y: (TEMPLATE_STAGE_HEIGHT - TEMPLATE_PHOTO_HEIGHT) / 2,
+      width: TEMPLATE_PHOTO_WIDTH,
+      height: TEMPLATE_PHOTO_HEIGHT,
+    });
+    let currentPhotoBox = { ...DEFAULT_TEMPLATE_PHOTO_BOX };
+    let photoBoxEditMode = false;
+    let photoBoxInteraction = null;
+    let photoBoxChangedInMode = false;
 
     // Available logo assets
     const DEFAULT_BACKGROUND_ASSET = {
@@ -13385,6 +13506,74 @@ function hideReportLoading() {
       templateSnapToggleBtn.textContent = autoAlignEnabled ? "Auto Align: On" : "Auto Align: Off";
     }
 
+    function normalizeEditorPhotoBox(photoBox) {
+      const source = photoBox && typeof photoBox === "object" ? photoBox : DEFAULT_TEMPLATE_PHOTO_BOX;
+      const rawWidth = Number(source.width);
+      const rawHeight = Number(source.height);
+      const requestedWidth = Number.isFinite(rawWidth) && rawWidth > 0
+        ? rawWidth
+        : (Number.isFinite(rawHeight) && rawHeight > 0 ? rawHeight * TEMPLATE_PHOTO_ASPECT_RATIO : TEMPLATE_PHOTO_WIDTH);
+      const width = Math.max(
+        TEMPLATE_PHOTO_MIN_WIDTH,
+        Math.min(TEMPLATE_PHOTO_WIDTH, Math.round(requestedWidth / 3) * 3)
+      );
+      const height = Math.round(width / TEMPLATE_PHOTO_ASPECT_RATIO);
+      const rawX = Number(source.x);
+      const rawY = Number(source.y);
+      const x = Math.max(0, Math.min(Number.isFinite(rawX) ? Math.round(rawX) : DEFAULT_TEMPLATE_PHOTO_BOX.x, TEMPLATE_STAGE_WIDTH - width));
+      const y = Math.max(0, Math.min(Number.isFinite(rawY) ? Math.round(rawY) : DEFAULT_TEMPLATE_PHOTO_BOX.y, TEMPLATE_STAGE_HEIGHT - height));
+
+      return { x, y, width, height };
+    }
+
+    function applyPhotoBoxToEditor(photoBox = currentPhotoBox) {
+      currentPhotoBox = normalizeEditorPhotoBox(photoBox);
+      if (!templatePhotoArea) return;
+
+      templatePhotoArea.style.left = `${(currentPhotoBox.x / TEMPLATE_STAGE_WIDTH) * 100}%`;
+      templatePhotoArea.style.top = `${(currentPhotoBox.y / TEMPLATE_STAGE_HEIGHT) * 100}%`;
+      templatePhotoArea.style.width = `${(currentPhotoBox.width / TEMPLATE_STAGE_WIDTH) * 100}%`;
+      templatePhotoArea.style.height = `${(currentPhotoBox.height / TEMPLATE_STAGE_HEIGHT) * 100}%`;
+
+      const atMin = currentPhotoBox.width <= TEMPLATE_PHOTO_MIN_WIDTH;
+      const atMax = currentPhotoBox.width >= TEMPLATE_PHOTO_WIDTH;
+      templatePhotoArea.classList.toggle("at-min-size", atMin);
+      templatePhotoArea.classList.toggle("at-max-size", atMax);
+      const label = templatePhotoArea.querySelector(".template-photo-label");
+      if (label) {
+        const limitLabel = atMin ? " · MIN" : (atMax ? " · MAX" : "");
+        label.textContent = `PHOTO AREA (${currentPhotoBox.width}×${currentPhotoBox.height})${limitLabel}`;
+      }
+    }
+
+    function setPhotoBoxEditMode(enabled) {
+      photoBoxEditMode = Boolean(enabled);
+      photoBoxInteraction = null;
+      hideTemplateGuides();
+      closeTemplateAddAssetMenu();
+
+      if (photoBoxEditMode && selectedLogo) {
+        selectedLogo.classList.remove("selected");
+        const actions = selectedLogo.querySelector(".template-logo-actions");
+        if (actions) actions.style.display = "none";
+        selectedLogo = null;
+      }
+
+      if (templateCanvas) {
+        templateCanvas.classList.toggle("photo-box-editing", photoBoxEditMode);
+      }
+      if (templatePhotoBoxAction) {
+        templatePhotoBoxAction.textContent = photoBoxEditMode ? "Done" : "Edit Photo Box";
+        templatePhotoBoxAction.setAttribute("aria-pressed", photoBoxEditMode ? "true" : "false");
+      }
+      if (!photoBoxEditMode && photoBoxChangedInMode) {
+        markTemplateDirty();
+        photoBoxChangedInMode = false;
+      }
+      applyPhotoBoxToEditor(currentPhotoBox);
+      updateTemplateUiState();
+    }
+
     function applyCenterSnap(nextX, nextY, width, height) {
       const canvasWidth = templateCanvas.offsetWidth || 1;
       const canvasHeight = templateCanvas.offsetHeight || 1;
@@ -13424,12 +13613,16 @@ function hideReportLoading() {
         templateBackgroundAction.textContent = hasBackground ? "Replace Background" : "Add Background";
         templateBackgroundAction.classList.add("visible");
       }
+      if (templatePhotoBoxAction) {
+        templatePhotoBoxAction.classList.toggle("visible", hasBackground || savedTemplateLoaded);
+        templatePhotoBoxAction.disabled = !(hasBackground || savedTemplateLoaded);
+      }
       if (templateAddAssetFab) {
         templateAddAssetFab.classList.toggle("visible", hasBackground);
       }
       if (templateSaveBtn) {
         templateSaveBtn.style.display = "inline-flex";
-        templateSaveBtn.disabled = isSavingTemplate || (needsSave && !hasBackground) || (!needsSave && isCurrentlyLive);
+        templateSaveBtn.disabled = photoBoxEditMode || isSavingTemplate || (needsSave && !hasBackground) || (!needsSave && isCurrentlyLive);
         templateSaveBtn.classList.toggle("is-saving", isSavingTemplate);
         const templateButtonLabel = isSavingTemplate
           ? "Saving..."
@@ -13460,9 +13653,11 @@ function hideReportLoading() {
       }
       if (templateDeleteBtn) {
         templateDeleteBtn.style.display = savedTemplateLoaded ? "inline-flex" : "none";
+        templateDeleteBtn.disabled = photoBoxEditMode;
       }
       if (templatePreviewBtn) {
         templatePreviewBtn.style.display = hasBackground || savedTemplateLoaded ? "inline-flex" : "none";
+        templatePreviewBtn.disabled = photoBoxEditMode;
       }
       if (templateEditorTitle) {
         templateEditorTitle.textContent = currentTemplateName || (isCreatingNewTemplate ? "New Template" : "Template Builder");
@@ -13958,6 +14153,99 @@ function hideReportLoading() {
       });
     }
 
+    if (templatePhotoBoxAction) {
+      templatePhotoBoxAction.addEventListener("click", () => {
+        if (!photoBoxEditMode && !hasTemplateBackground() && !currentTemplateId) {
+          showToast("Add a background before editing the photo box.", "error");
+          return;
+        }
+        setPhotoBoxEditMode(!photoBoxEditMode);
+      });
+    }
+
+    if (templatePhotoArea) {
+      templatePhotoArea.addEventListener("pointerdown", (event) => {
+        if (!photoBoxEditMode) return;
+        const canvasRect = templateCanvas?.getBoundingClientRect();
+        if (!canvasRect?.width || !canvasRect?.height) return;
+
+        photoBoxInteraction = {
+          pointerId: event.pointerId,
+          mode: event.target.closest(".template-photo-resize-handle") ? "resize" : "move",
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          startBox: { ...currentPhotoBox },
+          canvasRect,
+        };
+        try {
+          templatePhotoArea.setPointerCapture(event.pointerId);
+        } catch (_) {}
+        event.preventDefault();
+        event.stopPropagation();
+      });
+
+      templatePhotoArea.addEventListener("pointermove", (event) => {
+        const interaction = photoBoxInteraction;
+        if (!photoBoxEditMode || !interaction || interaction.pointerId !== event.pointerId) return;
+
+        const scaleX = TEMPLATE_STAGE_WIDTH / interaction.canvasRect.width;
+        const scaleY = TEMPLATE_STAGE_HEIGHT / interaction.canvasRect.height;
+        const deltaX = (event.clientX - interaction.startClientX) * scaleX;
+        const deltaY = (event.clientY - interaction.startClientY) * scaleY;
+        let nextBox = { ...interaction.startBox };
+
+        if (interaction.mode === "move") {
+          nextBox.x = interaction.startBox.x + deltaX;
+          nextBox.y = interaction.startBox.y + deltaY;
+          nextBox = normalizeEditorPhotoBox(nextBox);
+
+          const snapThresholdX = TEMPLATE_CENTER_SNAP_THRESHOLD * scaleX;
+          const snapThresholdY = TEMPLATE_CENTER_SNAP_THRESHOLD * scaleY;
+          const centeredX = (TEMPLATE_STAGE_WIDTH - nextBox.width) / 2;
+          const centeredY = (TEMPLATE_STAGE_HEIGHT - nextBox.height) / 2;
+          const snapX = autoAlignEnabled && Math.abs(nextBox.x - centeredX) <= snapThresholdX;
+          const snapY = autoAlignEnabled && Math.abs(nextBox.y - centeredY) <= snapThresholdY;
+          if (snapX) nextBox.x = centeredX;
+          if (snapY) nextBox.y = centeredY;
+          if (templateGuideVertical) templateGuideVertical.classList.toggle("visible", snapX);
+          if (templateGuideHorizontal) templateGuideHorizontal.classList.toggle("visible", snapY);
+        } else {
+          hideTemplateGuides();
+          const widthDeltaFromX = deltaX;
+          const widthDeltaFromY = deltaY * TEMPLATE_PHOTO_ASPECT_RATIO;
+          const requestedWidth = interaction.startBox.width + (
+            Math.abs(widthDeltaFromX) >= Math.abs(widthDeltaFromY)
+              ? widthDeltaFromX
+              : widthDeltaFromY
+          );
+          nextBox.width = Math.max(TEMPLATE_PHOTO_MIN_WIDTH, Math.min(requestedWidth, TEMPLATE_PHOTO_WIDTH));
+          nextBox.height = nextBox.width / TEMPLATE_PHOTO_ASPECT_RATIO;
+          nextBox = normalizeEditorPhotoBox(nextBox);
+        }
+
+        const changed = ["x", "y", "width", "height"].some((key) => Math.abs(nextBox[key] - currentPhotoBox[key]) >= 1);
+        if (changed) {
+          currentPhotoBox = nextBox;
+          photoBoxChangedInMode = true;
+          applyPhotoBoxToEditor(currentPhotoBox);
+        }
+        event.preventDefault();
+      });
+
+      const finishPhotoBoxInteraction = (event) => {
+        if (!photoBoxInteraction || photoBoxInteraction.pointerId !== event.pointerId) return;
+        try {
+          templatePhotoArea.releasePointerCapture(event.pointerId);
+        } catch (_) {}
+        photoBoxInteraction = null;
+        hideTemplateGuides();
+        event.preventDefault();
+      };
+
+      templatePhotoArea.addEventListener("pointerup", finishPhotoBoxInteraction);
+      templatePhotoArea.addEventListener("pointercancel", finishPhotoBoxInteraction);
+    }
+
     if (templateAddAssetFab) {
       templateAddAssetFab.addEventListener("click", () => {
         if (templateAddAssetMenu) {
@@ -13993,6 +14281,10 @@ function hideReportLoading() {
       currentOverlayUpdatedAt = "";
       currentOverlayVersion = "";
       pendingQrReplaceTarget = null;
+      photoBoxChangedInMode = false;
+      currentPhotoBox = { ...DEFAULT_TEMPLATE_PHOTO_BOX };
+      setPhotoBoxEditMode(false);
+      applyPhotoBoxToEditor(currentPhotoBox);
       clearPendingBackgroundDraft();
       
       // Reset background to default
@@ -14078,6 +14370,8 @@ function hideReportLoading() {
         currentOverlayFileId = templateData.overlayFileId ? String(templateData.overlayFileId) : "";
         currentOverlayUpdatedAt = templateData.overlayUpdatedAt ? String(templateData.overlayUpdatedAt) : "";
         currentOverlayVersion = templateData.overlayVersion ? String(templateData.overlayVersion) : "";
+        currentPhotoBox = normalizeEditorPhotoBox(templateData.photoBox);
+        applyPhotoBoxToEditor(currentPhotoBox);
 
         let backgroundPlan = null;
         if (templateData.background) {
@@ -15376,6 +15670,7 @@ function hideReportLoading() {
       }
     });
 
+    applyPhotoBoxToEditor(currentPhotoBox);
     updateTemplateUiState();
     ensureTemplateCanvasResizeMonitoring();
     requestAnimationFrame(() => {
@@ -15483,12 +15778,7 @@ function hideReportLoading() {
         };
       }
 
-      const photoBox = {
-        x: (TEMPLATE_STAGE_WIDTH - TEMPLATE_PHOTO_WIDTH) / 2,
-        y: (TEMPLATE_STAGE_HEIGHT - TEMPLATE_PHOTO_HEIGHT) / 2,
-        width: TEMPLATE_PHOTO_WIDTH,
-        height: TEMPLATE_PHOTO_HEIGHT,
-      };
+      const photoBox = normalizeEditorPhotoBox(currentPhotoBox);
 
       const logos = [];
       const qrLayers = [];
@@ -16050,6 +16340,11 @@ function hideReportLoading() {
 
       const photoWindow = document.createElement("div");
       photoWindow.className = "template-preview-photo-window";
+      const previewPhotoBox = normalizeEditorPhotoBox(currentPhotoBox);
+      photoWindow.style.left = `${(previewPhotoBox.x / TEMPLATE_STAGE_WIDTH) * 100}%`;
+      photoWindow.style.top = `${(previewPhotoBox.y / TEMPLATE_STAGE_HEIGHT) * 100}%`;
+      photoWindow.style.width = `${(previewPhotoBox.width / TEMPLATE_STAGE_WIDTH) * 100}%`;
+      photoWindow.style.height = `${(previewPhotoBox.height / TEMPLATE_STAGE_HEIGHT) * 100}%`;
 
       const previewPhotoA = document.createElement("img");
       previewPhotoA.className = "template-preview-photo-fill";

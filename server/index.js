@@ -1735,11 +1735,13 @@ function normalizeTemplatePhotoBox(photoBox) {
     return fallback;
   }
 
+  const normalizedWidth = Math.max(600, Math.min(1500, Math.round(width / 3) * 3));
+  const normalizedHeight = Math.round(normalizedWidth / 1.5);
   return {
-    x: Math.max(0, Math.min(1920, Math.round(x))),
-    y: Math.max(0, Math.min(1080, Math.round(y))),
-    width: Math.max(1, Math.min(1920, Math.round(width))),
-    height: Math.max(1, Math.min(1080, Math.round(height))),
+    x: Math.max(0, Math.min(1920 - normalizedWidth, Math.round(x))),
+    y: Math.max(0, Math.min(1080 - normalizedHeight, Math.round(y))),
+    width: normalizedWidth,
+    height: normalizedHeight,
   };
 }
 

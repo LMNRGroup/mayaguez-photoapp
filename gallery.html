@@ -67,7 +67,7 @@
       position: absolute;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       opacity: 0;
       transition: opacity 0.8s ease;
     }
@@ -143,7 +143,7 @@
 <body>
   <div class="wall">
     <div class="stage">
-      <div class="photo-window">
+      <div id="photoWindow" class="photo-window">
         <img id="photoA" class="photo" alt="Selfie aprobado A" />
         <img id="photoB" class="photo" alt="Selfie aprobado B" />
         <div id="ticketBadge" class="ticket-badge">#000</div>
@@ -165,7 +165,9 @@
     const TRANSITION_FALLBACK_MS = 1800;
     const ACTIVE_OVERLAY_URL = `${BASE_URL}/gallery/active-overlay-image`;
     const GALLERY_LAST_HANDLED_RUNTIME_COMMAND_KEY = "galleryLastHandledRuntimeCommandId";
+    const DEFAULT_PHOTO_BOX = Object.freeze({ x: 210, y: 40, width: 1500, height: 1000 });
 
+    const photoWindowEl = document.getElementById("photoWindow");
     const imgA = document.getElementById("photoA");
     const imgB = document.getElementById("photoB");
     const overlayEl = document.getElementById("galleryOverlay");
@@ -182,6 +184,7 @@
     let refreshTimer = null;
     let approvedManifestVersion = "";
     let activeOverlayVersion = "";
+    let activeOverlayRequestId = 0;
     let lastHandledRuntimeCommandId = "";
 
     try {
@@ -323,24 +326,55 @@
       }
     }
 
-    function applyOverlayVersion(version = "") {
+    function normalizePhotoBox(photoBox) {
+      if (!photoBox || typeof photoBox !== "object") return { ...DEFAULT_PHOTO_BOX };
+      const rawX = Number(photoBox.x);
+      const rawY = Number(photoBox.y);
+      const rawWidth = Number(photoBox.width);
+      const rawHeight = Number(photoBox.height);
+      if (![rawX, rawY, rawWidth, rawHeight].every(Number.isFinite) || rawWidth <= 0 || rawHeight <= 0) {
+        return { ...DEFAULT_PHOTO_BOX };
+      }
+
+      const width = Math.max(600, Math.min(1500, Math.round(rawWidth / 3) * 3));
+      const height = Math.round(width / 1.5);
+      const x = Math.max(0, Math.min(Math.round(rawX), 1920 - width));
+      const y = Math.max(0, Math.min(Math.round(rawY), 1080 - height));
+      return { x, y, width, height };
+    }
+
+    function applyPhotoBox(photoBox) {
+      if (!photoWindowEl) return;
+      const nextPhotoBox = normalizePhotoBox(photoBox);
+      photoWindowEl.style.left = `${(nextPhotoBox.x / 1920) * 100}%`;
+      photoWindowEl.style.top = `${(nextPhotoBox.y / 1080) * 100}%`;
+      photoWindowEl.style.width = `${(nextPhotoBox.width / 1920) * 100}%`;
+      photoWindowEl.style.height = `${(nextPhotoBox.height / 1080) * 100}%`;
+    }
+
+    function applyOverlayVersion(version = "", photoBox = DEFAULT_PHOTO_BOX) {
       if (!overlayEl) return;
       const nextVersion = String(version || "").trim();
       if (nextVersion && nextVersion === activeOverlayVersion && overlayEl.getAttribute("src")) {
+        applyPhotoBox(photoBox);
         return;
       }
 
-      overlayEl.onload = () => {
+      const requestId = ++activeOverlayRequestId;
+      const nextUrl = buildOverlayUrl(nextVersion);
+      const preload = new Image();
+      preload.onload = () => {
+        if (requestId !== activeOverlayRequestId) return;
+        overlayEl.src = nextUrl;
+        applyPhotoBox(photoBox);
         overlayEl.classList.add("visible");
+        activeOverlayVersion = nextVersion;
       };
-      overlayEl.onerror = () => {
-        overlayEl.classList.remove("visible");
-        try {
-          overlayEl.removeAttribute("src");
-        } catch (_) {}
+      preload.onerror = () => {
+        if (requestId !== activeOverlayRequestId) return;
+        console.error("Gallery overlay preload failed; keeping the previous overlay and photo box.");
       };
-      overlayEl.src = buildOverlayUrl(nextVersion);
-      activeOverlayVersion = nextVersion;
+      preload.src = nextUrl;
     }
 
     function clearGalleryRuntimeStorage() {
@@ -620,9 +654,12 @@
         approvedManifestVersion = String(data.manifestVersion || "").trim();
 
         if (data.legacyOverlay && data.legacyOverlay.enabled && data.legacyOverlay.overlayVersion) {
-          applyOverlayVersion(String(data.legacyOverlay.overlayVersion || "").trim());
+          applyOverlayVersion(
+            String(data.legacyOverlay.overlayVersion || "").trim(),
+            data.legacyOverlay.photoBox || DEFAULT_PHOTO_BOX
+          );
         } else if (!overlayEl.getAttribute("src")) {
-          applyOverlayVersion("");
+          applyOverlayVersion("", DEFAULT_PHOTO_BOX);
         }
 
         const previousIds = photos.map((photo) => String(photo.id || "")).join(",");
