@@ -11597,20 +11597,6 @@ function hideReportLoading() {
         photoInfoCreated.textContent = formatPRDateTime(itemCreatedTime);
       }
       
-      if (!ticketNumber) {
-        // Still show overlay but with no match
-        currentPhotoInfo = { fileId, ticketNumber: null, userInfo: null };
-        photoInfoOverlay.style.display = "flex";
-        photoInfoLoading.style.display = "none";
-        photoInfoContent.style.display = "flex";
-        photoInfoError.style.display = "none";
-        photoInfoEmail.textContent = "No email";
-        photoInfoLocation.textContent = "No country";
-        photoInfoName.textContent = "No last name";
-        updatePhotoInfoNavButtons();
-        return;
-      }
-
       currentPhotoInfo = { fileId, ticketNumber, userInfo: null };
       photoInfoOverlay.style.display = "flex";
       photoInfoLoading.style.display = "flex";
@@ -11620,7 +11606,7 @@ function hideReportLoading() {
 
       try {
         const res = await fetch(
-          `${BASE_URL}/admin/photo-info/${encodeURIComponent(ticketNumber)}`,
+          `${BASE_URL}/admin/photo-info/${encodeURIComponent(fileId)}`,
           {
             headers: withAdminHeaders(),
           }

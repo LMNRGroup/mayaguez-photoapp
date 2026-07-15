@@ -56,8 +56,8 @@ const METRICS_EVENTS_SHEET_RANGE = `${METRICS_EVENTS_SHEET_NAME}!A:X`;
 
 // Range with columns:
 // timestamp_utc, timestamp_pr, event_type, email, session_id,
-// country, region, last_name, newsletter, ticket
-const SESSION_SHEET_RANGE = 'A:J';
+// country, region, last_name, newsletter, ticket, file_id
+const SESSION_SHEET_RANGE = 'A:K';
 const SETTINGS_SHEET_RANGE = `${SETTINGS_SHEET_NAME}!A:B`;
 const SETTINGS_SERVER_SESSION_KEY = 'Server Session';
 const DEFAULT_TEMPLATE_PHOTO_BOX = Object.freeze({
@@ -76,7 +76,8 @@ const SESSION_SHEET_HEADERS = [
   'region',
   'last_name',
   'newsletter',
-  'ticket'
+  'ticket',
+  'file_id'
 ];
 const METRICS_EVENTS_HEADERS = [
   'event_id',
@@ -2103,6 +2104,10 @@ const jwtClient = new google.auth.JWT(
 const drive = google.drive({ version: 'v3', auth: jwtClient });
 const sheets = google.sheets({ version: 'v4', auth: jwtClient });
 
+ensureSessionSheetFileIdHeader().catch((err) => {
+  console.warn('Unable to ensure session sheet file_id header:', err.message || err);
+});
+
 hydrateSettingsFromSheet().catch((err) => {
   console.warn('Unable to hydrate settings on startup:', err.message || err);
 });
@@ -2297,6 +2302,11 @@ function getClientLocation(req) {
 }
 
 function buildSessionIdentifier(req) {
+  const clientSessionId = String(req.headers['x-session-id'] || '').trim();
+  if (clientSessionId) {
+    return clientSessionId.slice(0, 200);
+  }
+
   const ip = normalizeIp(getClientIp(req));
   const { city, region, country } = getClientLocation(req);
   const locationParts = [city, region, country].filter(Boolean);
@@ -2310,8 +2320,40 @@ function buildSessionIdentifier(req) {
     return `IP ${ip}`;
   }
 
-  const fallback = req.headers['x-session-id'];
-  return fallback ? String(fallback) : '';
+  return '';
+}
+
+function parseVisitorInfo(req) {
+  const raw = String(req.headers['x-visitor-info'] || '');
+  if (!raw || raw.length > 4096) return { state: 'unverified' };
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    if (!parsed || parsed.state !== 'submitted') {
+      return { state: 'skipped' };
+    }
+
+    const clean = (value, maxLength) => String(value || '').trim().slice(0, maxLength);
+    return {
+      state: 'submitted',
+      country: clean(parsed.country, 100),
+      region: clean(parsed.region, 100),
+      lastName: clean(parsed.lastName, 160),
+      email: clean(parsed.email, 254),
+      newsletter: parsed.newsletter === true,
+    };
+  } catch (err) {
+    console.warn('Invalid x-visitor-info upload header; storing upload as unverified.');
+    return { state: 'unverified' };
+  }
+}
+
+function buildVisitorAppProperties(visitorInfo) {
+  const info = visitorInfo || { state: 'unverified' };
+  return {
+    visitorDataVersion: '1',
+    visitorState: info.state || 'unverified',
+  };
 }
 
 function getMetricsEventFamily(eventType) {
@@ -2948,7 +2990,7 @@ async function getNextPhotoIndex() {
 
 // Upload file to Drive → PENDING folder
 // NO Sharp overlay anymore – we keep filename + ticket metadata only.
-async function uploadFile(fileBuffer, originalname, mimetype) {
+async function uploadFile(fileBuffer, originalname, mimetype, visitorInfo) {
   // Decide ticket index & labels
   const nextIndex = await getNextPhotoIndex();
   const finalName = buildServerFileName(nextIndex);
@@ -2963,7 +3005,8 @@ async function uploadFile(fileBuffer, originalname, mimetype) {
     requestBody: {
       name: finalName,
       mimeType: mimetype,
-      parents: [PENDING_FOLDER_ID]
+      parents: [PENDING_FOLDER_ID],
+      appProperties: buildVisitorAppProperties(visitorInfo)
     },
     media: {
       mimeType: mimetype,
@@ -3054,6 +3097,7 @@ async function logEventToSheet(
     lastName = '',
     newsletter = null,
     ticket = '',
+    fileId = '',
     timestampUtc = null
   } = {}
 ) {
@@ -3085,7 +3129,8 @@ async function logEventToSheet(
     region || '',    // G region
     lastName || '',  // H last_name
     newsletterStr,   // I newsletter
-    ticket || ''     // J ticket
+    ticket || '',    // J ticket
+    fileId || ''     // K immutable Google Drive file ID
   ]];
 
   await sheets.spreadsheets.values.append({
@@ -3107,6 +3152,7 @@ async function logEventToSheet(
     lastName,
     newsletter: newsletterStr,
     ticket,
+    fileId,
   });
 }
 
@@ -3119,14 +3165,14 @@ async function resetSessionLogs() {
   try {
     await sheets.spreadsheets.values.update({
       spreadsheetId: SESSION_SHEET_ID,
-      range: 'A1:J1',
+      range: 'A1:K1',
       valueInputOption: 'RAW',
       requestBody: { values: [SESSION_SHEET_HEADERS] }
     });
 
     await sheets.spreadsheets.values.clear({
       spreadsheetId: SESSION_SHEET_ID,
-      range: 'A2:J'
+      range: 'A2:K'
     });
 
     return true;
@@ -3134,6 +3180,17 @@ async function resetSessionLogs() {
     console.error('Error resetting session logs:', err.message || err);
     return false;
   }
+}
+
+async function ensureSessionSheetFileIdHeader() {
+  if (!SESSION_SHEET_ID) return false;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SESSION_SHEET_ID,
+    range: 'K1',
+    valueInputOption: 'RAW',
+    requestBody: { values: [['file_id']] }
+  });
+  return true;
 }
 
 async function clearDriveFolders() {
@@ -3713,6 +3770,7 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
   }
 
   try {
+    const visitorInfo = parseVisitorInfo(req);
     const {
       fileId,
       finalName,
@@ -3722,7 +3780,8 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
     } = await uploadFile(
       req.body,
       'ignored.jpeg',
-      req.headers['content-type']
+      req.headers['content-type'],
+      visitorInfo
     );
 
     // Log to Sheet
@@ -3731,7 +3790,13 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
       await Promise.allSettled([
         logEventToSheet('upload', {
           sessionId,
-          ticket: ticketLabel // e.g. "T015"
+          email: visitorInfo.state === 'submitted' ? visitorInfo.email : '',
+          country: visitorInfo.state === 'submitted' ? visitorInfo.country : '',
+          region: visitorInfo.state === 'submitted' ? visitorInfo.region : '',
+          lastName: visitorInfo.state === 'submitted' ? visitorInfo.lastName : '',
+          newsletter: visitorInfo.state === 'submitted' ? visitorInfo.newsletter : null,
+          ticket: ticketLabel, // e.g. "T015"
+          fileId
         }),
         logMetricsEvent('upload', req, {
           sessionId,
@@ -3741,7 +3806,8 @@ app.post('/upload', express.raw({ type: 'image/*', limit: '5mb' }), async (req, 
             fileId,
             finalName,
             ticketIndex,
-            ticketDisplay
+            ticketDisplay,
+            visitorState: visitorInfo.state
           }
         })
       ]);
@@ -4641,7 +4707,7 @@ app.get('/admin/approved-list', ensureAdminAuth, async (req, res) => {
 });
 
 // --------- EVENT LOGS (for admin dashboard) ---------
-// Uses the SAME sheet (SESSION_SHEET_ID / A:J) that already stores all events.
+// Uses the SAME sheet (SESSION_SHEET_ID / A:K) that already stores all events.
 
 app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
   try {
@@ -4654,7 +4720,7 @@ app.get('/admin/event-logs', ensureAdminAuth, async (req, res) => {
 
     const apiRes = await sheets.spreadsheets.values.get({
       spreadsheetId: SESSION_SHEET_ID,
-      range: SESSION_SHEET_RANGE, // "A:J"
+      range: SESSION_SHEET_RANGE, // "A:K"
     });
 
     const rows = apiRes.data.values || [];
@@ -5713,101 +5779,57 @@ app.post('/session-report-date', async (req, res) => {
   }
 });
 
-// Get photo info (email, country, last name) by ticket number
-async function getEmailForPhoto(ticketNumber) {
+// Read visitor information bound directly to this immutable Drive file ID.
+// Historical ticket/session guessing is intentionally not used.
+app.get('/admin/photo-info/:fileId', ensureAdminAuth, async (req, res) => {
   try {
-    if (!SESSION_SHEET_ID) {
-      console.warn('SESSION_SHEET_ID missing, cannot match photo to email');
-      return null;
+    const fileId = String(req.params.fileId || '').trim();
+    if (!fileId) {
+      return res.status(400).json({ ok: false, error: 'missing_file_id' });
     }
 
-    const response = await sheets.spreadsheets.values.get({
+    const response = await drive.files.get({
+      fileId,
+      fields: 'id, appProperties',
+      supportsAllDrives: true,
+    });
+    const properties = response.data.appProperties || {};
+    const verified = properties.visitorDataVersion === '1';
+    const state = verified ? (properties.visitorState || 'unverified') : 'unverified';
+
+    if (state !== 'submitted') {
+      return res.json({ ok: true, verified, state, match: null });
+    }
+
+    const sheetResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SESSION_SHEET_ID,
       range: SESSION_SHEET_RANGE,
     });
-
-    const rows = response.data.values || [];
-    if (rows.length < 2) return null; // No data (header + rows)
-
-    // Skip header row, map to objects
-    const events = rows.slice(1).map(row => ({
-      timestamp_utc: row[0] || '',
-      timestamp_pr: row[1] || '',
-      event_type: row[2] || '',
-      email: row[3] || '',
-      session_id: row[4] || '',
-      country: row[5] || '',
-      region: row[6] || '',
-      last_name: row[7] || '',
-      newsletter: row[8] || '',
-      ticket: row[9] || '',
-    }));
-
-    // Find upload event with this ticket number
-    const uploadEvent = events.find(
-      e => e.event_type === 'upload' && e.ticket === ticketNumber
+    const rows = sheetResponse.data.values || [];
+    const uploadRow = rows.slice(1).find(row =>
+      (row[2] || '') === 'upload' && (row[10] || '') === fileId
     );
 
-    if (!uploadEvent || !uploadEvent.session_id) {
-      return null;
+    if (!uploadRow) {
+      return res.json({ ok: true, verified: false, state: 'unverified', match: null });
     }
 
-    const sessionId = uploadEvent.session_id;
-    const uploadTime = new Date(uploadEvent.timestamp_utc);
-
-    // Find form events with same session_id
-    // Prefer form events that happened before or close to upload time
-    const formEvents = events
-      .filter(e => 
-        e.event_type === 'form' && 
-        e.session_id === sessionId &&
-        e.email // Must have email
-      )
-      .map(e => ({
-        ...e,
-        timeDiff: Math.abs(new Date(e.timestamp_utc) - uploadTime),
-      }))
-      .sort((a, b) => a.timeDiff - b.timeDiff);
-
-    if (formEvents.length > 0) {
-      const bestMatch = formEvents[0];
-      return {
-        email: bestMatch.email || '',
-        country: bestMatch.country || '',
-        region: bestMatch.region || '',
-        last_name: bestMatch.last_name || '',
-        newsletter: bestMatch.newsletter === 'Y',
-        session_id: sessionId,
-        timestamp: bestMatch.timestamp_utc,
-        confidence: 'high',
-      };
-    }
-
-    return null;
+    return res.json({
+      ok: true,
+      verified: true,
+      state,
+      match: {
+        email: uploadRow[3] || '',
+        country: uploadRow[5] || '',
+        region: uploadRow[6] || '',
+        last_name: uploadRow[7] || '',
+        newsletter: (uploadRow[8] || '') === 'Y',
+        session_id: uploadRow[4] || '',
+        confidence: 'verified_file_binding',
+      },
+    });
   } catch (err) {
-    console.error('Error matching photo to email:', err);
-    return null;
-  }
-}
-
-// Admin endpoint to get photo info by ticket number
-app.get('/admin/photo-info/:ticketNumber', ensureAdminAuth, async (req, res) => {
-  try {
-    const ticketNumber = req.params.ticketNumber; // e.g., "T001"
-    
-    if (!ticketNumber) {
-      return res.status(400).json({ ok: false, error: 'missing_ticket_number' });
-    }
-
-    const match = await getEmailForPhoto(ticketNumber);
-    
-    if (match) {
-      return res.json({ ok: true, match });
-    } else {
-      return res.json({ ok: false, error: 'no_match_found' });
-    }
-  } catch (err) {
-    console.error('Error getting photo info:', err);
+    console.error('Error getting file-bound photo info:', err);
     res.status(500).json({ ok: false, error: 'server_error' });
   }
 });
