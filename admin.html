@@ -15372,9 +15372,11 @@ function hideReportLoading() {
 
       const img = new Image();
       const resolvedImageSrc = preloadedImage?.currentSrc || preloadedImage?.src || logoPath;
-      img.src = resolvedImageSrc;
       img.alt = assetRole === "qr" ? (metadata.label || "QR code") : "Logo";
-      img.loading = "lazy";
+      // Chrome may never fetch a lazy image while its parent is detached.
+      // This element is intentionally attached only after its dimensions are
+      // known, so it must load eagerly.
+      img.loading = "eager";
       
       logoDiv.appendChild(img);
 
@@ -15457,10 +15459,16 @@ function hideReportLoading() {
 
       return new Promise((resolve, reject) => {
         let settled = false;
+        const imageLoadTimer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(assetRole === "qr" ? "qr_asset_load_timeout" : "logo_asset_load_timeout"));
+        }, 30000);
 
         function finalizePlacement() {
           if (settled) return;
           settled = true;
+          clearTimeout(imageLoadTimer);
           const canvasWidth = templateCanvas.offsetWidth;
           const canvasHeight = templateCanvas.offsetHeight;
           const dimensionSource = preloadedImage && preloadedImage.naturalWidth > 0 ? preloadedImage : img;
@@ -15499,8 +15507,13 @@ function hideReportLoading() {
         img.onerror = () => {
           if (settled) return;
           settled = true;
+          clearTimeout(imageLoadTimer);
           reject(new Error(assetRole === "qr" ? "qr_asset_load_failed" : "logo_asset_load_failed"));
         };
+
+        // Install load/error handlers before assigning src. Cached images can
+        // complete immediately in Chrome.
+        img.src = resolvedImageSrc;
 
         if (preloadedImage && preloadedImage.naturalWidth > 0 && preloadedImage.naturalHeight > 0) {
           finalizePlacement();
