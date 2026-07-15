@@ -1967,6 +1967,31 @@ function sanitizeDriveFileBaseName(value, fallback = 'asset') {
   return normalized || fallback;
 }
 
+function normalizeTemplateUploadMimeType(file) {
+  const rawType = String(file?.mimetype || '').trim().toLowerCase().split(';')[0];
+  const aliases = {
+    'image/jpg': 'image/jpeg',
+    'image/pjpeg': 'image/jpeg',
+    'image/x-png': 'image/png',
+  };
+  const normalizedType = aliases[rawType] || rawType;
+  if (['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(normalizedType)) {
+    return normalizedType;
+  }
+
+  const originalName = String(file?.originalname || '').trim().toLowerCase();
+  const extension = originalName.includes('.') ? originalName.slice(originalName.lastIndexOf('.')) : '';
+  const extensionTypes = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.jfif': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml',
+  };
+  return extensionTypes[extension] || normalizedType || 'application/octet-stream';
+}
+
 async function syncActiveTemplateSettings(settings) {
   const next = JSON.parse(JSON.stringify(settings || {}));
   const activeTemplateId = normalizeTemplateId(next.activeTemplateId);
@@ -5993,6 +6018,7 @@ app.post('/admin/templates/upload-asset', ensureAdminAuth, multer({ storage: mul
       `template_${assetType}_${timestamp}`
     );
     const filename = `${safeLabel}.${extension}`;
+    const uploadMimeType = normalizeTemplateUploadMimeType(req.file);
 
     const bufferStream = new stream.PassThrough();
     bufferStream.end(req.file.buffer);
@@ -6000,11 +6026,11 @@ app.post('/admin/templates/upload-asset', ensureAdminAuth, multer({ storage: mul
     const response = await drive.files.create({
       requestBody: {
         name: filename,
-        mimeType: req.file.mimetype,
+        mimeType: uploadMimeType,
         parents: [folderId]
       },
       media: {
-        mimeType: req.file.mimetype,
+        mimeType: uploadMimeType,
         body: bufferStream
       },
       supportsAllDrives: true

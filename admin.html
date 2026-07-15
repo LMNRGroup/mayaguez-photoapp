@@ -7329,10 +7329,22 @@ View report to see the most recent interactions
       });
     }
 
-    function uploadMultipartWithProgress(url, formData, { onProgress = null } = {}) {
+    function uploadMultipartWithProgress(url, formData, { onProgress = null, timeoutMs = 120000 } = {}) {
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        let settled = false;
+        const rejectOnce = (error) => {
+          if (settled) return;
+          settled = true;
+          reject(error);
+        };
+        const resolveOnce = (value) => {
+          if (settled) return;
+          settled = true;
+          resolve(value);
+        };
         xhr.open("POST", url, true);
+        xhr.timeout = Math.max(1000, Number(timeoutMs) || 120000);
 
         const headers = withAdminHeaders();
         Object.entries(headers).forEach(([key, value]) => {
@@ -7348,21 +7360,27 @@ View report to see the most recent interactions
           });
         };
 
-        xhr.onerror = () => reject(new Error("upload_network_failed"));
+        xhr.onerror = () => rejectOnce(new Error("upload_network_failed"));
+        xhr.onabort = () => rejectOnce(new Error("upload_aborted"));
+        xhr.ontimeout = () => rejectOnce(new Error("upload_timeout"));
         xhr.onload = () => {
           let data = {};
           try {
             data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
           } catch (_) {}
 
-          resolve({
+          resolveOnce({
             ok: xhr.status >= 200 && xhr.status < 300,
             status: xhr.status,
             data,
           });
         };
 
-        xhr.send(formData);
+        try {
+          xhr.send(formData);
+        } catch (err) {
+          rejectOnce(err instanceof Error ? err : new Error("upload_send_failed"));
+        }
       });
     }
 
@@ -14929,7 +14947,11 @@ function hideReportLoading() {
       }
 
       const formData = new FormData();
-      formData.append("file", file);
+      const normalizedMimeType = getTemplateAssetMimeType(file);
+      const uploadFile = normalizedMimeType && normalizedMimeType !== String(file.type || "").toLowerCase()
+        ? file.slice(0, file.size, normalizedMimeType)
+        : file;
+      formData.append("file", uploadFile, file.name);
       formData.append("assetType", assetType);
       if (assetLabel) {
         formData.append("assetLabel", assetLabel);
@@ -14988,6 +15010,31 @@ function hideReportLoading() {
       });
     }
 
+    function getTemplateAssetMimeType(file) {
+      const rawType = String(file?.type || "").trim().toLowerCase().split(";")[0];
+      const mimeAliases = {
+        "image/jpg": "image/jpeg",
+        "image/pjpeg": "image/jpeg",
+        "image/x-png": "image/png",
+      };
+      const normalizedType = mimeAliases[rawType] || rawType;
+      if (["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(normalizedType)) {
+        return normalizedType;
+      }
+
+      const fileName = String(file?.name || "").trim().toLowerCase();
+      const extension = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : "";
+      const extensionTypes = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".jfif": "image/jpeg",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+      };
+      return extensionTypes[extension] || normalizedType;
+    }
+
     async function validateTemplateRasterAsset(file, options = {}) {
       const {
         label = "Image",
@@ -15001,7 +15048,8 @@ function hideReportLoading() {
         maxHeight = Infinity,
       } = options;
 
-      if (allowedTypes.length && !allowedTypes.includes(file.type)) {
+      const normalizedType = getTemplateAssetMimeType(file);
+      if (allowedTypes.length && !allowedTypes.includes(normalizedType)) {
         throw new Error(`${label} must be one of: ${allowedTypes.map((type) => type.replace("image/", "").toUpperCase()).join(", ")}.`);
       }
 
@@ -15036,7 +15084,8 @@ function hideReportLoading() {
 
     async function validateTemplateLogoFile(file) {
       const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
-      if (!allowedTypes.includes(file.type)) {
+      const normalizedType = getTemplateAssetMimeType(file);
+      if (!allowedTypes.includes(normalizedType)) {
         throw new Error("Logo must be PNG, JPEG, WEBP, or SVG.");
       }
 
@@ -15044,7 +15093,7 @@ function hideReportLoading() {
         throw new Error("Logo must be 6 MB or smaller.");
       }
 
-      if (file.type !== "image/svg+xml") {
+      if (normalizedType !== "image/svg+xml") {
         await validateTemplateRasterAsset(file, {
           label: "Logo",
           allowedTypes,
@@ -15059,7 +15108,8 @@ function hideReportLoading() {
 
     async function validateTemplateQrFile(file) {
       const allowedTypes = ["image/png", "image/jpeg", "image/svg+xml"];
-      if (!allowedTypes.includes(file.type)) {
+      const normalizedType = getTemplateAssetMimeType(file);
+      if (!allowedTypes.includes(normalizedType)) {
         throw new Error("QR overlay must be PNG, JPEG, or SVG.");
       }
 
@@ -15067,7 +15117,7 @@ function hideReportLoading() {
         throw new Error("QR overlay must be 4 MB or smaller.");
       }
 
-      if (file.type !== "image/svg+xml") {
+      if (normalizedType !== "image/svg+xml") {
         await validateTemplateRasterAsset(file, {
           label: "QR overlay",
           allowedTypes,
@@ -15112,6 +15162,7 @@ function hideReportLoading() {
       templateLogoUpload.addEventListener("change", async (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
+        let task = null;
 
         try {
           if (isUploadingTemplateAsset) {
@@ -15123,7 +15174,7 @@ function hideReportLoading() {
           }
 
           isUploadingTemplateAsset = true;
-          const task = beginTemplateProgressTask(
+          task = beginTemplateProgressTask(
             "Uploading Logo",
             "Validating logo file",
             file.name,
@@ -15162,6 +15213,9 @@ function hideReportLoading() {
           await task.complete("Logo ready", "The logo is now available on the template.");
         } catch (err) {
           console.error("Error uploading template logo:", err);
+          if (task) {
+            await task.fail("Logo upload failed", err && err.message ? err.message : "Please try again.");
+          }
           await appAlert(err && err.message ? err.message : "Failed to upload logo. Please try again.", {
             title: "Upload Failed",
             tone: "error",
@@ -15177,6 +15231,7 @@ function hideReportLoading() {
       templateQrUpload.addEventListener("change", async (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
+        let task = null;
 
         try {
           if (isUploadingTemplateAsset) {
@@ -15195,7 +15250,7 @@ function hideReportLoading() {
           });
           if (!qrLabel) return;
 
-          const task = beginTemplateProgressTask(
+          task = beginTemplateProgressTask(
             "Uploading QR Code",
             "Uploading QR asset",
             `${qrLabel} · ${formatBytes(file.size)}`,
@@ -15239,6 +15294,9 @@ function hideReportLoading() {
           await task.complete("QR code ready", "The QR layer is now available on the template.");
         } catch (err) {
           console.error("Error uploading QR code overlay:", err);
+          if (task) {
+            await task.fail("QR upload failed", err && err.message ? err.message : "Please try again.");
+          }
           await appAlert(err && err.message ? err.message : "Failed to upload QR code image. Please try again.", {
             title: "Upload Failed",
             tone: "error",
