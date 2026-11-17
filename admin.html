@@ -6477,6 +6477,26 @@
     #viewTemplates .template-canvas { flex: 0 0 auto; width: min(100%, calc(100cqh * 16 / 9)); max-height: 100%; }
   }
   .app-dialog, .app-dialog-content, .app-modal, .app-modal-content { overflow-wrap: anywhere; }
+
+  .desktop-nav-toggle { display: none; }
+  @media (min-width: 769px) {
+    .card-main { position: relative; }
+    .desktop-nav-toggle { display: grid; place-items: center; position: absolute; top: 0; left: calc(clamp(12rem, 15vw, 17rem) - 2.5rem); z-index: 35; width: 2rem; height: 2rem; padding: 0; border: 1px solid var(--border); border-radius: .6rem; background: var(--card); color: var(--muted-foreground); cursor: pointer; }
+    .desktop-nav-toggle:hover { color: var(--primary); border-color: var(--primary); }
+    .desktop-nav-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .desktop-nav-toggle svg { width: 1rem; height: 1rem; }
+    body.desktop-nav-collapsed .sidebar-left { display: none; }
+    body.desktop-nav-collapsed .card-main { grid-template-columns: minmax(0, 1fr) clamp(16rem, 21vw, 23rem); }
+    body.desktop-nav-collapsed .desktop-nav-toggle { left: 0; }
+    body.desktop-nav-collapsed .center-panel { padding-top: 2.5rem; }
+    #viewTemplates .template-editor-container { grid-template-columns: clamp(300px, 22vw, 390px) minmax(0, 1fr); }
+  }
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .desktop-nav-toggle { left: 132px; }
+    body.desktop-nav-collapsed .card-main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "right"; }
+    #viewTemplates .template-editor-container { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (min-width: 1025px) and (max-width: 1180px) { #viewTemplates .template-editor-container { grid-template-columns: minmax(0, 1fr); } }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -6566,8 +6586,9 @@
     <!-- MAIN CARD -->
     <div class="card">
       <div class="card-main">
+        <button id="desktopNavToggle" class="desktop-nav-toggle" type="button" aria-controls="desktopSidebar" aria-expanded="true" aria-label="Hide navigation" title="Hide navigation"><i data-lucide="panel-left-close"></i></button>
         <!-- LEFT NAV -->
-        <aside class="sidebar-left">
+        <aside class="sidebar-left" id="desktopSidebar">
           <div class="nav-group">
             <div class="nav-label">Dashboard</div>
             <button class="nav-item active" id="navDashboard"><span class="nav-item-label">DASHBOARD</span><span class="nav-item-icon"><i data-lucide="layout-dashboard"></i></span></button>
@@ -18992,6 +19013,29 @@ if (reportDownloadBtn) {
     toggle.setAttribute('aria-expanded', 'false');
   });
   window.matchMedia('(max-width: 768px)').addEventListener('change', event => { if (!event.matches && dialog.open) dialog.close(); });
+})();
+</script>
+
+<script>
+(() => {
+  const button = document.getElementById("desktopNavToggle");
+  const sidebar = document.getElementById("desktopSidebar");
+  const desktop = window.matchMedia("(min-width: 769px)");
+  let collapsed = false;
+  try { collapsed = localStorage.getItem("adminDesktopNavCollapsed") === "true"; } catch (_) {}
+  function sync() {
+    const hidden = desktop.matches && collapsed;
+    document.body.classList.toggle("desktop-nav-collapsed", hidden);
+    sidebar.inert = hidden;
+    button.setAttribute("aria-expanded", String(!hidden));
+    button.setAttribute("aria-label", hidden ? "Show navigation" : "Hide navigation");
+    button.title = hidden ? "Show navigation" : "Hide navigation";
+    button.innerHTML = `<i data-lucide="${hidden ? "panel-left-open" : "panel-left-close"}"></i>`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+  button.addEventListener("click", () => { collapsed = !collapsed; try { localStorage.setItem("adminDesktopNavCollapsed", String(collapsed)); } catch (_) {} sync(); });
+  desktop.addEventListener("change", sync);
+  sync();
 })();
 </script>
 </body>
