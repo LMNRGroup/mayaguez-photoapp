@@ -6440,6 +6440,14 @@
   @media (hover: hover) { .metrics-chart-col:hover .metrics-chart-bar { transform: scale(1.08, 1.04); filter: brightness(1.15); } }
   .metrics-chart-col:focus-visible .metrics-chart-bar { transform: scale(1.08, 1.04); filter: brightness(1.15); }
   @media (prefers-reduced-motion: reduce) { .metrics-chart-col, .metrics-chart-bar { transition: none; } }
+
+  #viewMetrics .metrics-card { position: relative; overflow: hidden; min-height: 7.2rem; background: linear-gradient(145deg, color-mix(in srgb, var(--card) 90%, var(--primary) 10%), var(--card) 68%); border: 1px solid var(--border); }
+  #viewMetrics .metrics-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; min-width: 0; }
+  #viewMetrics .metrics-card-label { line-height: 1.35; padding-top: .3rem; }
+  #viewMetrics .metrics-card-icon { display: grid; place-items: center; flex: 0 0 2.4rem; width: 2.4rem; height: 2.4rem; border-radius: .75rem; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent); }
+  #viewMetrics .metrics-card-icon svg { width: 1.2rem; height: 1.2rem; stroke-width: 1.7; }
+  #viewMetrics .metrics-card-value { font-variant-numeric: tabular-nums; line-height: 1; margin-top: .35rem; }
+  @media (max-width: 768px) { #viewMetrics .metrics-card { min-height: 7rem; padding: .85rem; } #viewMetrics .metrics-card-icon { flex-basis: 2.1rem; width: 2.1rem; height: 2.1rem; } #viewMetrics .metrics-card-icon svg { width: 1.05rem; height: 1.05rem; } }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -9597,20 +9605,21 @@ function hideGlobalLoader() {
     function renderMetricsCards(summary = {}) {
       if (!metricsCardGrid) return;
       const cards = [
-        {label:"Visits",value:formatMetricNumber(summary.visits),meta:"One visit per browser/event session in range"},
-        {label:"Registrations",value:formatMetricNumber(summary.forms),meta:"Latest form per browser/event session in range"},
-        {label:"Photos uploaded",value:formatMetricNumber(summary.uploads),meta:"Server-confirmed files; duplicates removed by file ID"},
-        {label:"Approved",value:formatMetricNumber(summary.approvals),meta:"Approval actions in range; not screen impressions"},
-        {label:"Rejected",value:formatMetricNumber(summary.rejections),meta:"Rejection actions in range"},
-        {label:"Newsletter contacts",value:formatMetricNumber(summary.newsletterOptIns),meta:"Unique emails with latest recorded consent in range"}
+        {icon:"users-round",label:"Visits",value:formatMetricNumber(summary.visits),meta:"One visit per browser/event session in range"},
+        {icon:"clipboard-list",label:"Registrations",value:formatMetricNumber(summary.forms),meta:"Latest form per browser/event session in range"},
+        {icon:"image-up",label:"Photos uploaded",value:formatMetricNumber(summary.uploads),meta:"Server-confirmed files; duplicates removed by file ID"},
+        {icon:"circle-check",label:"Approved",value:formatMetricNumber(summary.approvals),meta:"Approval actions in range; not screen impressions"},
+        {icon:"circle-x",label:"Rejected",value:formatMetricNumber(summary.rejections),meta:"Rejection actions in range"},
+        {icon:"mail",label:"Newsletter contacts",value:formatMetricNumber(summary.newsletterOptIns),meta:"Unique emails with latest recorded consent in range"}
       ];
 
       metricsCardGrid.innerHTML = cards.map((card) => `
         <article class="metrics-card">
-          <div class="metrics-card-label">${card.label}</div>
+          <div class="metrics-card-top"><div class="metrics-card-label">${card.label}</div><span class="metrics-card-icon" aria-hidden="true"><i data-lucide="${card.icon}"></i></span></div>
           <div class="metrics-card-value">${card.value}</div>
         </article>
       `).join("");
+      renderLucideIcons();
       document.getElementById("metricsDefinitions").innerHTML = cards.map(card => `<p><strong>${card.label}:</strong> ${card.meta}</p>`).join("");
     }
 
