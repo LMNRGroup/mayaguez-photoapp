@@ -5,19 +5,9 @@
   <title>LuminarApps - ADMIN Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <style>
-  /* PIXY BRAND FONT */
-  @font-face {
-    font-family: 'Pixy';
-    src: url('Assets/PIXY.woff2') format('woff2'),
-         url('Assets/PIXY.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-  }
-
-  /* PIXY FONT ON "Lock Admin" */
+/* PIXY FONT ON "Lock Admin" */
   #lockAdminBtn {
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif !important;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     color: var(--destructive);
@@ -79,8 +69,8 @@
     --amber-500: #f59e0b;
     --yellow-400: #facc15;
     
-    /* Default font stack (QRC) - keep Pixy where explicitly used */
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    /* Interface font stack */
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     color: var(--foreground);
     background: var(--background);
   }
@@ -145,7 +135,7 @@
     color: var(--foreground);
     overflow: hidden;
     overflow-x: hidden;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .page-wrapper {
@@ -212,7 +202,7 @@
   }
 
   .header-brand-top {
-    font-family: "SF Pro Display", "Helvetica Neue", "Gotham", "Satoshi", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-size: 0.78rem;
     font-weight: 300;
     letter-spacing: 0.38em;
@@ -222,7 +212,7 @@
   }
 
   .header-brand-bottom {
-    font-family: "SF Pro Display", "Helvetica Neue", "Gotham", "Satoshi", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-size: 1.28rem;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -255,7 +245,7 @@
     border: 1px solid var(--border);
     background: var(--secondary);
     color: var(--foreground);
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: 0.3em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -479,7 +469,7 @@
     font-size: 0.75rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     color: var(--muted-foreground);
     margin-bottom: 0.5rem;
     font-weight: 600;
@@ -502,7 +492,7 @@
     position: relative;
     font-weight: 500; /* font-medium */
     transition: color 0.2s ease; /* duration-200 */
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .nav-item-label {
@@ -537,7 +527,7 @@
   #navSettings,
   #navTemplates,
   #navResetLogs {
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-weight: 500;
   }
 
@@ -660,14 +650,14 @@
     text-transform: uppercase;
     letter-spacing: 0.3em;
     color: var(--foreground);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .view-subtitle {
     font-size: 0.8125rem;
     color: var(--muted-foreground);
     line-height: 1.6;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .view-actions {
@@ -763,7 +753,7 @@
     border-radius: var(--radius);
     padding: 1.5rem;
     font-size: 0.875rem; /* text-sm - 14px */
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     color: var(--card-foreground);
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -975,7 +965,7 @@
     text-transform: uppercase;
     letter-spacing: 0.3em;
     font-weight: 500;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
@@ -1042,7 +1032,7 @@
     letter-spacing: 0.3em;
     color: var(--muted-foreground);
     font-weight: 500;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .template-select {
@@ -1053,7 +1043,7 @@
     background: var(--background);
     color: var(--foreground);
     font-size: 0.875rem;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     min-width: 200px;
     cursor: pointer;
     transition: all 0.2s;
@@ -1339,7 +1329,7 @@
     letter-spacing: 0.3em;
     color: rgba(255, 255, 255, 0.7);
     font-weight: 500;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     background: rgba(0, 0, 0, 0.5);
     padding: 0.25rem 0.75rem;
     border-radius: calc(var(--radius) - 4px);
@@ -1544,7 +1534,7 @@
     letter-spacing: 0.3em;
     color: var(--foreground);
     margin-bottom: 1rem;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .template-name-input {
@@ -1556,7 +1546,7 @@
     background: var(--background);
     color: var(--foreground);
     font-size: 0.875rem;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     margin-bottom: 1.5rem;
     transition: all 0.2s;
   }
@@ -1930,7 +1920,7 @@
     font-size: 0.75rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     color: var(--muted-foreground);
     font-weight: 600;
     min-width: 0;
@@ -1987,7 +1977,7 @@
     color: var(--muted-foreground);
     text-align: center;
     padding: 1.5rem 1rem;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .buttons {
@@ -2013,7 +2003,7 @@
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.3em; /* tracking-[0.3em] */
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     transition: all 0.2s ease; /* duration-200 */
     min-width: 0;
     white-space: nowrap;
@@ -2059,7 +2049,7 @@
     color: var(--muted-foreground);
     text-align: center;
     margin-top: 0.125rem;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   /* RIGHT PANEL (EVENT LOGS + ACTIVITY) */
@@ -2107,7 +2097,7 @@
   }
 
   .panel-title {
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-size: 0.75rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
@@ -2125,7 +2115,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     min-width: 0;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .event-log-hint {
@@ -2168,7 +2158,7 @@
   }
 
   .event-log-time {
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: 0.3em;
     font-size: 0.625rem;
     color: var(--muted-foreground);
@@ -2213,7 +2203,7 @@
   .activity-axis {
     font-size: 0.5625rem;
     color: var(--muted-foreground);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .activity-axis.y {
@@ -2725,7 +2715,7 @@
     color: var(--muted-foreground);
     padding: 1rem 0.25rem 0.5rem;
     text-align: center;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .approved-view-actions {
@@ -2874,7 +2864,7 @@
     font-size: 0.625rem;
     color: var(--muted-foreground);
     min-width: 0;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     flex-wrap: wrap;
   }
 
@@ -2960,7 +2950,7 @@
     flex: 0 0 auto;
     font-weight: 500;
     transition: all 0.2s ease;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     height: 2.5rem;
   }
 
@@ -3031,7 +3021,7 @@
     letter-spacing: 0.3em;
     font-weight: 500;
     transition: all 0.2s ease;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     height: 2.5rem;
   }
 
@@ -3117,7 +3107,7 @@
     transition: all 0.2s ease;
     z-index: 10;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .photo-info-nav-btn:hover {
@@ -3166,7 +3156,7 @@
     letter-spacing: 0.3em;
     color: var(--foreground);
     margin: 0;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .photo-info-close {
@@ -3239,7 +3229,7 @@
     letter-spacing: 0.3em;
     color: var(--muted-foreground);
     font-weight: 500;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .photo-info-value {
@@ -3247,7 +3237,7 @@
     color: var(--foreground);
     font-weight: 500;
     word-break: break-word;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .photo-info-actions {
@@ -3271,7 +3261,7 @@
     cursor: pointer;
     transition: all 0.2s;
     border: 1px solid transparent;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .photo-info-btn svg {
@@ -3383,7 +3373,7 @@
     text-transform: uppercase;
     color: var(--foreground);
     font-weight: 600;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .settings-section-summary {
@@ -3461,7 +3451,7 @@
   .settings-label {
     font-size: 0.75rem;
     color: var(--foreground);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -3476,7 +3466,7 @@
     padding: 0.5rem 0.75rem;
     color: var(--foreground);
     font-size: 0.875rem;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-weight: 400;
     transition: all 0.2s ease;
     min-width: 0;
@@ -3837,7 +3827,7 @@
   .runtime-toggle-title {
     font-size: 0.75rem;
     color: var(--foreground);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -3893,7 +3883,7 @@
     text-transform: uppercase;
     letter-spacing: 0.3em; /* tracking-[0.3em] */
     cursor: pointer;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-weight: 500; /* font-medium */
     transition: all 0.2s ease; /* duration-200 */
     border: 1px solid transparent;
@@ -4014,7 +4004,7 @@
     color: var(--card-foreground);
     white-space: pre-wrap;
     min-width: 0;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     line-height: 1.7; /* Comfortable reading line height */
     letter-spacing: 0.01em; /* Slight letter spacing for readability */
   }
@@ -4997,7 +4987,7 @@
     background: transparent;
     color: rgba(248, 250, 252, 0.96);
     font-size: 1.05rem;
-    font-family: "SF Pro Display", "Helvetica Neue", "Gotham", "Satoshi", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     outline: none;
     padding: 0;
   }
@@ -5114,7 +5104,7 @@
   }
 
   .lock-app-name {
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-size: 2rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
@@ -5132,7 +5122,7 @@
     color: var(--muted-foreground);
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-card {
@@ -5158,7 +5148,7 @@
     transition: color 0.2s ease;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-input {
@@ -5174,7 +5164,7 @@
     outline: none;
     transition: all 0.2s ease;
     min-width: 0;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-input::placeholder {
@@ -5203,7 +5193,7 @@
     text-transform: uppercase;
     letter-spacing: 0.3em;
     transition: all 0.2s ease;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-button:hover {
@@ -5221,7 +5211,7 @@
     color: var(--destructive);
     min-height: 0.875rem;
     text-align: center;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   .lock-meta {
@@ -5230,7 +5220,7 @@
     color: var(--muted-foreground);
     text-align: center;
     line-height: 1.5;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
   }
 
   @keyframes lock-shake {
@@ -5257,7 +5247,7 @@
   }
 
   .lock-brand {
-    font-family: 'Pixy', "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     font-size: 0.625rem;
     letter-spacing: 0.3em;
     text-transform: uppercase;
@@ -6323,7 +6313,7 @@
   .admin-footer-text {
     font-size: 0.8125rem;
     color: var(--muted-foreground);
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: 0.1em;
     margin: 0;
   }
@@ -6438,6 +6428,17 @@
   .metrics-help { color: var(--muted-foreground); font-size: .85rem; line-height: 1.6; padding: .75rem 0; }
   .metrics-help summary { cursor: pointer; padding: .5rem 0; }
   .metrics-help p { margin: .5rem 0; max-width: 70ch; }
+
+  /* A single interface typeface, with monospace reserved for logs. */
+  .nav-item, .nav-label, .mobile-nav-item, #mobileMenuToggle, #lockAdminBtn,
+  .header-title, .view-title, .settings-section-title { font-family: "Gotham", "Helvetica Neue", Arial, sans-serif !important; letter-spacing: .04em; }
+  .metrics-chart-detail { min-height: 2.5rem; display: flex; align-items: center; color: var(--muted-foreground); font-size: .85rem; line-height: 1.4; }
+  .metrics-chart-col { cursor: pointer; border-radius: .5rem; transition: background-color .18s ease; }
+  .metrics-chart-col:hover, .metrics-chart-col:focus-visible { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+  .metrics-chart-bar { transform-origin: center bottom; transition: transform .18s ease, filter .18s ease; }
+  @media (hover: hover) { .metrics-chart-col:hover .metrics-chart-bar { transform: scale(1.08, 1.04); filter: brightness(1.15); } }
+  .metrics-chart-col:focus-visible .metrics-chart-bar { transform: scale(1.08, 1.04); filter: brightness(1.15); }
+  @media (prefers-reduced-motion: reduce) { .metrics-chart-col, .metrics-chart-bar { transition: none; } }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -6708,6 +6709,7 @@ Loading current event summary…
                         <div class="metrics-legend" aria-label="Chart legend"><span><i class="legend-visits"></i>Visits</span><span><i class="legend-forms"></i>Registrations</span><span><i class="legend-uploads"></i>Photos</span></div>
                       </div>
                     </div>
+                    <div id="metricsChartDetail" class="metrics-chart-detail" aria-live="polite">Select a bar for details</div>
                     <div id="metricsChart" class="metrics-chart"></div>
                   </section>
                 </div>
@@ -9621,13 +9623,13 @@ function hideGlobalLoader() {
       const maxValue = Math.max(...series.map((bucket) => Math.max(bucket.visits || 0, bucket.forms || 0, bucket.uploads || 0)), 1);
 
       metricsChart.style.gridTemplateColumns = `repeat(${series.length}, minmax(4rem, 1fr))`;
-      metricsChart.innerHTML = series.map((bucket) => {
+      metricsChart.innerHTML = series.map((bucket, index) => {
         const visitHeight = bucket.visits ? Math.max(2, ((bucket.visits || 0) / maxValue) * 220) : 0;
         const formHeight = bucket.forms ? Math.max(2, ((bucket.forms || 0) / maxValue) * 220) : 0;
         const uploadHeight = bucket.uploads ? Math.max(2, ((bucket.uploads || 0) / maxValue) * 220) : 0;
 
         return `
-          <div class="metrics-chart-col" tabindex="0" title="${escapeHtml(bucket.key || bucket.label)}: ${bucket.visits || 0} visits, ${bucket.forms || 0} forms, ${bucket.uploads || 0} uploads">
+          <div class="metrics-chart-col" tabindex="0" role="button" aria-label="${escapeHtml(bucket.key || bucket.label)}: ${Number(bucket.visits || 0)} visits, ${Number(bucket.forms || 0)} registrations, ${Number(bucket.uploads || 0)} photos" data-index="${index}">
             <div class="metrics-chart-stack">
               <div class="metrics-chart-bar visits" style="height:${visitHeight}px"></div>
               <div class="metrics-chart-bar forms" style="height:${formHeight}px"></div>
@@ -9637,6 +9639,17 @@ function hideGlobalLoader() {
           </div>
         `;
       }).join("");
+      const detail = document.getElementById("metricsChartDetail");
+      detail.textContent = "Select a bar for details";
+      const show = (column) => {
+        const bucket = series[Number(column.dataset.index)];
+        if (!bucket) return;
+        detail.textContent = `${bucket.key || bucket.label} · ${formatMetricNumber(bucket.visits)} visits · ${formatMetricNumber(bucket.forms)} registrations · ${formatMetricNumber(bucket.uploads)} photos`;
+      };
+      metricsChart.onpointerover = (event) => { const column = event.target.closest(".metrics-chart-col"); if (column && event.pointerType !== "touch") show(column); };
+      metricsChart.onfocusin = (event) => { const column = event.target.closest(".metrics-chart-col"); if (column) show(column); };
+      metricsChart.onclick = (event) => { const column = event.target.closest(".metrics-chart-col"); if (column) { column.focus({preventScroll:true}); show(column); } };
+      metricsChart.onkeydown = (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); const column = event.target.closest(".metrics-chart-col"); if (column) show(column); } };
     }
 
     function renderMetricsLocations(locations = []) {
@@ -16236,7 +16249,7 @@ function hideReportLoading() {
         letter-spacing: 0.3em;
         color: var(--foreground);
         margin-bottom: 1rem;
-        font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        font-family: "Gotham", "Helvetica Neue", Arial, sans-serif;
       `;
 
       const optionsDiv = document.createElement("div");
