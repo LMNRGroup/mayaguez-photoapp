@@ -6424,6 +6424,20 @@
   .metrics-chart-bar.forms { background: #c084fc; }
   .metrics-chart-bar.uploads { background: #34d399; }
   .metrics-chart-col:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+  #viewMetrics .metrics-activity-layout { grid-template-columns: minmax(0, 1fr); }
+  #viewMetrics .metrics-card { min-height: 0; padding: 1rem 1.1rem; gap: .4rem; }
+  #viewMetrics .metrics-card-label { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  #viewMetrics .metrics-card-value { font-size: clamp(1.8rem, 2.2vw, 2.6rem); }
+  #viewMetrics .metrics-statusbar { padding: 0; background: none; border: 0; box-shadow: none; }
+  #viewMetrics .metrics-panel-title { text-transform: none; letter-spacing: 0; font-size: 1rem; }
+  .metrics-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: .65rem; font-size: .8rem; color: var(--muted-foreground); }
+  .metrics-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .metrics-legend i { width: .5rem; height: .5rem; border-radius: 50%; }
+  .legend-visits { background: #60a5fa; } .legend-forms { background: #c084fc; } .legend-uploads { background: #34d399; }
+  .metrics-help { color: var(--muted-foreground); font-size: .85rem; line-height: 1.6; padding: .75rem 0; }
+  .metrics-help summary { cursor: pointer; padding: .5rem 0; }
+  .metrics-help p { margin: .5rem 0; max-width: 70ch; }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -6651,9 +6665,6 @@ Loading current event summary…
           <div id="viewMetrics" class="center-view" style="display: none;">
             <div class="view-header">
               <div class="view-title">Metrics &amp; Data</div>
-              <div class="view-subtitle">
-                Historical analytics workspace for visits, registrations, uploads, newsletter leads, and exportable reports.
-              </div>
             </div>
             <div class="metrics-shell">
               <div class="metrics-toolbar">
@@ -6665,7 +6676,7 @@ Loading current event summary…
                     <button type="button" class="metrics-chip" data-preset="30d">30 Days</button>
                   </div>
                 </div>
-                <details class="metrics-filter-details"><summary>Event, dates &amp; exports</summary><div class="metrics-toolbar-block">
+                <details class="metrics-filter-details"><summary>Filters &amp; downloads</summary><div class="metrics-toolbar-block">
                   <label for="metricsEventSession">Event session</label><select id="metricsEventSession" class="settings-input"><option value="">All recorded sessions</option></select>
                   <div class="metrics-date-range">
                     <input id="metricsStartDate" aria-label="Start date, Puerto Rico time" type="date" class="settings-input metrics-date-input" />
@@ -6680,41 +6691,31 @@ Loading current event summary…
               </div>
               <div class="metrics-statusbar">
                 <div class="metrics-status-copy">
-                  <div id="metricsStatusLabel" class="metrics-status-label">Live Metrics Window</div>
+                  
                   <div id="metricsRangeLabel" class="metrics-status-value">Last hour</div>
-                  <div id="metricsRangeMeta" class="metrics-status-meta">Reading historical metrics from the dedicated workbook.</div>
+                  
                 </div>
               </div>
-              <p id="metricsCoverage" class="metrics-status-meta" role="status"></p>
+              
               <div id="metricsLoadingState" class="metrics-loading">Loading metrics workspace…</div>
               <div id="metricsContent" style="display:none;">
                 <div id="metricsCardGrid" class="metrics-card-grid"></div>
-                <div class="metrics-layout" style="margin-top: 0.95rem;">
+                <div class="metrics-layout metrics-activity-layout" style="margin-top: 0.95rem;">
                   <section class="metrics-panel">
                     <div class="metrics-panel-header">
                       <div>
-                        <div class="metrics-panel-title">Activity Timeline</div>
-                        <div class="metrics-panel-subtitle">Visits (blue), registrations (purple), uploads (green). Scroll horizontally for the full period.</div>
+                        <div class="metrics-panel-title">Activity</div>
+                        <div class="metrics-legend" aria-label="Chart legend"><span><i class="legend-visits"></i>Visits</span><span><i class="legend-forms"></i>Registrations</span><span><i class="legend-uploads"></i>Photos</span></div>
                       </div>
                     </div>
                     <div id="metricsChart" class="metrics-chart"></div>
                   </section>
-                  <section class="metrics-panel">
-                    <div class="metrics-panel-header">
-                      <div>
-                        <div class="metrics-panel-title">Reporting Notes</div>
-                        <div class="metrics-panel-subtitle">How to interpret this report.</div>
-                      </div>
-                    </div>
-                    <div id="metricsInsightsList" class="metrics-insight-list"></div>
-                  </section>
                 </div>
                 <div class="metrics-layout" style="margin-top: 0.95rem;">
                   <section class="metrics-panel">
                     <div class="metrics-panel-header">
                       <div>
-                        <div class="metrics-panel-title">Newsletter Leads</div>
-                        <div class="metrics-panel-subtitle">Most recent opt-ins inside the selected range. Export pulls the full filtered list.</div>
+                        <div class="metrics-panel-title">Newsletter Contacts</div>
                       </div>
                     </div>
                     <div class="metrics-table-wrap">
@@ -6734,14 +6735,20 @@ Loading current event summary…
                   <section class="metrics-panel">
                     <div class="metrics-panel-header">
                       <div>
-                        <div class="metrics-panel-title">Visitor Origins</div>
-                        <div class="metrics-panel-subtitle">Origins reported on registrations; one registration per browser/event session.</div>
+                        <div class="metrics-panel-title">Where visitors are from</div>
                       </div>
                     </div>
                     <div id="metricsLocationList" class="metrics-location-list"></div>
                   </section>
                 </div>
               </div>
+              <details class="metrics-help">
+                <summary>About these numbers</summary>
+                <div id="metricsDefinitions" class="metrics-definitions"></div>
+                <p>Dates and times use Puerto Rico time. Visits count browser sessions, not individual people.</p>
+                <p id="metricsCoverage"></p>
+                <p id="metricsRangeMeta"></p>
+              </details>
             </div>
           </div>
 
@@ -9587,27 +9594,27 @@ function hideGlobalLoader() {
     function renderMetricsCards(summary = {}) {
       if (!metricsCardGrid) return;
       const cards = [
-        {label:"Visit Sessions",value:formatMetricNumber(summary.visits),meta:"One visit per browser/event session in range"},
+        {label:"Visits",value:formatMetricNumber(summary.visits),meta:"One visit per browser/event session in range"},
         {label:"Registrations",value:formatMetricNumber(summary.forms),meta:"Latest form per browser/event session in range"},
-        {label:"Photo Uploads",value:formatMetricNumber(summary.uploads),meta:"Server-confirmed files; duplicates removed by file ID"},
-        {label:"Recorded Approvals",value:formatMetricNumber(summary.approvals),meta:"Approval actions in range; not screen impressions"},
-        {label:"Recorded Rejections",value:formatMetricNumber(summary.rejections),meta:"Rejection actions in range"},
-        {label:"Newsletter Contacts",value:formatMetricNumber(summary.newsletterOptIns),meta:"Unique emails with latest recorded consent in range"}
+        {label:"Photos uploaded",value:formatMetricNumber(summary.uploads),meta:"Server-confirmed files; duplicates removed by file ID"},
+        {label:"Approved",value:formatMetricNumber(summary.approvals),meta:"Approval actions in range; not screen impressions"},
+        {label:"Rejected",value:formatMetricNumber(summary.rejections),meta:"Rejection actions in range"},
+        {label:"Newsletter contacts",value:formatMetricNumber(summary.newsletterOptIns),meta:"Unique emails with latest recorded consent in range"}
       ];
 
       metricsCardGrid.innerHTML = cards.map((card) => `
         <article class="metrics-card">
           <div class="metrics-card-label">${card.label}</div>
           <div class="metrics-card-value">${card.value}</div>
-          <div class="metrics-card-meta">${card.meta}</div>
         </article>
       `).join("");
+      document.getElementById("metricsDefinitions").innerHTML = cards.map(card => `<p><strong>${card.label}:</strong> ${card.meta}</p>`).join("");
     }
 
     function renderMetricsChart(series = []) {
       if (!metricsChart) return;
       if (!Array.isArray(series) || !series.length) {
-        metricsChart.innerHTML = '<div class="metrics-chart-empty">No activity in this range yet.</div>';
+        metricsChart.innerHTML = '<div class="metrics-chart-empty">No activity yet.</div>';
         return;
       }
 
@@ -9632,29 +9639,10 @@ function hideGlobalLoader() {
       }).join("");
     }
 
-    function renderMetricsInsights(summary = {}) {
-      if (!metricsInsightsList) return;
-      const insights = [
-        {label:"Browser sessions",value:formatMetricNumber(summary.uniqueSessions),meta:"Sessions are identifiers, not unique people."},
-        {label:"Puerto Rico time",value:"UTC−4",meta:"Date filters and activity buckets use America/Puerto_Rico."},
-        {label:"Funnel & reliability",value:"—",meta:"A linked funnel, camera failures and confirmed screen displays are not available in this release."}
-      ];
-
-      metricsInsightsList.innerHTML = insights.map((insight) => `
-        <div class="metrics-insight-item">
-          <div>
-            <div class="metrics-insight-label">${insight.label}</div>
-            <div class="metrics-insight-meta">${insight.meta}</div>
-          </div>
-          <div class="metrics-insight-value">${insight.value}</div>
-        </div>
-      `).join("");
-    }
-
     function renderMetricsLocations(locations = []) {
       if (!metricsLocationList) return;
       if (!Array.isArray(locations) || !locations.length) {
-        metricsLocationList.innerHTML = '<div class="metrics-table-empty">No location data in this range yet.</div>';
+        metricsLocationList.innerHTML = '<div class="metrics-table-empty">No locations yet.</div>';
         return;
       }
 
@@ -9672,7 +9660,7 @@ function hideGlobalLoader() {
     function renderMetricsNewsletterRows(rows = []) {
       if (!metricsNewsletterTableBody) return;
       if (!Array.isArray(rows) || !rows.length) {
-        metricsNewsletterTableBody.innerHTML = '<tr><td colspan="4" class="metrics-table-empty">No newsletter leads in this range yet.</td></tr>';
+        metricsNewsletterTableBody.innerHTML = '<tr><td colspan="4" class="metrics-table-empty">No contacts yet.</td></tr>';
         return;
       }
 
@@ -9736,15 +9724,13 @@ function hideGlobalLoader() {
         document.getElementById("metricsCoverage").textContent = `${data.coverage?.note || "Recorded activity only."} ${data.coverage?.firstRecordedAt ? "First recorded activity: " + new Date(data.coverage.firstRecordedAt).toLocaleDateString("en-US",{timeZone:"America/Puerto_Rico"}) + "." : "No recorded history is available yet."}`;
         metricsState.latestRangeLabel = data.range?.label || "Metrics";
 
-        if (metricsStatusLabel) metricsStatusLabel.textContent = "Historical Metrics Window";
         if (metricsRangeLabel) metricsRangeLabel.textContent = data.range?.label || "Metrics";
         if (metricsRangeMeta) {
-          metricsRangeMeta.textContent = `${formatMetricNumber(data.summary?.visits)} visits, ${formatMetricNumber(data.summary?.forms)} form submissions, ${formatMetricNumber(data.summary?.uploads)} uploads. Generated ${new Date(data.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: "America/Puerto_Rico" })}.`;
+          metricsRangeMeta.textContent = `Updated ${new Date(data.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: "America/Puerto_Rico" })}.`;
         }
 
         renderMetricsCards(data.summary || {});
         renderMetricsChart(data.series || []);
-        renderMetricsInsights(data.summary || {});
         renderMetricsNewsletterRows(data.newsletterRows || []);
         renderMetricsLocations(data.topLocations || []);
 
@@ -9754,7 +9740,7 @@ function hideGlobalLoader() {
         if (requestId !== metricsState.requestId) return;
         console.error("Error loading metrics dashboard", err);
         if (metricsLoadingState) {
-          metricsLoadingState.textContent = "Metrics unavailable. Check your connection and sheet permissions, or choose a valid date range (maximum 366 days), then tap Refresh. No totals are shown while data is unavailable.";
+          metricsLoadingState.textContent = "Unable to load data. Try Refresh in Filters & downloads.";
           metricsLoadingState.style.display = "flex";
         }
         if (metricsContent) metricsContent.style.display = "none";
@@ -10026,14 +10012,12 @@ function hideGlobalLoader() {
     const metricsRefreshBtn = document.getElementById("metricsRefreshBtn");
     const metricsExportNewsletterBtn = document.getElementById("metricsExportNewsletterBtn");
     const metricsExportEventsBtn = document.getElementById("metricsExportEventsBtn");
-    const metricsStatusLabel = document.getElementById("metricsStatusLabel");
     const metricsRangeLabel = document.getElementById("metricsRangeLabel");
     const metricsRangeMeta = document.getElementById("metricsRangeMeta");
     const metricsLoadingState = document.getElementById("metricsLoadingState");
     const metricsContent = document.getElementById("metricsContent");
     const metricsCardGrid = document.getElementById("metricsCardGrid");
     const metricsChart = document.getElementById("metricsChart");
-    const metricsInsightsList = document.getElementById("metricsInsightsList");
     const metricsNewsletterTableBody = document.getElementById("metricsNewsletterTableBody");
     const metricsLocationList = document.getElementById("metricsLocationList");
 
