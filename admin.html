@@ -6448,6 +6448,26 @@
   #viewMetrics .metrics-card-icon svg { width: 1.2rem; height: 1.2rem; stroke-width: 1.7; }
   #viewMetrics .metrics-card-value { font-variant-numeric: tabular-nums; line-height: 1; margin-top: .35rem; }
   @media (max-width: 768px) { #viewMetrics .metrics-card { min-height: 7rem; padding: .85rem; } #viewMetrics .metrics-card-icon { flex-basis: 2.1rem; width: 2.1rem; height: 2.1rem; } #viewMetrics .metrics-card-icon svg { width: 1.05rem; height: 1.05rem; } }
+
+  /* Template library follows the metrics card design. */
+  #viewTemplates .template-library { background: transparent; border: 0; padding: 0; gap: .8rem; }
+  #viewTemplates .template-library-title { color: var(--muted-foreground); font-size: .85rem; letter-spacing: .04em; text-transform: none; }
+  #viewTemplates .template-library-list { gap: .7rem; padding: .1rem; }
+  #viewTemplates .template-library-item { box-sizing: border-box; min-width: 0; border-radius: 1rem; padding: 1rem; background: linear-gradient(145deg, color-mix(in srgb, var(--card) 90%, var(--primary) 10%), var(--card) 68%); border: 1px solid var(--border); }
+  #viewTemplates .template-library-item:hover, #viewTemplates .template-library-item.active { border-color: var(--primary); background: color-mix(in srgb, var(--card) 91%, var(--primary) 9%); }
+  #viewTemplates .template-library-item:focus-visible, #viewTemplates .template-library-item-rename:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+  #viewTemplates .template-library-item-main { width: 100%; align-items: center; }
+  #viewTemplates .template-library-item-copy { overflow: hidden; }
+  #viewTemplates .template-library-item-name { overflow-wrap: anywhere; font-size: .95rem; line-height: 1.35; }
+  #viewTemplates .template-library-item-meta { font-size: .8rem; }
+  #viewTemplates .template-card-icon { display: grid; place-items: center; flex: 0 0 2.4rem; width: 2.4rem; height: 2.4rem; border-radius: .75rem; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent); }
+  #viewTemplates .template-card-icon svg { width: 1.2rem; height: 1.2rem; stroke-width: 1.7; }
+  #viewTemplates .template-library-item-create { align-items: flex-start; gap: .6rem; border-style: dashed; }
+  #viewTemplates .template-editor-main { border-radius: 1rem; }
+  #viewTemplates .template-publish-status { font-size: .85rem; }
+  @media (max-width: 768px) { #viewTemplates .template-library-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } #viewTemplates .template-library-item { min-height: 7.2rem; padding: .85rem; } #viewTemplates .template-library-item-main { flex-wrap: wrap; } #viewTemplates .template-library-item-copy { flex-basis: 100%; order: 2; } #viewTemplates .template-library-item-rename { margin-left: auto; } #viewTemplates .template-library-item-create { display: none; } }
+  @media (max-width: 340px) { #viewTemplates .template-library-list { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { #viewTemplates .template-library-item { transition: none; } }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -7038,24 +7058,21 @@ Loading current event summary…
             <div class="view-header">
               <div class="view-title">My Templates</div>
               <div class="view-subtitle">
-                Create and customize gallery templates. The photo area (1500×1000) is shown as a guide.
+                Create, preview, and publish your gallery layouts.
               </div>
             </div>
 
             <div class="template-editor-container">
               <div class="template-library">
                 <div class="template-library-header">
-                  <div class="template-library-title">My Templates</div>
+                  <div class="template-library-title">Your templates</div>
                 </div>
                 <div id="templateListEmpty" class="template-library-empty">Loading templates…</div>
                 <div id="templateList" class="template-library-list"></div>
               </div>
 
               <div class="mobile-template-manager">
-                <div class="mobile-view-note">
-                  <div class="mobile-view-note-title">Edit on desktop</div>
-                  <div class="mobile-view-note-copy">Use mobile to preview, activate, and manage templates. Full template composition stays on the desktop workstation.</div>
-                </div>
+                <div class="mobile-view-note"><div class="mobile-view-note-title">Preview and publish here. Edit on desktop.</div></div>
                 <div class="mobile-template-card">
                   <div class="mobile-template-card-header">
                     <div class="mobile-template-card-title">Selected Template</div>
@@ -14661,8 +14678,9 @@ function hideReportLoading() {
           createButton.type = "button";
           createButton.className = "template-library-item template-library-item-create template-create-btn";
           createButton.innerHTML = `
-            <span class="template-library-item-name">Create New +</span>
-            <span class="template-library-item-meta">Start a blank template from scratch.</span>
+            <span class="template-card-icon" aria-hidden="true"><i data-lucide="plus"></i></span>
+            <span class="template-library-item-name">Create template</span>
+            <span class="template-library-item-meta">Start with a blank canvas</span>
           `;
           createButton.addEventListener("click", () => {
             beginCreateTemplate();
@@ -14670,6 +14688,7 @@ function hideReportLoading() {
           templateList.appendChild(createButton);
         }
         if (!templates.length) {
+          renderLucideIcons();
           templateListEmpty.textContent = isMobileAdminViewport()
             ? "No templates yet. Create one from the desktop editor."
             : "No templates yet. Create one to get started.";
@@ -14688,11 +14707,12 @@ function hideReportLoading() {
           item.setAttribute("tabindex", "0");
           item.innerHTML = `
             <div class="template-library-item-main">
+              <span class="template-card-icon" aria-hidden="true"><i data-lucide="layout-template"></i></span>
               <div class="template-library-item-copy">
-                <span class="template-library-item-name">${template.name}</span>
+                <span class="template-library-item-name">${escapeHtml(template.name || "Untitled template")}</span>
                 <span class="template-library-item-meta">${template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "Saved template"}</span>
               </div>
-              <button type="button" class="template-library-item-rename" aria-label="Rename ${template.name}">
+              <button type="button" class="template-library-item-rename" aria-label="Rename ${escapeHtml(template.name || "template")}">
                 <i data-lucide="square-pen"></i>
               </button>
             </div>
@@ -14716,7 +14736,7 @@ function hideReportLoading() {
             await loadTemplate(template.id);
           });
           item.addEventListener("keydown", async (event) => {
-            if (event.key !== "Enter" && event.key !== " ") return;
+            if (event.target !== item || (event.key !== "Enter" && event.key !== " ")) return;
             event.preventDefault();
             if (isMobileAdminViewport()) {
               await loadTemplateForMobile(template.id, {
