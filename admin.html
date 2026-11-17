@@ -6468,6 +6468,15 @@
   @media (max-width: 768px) { #viewTemplates .template-library-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } #viewTemplates .template-library-item { min-height: 7.2rem; padding: .85rem; } #viewTemplates .template-library-item-main { flex-wrap: wrap; } #viewTemplates .template-library-item-copy { flex-basis: 100%; order: 2; } #viewTemplates .template-library-item-rename { margin-left: auto; } #viewTemplates .template-library-item-create { display: none; } }
   @media (max-width: 340px) { #viewTemplates .template-library-list { grid-template-columns: minmax(0, 1fr); } }
   @media (prefers-reduced-motion: reduce) { #viewTemplates .template-library-item { transition: none; } }
+
+  /* Fit the complete 16:9 editor within the available desktop height. */
+  @media (min-width: 1181px) {
+    #viewTemplates .template-editor-container { flex: 1 1 auto; min-height: 0; }
+    #viewTemplates .template-editor-main { min-width: 0; min-height: 0; }
+    #viewTemplates .template-editor-wrapper { flex: 1 1 auto; min-height: 180px; max-height: none; overflow: hidden; container-type: size; }
+    #viewTemplates .template-canvas { flex: 0 0 auto; width: min(100%, calc(100cqh * 16 / 9)); max-height: 100%; }
+  }
+  .app-dialog, .app-dialog-content, .app-modal, .app-modal-content { overflow-wrap: anywhere; }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -13777,6 +13786,7 @@ function hideReportLoading() {
     let templateProgressOverlayState = null;
     let templateCanvasResizeObserver = null;
     let templateCanvasViewportState = { width: 0, height: 0 };
+    let missingTemplateAssets = [];
     const TEMPLATE_MAX_LOGO_LAYERS = 2;
     const TEMPLATE_PROGRESS_HIDE_DELAY_MS = 220;
     const TEMPLATE_PROGRESS_NEUTRAL_DETAIL = "Please wait. Large template assets can take a few seconds.";
@@ -14993,6 +15003,7 @@ function hideReportLoading() {
 
     // Reset template editor to default state
     function resetTemplateEditor() {
+      missingTemplateAssets = [];
       // Clear all logos
       if (templateLogosContainer) {
         templateLogosContainer.innerHTML = "";
@@ -15151,19 +15162,23 @@ function hideReportLoading() {
             progress: 24,
           });
 
-          const loadedAssets = await Promise.all(assetPlans.map(async (plan) => {
-            const image = await loadImage(plan.src, `Error loading ${plan.kind} asset`, {
-              timeoutMs: 60000,
-              code: `template_${plan.kind}_load_failed`,
-            });
-            assetsLoaded += 1;
-            task.update({
-              label: "Loading template assets",
-              detail: `${assetsLoaded} of ${totalAssets} assets loaded`,
-              progress: 24 + ((assetsLoaded / totalAssets) * 56),
-            });
-            return { ...plan, image };
+          const results = await Promise.all(assetPlans.map(async (plan) => {
+            try {
+              const image = await loadImage(plan.src, `Error loading ${plan.kind} asset`, {
+                timeoutMs: 15000,
+                code: `template_${plan.kind}_load_failed`,
+              });
+              return { ...plan, image };
+            } catch (error) {
+              console.warn("Template asset unavailable:", plan.kind, error);
+              return { ...plan, error };
+            } finally {
+              assetsLoaded += 1;
+              task.update({ label: "Loading template assets", detail: `${assetsLoaded} of ${totalAssets} checked`, progress: 24 + ((assetsLoaded / totalAssets) * 56) });
+            }
           }));
+          missingTemplateAssets = results.filter(asset => asset.error).map(asset => ({ kind: asset.kind, label: asset.label }));
+          const loadedAssets = results.filter(asset => !asset.error);
 
           const loadedBackground = loadedAssets.find((asset) => asset.kind === "background");
           if (loadedBackground?.backgroundPlan && templateBackgroundImg) {
@@ -15223,6 +15238,13 @@ function hideReportLoading() {
         updateTemplateUiState();
         syncTemplateCanvasViewport({ reset: true });
         await task.complete("Template ready", template.name || `Template ${templateId}`);
+        if (missingTemplateAssets.length) {
+          const names = missingTemplateAssets.map(asset => asset.label).join(", ");
+          setTemplatePublishStatus(`Some assets could not load: ${names}. The saved template is unchanged.`);
+          await appAlert(`This template opened, but these assets could not be loaded: ${names}.\n\nThey may be missing or temporarily unavailable. The saved template is unchanged. Retry opening it, or replace the missing assets before saving.`, {
+            title: "Some assets unavailable", tone: "error"
+          });
+        }
 
       } catch (err) {
         console.error("Error loading template:", err);
@@ -16466,6 +16488,10 @@ function hideReportLoading() {
           return;
         }
 
+        if (missingTemplateAssets.length) {
+          await appAlert("Some template assets could not be loaded. Reopen the template or save a repaired version before publishing.", { title: "Assets unavailable", tone: "error" });
+          return;
+        }
         const task = beginTemplateProgressTask(
           "Updating Active Overlay",
           "Publishing live gallery overlay",
@@ -16847,6 +16873,12 @@ function hideReportLoading() {
     }
 
     async function runTemplateSaveFlow(name, setActiveAfterSave = false) {
+      if (missingTemplateAssets.length) {
+        const proceed = await appConfirm(`These assets did not load: ${missingTemplateAssets.map(asset => asset.label).join(", ")}. Saving will remove the unavailable assets from the saved template and may update its live gallery layout. Retry opening the template if you want to keep them. Continue?`, {
+          title: "Save without unavailable assets?", tone: "error", confirmLabel: "Save without them", cancelLabel: "Cancel", confirmStyle: "danger"
+        });
+        if (!proceed) return false;
+      }
       const progressTask = beginTemplateProgressTask(
         setActiveAfterSave ? "Publishing Template" : "Saving Template",
         currentTemplateId ? "Updating template" : "Creating template",
@@ -16862,6 +16894,7 @@ function hideReportLoading() {
           return false;
         }
         setTemplatePublishStatus("Editable template saved. Preparing gallery overlay…");
+        missingTemplateAssets = [];
         const savedTemplateId = saved?.savedTemplateId || (currentTemplateId ? String(currentTemplateId) : "");
         const savedTemplateName = saved?.savedTemplateName || currentTemplateName || name || "";
         const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
