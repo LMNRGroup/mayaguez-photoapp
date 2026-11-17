@@ -6362,6 +6362,21 @@
     .mobile-nav-item span { display: block !important; font-size: .6rem; }
   }
 
+
+  #mobileMenuDialog { width: min(28rem, calc(100% - 1.5rem)); max-height: 80dvh; box-sizing: border-box; margin: auto auto max(.75rem, env(safe-area-inset-bottom)); padding: 1rem; border: 1px solid var(--border); border-radius: 1.5rem; background: var(--card); color: var(--foreground); box-shadow: 0 24px 80px #0008; }
+  #mobileMenuDialog::backdrop { background: #0008; backdrop-filter: blur(4px); }
+  .mobile-menu-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 .25rem .75rem; }
+  #mobileMenuTitle { margin: 0; font-size: 1.1rem; letter-spacing: 0; }
+  #mobileMenuClose { min-width: 44px; min-height: 44px; background: var(--secondary); color: var(--foreground); border: 1px solid var(--border); border-radius: 50%; cursor: pointer; }
+  #mobileMenuDialog .mobile-bottom-nav-inner { display: grid; grid-template-columns: 1fr; gap: .35rem; background: transparent; border: 0; padding: 0; box-shadow: none; }
+  #mobileMenuDialog .mobile-nav-item { justify-content: flex-start; gap: 1rem; min-height: 3.5rem; padding: .85rem 1rem; color: var(--foreground); font-size: .95rem; letter-spacing: 0; text-transform: none; }
+  #mobileMenuDialog .mobile-nav-item span { display: block !important; font-size: .95rem; white-space: normal; overflow: visible; text-overflow: clip; }
+  #mobileMenuDialog .mobile-nav-item svg { width: 1.25rem; height: 1.25rem; }
+  #mobileMenuToggle { display: inline-flex; justify-content: center; align-items: center; gap: .65rem; min-height: 48px; padding: .75rem 1.5rem; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground); box-shadow: 0 6px 24px #0004; font: inherit; font-weight: 600; cursor: pointer; }
+  #mobileMenuToggle svg { width: 20px; height: 20px; }
+  @media (max-width: 768px) {
+    .mobile-bottom-nav { left: 50%; right: auto; width: auto; transform: translateX(-50%); padding: 0 0 calc(.75rem + env(safe-area-inset-bottom)); background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -7255,6 +7270,10 @@ Loading current event summary…
   </footer>
 
   <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+    <button id="mobileMenuToggle" type="button" aria-haspopup="dialog" aria-controls="mobileMenuDialog" aria-expanded="false"><i data-lucide="menu"></i><span>Menu</span></button>
+  </nav>
+  <dialog id="mobileMenuDialog" aria-labelledby="mobileMenuTitle">
+    <div class="mobile-menu-heading"><h2 id="mobileMenuTitle">Navigation</h2><button id="mobileMenuClose" type="button" aria-label="Close menu">✕</button></div>
     <div class="mobile-bottom-nav-inner">
       <button id="mobileNavDashboard" class="mobile-nav-item active" type="button" data-view="dashboard" aria-label="Dashboard" title="Dashboard">
         <i data-lucide="layout-dashboard"></i>
@@ -7262,7 +7281,7 @@ Loading current event summary…
       </button>
       <button id="mobileNavApproved" class="mobile-nav-item" type="button" data-view="approved" aria-label="Approved Photos" title="Approved Photos">
         <i data-lucide="images"></i>
-        <span>Approved</span>
+        <span>Approved Photos</span>
       </button>
       <button id="mobileNavTemplates" class="mobile-nav-item" type="button" data-view="templates" aria-label="Templates" title="Templates">
         <i data-lucide="palette"></i>
@@ -7277,7 +7296,7 @@ Loading current event summary…
         <span>Settings</span>
       </button>
     </div>
-  </nav>
+  </dialog>
 
   <!-- HIDDEN BUTTONS (kept for existing JS logic, but not shown in UI) -->
   <button id="moreButton" class="kebab-button" type="button">⚙︎</button>
@@ -10752,6 +10771,7 @@ function hideReportLoading() {
       closeSettingsSystemToolsOverlay();
       closeSettingsFormFieldsOverlay();
       closeMobileTemplateSheet();
+      document.getElementById("mobileMenuDialog")?.close();
       lockScreen.style.display = "flex";
       stopAutoRefresh();
       currentFileId = null;
@@ -12777,84 +12797,13 @@ function hideReportLoading() {
       [mobileNavReports, "reports"],
       [mobileNavSettings, "settings"],
     ];
-    let mobileNavGestureActive = false;
-    let mobileNavGestureTarget = "";
-    let mobileNavSuppressClickUntil = 0;
-
-    function clearMobileNavDragState() {
-      mobileNavButtons.forEach(([button]) => {
-        if (button) button.classList.remove("is-drag-target");
-      });
-    }
-
-    function getMobileNavViewFromPoint(clientX, clientY) {
-      const element = document.elementFromPoint(clientX, clientY);
-      const button = element && element.closest ? element.closest(".mobile-nav-item") : null;
-      return button ? String(button.dataset.view || "") : "";
-    }
-
-    function setMobileNavDragTarget(viewName) {
-      mobileNavGestureTarget = viewName || "";
-      mobileNavButtons.forEach(([button, mappedView]) => {
-        if (!button) return;
-        button.classList.toggle("is-drag-target", Boolean(viewName) && mappedView === viewName);
-      });
-    }
-
     mobileNavButtons.forEach(([button, viewName]) => {
       if (!button) return;
-      button.addEventListener("click", (event) => {
-        if (Date.now() < mobileNavSuppressClickUntil) {
-          event.preventDefault();
-          return;
-        }
+      button.addEventListener("click", () => {
+        document.getElementById("mobileMenuDialog").close();
         runMobileNavSelection(viewName);
       });
     });
-
-    if (mobileBottomNavInner) {
-      mobileBottomNavInner.addEventListener("pointerdown", (event) => {
-        if (!isMobileAdminViewport()) return;
-        const viewName = getMobileNavViewFromPoint(event.clientX, event.clientY);
-        if (!viewName) return;
-        mobileNavGestureActive = true;
-        setMobileNavDragTarget(viewName);
-        if (typeof mobileBottomNavInner.setPointerCapture === "function") {
-          try {
-            mobileBottomNavInner.setPointerCapture(event.pointerId);
-          } catch (_) {}
-        }
-      });
-
-      mobileBottomNavInner.addEventListener("pointermove", (event) => {
-        if (!mobileNavGestureActive) return;
-        const viewName = getMobileNavViewFromPoint(event.clientX, event.clientY);
-        setMobileNavDragTarget(viewName);
-      });
-
-      const finishMobileNavGesture = (event) => {
-        if (!mobileNavGestureActive) return;
-        mobileNavGestureActive = false;
-        const releaseView = getMobileNavViewFromPoint(event.clientX, event.clientY) || mobileNavGestureTarget;
-        clearMobileNavDragState();
-        if (!releaseView) return;
-        mobileNavSuppressClickUntil = Date.now() + 300;
-        runMobileNavSelection(releaseView);
-      };
-
-      mobileBottomNavInner.addEventListener("pointerup", finishMobileNavGesture);
-      mobileBottomNavInner.addEventListener("pointercancel", () => {
-        mobileNavGestureActive = false;
-        mobileNavGestureTarget = "";
-        clearMobileNavDragState();
-      });
-      mobileBottomNavInner.addEventListener("pointerleave", (event) => {
-        if (!mobileNavGestureActive || event.buttons) return;
-        mobileNavGestureActive = false;
-        mobileNavGestureTarget = "";
-        clearMobileNavDragState();
-      });
-    }
 
     if (mobileLogsBtn) {
       mobileLogsBtn.addEventListener("click", () => {
@@ -18900,5 +18849,29 @@ if (reportDownloadBtn) {
 ">
   <div class="minimal-loader minimal-loader-lg" aria-hidden="true" style="color: white;"></div>
 </div>
+
+<script id="mobile-menu-controller">
+(() => {
+  const dialog = document.getElementById('mobileMenuDialog');
+  const toggle = document.getElementById('mobileMenuToggle');
+  let previousOverflow = '';
+  toggle.addEventListener('click', () => {
+    previousOverflow = document.body.style.overflow;
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
+    toggle.setAttribute('aria-expanded', 'true');
+  });
+  document.getElementById('mobileMenuClose').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', event => {
+    const rect = dialog.getBoundingClientRect();
+    if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
+  });
+  dialog.addEventListener('close', () => {
+    document.body.style.overflow = previousOverflow;
+    toggle.setAttribute('aria-expanded', 'false');
+  });
+  window.matchMedia('(max-width: 768px)').addEventListener('change', event => { if (!event.matches && dialog.open) dialog.close(); });
+})();
+</script>
 </body>
 </html>
