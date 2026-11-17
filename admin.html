@@ -202,6 +202,15 @@
     text-align: center;
   }
 
+  .header-brand-logo {
+    display: block;
+    width: min(15.5rem, 42vw);
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.16));
+  }
+
   .header-brand-top {
     font-family: "SF Pro Display", "Helvetica Neue", "Gotham", "Satoshi", Arial, sans-serif;
     font-size: 0.78rem;
@@ -732,12 +741,21 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #viewReports .view-header,
+  #viewReports #reportLoading,
+  #viewReports .view-actions {
+    flex-shrink: 0;
   }
 
   #viewReports .report-preview {
     flex: 1;
-    min-height: 200px;
-    max-height: calc(100dvh - 20rem);
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
     background: var(--card);
@@ -849,6 +867,22 @@
     transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
   }
 
+  .template-library-item-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .template-library-item-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
   .template-library-item:hover,
   .template-library-item.active {
     border-color: var(--primary);
@@ -869,6 +903,26 @@
   .template-library-item-meta {
     color: var(--muted-foreground);
     font-size: 0.78rem;
+  }
+
+  .template-library-item-rename {
+    display: none;
+    width: 2.15rem;
+    height: 2.15rem;
+    min-width: 2.15rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+    background: color-mix(in srgb, var(--secondary) 82%, transparent);
+    color: var(--primary);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .template-library-item-rename svg {
+    width: 0.92rem;
+    height: 0.92rem;
   }
 
   .template-editor-main {
@@ -1224,40 +1278,6 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
-  }
-
-  .template-photo-grid {
-    position: absolute;
-    inset: 0;
-    background-image: 
-      linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-    background-size: 50px 50px;
-  }
-
-  .template-photo-label {
-    position: absolute;
-    bottom: 0.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.3em;
-    color: rgba(255, 255, 255, 0.7);
-    font-weight: 500;
-    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 0.25rem 0.75rem;
-    border-radius: calc(var(--radius) - 4px);
-    white-space: nowrap;
-    pointer-events: none;
-  }
-
-  .template-logos-container {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    pointer-events: none;
     user-select: none;
     touch-action: none;
     transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
@@ -1298,6 +1318,40 @@
 
   .template-canvas.photo-box-editing .template-photo-resize-handle {
     display: block;
+  }
+
+  .template-photo-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  .template-photo-label {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.25rem 0.75rem;
+    border-radius: calc(var(--radius) - 4px);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .template-logos-container {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
   }
 
   .template-add-asset-fab {
@@ -3965,6 +4019,44 @@
     letter-spacing: 0.01em; /* Slight letter spacing for readability */
   }
 
+  .report-preview,
+  .event-logs-modal-body,
+  .settings-section.expanded .settings-section-content {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(130, 148, 176, 0.72) transparent;
+  }
+
+  .report-preview::-webkit-scrollbar,
+  .event-logs-modal-body::-webkit-scrollbar,
+  .settings-section.expanded .settings-section-content::-webkit-scrollbar {
+    width: 0.52rem;
+    height: 0.52rem;
+  }
+
+  .report-preview::-webkit-scrollbar-track,
+  .event-logs-modal-body::-webkit-scrollbar-track,
+  .settings-section.expanded .settings-section-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .report-preview::-webkit-scrollbar-thumb,
+  .event-logs-modal-body::-webkit-scrollbar-thumb,
+  .settings-section.expanded .settings-section-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(152, 168, 194, 0.78), rgba(110, 126, 152, 0.86));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .report-preview::-webkit-scrollbar-thumb:hover,
+  .event-logs-modal-body::-webkit-scrollbar-thumb:hover,
+  .settings-section.expanded .settings-section-content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(182, 198, 224, 0.92), rgba(128, 145, 173, 0.96));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
   .report-preview.overlay-report-preview {
     margin-top: 0;
     max-height: none;
@@ -5478,6 +5570,11 @@
     color: var(--foreground);
   }
 
+  :root[data-theme="light"] .mobile-nav-item.active {
+    color: rgba(248, 250, 252, 0.98);
+    background: color-mix(in srgb, var(--primary) 34%, rgba(255, 255, 255, 0.06));
+  }
+
   .mobile-nav-item svg {
     width: 1rem;
     height: 1rem;
@@ -5609,6 +5706,7 @@
       max-width: 100%;
       overflow: visible;
       padding-bottom: calc(4.9rem + env(safe-area-inset-bottom));
+      min-height: calc(100dvh - 4.35rem - env(safe-area-inset-bottom));
     }
 
     .admin-header {
@@ -5644,6 +5742,10 @@
       letter-spacing: 0.04em;
     }
 
+    .header-brand-logo {
+      width: min(11.25rem, 44vw);
+    }
+
     .header-title {
       display: none;
     }
@@ -5676,9 +5778,11 @@
       min-width: 0;
       max-width: 100%;
       min-height: calc(100dvh - 8.9rem - env(safe-area-inset-bottom));
+      height: 100%;
       overflow: visible;
       display: flex;
       flex-direction: column;
+      flex: 1 1 auto;
     }
 
     .card-main {
@@ -5723,6 +5827,10 @@
       height: auto;
       min-height: 0;
       max-height: none;
+    }
+
+    .center-view.active {
+      flex: 1 1 auto;
     }
 
     .photo-meta-row {
@@ -6061,6 +6169,10 @@
       border-radius: 0.95rem;
     }
 
+    .template-library-item-rename {
+      display: inline-flex;
+    }
+
     .template-library-item-name {
       font-size: 0.86rem;
     }
@@ -6101,8 +6213,16 @@
       display: none;
     }
 
+    #viewReports {
+      min-height: 0;
+      overflow: hidden;
+    }
+
     #viewReports .report-preview {
-      display: none;
+      display: block;
+      min-height: 0;
+      max-height: none;
+      flex: 1 1 auto;
     }
 
     .event-logs-overlay {
@@ -6110,6 +6230,15 @@
       padding: 0;
       background:
         linear-gradient(180deg, rgba(4, 9, 18, 0.14), rgba(4, 9, 18, 0.8) 45%, rgba(4, 9, 18, 0.92));
+    }
+
+    #settingsPlaylistOverlay,
+    #settingsIntroOverlay,
+    #settingsTemplateOverlay,
+    #settingsSystemToolsOverlay,
+    #settingsFormFieldsOverlay {
+      align-items: center;
+      padding: 1rem;
     }
 
     .event-logs-modal,
@@ -6123,6 +6252,20 @@
       border-right: none;
       border-bottom: none;
       box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    #settingsPlaylistOverlay .event-logs-modal,
+    #settingsIntroOverlay .event-logs-modal,
+    #settingsTemplateOverlay .event-logs-modal,
+    #settingsSystemToolsOverlay .event-logs-modal,
+    #settingsFormFieldsOverlay .event-logs-modal {
+      width: min(100%, 34rem);
+      max-height: min(84vh, 760px);
+      border-radius: 1.35rem;
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      border-right: 1px solid rgba(255, 255, 255, 0.12);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 18px 52px rgba(0, 0, 0, 0.34);
     }
 
     .event-logs-modal-header {
@@ -6195,6 +6338,30 @@
     }
   }
 
+
+  /* Mobile pages share the document scroll; sheets retain their own scroll. */
+  .template-publish-status { padding: .75rem 1rem; border: 1px solid var(--border); border-radius: .75rem; color: var(--muted-foreground); line-height: 1.5; }
+  @media (max-width: 768px) {
+    html { height: auto; overflow: visible; }
+    body { height: auto; overflow-y: auto; }
+    .page-wrapper, .card, .card-main, .center-panel { height: auto; max-height: none; overflow: visible; }
+    #viewDashboard, #viewApproved, #viewReports, #viewTemplates, #viewSettings,
+    #viewApproved .approved-grid, .template-library, .template-list, .report-preview,
+    .settings-content, .settings-section.expanded .settings-section-content {
+      height: auto; max-height: none; overflow: visible;
+    }
+    #viewApproved .approved-grid { grid-template-rows: none; grid-auto-rows: auto; }
+    body:not(.admin-locked) .mobile-admin-toolbar { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .template-library-list { max-height: none; overflow: visible; }
+    #viewDashboard .buttons {
+      position: sticky; bottom: calc(4.9rem + env(safe-area-inset-bottom)); z-index: 30;
+      display: grid; grid-template-columns: 1fr 1fr; gap: .65rem;
+      padding: .65rem; background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+    }
+    #viewDashboard .photo-frame { max-height: 58dvh; }
+    .mobile-nav-item span { display: block !important; font-size: .6rem; }
+  }
+
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -6238,9 +6405,13 @@
     <!-- TOP HEADER -->
     <header class="admin-header">
       <div class="header-left">
-        <div class="header-brand" aria-label="Luminar Apps Selfie App">
-          <div class="header-brand-top">Luminar Apps</div>
-          <div class="header-brand-bottom">Selfie App</div>
+        <div class="header-brand" aria-label="Luminar Apps">
+          <img
+            class="header-brand-logo"
+            src="Assets/Luminar%20Apps%20Brand%20Logo.png"
+            alt="Luminar Apps"
+            onerror="this.onerror=null;this.src='Assets/Luminar%20Apps%20Horizontal%20Logo.png';"
+          />
         </div>
       </div>
 
@@ -6389,16 +6560,21 @@
             <div class="view-header">
               <div class="view-title">Event Reports</div>
               <div class="view-subtitle">
-                View the current session summary or generate a full report that will be
-                delivered to your configured email.
+                Review the current session summary, email it, or download it directly.
               </div>
             </div>
 
+            <div id="reportLoading" class="report-loading" style="display:none;"></div>
+
+            <pre id="reportPreview" class="report-preview">
+Loading current event summary…
+            </pre>
+
             <div class="view-actions">
-              <button id="reportViewBtn" class="btn-ghost">
+              <button id="reportDownloadBtn" class="btn-ghost">
                 <span class="btn-inline-content">
-                  <i data-lucide="file-text"></i>
-                  <span>VIEW REPORT</span>
+                  <i data-lucide="download"></i>
+                  <span>DOWNLOAD REPORT</span>
                 </span>
               </button>
               <button id="reportGenerateBtn" class="btn-primary">
@@ -6408,12 +6584,6 @@
                 </span>
               </button>
             </div>
-
-            <div id="reportLoading" class="report-loading" style="display:none;"></div>
-
-            <pre id="reportPreview" class="report-preview">
-View report to see the most recent interactions
-            </pre>
           </div>
 
           <div id="viewMetrics" class="center-view" style="display: none;">
@@ -6584,10 +6754,14 @@ View report to see the most recent interactions
                 </div>
               </div>
 
-              <div class="settings-section">
-                <div class="settings-section-header">
+              <div id="settingsTemplateSection" class="settings-section" data-mobile-mode="template">
+                <div id="settingsTemplateHeader" class="settings-section-header">
                   <div class="settings-section-heading">
                     <div class="settings-section-title">GALLERY TEMPLATE</div>
+                    <div id="settingsTemplateSummary" class="settings-section-summary">Tap to choose the active gallery template.</div>
+                  </div>
+                  <div class="settings-section-action-icon" aria-hidden="true">
+                    <i data-lucide="monitor"></i>
                   </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -6633,10 +6807,14 @@ View report to see the most recent interactions
                 </div>
               </div>
 
-              <div class="settings-section">
-                <div class="settings-section-header">
+              <div id="settingsSystemToolsSection" class="settings-section" data-mobile-mode="tools">
+                <div id="settingsSystemToolsHeader" class="settings-section-header">
                   <div class="settings-section-heading">
                     <div class="settings-section-title">SYSTEM TOOLS</div>
+                    <div id="settingsSystemToolsSummary" class="settings-section-summary">Tap to open logs, devices, health, and activity.</div>
+                  </div>
+                  <div class="settings-section-action-icon" aria-hidden="true">
+                    <i data-lucide="wrench"></i>
                   </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -6698,10 +6876,14 @@ View report to see the most recent interactions
                 </div>
               </div>
 
-              <div class="settings-section">
-                <div class="settings-section-header">
+              <div id="settingsFormFieldsSection" class="settings-section" data-mobile-mode="form">
+                <div id="settingsFormFieldsHeader" class="settings-section-header">
                   <div class="settings-section-heading">
                     <div class="settings-section-title">FORM FIELDS</div>
+                    <div id="settingsFormFieldsSummary" class="settings-section-summary">Tap to edit the public form fields.</div>
+                  </div>
+                  <div class="settings-section-action-icon" aria-hidden="true">
+                    <i data-lucide="list-checks"></i>
                   </div>
                   <svg class="settings-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -6803,7 +6985,7 @@ View report to see the most recent interactions
                     <div id="mobileTemplateSelectedName" class="mobile-template-selected-name">Select a template</div>
                     <div id="mobileTemplateSelectedMeta" class="mobile-template-selected-meta">Pick a saved template to preview it and push it live.</div>
                   </div>
-                  <div id="mobileTemplateActiveBadge" class="mobile-template-active-badge" style="display:none;">Active on screen</div>
+                  <div id="mobileTemplateActiveBadge" class="mobile-template-active-badge" style="display:none;">Published configuration</div>
                   <button id="mobileTemplatePreviewWrap" class="mobile-template-preview-wrap" type="button" aria-label="Open template preview">
                     <img id="mobileTemplatePreviewImg" alt="Template preview" style="display:none;" />
                     <div id="mobileTemplatePreviewEmpty" class="mobile-template-preview-empty">No published overlay preview is available yet.</div>
@@ -6813,12 +6995,6 @@ View report to see the most recent interactions
                       <span class="btn-inline-content">
                         <i data-lucide="monitor"></i>
                         <span>Set To Screen</span>
-                      </span>
-                    </button>
-                    <button id="mobileTemplatePreviewBtn" type="button" class="btn-ghost" disabled>
-                      <span class="btn-inline-content">
-                        <i data-lucide="eye"></i>
-                        <span>Preview</span>
                       </span>
                     </button>
                     <button id="mobileTemplateDeleteBtn" type="button" class="btn-reject" disabled>
@@ -6838,6 +7014,7 @@ View report to see the most recent interactions
               </div>
 
               <div class="template-editor-main">
+                <p id="templatePublishStatus" class="template-publish-status" role="status" aria-live="polite">Saving keeps the editable template. Publishing updates the gallery configuration; device display must be checked separately.</p>
                 <div class="template-editor-toolbar">
                   <div class="template-toolbar-meta">
                   <div id="templateEditorTitle" class="template-editor-title">Template Builder</div>
@@ -7679,7 +7856,7 @@ function hideGlobalLoader() {
     const mobileTemplateSheetPreviewBtn = document.getElementById("mobileTemplateSheetPreviewBtn");
     const mobileTemplateSheetSetActiveBtn = document.getElementById("mobileTemplateSheetSetActiveBtn");
     const mobileTemplateSheetDeleteBtn = document.getElementById("mobileTemplateSheetDeleteBtn");
-    let latestReportPreviewText = 'Tap "View report" to load the current summary.';
+    let latestReportPreviewText = "Loading current event summary…";
     let currentAdminView = "dashboard";
     let latestActivityCounts = new Array(24).fill(0);
     let latestActivityCurrentHour = new Date().getHours();
@@ -7826,6 +8003,63 @@ function hideGlobalLoader() {
         overlay: document.getElementById("reportOverlay"),
         closeBtn: document.getElementById("reportOverlayClose"),
         preview: document.getElementById("reportOverlayPreview"),
+      };
+    }
+
+    function getSettingsLateOverlayElements() {
+      return {
+        playlistOverlay: document.getElementById("settingsPlaylistOverlay"),
+        playlistOverlayClose: document.getElementById("settingsPlaylistOverlayClose"),
+        playlistAllBtn: document.getElementById("settingsPlaylistAllBtn"),
+        playlist25Btn: document.getElementById("settingsPlaylist25Btn"),
+        playlist10Btn: document.getElementById("settingsPlaylist10Btn"),
+        playlistCustomInput: document.getElementById("settingsPlaylistCustomInput"),
+        playlistApplyCustomBtn: document.getElementById("settingsPlaylistApplyCustomBtn"),
+        introOverlay: document.getElementById("settingsIntroOverlay"),
+        introOverlayClose: document.getElementById("settingsIntroOverlayClose"),
+        introOverlayTitleInput: document.getElementById("settingsIntroOverlayTitleInput"),
+        introOverlaySubtitleInput: document.getElementById("settingsIntroOverlaySubtitleInput"),
+        introOverlayApplyBtn: document.getElementById("settingsIntroOverlayApplyBtn"),
+        templateOverlay: document.getElementById("settingsTemplateOverlay"),
+        templateOverlayClose: document.getElementById("settingsTemplateOverlayClose"),
+        templateOverlaySelect: document.getElementById("settingsTemplateOverlaySelect"),
+        templateOverlayApplyBtn: document.getElementById("settingsTemplateOverlayApplyBtn"),
+        systemToolsOverlay: document.getElementById("settingsSystemToolsOverlay"),
+        systemToolsOverlayClose: document.getElementById("settingsSystemToolsOverlayClose"),
+        overlayOpenEventLogsBtn: document.getElementById("settingsOverlayOpenEventLogsBtn"),
+        overlayOpenDevicesBtn: document.getElementById("settingsOverlayOpenDevicesBtn"),
+        overlayOpenHealthBtn: document.getElementById("settingsOverlayOpenHealthBtn"),
+        overlayOpenActivityBtn: document.getElementById("settingsOverlayOpenActivityBtn"),
+        formFieldsOverlay: document.getElementById("settingsFormFieldsOverlay"),
+        formFieldsOverlayClose: document.getElementById("settingsFormFieldsOverlayClose"),
+        formFieldsOverlayApplyBtn: document.getElementById("settingsFormFieldsOverlayApplyBtn"),
+        formOverlayLocationEnabled: document.getElementById("settingsFormOverlayLocationEnabled"),
+        formOverlayCountryFlagEnabled: document.getElementById("settingsFormOverlayCountryFlagEnabled"),
+        formOverlayLastNameEnabled: document.getElementById("settingsFormOverlayLastNameEnabled"),
+        formOverlayLastNameLabel: document.getElementById("settingsFormOverlayLastNameLabel"),
+        formOverlayLastNamePlaceholder: document.getElementById("settingsFormOverlayLastNamePlaceholder"),
+        formOverlayEmailEnabled: document.getElementById("settingsFormOverlayEmailEnabled"),
+        formOverlayEmailLabel: document.getElementById("settingsFormOverlayEmailLabel"),
+        formOverlayEmailPlaceholder: document.getElementById("settingsFormOverlayEmailPlaceholder"),
+        formOverlayNewsletterEnabled: document.getElementById("settingsFormOverlayNewsletterEnabled"),
+        formOverlayNewsletterLabel: document.getElementById("settingsFormOverlayNewsletterLabel"),
+        formOverlayNewsletterHelper: document.getElementById("settingsFormOverlayNewsletterHelper"),
+      };
+    }
+
+    function getMobileTemplateSheetElements() {
+      return {
+        sheet: document.getElementById("mobileTemplateSheet"),
+        title: document.getElementById("mobileTemplateSheetTitle"),
+        meta: document.getElementById("mobileTemplateSheetMeta"),
+        badge: document.getElementById("mobileTemplateSheetBadge"),
+        closeBtn: document.getElementById("mobileTemplateSheetClose"),
+        previewWrap: document.getElementById("mobileTemplateSheetPreviewWrap"),
+        previewImg: document.getElementById("mobileTemplateSheetPreviewImg"),
+        previewEmpty: document.getElementById("mobileTemplateSheetPreviewEmpty"),
+        previewBtn: document.getElementById("mobileTemplateSheetPreviewBtn"),
+        setActiveBtn: document.getElementById("mobileTemplateSheetSetActiveBtn"),
+        deleteBtn: document.getElementById("mobileTemplateSheetDeleteBtn"),
       };
     }
 
@@ -9703,7 +9937,7 @@ function hideGlobalLoader() {
     const viewerNextBtn = document.getElementById("viewerNextBtn");
 
     // REPORT MODAL ELEMENTS
-    const reportViewBtn = document.getElementById("reportViewBtn");
+    const reportDownloadBtn = document.getElementById("reportDownloadBtn");
     const reportGenerateBtn = document.getElementById("reportGenerateBtn");
     const reportPreview = document.getElementById("reportPreview");
     const reportLoading = document.getElementById("reportLoading");
@@ -9737,13 +9971,22 @@ function hideGlobalLoader() {
     const settingsGalleryDisplayLimit = document.getElementById("settingsGalleryDisplayLimit");
     const settingsGalleryDisplayCustom = document.getElementById("settingsGalleryDisplayCustom");
     const settingsGalleryDisplayCustomLabel = document.getElementById("settingsGalleryDisplayCustomLabel");
+    const settingsTemplateSection = document.getElementById("settingsTemplateSection");
+    const settingsTemplateHeader = document.getElementById("settingsTemplateHeader");
+    const settingsTemplateSummary = document.getElementById("settingsTemplateSummary");
     const settingsGalleryPlayerSection = document.getElementById("settingsGalleryPlayerSection");
     const settingsGalleryPlayerHeader = document.getElementById("settingsGalleryPlayerHeader");
     const settingsGalleryPlayerSummary = document.getElementById("settingsGalleryPlayerSummary");
+    const settingsSystemToolsSection = document.getElementById("settingsSystemToolsSection");
+    const settingsSystemToolsHeader = document.getElementById("settingsSystemToolsHeader");
+    const settingsSystemToolsSummary = document.getElementById("settingsSystemToolsSummary");
     const settingsActiveTemplateId = document.getElementById("settingsActiveTemplateId");
     const settingsIntroSection = document.getElementById("settingsIntroSection");
     const settingsIntroHeader = document.getElementById("settingsIntroHeader");
     const settingsIntroSummary = document.getElementById("settingsIntroSummary");
+    const settingsFormFieldsSection = document.getElementById("settingsFormFieldsSection");
+    const settingsFormFieldsHeader = document.getElementById("settingsFormFieldsHeader");
+    const settingsFormFieldsSummary = document.getElementById("settingsFormFieldsSummary");
     const settingsIntroTitle = document.getElementById("settingsIntroTitle");
     const settingsIntroSubtitle = document.getElementById("settingsIntroSubtitle");
     const settingsLocationEnabled = document.getElementById("settingsLocationEnabled");
@@ -9776,6 +10019,30 @@ function hideGlobalLoader() {
     const settingsIntroOverlayTitleInput = document.getElementById("settingsIntroOverlayTitleInput");
     const settingsIntroOverlaySubtitleInput = document.getElementById("settingsIntroOverlaySubtitleInput");
     const settingsIntroOverlayApplyBtn = document.getElementById("settingsIntroOverlayApplyBtn");
+    const settingsTemplateOverlay = document.getElementById("settingsTemplateOverlay");
+    const settingsTemplateOverlayClose = document.getElementById("settingsTemplateOverlayClose");
+    const settingsTemplateOverlaySelect = document.getElementById("settingsTemplateOverlaySelect");
+    const settingsTemplateOverlayApplyBtn = document.getElementById("settingsTemplateOverlayApplyBtn");
+    const settingsSystemToolsOverlay = document.getElementById("settingsSystemToolsOverlay");
+    const settingsSystemToolsOverlayClose = document.getElementById("settingsSystemToolsOverlayClose");
+    const settingsOverlayOpenEventLogsBtn = document.getElementById("settingsOverlayOpenEventLogsBtn");
+    const settingsOverlayOpenDevicesBtn = document.getElementById("settingsOverlayOpenDevicesBtn");
+    const settingsOverlayOpenHealthBtn = document.getElementById("settingsOverlayOpenHealthBtn");
+    const settingsOverlayOpenActivityBtn = document.getElementById("settingsOverlayOpenActivityBtn");
+    const settingsFormFieldsOverlay = document.getElementById("settingsFormFieldsOverlay");
+    const settingsFormFieldsOverlayClose = document.getElementById("settingsFormFieldsOverlayClose");
+    const settingsFormOverlayLocationEnabled = document.getElementById("settingsFormOverlayLocationEnabled");
+    const settingsFormOverlayCountryFlagEnabled = document.getElementById("settingsFormOverlayCountryFlagEnabled");
+    const settingsFormOverlayLastNameEnabled = document.getElementById("settingsFormOverlayLastNameEnabled");
+    const settingsFormOverlayLastNameLabel = document.getElementById("settingsFormOverlayLastNameLabel");
+    const settingsFormOverlayLastNamePlaceholder = document.getElementById("settingsFormOverlayLastNamePlaceholder");
+    const settingsFormOverlayEmailEnabled = document.getElementById("settingsFormOverlayEmailEnabled");
+    const settingsFormOverlayEmailLabel = document.getElementById("settingsFormOverlayEmailLabel");
+    const settingsFormOverlayEmailPlaceholder = document.getElementById("settingsFormOverlayEmailPlaceholder");
+    const settingsFormOverlayNewsletterEnabled = document.getElementById("settingsFormOverlayNewsletterEnabled");
+    const settingsFormOverlayNewsletterLabel = document.getElementById("settingsFormOverlayNewsletterLabel");
+    const settingsFormOverlayNewsletterHelper = document.getElementById("settingsFormOverlayNewsletterHelper");
+    const settingsFormFieldsOverlayApplyBtn = document.getElementById("settingsFormFieldsOverlayApplyBtn");
     const DEFAULT_GALLERY_RUNTIME_COMMAND = Object.freeze({
       command: "",
       commandId: "",
@@ -9973,7 +10240,8 @@ function hideGlobalLoader() {
       if (mobileTemplateDeleteBtn) {
         mobileTemplateDeleteBtn.disabled = !hasSelection;
       }
-      if (mobileTemplateSheet && mobileTemplateSheet.classList.contains("visible")) {
+      const { sheet: mobileTemplateSheetEl } = getMobileTemplateSheetElements();
+      if (mobileTemplateSheetEl && mobileTemplateSheetEl.classList.contains("visible")) {
         renderMobileTemplateSheet();
       }
     }
@@ -10199,7 +10467,7 @@ function showReportLoading() {
     preview.textContent = "";
   }
   // lock buttons while we load
-  if (reportViewBtn) reportViewBtn.disabled = true;
+  if (reportDownloadBtn) reportDownloadBtn.disabled = true;
   if (reportGenerateBtn) reportGenerateBtn.disabled = true;
   if (reportPreview) reportPreview.textContent = "";
 }
@@ -10209,7 +10477,7 @@ function hideReportLoading() {
     reportLoading.style.display = "none";
     reportLoading.innerHTML = "";
   }
-  if (reportViewBtn) reportViewBtn.disabled = false;
+  if (reportDownloadBtn) reportDownloadBtn.disabled = false;
   if (reportGenerateBtn) reportGenerateBtn.disabled = false;
 }
 
@@ -10251,6 +10519,11 @@ function hideReportLoading() {
 
     function getApprovedPageSize() {
       return isMobileAdminViewport() ? APPROVED_PAGE_SIZE_MOBILE : APPROVED_PAGE_SIZE_DESKTOP;
+    }
+
+    function syncMobileApprovedGridHeight() {
+      if (!approvedGrid) return;
+      for (const property of ["height", "min-height", "max-height"]) approvedGrid.style.removeProperty(property);
     }
 
     // Helper: Get all cached files as flat array (for finding items)
@@ -10473,6 +10746,11 @@ function hideReportLoading() {
       closeLiveGalleryDeviceDetail();
       closeLiveGalleryDevicesOverlay();
       closeActivityOverlay();
+      closeSettingsPlaylistOverlay();
+      closeSettingsIntroOverlay();
+      closeSettingsTemplateOverlay();
+      closeSettingsSystemToolsOverlay();
+      closeSettingsFormFieldsOverlay();
       closeMobileTemplateSheet();
       lockScreen.style.display = "flex";
       stopAutoRefresh();
@@ -11057,6 +11335,7 @@ function hideReportLoading() {
         approvedPrevBtn.disabled = true;
         approvedNextBtn.disabled = true;
         updateApprovedSelectionControls();
+        syncMobileApprovedGridHeight();
         return;
       }
 
@@ -11067,6 +11346,7 @@ function hideReportLoading() {
         approvedEmpty.style.display = "block";
         approvedEmpty.textContent = "Loading photos...";
         updateApprovedSelectionControls();
+        syncMobileApprovedGridHeight();
         return;
       }
 
@@ -11090,6 +11370,7 @@ function hideReportLoading() {
         ? approvedPageIndex >= approvedTotalPages
         : !approvedHasNextPage;
       updateApprovedSelectionControls();
+      syncMobileApprovedGridHeight();
     }
 
     approvedPrevBtn.addEventListener("click", async () => {
@@ -11929,6 +12210,7 @@ function hideReportLoading() {
       (data && data.reportText) ||
       "Event report generated and sent to the configured email.";
 
+    latestReportPreviewText = text;
     if (reportPreview) {
       reportPreview.textContent = text;
     }
@@ -12351,10 +12633,14 @@ function hideReportLoading() {
           targetView = viewApproved;
           if (targetView) {
             loadApprovedGrid();
+            requestAnimationFrame(() => {
+              syncMobileApprovedGridHeight();
+            });
           }
           break;
         case "reports":
           targetView = viewReports;
+          loadReportPreview({ silent: false });
           break;
         case "metrics":
           targetView = viewMetrics;
@@ -12389,6 +12675,9 @@ function hideReportLoading() {
       }
       setMobileNavActive(viewName);
       if (isMobileAdminViewport()) {
+        requestAnimationFrame(() => {
+          syncMobileApprovedGridHeight();
+        });
         window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       }
     };
@@ -12591,6 +12880,10 @@ function hideReportLoading() {
       });
     }
 
+    window.addEventListener("resize", () => {
+      syncMobileApprovedGridHeight();
+    }, { passive: true });
+
     if (mobileTemplateDesktopNoticeBtn) {
       mobileTemplateDesktopNoticeBtn.addEventListener("click", async () => {
         await appAlert("Full template editing, asset placement, and QR composition are available on desktop only.", {
@@ -12723,6 +13016,16 @@ function hideReportLoading() {
       }, { capture: true });
     }
 
+    if (settingsTemplateHeader) {
+      settingsTemplateHeader.addEventListener("click", (event) => {
+        if (!isMobileAdminViewport()) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        openSettingsTemplateOverlay();
+      }, { capture: true });
+    }
+
     if (settingsGalleryPlayerHeader) {
       settingsGalleryPlayerHeader.addEventListener("click", async (event) => {
         if (!isMobileAdminViewport()) return;
@@ -12734,6 +13037,16 @@ function hideReportLoading() {
       }, { capture: true });
     }
 
+    if (settingsSystemToolsHeader) {
+      settingsSystemToolsHeader.addEventListener("click", (event) => {
+        if (!isMobileAdminViewport()) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        openSettingsSystemToolsOverlay();
+      }, { capture: true });
+    }
+
     if (settingsIntroHeader) {
       settingsIntroHeader.addEventListener("click", (event) => {
         if (!isMobileAdminViewport()) return;
@@ -12741,6 +13054,16 @@ function hideReportLoading() {
         event.stopImmediatePropagation();
         event.stopPropagation();
         openSettingsIntroOverlay();
+      }, { capture: true });
+    }
+
+    if (settingsFormFieldsHeader) {
+      settingsFormFieldsHeader.addEventListener("click", (event) => {
+        if (!isMobileAdminViewport()) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        openSettingsFormFieldsOverlay();
       }, { capture: true });
     }
 
@@ -12806,6 +13129,88 @@ function hideReportLoading() {
     if (settingsIntroOverlayApplyBtn) {
       settingsIntroOverlayApplyBtn.addEventListener("click", () => {
         applyIntroOverlayValues();
+      });
+    }
+
+    if (settingsTemplateOverlayClose) {
+      settingsTemplateOverlayClose.addEventListener("click", () => {
+        closeSettingsTemplateOverlay();
+      });
+    }
+
+    if (settingsTemplateOverlay) {
+      settingsTemplateOverlay.addEventListener("click", (event) => {
+        if (event.target === settingsTemplateOverlay) {
+          closeSettingsTemplateOverlay();
+        }
+      });
+    }
+
+    if (settingsTemplateOverlayApplyBtn) {
+      settingsTemplateOverlayApplyBtn.addEventListener("click", () => {
+        applyTemplateOverlaySelection();
+      });
+    }
+
+    if (settingsSystemToolsOverlayClose) {
+      settingsSystemToolsOverlayClose.addEventListener("click", () => {
+        closeSettingsSystemToolsOverlay();
+      });
+    }
+
+    if (settingsSystemToolsOverlay) {
+      settingsSystemToolsOverlay.addEventListener("click", (event) => {
+        if (event.target === settingsSystemToolsOverlay) {
+          closeSettingsSystemToolsOverlay();
+        }
+      });
+    }
+
+    if (settingsOverlayOpenEventLogsBtn) {
+      settingsOverlayOpenEventLogsBtn.addEventListener("click", () => {
+        closeSettingsSystemToolsOverlay();
+        openExpandedEventLogs();
+      });
+    }
+
+    if (settingsOverlayOpenDevicesBtn) {
+      settingsOverlayOpenDevicesBtn.addEventListener("click", () => {
+        closeSettingsSystemToolsOverlay();
+        openLiveGalleryDevicesOverlay();
+      });
+    }
+
+    if (settingsOverlayOpenHealthBtn) {
+      settingsOverlayOpenHealthBtn.addEventListener("click", () => {
+        closeSettingsSystemToolsOverlay();
+        openSystemHealthOverlay();
+      });
+    }
+
+    if (settingsOverlayOpenActivityBtn) {
+      settingsOverlayOpenActivityBtn.addEventListener("click", () => {
+        closeSettingsSystemToolsOverlay();
+        openActivityOverlay();
+      });
+    }
+
+    if (settingsFormFieldsOverlayClose) {
+      settingsFormFieldsOverlayClose.addEventListener("click", () => {
+        closeSettingsFormFieldsOverlay();
+      });
+    }
+
+    if (settingsFormFieldsOverlay) {
+      settingsFormFieldsOverlay.addEventListener("click", (event) => {
+        if (event.target === settingsFormFieldsOverlay) {
+          closeSettingsFormFieldsOverlay();
+        }
+      });
+    }
+
+    if (settingsFormFieldsOverlayApplyBtn) {
+      settingsFormFieldsOverlayApplyBtn.addEventListener("click", () => {
+        applySettingsFormFieldsOverlay();
       });
     }
 
@@ -13022,6 +13427,29 @@ function hideReportLoading() {
         return;
       }
 
+      if (isMobileAdminViewport()) {
+        if (event.target.closest("#settingsPlaylistHeader")) {
+          openSettingsPlaylistOverlay();
+          return;
+        }
+        if (event.target.closest("#settingsTemplateHeader")) {
+          openSettingsTemplateOverlay();
+          return;
+        }
+        if (event.target.closest("#settingsSystemToolsHeader")) {
+          openSettingsSystemToolsOverlay();
+          return;
+        }
+        if (event.target.closest("#settingsIntroHeader")) {
+          openSettingsIntroOverlay();
+          return;
+        }
+        if (event.target.closest("#settingsFormFieldsHeader")) {
+          openSettingsFormFieldsOverlay();
+          return;
+        }
+      }
+
       const deviceCard = event.target.closest("[data-device-id]");
       if (deviceCard) {
         openLiveGalleryDeviceDetail(deviceCard.dataset.deviceId || "");
@@ -13098,6 +13526,120 @@ function hideReportLoading() {
       }
       if (reportOverlay && event.target === reportOverlay) {
         closeReportOverlay();
+        return;
+      }
+
+      const {
+        playlistOverlay,
+        introOverlay,
+        templateOverlay,
+        systemToolsOverlay,
+        formFieldsOverlay,
+      } = getSettingsLateOverlayElements();
+      if (event.target.closest("#settingsPlaylistOverlayClose")) {
+        closeSettingsPlaylistOverlay();
+        return;
+      }
+      if (playlistOverlay && event.target === playlistOverlay) {
+        closeSettingsPlaylistOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsPlaylistAllBtn")) {
+        applyPlaylistSelection("all");
+        return;
+      }
+      if (event.target.closest("#settingsPlaylist25Btn")) {
+        applyPlaylistSelection("last25");
+        return;
+      }
+      if (event.target.closest("#settingsPlaylist10Btn")) {
+        applyPlaylistSelection("last10");
+        return;
+      }
+      if (event.target.closest("#settingsPlaylistApplyCustomBtn")) {
+        const { playlistCustomInput } = getSettingsLateOverlayElements();
+        const rawValue = String(playlistCustomInput?.value || "").trim();
+        const numericValue = Number(rawValue);
+        if (!Number.isFinite(numericValue) || numericValue < 1) {
+          showToast("Enter a valid number of photos.", "error");
+          playlistCustomInput?.focus();
+          return;
+        }
+        applyPlaylistSelection(`custom:${Math.round(numericValue)}`, String(Math.round(numericValue)));
+        return;
+      }
+      if (event.target.closest("#settingsIntroOverlayClose")) {
+        closeSettingsIntroOverlay();
+        return;
+      }
+      if (introOverlay && event.target === introOverlay) {
+        closeSettingsIntroOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsIntroOverlayApplyBtn")) {
+        applyIntroOverlayValues();
+        return;
+      }
+      if (event.target.closest("#settingsTemplateOverlayClose")) {
+        closeSettingsTemplateOverlay();
+        return;
+      }
+      if (templateOverlay && event.target === templateOverlay) {
+        closeSettingsTemplateOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsTemplateOverlayApplyBtn")) {
+        applyTemplateOverlaySelection();
+        return;
+      }
+      if (event.target.closest("#settingsSystemToolsOverlayClose")) {
+        closeSettingsSystemToolsOverlay();
+        return;
+      }
+      if (systemToolsOverlay && event.target === systemToolsOverlay) {
+        closeSettingsSystemToolsOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsOverlayOpenEventLogsBtn")) {
+        closeSettingsSystemToolsOverlay();
+        openExpandedEventLogs();
+        return;
+      }
+      if (event.target.closest("#settingsOverlayOpenDevicesBtn")) {
+        closeSettingsSystemToolsOverlay();
+        openLiveGalleryDevicesOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsOverlayOpenHealthBtn")) {
+        closeSettingsSystemToolsOverlay();
+        openSystemHealthOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsOverlayOpenActivityBtn")) {
+        closeSettingsSystemToolsOverlay();
+        openActivityOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsFormFieldsOverlayClose")) {
+        closeSettingsFormFieldsOverlay();
+        return;
+      }
+      if (formFieldsOverlay && event.target === formFieldsOverlay) {
+        closeSettingsFormFieldsOverlay();
+        return;
+      }
+      if (event.target.closest("#settingsFormFieldsOverlayApplyBtn")) {
+        applySettingsFormFieldsOverlay();
+        return;
+      }
+
+      const { sheet: mobileTemplateSheetEl } = getMobileTemplateSheetElements();
+      if (event.target.closest("#mobileTemplateSheetClose")) {
+        closeMobileTemplateSheet();
+        return;
+      }
+      if (mobileTemplateSheetEl && event.target === mobileTemplateSheetEl) {
+        closeMobileTemplateSheet();
       }
     });
 
@@ -13800,57 +14342,70 @@ function hideReportLoading() {
       const overlayVersion = templateData?.overlayVersion || templateData?.overlayUpdatedAt || template?.id || "";
       const previewUrl = overlayFileId ? buildPublicTemplateOverlayPreviewUrl(overlayFileId, overlayVersion) : "";
       const isActiveTemplate = template && String(template.id) === String(currentActiveTemplateId || "");
+      const {
+        title,
+        meta,
+        badge,
+        previewWrap,
+        previewImg,
+        previewEmpty,
+        previewBtn,
+        setActiveBtn,
+        deleteBtn,
+      } = getMobileTemplateSheetElements();
 
-      if (mobileTemplateSheetTitle) {
-        mobileTemplateSheetTitle.textContent = template?.name || "Template";
+      if (title) {
+        title.textContent = template?.name || "Template";
       }
-      if (mobileTemplateSheetMeta) {
-        mobileTemplateSheetMeta.textContent = template
+      if (meta) {
+        meta.textContent = template
           ? (template.createdAt ? `Saved ${new Date(template.createdAt).toLocaleDateString()} · ${overlayFileId ? "Ready to publish" : "Overlay missing"}` : "Saved template")
           : "Select a template to preview it and push it live.";
       }
-      if (mobileTemplateSheetBadge) {
-        mobileTemplateSheetBadge.style.display = isActiveTemplate ? "inline-flex" : "none";
+      if (badge) {
+        badge.style.display = isActiveTemplate ? "inline-flex" : "none";
       }
-      if (mobileTemplateSheetPreviewImg) {
+      if (previewImg) {
         if (previewUrl) {
-          mobileTemplateSheetPreviewImg.src = previewUrl;
-          mobileTemplateSheetPreviewImg.style.display = "block";
+          previewImg.src = previewUrl;
+          previewImg.style.display = "block";
         } else {
-          mobileTemplateSheetPreviewImg.removeAttribute("src");
-          mobileTemplateSheetPreviewImg.style.display = "none";
+          previewImg.removeAttribute("src");
+          previewImg.style.display = "none";
         }
       }
-      if (mobileTemplateSheetPreviewEmpty) {
-        mobileTemplateSheetPreviewEmpty.style.display = previewUrl ? "none" : "flex";
+      if (previewEmpty) {
+        previewEmpty.style.display = previewUrl ? "none" : "flex";
       }
-      if (mobileTemplateSheetPreviewWrap) {
-        mobileTemplateSheetPreviewWrap.style.display = "block";
-        mobileTemplateSheetPreviewWrap.disabled = !previewUrl;
+      if (previewWrap) {
+        previewWrap.style.display = "block";
+        previewWrap.disabled = !previewUrl;
       }
-      if (mobileTemplateSheetPreviewBtn) {
-        mobileTemplateSheetPreviewBtn.disabled = !previewUrl;
+      if (previewBtn) {
+        previewBtn.disabled = !previewUrl;
       }
-      if (mobileTemplateSheetSetActiveBtn) {
-        mobileTemplateSheetSetActiveBtn.disabled = !template?.id || !overlayFileId || isActiveTemplate;
+      if (setActiveBtn) {
+        setActiveBtn.disabled = !template?.id || !overlayFileId || isActiveTemplate;
       }
-      if (mobileTemplateSheetDeleteBtn) {
-        mobileTemplateSheetDeleteBtn.disabled = !template?.id;
+      if (deleteBtn) {
+        deleteBtn.disabled = !template?.id;
       }
     }
 
     function openMobileTemplateSheet() {
-      if (!mobileTemplateSheet) return;
+      const { sheet } = getMobileTemplateSheetElements();
+      if (!sheet) return;
       renderMobileTemplateSheet();
-      mobileTemplateSheet.classList.add("visible");
-      mobileTemplateSheet.setAttribute("aria-hidden", "false");
+      sheet.classList.add("visible");
+      sheet.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
     }
 
     function closeMobileTemplateSheet() {
-      if (!mobileTemplateSheet) return;
-      mobileTemplateSheet.classList.remove("visible");
-      mobileTemplateSheet.setAttribute("aria-hidden", "true");
+      const { sheet } = getMobileTemplateSheetElements();
+      if (!sheet) return;
+      sheet.classList.remove("visible");
+      sheet.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
     }
 
@@ -13970,6 +14525,92 @@ function hideReportLoading() {
       }
     }
 
+    async function handleTemplateRename(templateSummary) {
+      const templateId = String(templateSummary?.id || "").trim();
+      if (!templateId) return;
+
+      const nextNameRaw = await appPrompt("Rename this template.", {
+        title: "Rename Template",
+        tone: "muted",
+        confirmLabel: "Save Name",
+        cancelLabel: "Cancel",
+        placeholder: "Template name",
+        value: templateSummary?.name || "",
+      });
+
+      if (nextNameRaw === false || nextNameRaw == null) return;
+      const nextName = String(nextNameRaw).trim();
+      if (!nextName) {
+        await appAlert("Please enter a template name.", {
+          title: "Name Required",
+          tone: "error",
+        });
+        return;
+      }
+
+      if (nextName === String(templateSummary?.name || "").trim()) {
+        return;
+      }
+
+      let fullTemplate = templateSummary;
+      if (!fullTemplate?.data) {
+        const loaded = await loadTemplateForMobile(templateId, {
+          prefillTemplate: templateSummary,
+          openSheet: false,
+          silentErrors: false,
+        });
+        fullTemplate = loaded?.template || null;
+      }
+
+      if (!fullTemplate?.data) {
+        await appAlert("Could not load the template data needed to rename it.", {
+          title: "Rename Failed",
+          tone: "error",
+        });
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/admin/templates/${encodeURIComponent(templateId)}`, {
+          method: "PUT",
+          headers: withAdminHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            name: nextName,
+            data: fullTemplate.data,
+            isActive: fullTemplate.isActive !== false,
+          }),
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          showLock("Session expired. Enter the access code.");
+          return;
+        }
+
+        const data = await res.json();
+        if (!res.ok || !data?.ok) {
+          throw new Error("template_rename_failed");
+        }
+
+        if (mobileSelectedTemplateRecord?.template && String(mobileSelectedTemplateRecord.template.id) === templateId) {
+          mobileSelectedTemplateRecord.template.name = nextName;
+        }
+        if (currentTemplateId && String(currentTemplateId) === templateId) {
+          currentTemplateName = nextName;
+        }
+
+        showToast("Template renamed successfully.", "success");
+        await loadTemplatesSidebar();
+        updateTemplateUiState();
+        renderMobileTemplateSheet();
+      } catch (err) {
+        console.error("Error renaming template:", err);
+        await appAlert("Failed to rename this template.", {
+          title: "Rename Failed",
+          tone: "error",
+        });
+      }
+    }
+
     async function loadTemplatesSidebar() {
       if (!templateList || !templateListEmpty) return;
       const requestId = ++templateSidebarRequestId;
@@ -14023,17 +14664,29 @@ function hideReportLoading() {
         }
         templateListEmpty.style.display = "none";
         templates.forEach((template) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "template-library-item";
-          button.dataset.templateId = String(template.id);
-          button.innerHTML = `
-            <span class="template-library-item-name">${template.name}</span>
-            <span class="template-library-item-meta">${template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "Saved template"}</span>
+          const item = document.createElement("div");
+          item.className = "template-library-item";
+          item.dataset.templateId = String(template.id);
+          item.setAttribute("role", "button");
+          item.setAttribute("tabindex", "0");
+          item.innerHTML = `
+            <div class="template-library-item-main">
+              <div class="template-library-item-copy">
+                <span class="template-library-item-name">${template.name}</span>
+                <span class="template-library-item-meta">${template.createdAt ? new Date(template.createdAt).toLocaleDateString() : "Saved template"}</span>
+              </div>
+              <button type="button" class="template-library-item-rename" aria-label="Rename ${template.name}">
+                <i data-lucide="square-pen"></i>
+              </button>
+            </div>
           `;
-          button.addEventListener("click", async (event) => {
+          item.addEventListener("click", async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (event.target.closest(".template-library-item-rename")) {
+              await handleTemplateRename(template);
+              return;
+            }
             if (isMobileAdminViewport()) {
               await loadTemplateForMobile(template.id, {
                 prefillTemplate: template,
@@ -14045,8 +14698,23 @@ function hideReportLoading() {
             hideTemplateEntryOverlay();
             await loadTemplate(template.id);
           });
-          templateList.appendChild(button);
+          item.addEventListener("keydown", async (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            if (isMobileAdminViewport()) {
+              await loadTemplateForMobile(template.id, {
+                prefillTemplate: template,
+                openSheet: true,
+                silentErrors: true,
+              });
+              return;
+            }
+            hideTemplateEntryOverlay();
+            await loadTemplate(template.id);
+          });
+          templateList.appendChild(item);
         });
+        renderLucideIcons();
 
         if (isMobileAdminViewport()) {
           await syncCurrentActiveTemplateId();
@@ -15959,9 +16627,10 @@ function hideReportLoading() {
         currentActiveTemplateId = String(templateId);
         updateTemplateUiState();
         if (!options.silentSuccess) {
-          showToast(`Active gallery overlay updated: "${templateName || templateId}".`, "success");
+          showToast(`Published to gallery configuration: "${templateName || templateId}". Check the display device for refresh.`, "success");
         }
 
+        setTemplatePublishStatus(`Published to gallery configuration: ${templateName || templateId}. Check the display device for refresh.`);
         return true;
       } catch (err) {
         console.error("Error setting active template:", err);
@@ -16047,6 +16716,7 @@ function hideReportLoading() {
       currentOverlayVersion = String(data.overlayVersion || overlayVersion);
 
       return {
+        published: data.published,
         overlayFileId: currentOverlayFileId,
         overlayUpdatedAt: currentOverlayUpdatedAt,
         overlayVersion: currentOverlayVersion,
@@ -16134,6 +16804,11 @@ function hideReportLoading() {
       };
     }
 
+    function setTemplatePublishStatus(message) {
+      const status = document.getElementById("templatePublishStatus");
+      if (status) status.textContent = message;
+    }
+
     async function runTemplateSaveFlow(name, setActiveAfterSave = false) {
       const progressTask = beginTemplateProgressTask(
         setActiveAfterSave ? "Publishing Template" : "Saving Template",
@@ -16143,11 +16818,13 @@ function hideReportLoading() {
       );
 
       try {
+        setTemplatePublishStatus("Saving editable template…");
         const saved = await persistTemplate(name, { progressTask });
         if (!saved) {
           await progressTask.fail("Save cancelled", "Please sign in again and retry.");
           return false;
         }
+        setTemplatePublishStatus("Editable template saved. Preparing gallery overlay…");
         const savedTemplateId = saved?.savedTemplateId || (currentTemplateId ? String(currentTemplateId) : "");
         const savedTemplateName = saved?.savedTemplateName || currentTemplateName || name || "";
         const savedTemplateData = saved?.savedTemplateData || collectTemplateData();
@@ -16169,6 +16846,8 @@ function hideReportLoading() {
               });
             },
           });
+          if (!overlayResult) throw new Error("overlay_upload_not_confirmed");
+          if (overlayResult.published === false && wasLiveTemplate) throw new Error("gallery_settings_not_persisted");
           if (overlayResult) {
             savedTemplateData.overlayFileId = overlayResult.overlayFileId;
             savedTemplateData.overlayUpdatedAt = overlayResult.overlayUpdatedAt;
@@ -16184,6 +16863,7 @@ function hideReportLoading() {
 
         if (setActiveAfterSave) {
           if (overlayUploadWarning || !savedTemplateData.overlayFileId) {
+            setTemplatePublishStatus("Saved for editing; gallery publication failed. Retry Save & Set Live.");
             await progressTask.fail("Live overlay not updated", "Template saved for editing only.");
             await appAlert(
               "The template was saved for editing, but the flattened live overlay failed to update. The gallery was not changed.",
@@ -16201,6 +16881,7 @@ function hideReportLoading() {
           });
           const success = await setTemplateAsActive(savedTemplateId, savedTemplateName, savedTemplateData, { silentSuccess: true });
           if (!success) {
+            setTemplatePublishStatus("Saved, but gallery publication failed. Retry Set Live.");
             await progressTask.fail("Live overlay update failed", "The template was saved but not pushed live.");
             return false;
           }
@@ -16212,6 +16893,7 @@ function hideReportLoading() {
         }
 
         if (overlayUploadWarning) {
+          setTemplatePublishStatus("Saved for editing. Publication failed; retry Save to publish the overlay.");
           await progressTask.complete("Template saved", "Previous live overlay remains active.");
           await appAlert(
             "The template was saved for editing, but the flattened overlay could not be updated for the live gallery. The previous live overlay remains in place.",
@@ -16221,6 +16903,7 @@ function hideReportLoading() {
             }
           );
         } else {
+          setTemplatePublishStatus(setActiveAfterSave || wasLiveTemplate ? "Saved and published to gallery configuration. Check the display device to confirm it has refreshed." : "Saved with preview ready. Choose Set Live to publish to the gallery.");
           await progressTask.complete(
             setActiveAfterSave || wasLiveTemplate ? "Active gallery overlay updated" : "Template saved",
             savedTemplateName || name
@@ -16809,19 +17492,45 @@ function hideReportLoading() {
         return;
       }
 
-      if (key === "escape" && settingsPlaylistOverlay && settingsPlaylistOverlay.classList.contains("visible")) {
+      const {
+        playlistOverlay,
+        introOverlay,
+        templateOverlay,
+        systemToolsOverlay,
+        formFieldsOverlay,
+      } = getSettingsLateOverlayElements();
+      if (key === "escape" && playlistOverlay && playlistOverlay.classList.contains("visible")) {
         event.preventDefault();
         closeSettingsPlaylistOverlay();
         return;
       }
 
-      if (key === "escape" && settingsIntroOverlay && settingsIntroOverlay.classList.contains("visible")) {
+      if (key === "escape" && introOverlay && introOverlay.classList.contains("visible")) {
         event.preventDefault();
         closeSettingsIntroOverlay();
         return;
       }
 
-      if (key === "escape" && mobileTemplateSheet && mobileTemplateSheet.classList.contains("visible")) {
+      if (key === "escape" && templateOverlay && templateOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeSettingsTemplateOverlay();
+        return;
+      }
+
+      if (key === "escape" && systemToolsOverlay && systemToolsOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeSettingsSystemToolsOverlay();
+        return;
+      }
+
+      if (key === "escape" && formFieldsOverlay && formFieldsOverlay.classList.contains("visible")) {
+        event.preventDefault();
+        closeSettingsFormFieldsOverlay();
+        return;
+      }
+
+      const { sheet: mobileTemplateSheetEl } = getMobileTemplateSheetElements();
+      if (key === "escape" && mobileTemplateSheetEl && mobileTemplateSheetEl.classList.contains("visible")) {
         event.preventDefault();
         closeMobileTemplateSheet();
       }
@@ -16862,15 +17571,18 @@ function closeReportOverlay() {
   document.body.style.overflow = "";
 }
 
-reportViewBtn.addEventListener("click", async () => {
+async function loadReportPreview(options = {}) {
+  const { silent = false } = options;
   if (!adminToken) {
     showLock("Session expired. Enter the access code.");
     return;
   }
 
-  openReportOverlay();
-  showReportLoading();
-  setButtonLoading(reportViewBtn, "Loading...", true);
+  if (!silent) {
+    showReportLoading();
+  } else if (reportPreview) {
+    reportPreview.textContent = "Loading current event summary…";
+  }
 
   try {
     const res = await fetch(`${BASE_URL}/session-report-preview`, {
@@ -16885,8 +17597,9 @@ reportViewBtn.addEventListener("click", async () => {
 
     if (!res.ok) {
       latestReportPreviewText = "Could not load the report preview. Please try again.";
-      reportPreview.textContent =
-        "Could not load the report preview. Please try again.";
+      if (reportPreview) {
+        reportPreview.textContent = latestReportPreviewText;
+      }
       const { preview } = getReportOverlayElements();
       if (preview) preview.textContent = latestReportPreviewText;
       return;
@@ -16896,28 +17609,51 @@ reportViewBtn.addEventListener("click", async () => {
 
     if (data && data.reportText) {
       latestReportPreviewText = data.reportText;
-      reportPreview.textContent = data.reportText;
+      if (reportPreview) {
+        reportPreview.textContent = data.reportText;
+      }
       const { preview } = getReportOverlayElements();
       if (preview) preview.textContent = latestReportPreviewText;
     } else {
       latestReportPreviewText = "No report text was returned by the server.";
-      reportPreview.textContent =
-        "No report text was returned by the server.";
+      if (reportPreview) {
+        reportPreview.textContent = latestReportPreviewText;
+      }
       const { preview } = getReportOverlayElements();
       if (preview) preview.textContent = latestReportPreviewText;
     }
   } catch (err) {
     console.error("Error fetching report preview", err);
     latestReportPreviewText = "Error loading the report preview. Please try again.";
-    reportPreview.textContent =
-      "Error loading the report preview. Please try again.";
+    if (reportPreview) {
+      reportPreview.textContent = latestReportPreviewText;
+    }
     const { preview } = getReportOverlayElements();
     if (preview) preview.textContent = latestReportPreviewText;
   } finally {
     hideReportLoading();
-    setButtonLoading(reportViewBtn, "Loading...", false);
   }
-});
+}
+
+function downloadCurrentReportPreview() {
+  if (!adminToken) {
+    showLock("Session expired. Enter the access code.");
+    return;
+  }
+  const text = String(latestReportPreviewText || "").trim();
+  if (!text || /loading current event summary/i.test(text)) {
+    showToast("Wait for the report preview to finish loading first.", "error");
+    return;
+  }
+  const fileName = `selfieapp_event_report_${buildPuertoRicoFilenameStamp(new Date())}.txt`;
+  triggerBlobDownload(new Blob([text], { type: "text/plain;charset=utf-8" }), fileName);
+}
+
+if (reportDownloadBtn) {
+  reportDownloadBtn.addEventListener("click", () => {
+    downloadCurrentReportPreview();
+  });
+}
 
     reportGenerateBtn.addEventListener("click", async () => {
       await generateReportNow();
@@ -16977,6 +17713,7 @@ reportViewBtn.addEventListener("click", async () => {
       if (settingsActiveTemplateId.value !== (selectedTemplateId ? String(selectedTemplateId) : "")) {
         settingsActiveTemplateId.value = "";
       }
+      syncTemplateOverlayOptions();
       refreshSettingsLivePreview();
     }
 
@@ -17067,6 +17804,7 @@ reportViewBtn.addEventListener("click", async () => {
       settingsNewsletterLabel.value = settings.form?.newsletter?.label || "";
       settingsNewsletterHelper.value = settings.form?.newsletter?.helper || "";
       renderGalleryRuntimeCommandStatus(settings.galleryRuntimeCommand || DEFAULT_GALLERY_RUNTIME_COMMAND);
+      syncTemplateOverlayOptions();
       refreshSettingsLivePreview();
       updateTemplateUiState();
     }
@@ -17099,29 +17837,46 @@ reportViewBtn.addEventListener("click", async () => {
       if (settingsPlaylistSummary) {
         settingsPlaylistSummary.textContent = getGalleryDisplayLimitLabel(collectSettingsPayload().galleryDisplayLimit);
       }
+      if (settingsTemplateSummary) {
+        settingsTemplateSummary.textContent = getSelectedTemplateLabel();
+      }
       if (settingsGalleryPlayerSummary) {
         settingsGalleryPlayerSummary.textContent = "Tap to refresh the live gallery.";
+      }
+      if (settingsSystemToolsSummary) {
+        settingsSystemToolsSummary.textContent = "Logs, devices, health, and activity.";
       }
       if (settingsIntroSummary) {
         const title = settingsIntroTitle?.value.trim() || "Tap to edit title and subtitle.";
         settingsIntroSummary.textContent = title;
       }
+      if (settingsFormFieldsSummary) {
+        const enabledCount = [
+          Boolean(settingsLocationEnabled?.checked),
+          Boolean(settingsLastNameEnabled?.checked),
+          Boolean(settingsEmailEnabled?.checked),
+          Boolean(settingsNewsletterEnabled?.checked),
+        ].filter(Boolean).length;
+        settingsFormFieldsSummary.textContent = `${enabledCount} field groups enabled`;
+      }
     }
 
     function openSettingsPlaylistOverlay() {
-      if (!settingsPlaylistOverlay) return;
-      settingsPlaylistCustomInput.value = settingsGalleryDisplayLimit?.value === "custom"
+      const { playlistOverlay, playlistCustomInput } = getSettingsLateOverlayElements();
+      if (!playlistOverlay || !playlistCustomInput) return;
+      playlistCustomInput.value = settingsGalleryDisplayLimit?.value === "custom"
         ? (settingsGalleryDisplayCustom?.value || "")
         : "";
-      settingsPlaylistOverlay.classList.add("visible");
-      settingsPlaylistOverlay.setAttribute("aria-hidden", "false");
+      playlistOverlay.classList.add("visible");
+      playlistOverlay.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
     }
 
     function closeSettingsPlaylistOverlay() {
-      if (!settingsPlaylistOverlay) return;
-      settingsPlaylistOverlay.classList.remove("visible");
-      settingsPlaylistOverlay.setAttribute("aria-hidden", "true");
+      const { playlistOverlay } = getSettingsLateOverlayElements();
+      if (!playlistOverlay) return;
+      playlistOverlay.classList.remove("visible");
+      playlistOverlay.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
     }
 
@@ -17145,36 +17900,163 @@ reportViewBtn.addEventListener("click", async () => {
     }
 
     function openSettingsIntroOverlay() {
-      if (!settingsIntroOverlay) return;
-      if (settingsIntroOverlayTitleInput) {
-        settingsIntroOverlayTitleInput.value = settingsIntroTitle?.value || "";
+      const { introOverlay, introOverlayTitleInput, introOverlaySubtitleInput } = getSettingsLateOverlayElements();
+      if (!introOverlay) return;
+      if (introOverlayTitleInput) {
+        introOverlayTitleInput.value = settingsIntroTitle?.value || "";
       }
-      if (settingsIntroOverlaySubtitleInput) {
-        settingsIntroOverlaySubtitleInput.value = settingsIntroSubtitle?.value || "";
+      if (introOverlaySubtitleInput) {
+        introOverlaySubtitleInput.value = settingsIntroSubtitle?.value || "";
       }
-      settingsIntroOverlay.classList.add("visible");
-      settingsIntroOverlay.setAttribute("aria-hidden", "false");
+      introOverlay.classList.add("visible");
+      introOverlay.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
     }
 
     function closeSettingsIntroOverlay() {
-      if (!settingsIntroOverlay) return;
-      settingsIntroOverlay.classList.remove("visible");
-      settingsIntroOverlay.setAttribute("aria-hidden", "true");
+      const { introOverlay } = getSettingsLateOverlayElements();
+      if (!introOverlay) return;
+      introOverlay.classList.remove("visible");
+      introOverlay.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
     }
 
     function applyIntroOverlayValues() {
-      if (settingsIntroTitle && settingsIntroOverlayTitleInput) {
-        settingsIntroTitle.value = settingsIntroOverlayTitleInput.value;
+      const { introOverlayTitleInput, introOverlaySubtitleInput } = getSettingsLateOverlayElements();
+      if (settingsIntroTitle && introOverlayTitleInput) {
+        settingsIntroTitle.value = introOverlayTitleInput.value;
       }
-      if (settingsIntroSubtitle && settingsIntroOverlaySubtitleInput) {
-        settingsIntroSubtitle.value = settingsIntroOverlaySubtitleInput.value;
+      if (settingsIntroSubtitle && introOverlaySubtitleInput) {
+        settingsIntroSubtitle.value = introOverlaySubtitleInput.value;
       }
       syncSettingsDirtyState();
       closeSettingsIntroOverlay();
       if (settingsIntroHeader) {
         scrollElementIntoViewWithOffset(settingsIntroHeader, { behavior: "smooth" });
+      }
+    }
+
+    function syncTemplateOverlayOptions() {
+      const { templateOverlaySelect } = getSettingsLateOverlayElements();
+      if (!templateOverlaySelect || !settingsActiveTemplateId) return;
+      templateOverlaySelect.innerHTML = settingsActiveTemplateId.innerHTML;
+      templateOverlaySelect.value = settingsActiveTemplateId.value || "";
+    }
+
+    function openSettingsTemplateOverlay() {
+      const { templateOverlay } = getSettingsLateOverlayElements();
+      if (!templateOverlay) return;
+      syncTemplateOverlayOptions();
+      templateOverlay.classList.add("visible");
+      templateOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeSettingsTemplateOverlay() {
+      const { templateOverlay } = getSettingsLateOverlayElements();
+      if (!templateOverlay) return;
+      templateOverlay.classList.remove("visible");
+      templateOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    function applyTemplateOverlaySelection() {
+      const { templateOverlaySelect } = getSettingsLateOverlayElements();
+      if (settingsActiveTemplateId && templateOverlaySelect) {
+        settingsActiveTemplateId.value = templateOverlaySelect.value || "";
+      }
+      syncSettingsDirtyState();
+      closeSettingsTemplateOverlay();
+      if (settingsTemplateHeader) {
+        scrollElementIntoViewWithOffset(settingsTemplateHeader, { behavior: "smooth" });
+      }
+    }
+
+    function openSettingsSystemToolsOverlay() {
+      const { systemToolsOverlay } = getSettingsLateOverlayElements();
+      if (!systemToolsOverlay) return;
+      systemToolsOverlay.classList.add("visible");
+      systemToolsOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeSettingsSystemToolsOverlay() {
+      const { systemToolsOverlay } = getSettingsLateOverlayElements();
+      if (!systemToolsOverlay) return;
+      systemToolsOverlay.classList.remove("visible");
+      systemToolsOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    function openSettingsFormFieldsOverlay() {
+      const {
+        formFieldsOverlay,
+        formOverlayLocationEnabled,
+        formOverlayCountryFlagEnabled,
+        formOverlayLastNameEnabled,
+        formOverlayLastNameLabel,
+        formOverlayLastNamePlaceholder,
+        formOverlayEmailEnabled,
+        formOverlayEmailLabel,
+        formOverlayEmailPlaceholder,
+        formOverlayNewsletterEnabled,
+        formOverlayNewsletterLabel,
+        formOverlayNewsletterHelper,
+      } = getSettingsLateOverlayElements();
+      if (!formFieldsOverlay) return;
+      if (formOverlayLocationEnabled) formOverlayLocationEnabled.checked = Boolean(settingsLocationEnabled?.checked);
+      if (formOverlayCountryFlagEnabled) formOverlayCountryFlagEnabled.checked = Boolean(settingsCountryFlagEnabled?.checked);
+      if (formOverlayLastNameEnabled) formOverlayLastNameEnabled.checked = Boolean(settingsLastNameEnabled?.checked);
+      if (formOverlayLastNameLabel) formOverlayLastNameLabel.value = settingsLastNameLabel?.value || "";
+      if (formOverlayLastNamePlaceholder) formOverlayLastNamePlaceholder.value = settingsLastNamePlaceholder?.value || "";
+      if (formOverlayEmailEnabled) formOverlayEmailEnabled.checked = Boolean(settingsEmailEnabled?.checked);
+      if (formOverlayEmailLabel) formOverlayEmailLabel.value = settingsEmailLabel?.value || "";
+      if (formOverlayEmailPlaceholder) formOverlayEmailPlaceholder.value = settingsEmailPlaceholder?.value || "";
+      if (formOverlayNewsletterEnabled) formOverlayNewsletterEnabled.checked = Boolean(settingsNewsletterEnabled?.checked);
+      if (formOverlayNewsletterLabel) formOverlayNewsletterLabel.value = settingsNewsletterLabel?.value || "";
+      if (formOverlayNewsletterHelper) formOverlayNewsletterHelper.value = settingsNewsletterHelper?.value || "";
+      formFieldsOverlay.classList.add("visible");
+      formFieldsOverlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeSettingsFormFieldsOverlay() {
+      const { formFieldsOverlay } = getSettingsLateOverlayElements();
+      if (!formFieldsOverlay) return;
+      formFieldsOverlay.classList.remove("visible");
+      formFieldsOverlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    function applySettingsFormFieldsOverlay() {
+      const {
+        formOverlayLocationEnabled,
+        formOverlayCountryFlagEnabled,
+        formOverlayLastNameEnabled,
+        formOverlayLastNameLabel,
+        formOverlayLastNamePlaceholder,
+        formOverlayEmailEnabled,
+        formOverlayEmailLabel,
+        formOverlayEmailPlaceholder,
+        formOverlayNewsletterEnabled,
+        formOverlayNewsletterLabel,
+        formOverlayNewsletterHelper,
+      } = getSettingsLateOverlayElements();
+      if (settingsLocationEnabled && formOverlayLocationEnabled) settingsLocationEnabled.checked = formOverlayLocationEnabled.checked;
+      if (settingsCountryFlagEnabled && formOverlayCountryFlagEnabled) settingsCountryFlagEnabled.checked = formOverlayCountryFlagEnabled.checked;
+      if (settingsLastNameEnabled && formOverlayLastNameEnabled) settingsLastNameEnabled.checked = formOverlayLastNameEnabled.checked;
+      if (settingsLastNameLabel && formOverlayLastNameLabel) settingsLastNameLabel.value = formOverlayLastNameLabel.value;
+      if (settingsLastNamePlaceholder && formOverlayLastNamePlaceholder) settingsLastNamePlaceholder.value = formOverlayLastNamePlaceholder.value;
+      if (settingsEmailEnabled && formOverlayEmailEnabled) settingsEmailEnabled.checked = formOverlayEmailEnabled.checked;
+      if (settingsEmailLabel && formOverlayEmailLabel) settingsEmailLabel.value = formOverlayEmailLabel.value;
+      if (settingsEmailPlaceholder && formOverlayEmailPlaceholder) settingsEmailPlaceholder.value = formOverlayEmailPlaceholder.value;
+      if (settingsNewsletterEnabled && formOverlayNewsletterEnabled) settingsNewsletterEnabled.checked = formOverlayNewsletterEnabled.checked;
+      if (settingsNewsletterLabel && formOverlayNewsletterLabel) settingsNewsletterLabel.value = formOverlayNewsletterLabel.value;
+      if (settingsNewsletterHelper && formOverlayNewsletterHelper) settingsNewsletterHelper.value = formOverlayNewsletterHelper.value;
+      syncSettingsDirtyState();
+      closeSettingsFormFieldsOverlay();
+      if (settingsFormFieldsHeader) {
+        scrollElementIntoViewWithOffset(settingsFormFieldsHeader, { behavior: "smooth" });
       }
     }
 
@@ -17301,13 +18183,25 @@ reportViewBtn.addEventListener("click", async () => {
                 openSettingsPlaylistOverlay();
                 return;
               }
+              if (mobileMode === "template") {
+                openSettingsTemplateOverlay();
+                return;
+              }
               if (mobileMode === "action") {
                 await issueGalleryReloadCommand();
                 scrollElementIntoViewWithOffset(header, { behavior: "smooth" });
                 return;
               }
+              if (mobileMode === "tools") {
+                openSettingsSystemToolsOverlay();
+                return;
+              }
               if (mobileMode === "overlay") {
                 openSettingsIntroOverlay();
+                return;
+              }
+              if (mobileMode === "form") {
+                openSettingsFormFieldsOverlay();
                 return;
               }
             }
@@ -17725,7 +18619,7 @@ reportViewBtn.addEventListener("click", async () => {
         </button>
       </div>
       <div class="event-logs-modal-body">
-        <pre id="reportOverlayPreview" class="report-preview overlay-report-preview">Tap "View report" to load the current summary.</pre>
+        <pre id="reportOverlayPreview" class="report-preview overlay-report-preview">Loading current event summary…</pre>
       </div>
     </div>
   </div>
@@ -17796,6 +18690,160 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
     </div>
   </div>
+  <div id="settingsTemplateOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTemplateOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="settingsTemplateOverlayTitle" class="event-logs-modal-title">Gallery Template</h3>
+          <p class="event-logs-modal-subtitle">Choose the template that should be active on the gallery screen.</p>
+        </div>
+        <button id="settingsTemplateOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close gallery template picker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div class="settings-grid">
+          <label class="settings-label" for="settingsTemplateOverlaySelect">Active gallery template</label>
+          <select id="settingsTemplateOverlaySelect" class="settings-input">
+            <option value="">Use current fallback layout</option>
+          </select>
+          <div class="settings-actions" style="margin-top:0;">
+            <button id="settingsTemplateOverlayApplyBtn" class="btn-primary" type="button">
+              <span class="btn-inline-content">
+                <i data-lucide="monitor"></i>
+                <span>DONE</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="settingsSystemToolsOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="settingsSystemToolsOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="settingsSystemToolsOverlayTitle" class="event-logs-modal-title">System Tools</h3>
+          <p class="event-logs-modal-subtitle">Open the operational tools from one mobile-friendly panel.</p>
+        </div>
+        <button id="settingsSystemToolsOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close system tools">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div class="settings-tool-grid settings-tool-grid-overlay">
+          <button id="settingsOverlayOpenEventLogsBtn" class="btn-ghost settings-tool-btn" type="button">
+            <span class="btn-inline-content">
+              <i data-lucide="scroll-text"></i>
+              <span>EVENT LOGS</span>
+            </span>
+          </button>
+          <button id="settingsOverlayOpenDevicesBtn" class="btn-ghost settings-tool-btn" type="button">
+            <span class="btn-inline-content">
+              <i data-lucide="monitor-play"></i>
+              <span>LIVE DEVICES</span>
+            </span>
+          </button>
+          <button id="settingsOverlayOpenHealthBtn" class="btn-ghost settings-tool-btn" type="button">
+            <span class="btn-inline-content">
+              <i data-lucide="heart-pulse"></i>
+              <span>SYSTEM HEALTH</span>
+            </span>
+          </button>
+          <button id="settingsOverlayOpenActivityBtn" class="btn-ghost settings-tool-btn" type="button">
+            <span class="btn-inline-content">
+              <i data-lucide="chart-line"></i>
+              <span>ACTIVITY</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="settingsFormFieldsOverlay" class="event-logs-overlay" aria-hidden="true">
+    <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="settingsFormFieldsOverlayTitle">
+      <div class="event-logs-modal-band"></div>
+      <div class="event-logs-modal-header">
+        <div class="event-logs-modal-copy">
+          <h3 id="settingsFormFieldsOverlayTitle" class="event-logs-modal-title">Form Fields</h3>
+          <p class="event-logs-modal-subtitle">Edit the public form settings in one focused mobile screen.</p>
+        </div>
+        <button id="settingsFormFieldsOverlayClose" type="button" class="event-logs-modal-close" aria-label="Close form fields editor">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="event-logs-modal-body">
+        <div class="settings-grid">
+          <div class="settings-row">
+            <span class="settings-label">Enable location (country/region)</span>
+            <label class="toggle">
+              <input type="checkbox" id="settingsFormOverlayLocationEnabled" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Show country flag + name on photo</span>
+            <label class="toggle">
+              <input type="checkbox" id="settingsFormOverlayCountryFlagEnabled" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Enable last name</span>
+            <label class="toggle">
+              <input type="checkbox" id="settingsFormOverlayLastNameEnabled" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <label class="settings-label" for="settingsFormOverlayLastNameLabel">Last name label</label>
+          <input id="settingsFormOverlayLastNameLabel" class="settings-input" type="text" />
+          <label class="settings-label" for="settingsFormOverlayLastNamePlaceholder">Last name placeholder</label>
+          <input id="settingsFormOverlayLastNamePlaceholder" class="settings-input" type="text" />
+          <div class="settings-row">
+            <span class="settings-label">Enable email</span>
+            <label class="toggle">
+              <input type="checkbox" id="settingsFormOverlayEmailEnabled" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <label class="settings-label" for="settingsFormOverlayEmailLabel">Email label</label>
+          <input id="settingsFormOverlayEmailLabel" class="settings-input" type="text" />
+          <label class="settings-label" for="settingsFormOverlayEmailPlaceholder">Email placeholder</label>
+          <input id="settingsFormOverlayEmailPlaceholder" class="settings-input" type="text" />
+          <div class="settings-row">
+            <span class="settings-label">Enable newsletter opt-in</span>
+            <label class="toggle">
+              <input type="checkbox" id="settingsFormOverlayNewsletterEnabled" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <label class="settings-label" for="settingsFormOverlayNewsletterLabel">Newsletter label</label>
+          <input id="settingsFormOverlayNewsletterLabel" class="settings-input" type="text" />
+          <label class="settings-label" for="settingsFormOverlayNewsletterHelper">Newsletter helper text</label>
+          <textarea id="settingsFormOverlayNewsletterHelper" class="settings-input" rows="4" style="resize:vertical;"></textarea>
+          <div class="settings-actions" style="margin-top:0;">
+            <button id="settingsFormFieldsOverlayApplyBtn" class="btn-primary" type="button">
+              <span class="btn-inline-content">
+                <i data-lucide="save"></i>
+                <span>DONE</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="mobileTemplateSheet" class="event-logs-overlay" aria-hidden="true">
     <div class="event-logs-modal" role="dialog" aria-modal="true" aria-labelledby="mobileTemplateSheetTitle">
       <div class="event-logs-modal-band"></div>
@@ -17813,24 +18861,18 @@ reportViewBtn.addEventListener("click", async () => {
       </div>
       <div class="event-logs-modal-body">
         <div class="mobile-view-note" style="margin-bottom: 0.9rem;">
-          <div id="mobileTemplateSheetBadge" class="mobile-template-sheet-badge" style="display:none;">Active on screen</div>
+          <div id="mobileTemplateSheetBadge" class="mobile-template-sheet-badge" style="display:none;">Published configuration</div>
           <div class="mobile-view-note-copy">Template editing stays on desktop. Mobile can preview, activate, and delete saved layouts.</div>
         </div>
         <div class="mobile-template-sheet-summary">
           <div class="mobile-template-sheet-summary-title">Template Actions</div>
-          <div class="mobile-template-sheet-summary-copy">Preview the published layout, set it live on screen, or delete the saved template.</div>
+          <div class="mobile-template-sheet-summary-copy">Preview the saved overlay or publish it to the gallery configuration. Check the display device to confirm refresh.</div>
         </div>
         <button id="mobileTemplateSheetPreviewWrap" class="mobile-template-preview-wrap" type="button" aria-label="Open template preview image" style="display:none;">
           <img id="mobileTemplateSheetPreviewImg" alt="Template preview" style="display:none;" />
           <div id="mobileTemplateSheetPreviewEmpty" class="mobile-template-preview-empty">No published overlay preview is available yet.</div>
         </button>
         <div class="mobile-template-actions" style="margin-top: 1rem;">
-          <button id="mobileTemplateSheetPreviewBtn" type="button" class="btn-ghost" disabled>
-            <span class="btn-inline-content">
-              <i data-lucide="eye"></i>
-              <span>PREVIEW</span>
-            </span>
-          </button>
           <button id="mobileTemplateSheetSetActiveBtn" type="button" class="btn-primary" disabled>
             <span class="btn-inline-content">
               <i data-lucide="monitor"></i>

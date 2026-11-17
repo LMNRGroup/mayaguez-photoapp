@@ -6204,6 +6204,7 @@ app.post('/admin/templates/:id(\\d+)/flattened-overlay', ensureAdminAuth, multer
       });
     }
 
+    let published = null;
     if (String(appSettings.activeTemplateId || '') === String(template.id)) {
       appSettings = await syncActiveTemplateSettings({
         ...appSettings,
@@ -6216,6 +6217,7 @@ app.post('/admin/templates/:id(\\d+)/flattened-overlay', ensureAdminAuth, multer
         })
       });
       const persisted = await writeSettingsToSheet(appSettings, appEnabled, appSessionId);
+      published = persisted;
       if (!persisted) {
         console.warn('Active template settings sync failed after flattened overlay upload for template', template.id);
       }
@@ -6231,6 +6233,7 @@ app.post('/admin/templates/:id(\\d+)/flattened-overlay', ensureAdminAuth, multer
 
     return res.json({
       ok: true,
+      published,
       templateId: String(template.id),
       overlayFileId,
       overlayUpdatedAt,

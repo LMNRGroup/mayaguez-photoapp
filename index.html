@@ -960,7 +960,8 @@
         <div id="orientationHint" class="orientation-hint">
           Para mejores resultados, gira tu teléfono a posición horizontal antes de tomar la foto.
         </div>
-        <div id="errorLog"></div>
+        <div id="errorLog" role="status" aria-live="polite"></div>
+        <button id="cameraRetryButton" type="button" hidden>Retry camera / Reintentar cámara</button>
       </div>
     </div>
 
@@ -1919,6 +1920,8 @@
             };
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        document.getElementById('cameraRetryButton').hidden = true;
+        errorLog.textContent = '';
         currentStream = stream;
 
         video.srcObject = stream;
@@ -1934,9 +1937,15 @@
         console.log('Actual video resolution:', video.videoWidth, video.videoHeight);
       } catch (error) {
         console.error('Camera error:', error);
-        errorLog.textContent = `${t('cameraError')}${error.message}`;
+        const denied = ['NotAllowedError', 'SecurityError'].includes(error.name);
+        errorLog.textContent = currentLanguage === 'en'
+          ? (denied ? 'Camera access is blocked. Open this site’s browser permissions, allow Camera, then tap Retry camera. If needed, also allow camera access in your device settings.' : 'Camera unavailable. Close other apps using the camera, check that a camera is connected, then retry.')
+          : (denied ? 'La cámara está bloqueada. Abre los permisos de este sitio en el navegador, permite Cámara y pulsa Reintentar cámara. Si es necesario, permite también el acceso en los ajustes del dispositivo.' : 'Cámara no disponible. Cierra otras apps que usan la cámara, verifica la conexión y reintenta.');
+        document.getElementById('cameraRetryButton').hidden = false;
       }
     }
+
+    document.getElementById('cameraRetryButton').addEventListener('click', () => setupCamera(currentFacingMode));
 
     function switchCamera() {
       currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
@@ -2127,8 +2136,12 @@ captureButton.addEventListener('click', () => {
       errorLog.textContent = '';
 
       canvas.toBlob(async (blob) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45000);
         try {
+          if (!blob) throw new Error('Photo could not be prepared. Please retake it.');
           const response = await fetch(`${BACKEND_URL}/upload`, {
+            signal: controller.signal,
             method: 'POST',
             headers: {
               'Content-Type': blob.type,
@@ -2171,7 +2184,11 @@ captureButton.addEventListener('click', () => {
           uploadButton.disabled = false;
           uploadButton.textContent = t('upload');
           uploadButton.classList.remove('button-loading');
-          uploadStatus.textContent = t('uploadError');
+          uploadStatus.textContent = error.name === 'AbortError'
+            ? (currentLanguage === 'en' ? 'Upload timed out. Your photo is still here. Check with staff before retrying: it may have arrived. Tap Upload to retry.' : 'Se agotó el tiempo. Tu foto sigue aquí. Consulta al personal antes de reintentar: puede haber llegado. Pulsa Subir para reintentar.')
+            : t('uploadError');
+        } finally {
+          clearTimeout(timeout);
         }
       }, 'image/jpeg');
     });
