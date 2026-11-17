@@ -1,4 +1,5 @@
 const express = require('express');
+const metricsReport = require('./metrics');
 const { google } = require('googleapis');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -2643,6 +2644,7 @@ function parseMetricsEventRow(row = []) {
   if (!timestampUtc || Number.isNaN(timestamp.getTime())) return null;
 
   return {
+    metadata: (() => { try { return JSON.parse(row[23] || '{}') || {}; } catch { return {}; } })(),
     eventId: row[0] || '',
     timestampUtc,
     timestamp,
@@ -2666,10 +2668,10 @@ function parseMetricsEventRow(row = []) {
 }
 
 async function readMetricsEvents() {
-  if (!METRICS_SHEET_ID) return [];
+  if (!METRICS_SHEET_ID) throw new Error("metrics_not_configured");
 
   const ready = await ensureMetricsSheetHeaders();
-  if (!ready) return [];
+  if (!ready) throw new Error("metrics_unavailable");
 
   const resp = await sheets.spreadsheets.values.get({
     spreadsheetId: METRICS_SHEET_ID,
@@ -2732,7 +2734,10 @@ function getMetricsRangeDefinition(query = {}) {
     const endDate = String(query.endDate || '').trim();
     const startUtc = prDateToUtc(startDate, 0, 0, 0, 0);
     const endUtc = prDateToUtc(endDate, 23, 59, 59, 999);
-    if (!startUtc || !endUtc || startUtc > endUtc) {
+    if (!startUtc || !endUtc || startUtc > endUtc ||
+        startUtc.toISOString().slice(0,10) !== startDate ||
+        new Date(endUtc.getTime() - 4*60*60*1000).toISOString().slice(0,10) !== endDate ||
+        endUtc - startUtc > 366*24*60*60*1000) {
       throw new Error('invalid_custom_range');
     }
 
@@ -4987,129 +4992,44 @@ app.post('/admin/reset-logs', ensureAdminAuth, async (req, res) => {
   }
 });
 
+async function getMetricsReportInput(query) {
+  const range = getMetricsRangeDefinition(query);
+  const allEvents = metricsReport.normalizeEvents(await readMetricsEvents());
+  const selected = metricsReport.filterSession(allEvents, String(query.eventSession || ''));
+  const events = metricsReport.reportingEvents(filterMetricsEventsByRange(selected, range));
+  return { range, allEvents, events };
+}
+
 app.get('/admin/metrics/overview', ensureAdminAuth, async (req, res) => {
   try {
-    const range = getMetricsRangeDefinition(req.query || {});
-    const allEvents = await readMetricsEvents();
-    const publicEvents = filterMetricsEventsByRange(
-      allEvents.filter((event) => event.eventFamily === 'public'),
-      range
-    ).sort((a, b) => a.timestamp - b.timestamp);
-
-    const visits = publicEvents.filter((event) => event.eventType === 'visit');
-    const forms = publicEvents.filter((event) => event.eventType === 'form');
-    const uploads = publicEvents.filter((event) => event.eventType === 'upload');
-    const newsletterLeads = forms.filter((event) => event.newsletter === 'Y' && event.emailNormalized);
-    const uniqueSessions = new Set(publicEvents.map((event) => event.sessionId).filter(Boolean));
-    const uniqueEmails = new Set(forms.map((event) => event.emailNormalized).filter(Boolean));
-    const locationCounts = new Map();
-
-    publicEvents.forEach((event) => {
-      const locationLabel = event.locationLabel || '';
-      if (!locationLabel) return;
-      locationCounts.set(locationLabel, (locationCounts.get(locationLabel) || 0) + 1);
+    const { range, allEvents, events } = await getMetricsReportInput(req.query || {});
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ok:true, ...metricsReport.summarize(events),
+      range:{preset:range.preset,label:range.label,granularity:range.granularity,startUtc:range.startUtc.toISOString(),endUtc:range.endUtc.toISOString()},
+      series:buildMetricsTimeseries(events,range),
+      eventSessions:metricsReport.sessions(allEvents),
+      coverage:{firstRecordedAt:allEvents[0]?.timestampUtc || null, recordsInRange:events.length,
+        note:'Recorded activity only. Earlier history may be incomplete. Browser sessions are not people. Display impressions, historical camera errors and pending-photo history are unavailable.'},
+      generatedAt:new Date().toISOString()
     });
-
-    const topLocations = Array.from(locationCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([label, count]) => ({ label, count }));
-
-    const newsletterRows = newsletterLeads
-      .slice()
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 12)
-      .map((event) => ({
-        timestampUtc: event.timestampUtc,
-        timestampPr: event.timestampPr,
-        email: event.email,
-        lastName: event.lastName,
-        locationLabel: event.locationLabel,
-      }));
-
-    const summary = {
-      visits: visits.length,
-      forms: forms.length,
-      uploads: uploads.length,
-      newsletterOptIns: newsletterLeads.length,
-      uniqueSessions: uniqueSessions.size,
-      uniqueEmails: uniqueEmails.size,
-      formConversionRate: visits.length ? Number(((forms.length / visits.length) * 100).toFixed(1)) : 0,
-      uploadConversionRate: forms.length ? Number(((uploads.length / forms.length) * 100).toFixed(1)) : 0,
-      newsletterRate: forms.length ? Number(((newsletterLeads.length / forms.length) * 100).toFixed(1)) : 0,
-    };
-
-    return res.json({
-      ok: true,
-      range: {
-        preset: range.preset,
-        label: range.label,
-        granularity: range.granularity,
-        startUtc: range.startUtc.toISOString(),
-        endUtc: range.endUtc.toISOString(),
-      },
-      summary,
-      series: buildMetricsTimeseries(publicEvents, range),
-      topLocations,
-      newsletterRows,
-      generatedAt: new Date().toISOString(),
-    });
-  } catch (err) {
-    console.error('Error loading metrics overview:', err);
-    return res.status(500).json({ ok: false, error: 'metrics_overview_failed' });
+  } catch(err) {
+    console.error('Error loading metrics overview:',err);
+    res.status(err.message==='invalid_custom_range'?400:503).json({ok:false,error:err.message==='invalid_custom_range'?'invalid_custom_range':'metrics_unavailable'});
   }
 });
 
-app.get('/admin/metrics/export', ensureAdminAuth, async (req, res) => {
+app.get('/admin/metrics/export', ensureAdminAuth, async (req,res) => {
   try {
-    const kind = String(req.query.kind || 'newsletter').trim().toLowerCase();
-    const range = getMetricsRangeDefinition(req.query || {});
-    const allEvents = await readMetricsEvents();
-    const publicEvents = filterMetricsEventsByRange(
-      allEvents.filter((event) => event.eventFamily === 'public'),
-      range
-    ).sort((a, b) => a.timestamp - b.timestamp);
-
-    let csv = '';
-    let filename = '';
-
-    if (kind === 'events') {
-      csv = convertMetricsEventsToCsv(publicEvents);
-      filename = `metrics_events_${range.preset}_${formatPRDateIso(getPRDate())}.csv`;
-    } else {
-      const newsletterEvents = publicEvents.filter((event) => event.eventType === 'form' && event.newsletter === 'Y');
-      const csvRows = [
-        ['timestamp_utc', 'timestamp_pr', 'email', 'last_name', 'country', 'region', 'location_label', 'session_id'],
-        ...newsletterEvents.map((event) => [
-          event.timestampUtc,
-          event.timestampPr,
-          event.email,
-          event.lastName,
-          event.country,
-          event.region,
-          event.locationLabel,
-          event.sessionId,
-        ])
-      ];
-
-      csv = csvRows
-        .map((row) => row.map((value) => {
-          const str = String(value || '');
-          if (/[",\n]/.test(str)) {
-            return `"${str.replace(/"/g, '""')}"`;
-          }
-          return str;
-        }).join(','))
-        .join('\n');
-      filename = `newsletter_report_${range.preset}_${formatPRDateIso(getPRDate())}.csv`;
-    }
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    return res.send(csv);
-  } catch (err) {
-    console.error('Error exporting metrics report:', err);
-    return res.status(500).json({ ok: false, error: 'metrics_export_failed' });
+    const kind=String(req.query.kind || 'events');
+    if(!['events','newsletter'].includes(kind)) return res.status(400).json({ok:false,error:'invalid_export_kind'});
+    const {range,events}=await getMetricsReportInput(req.query || {});
+    res.setHeader('Cache-Control','private, no-store');
+    res.setHeader('Content-Type','text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition',`attachment; filename="${kind}_${range.preset}_${range.startUtc.toISOString().slice(0,10)}.csv"`);
+    res.send(metricsReport.exportRows(events,kind));
+  } catch(err) {
+    console.error('Error exporting metrics:',err);
+    res.status(err.message==='invalid_custom_range'?400:503).json({ok:false,error:err.message==='invalid_custom_range'?'invalid_custom_range':'metrics_unavailable'});
   }
 });
 

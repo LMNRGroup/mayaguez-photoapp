@@ -6377,6 +6377,53 @@
   @media (max-width: 768px) {
     .mobile-bottom-nav { left: 50%; right: auto; width: auto; transform: translateX(-50%); padding: 0 0 calc(.75rem + env(safe-area-inset-bottom)); background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
   }
+
+  /* Readable workspace that grows with the window, without scaling canvases. */
+  @media (min-width: 769px) {
+    html { font-size: clamp(16px, .85vw, 22px); }
+    .card { max-width: none; width: calc(100% - 2rem); }
+    .nav-item, .nav-item.nav-item-secondary { font-size: .9rem; letter-spacing: .04em; min-height: 3rem; }
+    .nav-label { font-size: .75rem; }
+    .view-title { font-size: 1.45rem; letter-spacing: .04em; }
+    .view-subtitle, .settings-section-summary, .settings-help, .settings-label { font-size: .95rem; line-height: 1.5; }
+    .settings-section-title { font-size: 1rem; letter-spacing: .04em; }
+    .settings-section-header { padding: 1.1rem; min-height: 4rem; }
+    .settings-input, .btn-ghost, .btn-primary, .btn-secondary { font-size: .95rem; min-height: 2.75rem; }
+    .settings-section.expanded .settings-section-content { max-height: none; }
+  }
+  @media (min-width: 1025px) {
+    .card-main { grid-template-columns: clamp(12rem, 15vw, 17rem) minmax(0, 1fr) clamp(16rem, 21vw, 23rem); }
+  }
+  #viewMetrics { overflow-y: auto; overflow-x: hidden; }
+  .metrics-toolbar-block, .metrics-panel { min-width: 0; }
+  .metrics-toolbar-block > select { width: 100%; max-width: 100%; }
+  .metrics-card-grid { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+  .metrics-card-label, .metrics-panel-title { font-size: .9rem; letter-spacing: .04em; }
+  .metrics-card-meta, .metrics-status-meta, .metrics-panel-subtitle, .metrics-insight-meta, .metrics-location-meta { font-size: .85rem; line-height: 1.5; }
+  .metrics-chart { display: grid; overflow-x: auto; max-width: 100%; padding-bottom: 1rem; }
+  .metrics-insight-item { flex-wrap: wrap; gap: .5rem; }
+  .metrics-table td { overflow-wrap: anywhere; }
+  @media (max-width: 768px) {
+    #viewMetrics, .metrics-shell { height: auto; max-height: none; overflow: visible; }
+    #viewMetrics .metrics-layout + .metrics-layout { display: flex; }
+    .metrics-card-grid { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    .metrics-card { padding: .8rem; }
+    .metrics-card-value { font-size: 1.8rem; }
+    .metrics-toolbar-block, .metrics-date-range, .metrics-date-input { width: 100%; min-width: 0; box-sizing: border-box; }
+    .metrics-date-range .btn-ghost, .metrics-date-range .btn-primary { width: 100%; }
+    .metrics-table { min-width: 0; width: 100%; }
+    .metrics-table thead { display: none; }
+    .metrics-table tr { display: block; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+    .metrics-table td { display: block; border: 0; padding: .25rem; font-size: .85rem; }
+  }
+
+  .metrics-filter-details { width: 100%; }
+  .metrics-filter-details summary { cursor: pointer; padding: .65rem 0; font-size: .95rem; }
+  .metrics-filter-details[open] .metrics-toolbar-block { padding-top: .75rem; }
+  .metrics-chart-bar.visits { background: #60a5fa; }
+  .metrics-chart-bar.forms { background: #c084fc; }
+  .metrics-chart-bar.uploads { background: #34d399; }
+  .metrics-chart-col:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 </style>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
@@ -6612,28 +6659,24 @@ Loading current event summary…
               <div class="metrics-toolbar">
                 <div class="metrics-toolbar-block">
                   <div id="metricsPresetRow" class="metrics-chip-row">
-                    <button type="button" class="metrics-chip active" data-preset="1h">1H</button>
-                    <button type="button" class="metrics-chip" data-preset="6h">6H</button>
-                    <button type="button" class="metrics-chip" data-preset="12h">12H</button>
-                    <button type="button" class="metrics-chip" data-preset="24h">24H</button>
-                    <button type="button" class="metrics-chip" data-preset="3d">3D</button>
-                    <button type="button" class="metrics-chip" data-preset="7d">7D</button>
-                    <button type="button" class="metrics-chip" data-preset="15d">15D</button>
-                    <button type="button" class="metrics-chip" data-preset="30d">30D</button>
-                    <button type="button" class="metrics-chip" data-preset="today">Today</button>
-                    <button type="button" class="metrics-chip" data-preset="this_week">This Week</button>
+                    <button type="button" class="metrics-chip active" data-preset="today">Today</button>
+                    <button type="button" class="metrics-chip" data-preset="24h">24 Hours</button>
+                    <button type="button" class="metrics-chip" data-preset="7d">7 Days</button>
+                    <button type="button" class="metrics-chip" data-preset="30d">30 Days</button>
                   </div>
                 </div>
-                <div class="metrics-toolbar-block">
+                <details class="metrics-filter-details"><summary>Event, dates &amp; exports</summary><div class="metrics-toolbar-block">
+                  <label for="metricsEventSession">Event session</label><select id="metricsEventSession" class="settings-input"><option value="">All recorded sessions</option></select>
                   <div class="metrics-date-range">
-                    <input id="metricsStartDate" type="date" class="settings-input metrics-date-input" />
-                    <input id="metricsEndDate" type="date" class="settings-input metrics-date-input" />
+                    <input id="metricsStartDate" aria-label="Start date, Puerto Rico time" type="date" class="settings-input metrics-date-input" />
+                    <input id="metricsEndDate" aria-label="End date, Puerto Rico time" type="date" class="settings-input metrics-date-input" />
                     <button id="metricsApplyCustomBtn" type="button" class="btn-ghost">Apply Dates</button>
                     <button id="metricsRefreshBtn" type="button" class="btn-ghost">Refresh</button>
                     <button id="metricsExportNewsletterBtn" type="button" class="btn-primary">Newsletter CSV</button>
                     <button id="metricsExportEventsBtn" type="button" class="btn-ghost">Events CSV</button>
                   </div>
                 </div>
+                </details>
               </div>
               <div class="metrics-statusbar">
                 <div class="metrics-status-copy">
@@ -6642,6 +6685,7 @@ Loading current event summary…
                   <div id="metricsRangeMeta" class="metrics-status-meta">Reading historical metrics from the dedicated workbook.</div>
                 </div>
               </div>
+              <p id="metricsCoverage" class="metrics-status-meta" role="status"></p>
               <div id="metricsLoadingState" class="metrics-loading">Loading metrics workspace…</div>
               <div id="metricsContent" style="display:none;">
                 <div id="metricsCardGrid" class="metrics-card-grid"></div>
@@ -6650,7 +6694,7 @@ Loading current event summary…
                     <div class="metrics-panel-header">
                       <div>
                         <div class="metrics-panel-title">Activity Timeline</div>
-                        <div class="metrics-panel-subtitle">Visits, form submissions, and uploads across the selected time window.</div>
+                        <div class="metrics-panel-subtitle">Visits (blue), registrations (purple), uploads (green). Scroll horizontally for the full period.</div>
                       </div>
                     </div>
                     <div id="metricsChart" class="metrics-chart"></div>
@@ -6658,8 +6702,8 @@ Loading current event summary…
                   <section class="metrics-panel">
                     <div class="metrics-panel-header">
                       <div>
-                        <div class="metrics-panel-title">Range Insights</div>
-                        <div class="metrics-panel-subtitle">Fast read on conversion and subscriber intent.</div>
+                        <div class="metrics-panel-title">Reporting Notes</div>
+                        <div class="metrics-panel-subtitle">How to interpret this report.</div>
                       </div>
                     </div>
                     <div id="metricsInsightsList" class="metrics-insight-list"></div>
@@ -6690,8 +6734,8 @@ Loading current event summary…
                   <section class="metrics-panel">
                     <div class="metrics-panel-header">
                       <div>
-                        <div class="metrics-panel-title">Top Locations</div>
-                        <div class="metrics-panel-subtitle">Most active places across visits, form submissions, and uploads.</div>
+                        <div class="metrics-panel-title">Visitor Origins</div>
+                        <div class="metrics-panel-subtitle">Origins reported on registrations; one registration per browser/event session.</div>
                       </div>
                     </div>
                     <div id="metricsLocationList" class="metrics-location-list"></div>
@@ -7291,6 +7335,7 @@ Loading current event summary…
         <i data-lucide="file-text"></i>
         <span>Reports</span>
       </button>
+      <button id="mobileNavMetrics" class="mobile-nav-item" type="button" data-view="metrics" aria-label="Metrics &amp; Data"><i data-lucide="chart-column-big"></i><span>Metrics &amp; Data</span></button>
       <button id="mobileNavSettings" class="mobile-nav-item" type="button" data-view="settings" aria-label="Settings" title="Settings">
         <i data-lucide="settings-2"></i>
         <span>Settings</span>
@@ -7449,7 +7494,7 @@ Loading current event summary…
     const ADMIN_TOKEN_KEY = "lumi_admin_token_v1";
     const ADMIN_SESSION_EXPIRES_KEY = "lumi_admin_session_expires_v1";
     const INACTIVITY_MS = 30 * 60 * 1000;
-    const ADMIN_METRICS_UI_ENABLED = false;
+    const ADMIN_METRICS_UI_ENABLED = true;
     const ADMIN_TEMPLATES_UI_ENABLED = true;
 
     const FRAME_IMAGE_URL = "Assets/Photo App Template Image.png";
@@ -7846,6 +7891,7 @@ function hideGlobalLoader() {
     const mobileNavApproved = document.getElementById("mobileNavApproved");
     const mobileNavTemplates = document.getElementById("mobileNavTemplates");
     const mobileNavReports = document.getElementById("mobileNavReports");
+    const mobileNavMetrics = document.getElementById("mobileNavMetrics");
     const mobileNavSettings = document.getElementById("mobileNavSettings");
     const mobileBottomNavInner = document.querySelector(".mobile-bottom-nav-inner");
     const mobileLockAdminBtn = document.getElementById("mobileLockAdminBtn");
@@ -7883,11 +7929,12 @@ function hideGlobalLoader() {
     let mobileSelectedTemplateId = "";
     let mobileSelectedTemplateRecord = null;
     const metricsState = {
-      activePreset: "1h",
+      activePreset: "today",
       startDate: "",
       endDate: "",
       hasLoaded: false,
-      latestRangeLabel: "Last hour",
+      latestRangeLabel: "Today",
+      requestId: 0,
     };
     // Pending counter state (frontend)
     let pendingCountState = 0;
@@ -9506,7 +9553,7 @@ function hideGlobalLoader() {
     }
 
     function getDefaultMetricsDateRange() {
-      const today = new Date();
+      const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Puerto_Rico" }));
       const end = formatMetricsCsvDatePart(today);
       const start = formatMetricsCsvDatePart(new Date(today.getTime() - (29 * 24 * 60 * 60 * 1000)));
       return {
@@ -9531,6 +9578,8 @@ function hideGlobalLoader() {
       } else {
         params.set("preset", metricsState.activePreset || "1h");
       }
+      const eventSession = document.getElementById("metricsEventSession").value;
+      if (eventSession) params.set("eventSession", eventSession);
       if (kind) params.set("kind", kind);
       return params.toString();
     }
@@ -9538,12 +9587,12 @@ function hideGlobalLoader() {
     function renderMetricsCards(summary = {}) {
       if (!metricsCardGrid) return;
       const cards = [
-        { label: "App Visits", value: formatMetricNumber(summary.visits), meta: "Public app opens in selected window" },
-        { label: "Form Registrations", value: formatMetricNumber(summary.forms), meta: `${formatMetricPercent(summary.formConversionRate)} of visits completed the form` },
-        { label: "Photo Uploads", value: formatMetricNumber(summary.uploads), meta: `${formatMetricPercent(summary.uploadConversionRate)} of form submissions reached upload` },
-        { label: "Newsletter Opt-Ins", value: formatMetricNumber(summary.newsletterOptIns), meta: `${formatMetricPercent(summary.newsletterRate)} of form submissions subscribed` },
-        { label: "Unique Sessions", value: formatMetricNumber(summary.uniqueSessions), meta: "Distinct session identifiers in range" },
-        { label: "Unique Emails", value: formatMetricNumber(summary.uniqueEmails), meta: "Distinct captured emails in range" },
+        {label:"Visit Sessions",value:formatMetricNumber(summary.visits),meta:"One visit per browser/event session in range"},
+        {label:"Registrations",value:formatMetricNumber(summary.forms),meta:"Latest form per browser/event session in range"},
+        {label:"Photo Uploads",value:formatMetricNumber(summary.uploads),meta:"Server-confirmed files; duplicates removed by file ID"},
+        {label:"Recorded Approvals",value:formatMetricNumber(summary.approvals),meta:"Approval actions in range; not screen impressions"},
+        {label:"Recorded Rejections",value:formatMetricNumber(summary.rejections),meta:"Rejection actions in range"},
+        {label:"Newsletter Contacts",value:formatMetricNumber(summary.newsletterOptIns),meta:"Unique emails with latest recorded consent in range"}
       ];
 
       metricsCardGrid.innerHTML = cards.map((card) => `
@@ -9564,19 +9613,20 @@ function hideGlobalLoader() {
 
       const maxValue = Math.max(...series.map((bucket) => Math.max(bucket.visits || 0, bucket.forms || 0, bucket.uploads || 0)), 1);
 
-      metricsChart.innerHTML = series.slice(-10).map((bucket) => {
+      metricsChart.style.gridTemplateColumns = `repeat(${series.length}, minmax(4rem, 1fr))`;
+      metricsChart.innerHTML = series.map((bucket) => {
         const visitHeight = bucket.visits ? Math.max(2, ((bucket.visits || 0) / maxValue) * 220) : 0;
         const formHeight = bucket.forms ? Math.max(2, ((bucket.forms || 0) / maxValue) * 220) : 0;
         const uploadHeight = bucket.uploads ? Math.max(2, ((bucket.uploads || 0) / maxValue) * 220) : 0;
 
         return `
-          <div class="metrics-chart-col" title="${bucket.label}: ${bucket.visits || 0} visits, ${bucket.forms || 0} forms, ${bucket.uploads || 0} uploads">
+          <div class="metrics-chart-col" tabindex="0" title="${escapeHtml(bucket.key || bucket.label)}: ${bucket.visits || 0} visits, ${bucket.forms || 0} forms, ${bucket.uploads || 0} uploads">
             <div class="metrics-chart-stack">
               <div class="metrics-chart-bar visits" style="height:${visitHeight}px"></div>
               <div class="metrics-chart-bar forms" style="height:${formHeight}px"></div>
               <div class="metrics-chart-bar uploads" style="height:${uploadHeight}px"></div>
             </div>
-            <div class="metrics-chart-label">${bucket.label}</div>
+            <div class="metrics-chart-label">${escapeHtml(bucket.label)}</div>
           </div>
         `;
       }).join("");
@@ -9585,21 +9635,9 @@ function hideGlobalLoader() {
     function renderMetricsInsights(summary = {}) {
       if (!metricsInsightsList) return;
       const insights = [
-        {
-          label: "Visit → Form conversion",
-          value: formatMetricPercent(summary.formConversionRate),
-          meta: `${formatMetricNumber(summary.forms)} of ${formatMetricNumber(summary.visits)} visits completed registration.`,
-        },
-        {
-          label: "Form → Upload conversion",
-          value: formatMetricPercent(summary.uploadConversionRate),
-          meta: `${formatMetricNumber(summary.uploads)} of ${formatMetricNumber(summary.forms)} registrants reached the camera flow.`,
-        },
-        {
-          label: "Newsletter acceptance",
-          value: formatMetricPercent(summary.newsletterRate),
-          meta: `${formatMetricNumber(summary.newsletterOptIns)} newsletter leads captured in this range.`,
-        },
+        {label:"Browser sessions",value:formatMetricNumber(summary.uniqueSessions),meta:"Sessions are identifiers, not unique people."},
+        {label:"Puerto Rico time",value:"UTC−4",meta:"Date filters and activity buckets use America/Puerto_Rico."},
+        {label:"Funnel & reliability",value:"—",meta:"A linked funnel, camera failures and confirmed screen displays are not available in this release."}
       ];
 
       metricsInsightsList.innerHTML = insights.map((insight) => `
@@ -9623,8 +9661,8 @@ function hideGlobalLoader() {
       metricsLocationList.innerHTML = locations.map((location) => `
         <div class="metrics-location-item">
           <div>
-            <div class="metrics-location-label">${location.label}</div>
-            <div class="metrics-location-meta">Public interactions attributed to this location</div>
+            <div class="metrics-location-label">${escapeHtml(location.label)}</div>
+            <div class="metrics-location-meta">${formatMetricPercent(location.percent)} of registrations</div>
           </div>
           <div class="metrics-location-count">${formatMetricNumber(location.count)}</div>
         </div>
@@ -9640,16 +9678,19 @@ function hideGlobalLoader() {
 
       metricsNewsletterTableBody.innerHTML = rows.map((row) => `
         <tr>
-          <td>${row.timestampPr || "—"}</td>
-          <td>${row.email || "—"}</td>
-          <td>${row.lastName || "—"}</td>
-          <td>${row.locationLabel || "—"}</td>
+          <td>${escapeHtml(row.timestampPr || "—")}</td>
+          <td>${escapeHtml(row.email || "—")}</td>
+          <td>${escapeHtml(row.lastName || "—")}</td>
+          <td>${escapeHtml(row.locationLabel || "—")}</td>
         </tr>
       `).join("");
     }
 
     async function loadMetricsDashboard(options = {}) {
       if (!adminToken || !viewMetrics) return;
+      const requestId = ++metricsState.requestId;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
 
       if (!options.silent) {
         if (metricsLoadingState) {
@@ -9662,6 +9703,7 @@ function hideGlobalLoader() {
       try {
         const query = buildMetricsQueryString("");
         const res = await fetch(`${BASE_URL}/admin/metrics/overview?${query}`, {
+          signal: controller.signal,
           headers: withAdminHeaders(),
         });
 
@@ -9679,13 +9721,25 @@ function hideGlobalLoader() {
           throw new Error(data?.error || "metrics_load_failed");
         }
 
+        if (requestId !== metricsState.requestId) return;
         metricsState.hasLoaded = true;
+        const select = document.getElementById("metricsEventSession");
+        const selected = select.value;
+        select.innerHTML = '<option value="">All recorded sessions</option>';
+        (data.eventSessions || []).forEach(event => {
+          const option = document.createElement("option");
+          option.value = event.id;
+          option.textContent = event.id === "__unassigned__" ? "Unassigned historical records" : `${new Date(event.firstSeen).toLocaleDateString("en-US", {timeZone:"America/Puerto_Rico"})} · ${event.id}`;
+          select.appendChild(option);
+        });
+        select.value = selected;
+        document.getElementById("metricsCoverage").textContent = `${data.coverage?.note || "Recorded activity only."} ${data.coverage?.firstRecordedAt ? "First recorded activity: " + new Date(data.coverage.firstRecordedAt).toLocaleDateString("en-US",{timeZone:"America/Puerto_Rico"}) + "." : "No recorded history is available yet."}`;
         metricsState.latestRangeLabel = data.range?.label || "Metrics";
 
         if (metricsStatusLabel) metricsStatusLabel.textContent = "Historical Metrics Window";
         if (metricsRangeLabel) metricsRangeLabel.textContent = data.range?.label || "Metrics";
         if (metricsRangeMeta) {
-          metricsRangeMeta.textContent = `${formatMetricNumber(data.summary?.visits)} visits, ${formatMetricNumber(data.summary?.forms)} form submissions, ${formatMetricNumber(data.summary?.uploads)} uploads. Generated ${new Date(data.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`;
+          metricsRangeMeta.textContent = `${formatMetricNumber(data.summary?.visits)} visits, ${formatMetricNumber(data.summary?.forms)} form submissions, ${formatMetricNumber(data.summary?.uploads)} uploads. Generated ${new Date(data.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: "America/Puerto_Rico" })}.`;
         }
 
         renderMetricsCards(data.summary || {});
@@ -9697,13 +9751,14 @@ function hideGlobalLoader() {
         if (metricsLoadingState) metricsLoadingState.style.display = "none";
         if (metricsContent) metricsContent.style.display = "block";
       } catch (err) {
+        if (requestId !== metricsState.requestId) return;
         console.error("Error loading metrics dashboard", err);
         if (metricsLoadingState) {
-          metricsLoadingState.textContent = "Could not load metrics right now. Please check sheet permissions and try again.";
+          metricsLoadingState.textContent = "Metrics unavailable. Check your connection and sheet permissions, or choose a valid date range (maximum 366 days), then tap Refresh. No totals are shown while data is unavailable.";
           metricsLoadingState.style.display = "flex";
         }
         if (metricsContent) metricsContent.style.display = "none";
-      }
+      } finally { clearTimeout(timeout); }
     }
 
     async function exportMetricsCsv(kind) {
@@ -9712,11 +9767,14 @@ function hideGlobalLoader() {
         return;
       }
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       const button = kind === "newsletter" ? metricsExportNewsletterBtn : metricsExportEventsBtn;
       try {
         setButtonLoading(button, "Preparing...", true);
         const query = buildMetricsQueryString(kind);
         const res = await fetch(`${BASE_URL}/admin/metrics/export?${query}`, {
+          signal: controller.signal,
           headers: withAdminHeaders(),
         });
 
@@ -9742,6 +9800,7 @@ function hideGlobalLoader() {
         console.error(`Error exporting ${kind} CSV`, err);
         showToast(`Could not export the ${kind} CSV.`, "error");
       } finally {
+        clearTimeout(timeout);
         setButtonLoading(button, "Preparing...", false);
       }
     }
@@ -10131,6 +10190,7 @@ function hideGlobalLoader() {
         templates: mobileNavTemplates,
         reports: mobileNavReports,
         settings: mobileNavSettings,
+        metrics: mobileNavMetrics,
       };
       Object.entries(mapping).forEach(([key, button]) => {
         if (!button) return;
@@ -12553,8 +12613,8 @@ function hideReportLoading() {
           showToast("Select both start and end dates first.", "error");
           return;
         }
-        if (startDate > endDate) {
-          showToast("The start date must be before the end date.", "error");
+        if (startDate > endDate || new Date(endDate) - new Date(startDate) >= 366*86400000) {
+          showToast("Use an ordered date range of at most 366 days.", "error");
           return;
         }
         metricsState.activePreset = "custom";
@@ -12564,6 +12624,8 @@ function hideReportLoading() {
         await loadMetricsDashboard();
       });
     }
+
+    document.getElementById("metricsEventSession").addEventListener("change", () => loadMetricsDashboard());
 
     if (metricsRefreshBtn) {
       metricsRefreshBtn.addEventListener("click", async () => {
@@ -12619,9 +12681,6 @@ function hideReportLoading() {
 
     // Switch to a specific view (global function for compatibility)
     window.switchView = function switchView(viewName) {
-      if (isMobileAdminViewport() && viewName === "metrics") {
-        viewName = "dashboard";
-      }
       if (viewName === "metrics" && !ADMIN_METRICS_UI_ENABLED) {
         viewName = "dashboard";
       }
@@ -12711,6 +12770,7 @@ function hideReportLoading() {
 
     function activateDesktopNavForMobileView(viewName) {
       switch (viewName) {
+        case "metrics": setActiveNav(navMetrics); break;
         case "dashboard":
           setActiveNav(navDashboard);
           break;
@@ -12796,6 +12856,7 @@ function hideReportLoading() {
       [mobileNavTemplates, "templates"],
       [mobileNavReports, "reports"],
       [mobileNavSettings, "settings"],
+      [mobileNavMetrics, "metrics"],
     ];
     mobileNavButtons.forEach(([button, viewName]) => {
       if (!button) return;
@@ -13168,7 +13229,7 @@ function hideReportLoading() {
       { id: "approved", title: "Approved Photos", meta: "Browse, select, and delete approved images", tag: "View", keywords: "approved photos gallery delete selection", run: () => { setActiveNav(navApproved); switchView("approved"); } },
       ...(ADMIN_TEMPLATES_UI_ENABLED ? [{ id: "templates", title: "My Templates", meta: "Create and edit screen layouts", tag: "View", keywords: "templates editor backgrounds logos qr layout", run: () => { setActiveNav(navTemplates); switchView("templates"); } }] : []),
       { id: "reports", title: "Event Reports", meta: "View session reports and email exports", tag: "View", keywords: "reports event report email summary", run: () => { setActiveNav(navReports); switchView("reports"); } },
-      ...(ADMIN_METRICS_UI_ENABLED ? [{ id: "metrics", title: "Metrics & Data", meta: "Analytics workspace placeholder", tag: "View", keywords: "metrics data analytics under construction", run: () => { setActiveNav(navMetrics); switchView("metrics"); } }] : []),
+      ...(ADMIN_METRICS_UI_ENABLED ? [{ id: "metrics", title: "Metrics & Data", meta: "Event analytics and exports", tag: "View", keywords: "metrics data analytics exports", run: () => { setActiveNav(navMetrics); switchView("metrics"); } }] : []),
       { id: "settings", title: "App Settings", meta: "Open the configuration panel", tag: "Admin", keywords: "settings app configuration fields", run: () => { setActiveNav(navSettings); switchView("settings"); } },
       { id: "logs", title: "Live Event Logs", meta: "Open the expanded event log view", tag: "Quick Action", keywords: "event logs live activity overlay", run: () => { openExpandedEventLogs(); } },
       { id: "settings_ticket", title: "Show Ticket Number After Upload", meta: "Ticket Overlay section", tag: "Setting", keywords: "ticket overlay show ticket number upload", fieldId: "settingsTicketEnabled" },
