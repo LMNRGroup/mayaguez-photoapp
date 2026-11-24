@@ -7975,17 +7975,6 @@ function hideGlobalLoader() {
     const mobileTemplatePreviewBtn = document.getElementById("mobileTemplatePreviewBtn");
     const mobileTemplateDeleteBtn = document.getElementById("mobileTemplateDeleteBtn");
     const mobileTemplateDesktopNoticeBtn = document.getElementById("mobileTemplateDesktopNoticeBtn");
-    const mobileTemplateSheet = document.getElementById("mobileTemplateSheet");
-    const mobileTemplateSheetTitle = document.getElementById("mobileTemplateSheetTitle");
-    const mobileTemplateSheetMeta = document.getElementById("mobileTemplateSheetMeta");
-    const mobileTemplateSheetBadge = document.getElementById("mobileTemplateSheetBadge");
-    const mobileTemplateSheetClose = document.getElementById("mobileTemplateSheetClose");
-    const mobileTemplateSheetPreviewWrap = document.getElementById("mobileTemplateSheetPreviewWrap");
-    const mobileTemplateSheetPreviewImg = document.getElementById("mobileTemplateSheetPreviewImg");
-    const mobileTemplateSheetPreviewEmpty = document.getElementById("mobileTemplateSheetPreviewEmpty");
-    const mobileTemplateSheetPreviewBtn = document.getElementById("mobileTemplateSheetPreviewBtn");
-    const mobileTemplateSheetSetActiveBtn = document.getElementById("mobileTemplateSheetSetActiveBtn");
-    const mobileTemplateSheetDeleteBtn = document.getElementById("mobileTemplateSheetDeleteBtn");
     let latestReportPreviewText = "Loading current event summary…";
     let currentAdminView = "dashboard";
     let latestActivityCounts = new Array(24).fill(0);
@@ -12995,40 +12984,21 @@ function hideReportLoading() {
       });
     }
 
-    if (mobileTemplateSheetClose) {
-      mobileTemplateSheetClose.addEventListener("click", () => {
-        closeMobileTemplateSheet();
-      });
-    }
+    document.addEventListener("DOMContentLoaded", () => {
+      const { previewWrap, previewBtn, setActiveBtn, deleteBtn } = getMobileTemplateSheetElements();
 
-    if (mobileTemplateSheet) {
-      mobileTemplateSheet.addEventListener("click", (event) => {
-        if (event.target === mobileTemplateSheet) {
-          closeMobileTemplateSheet();
-        }
-      });
-    }
-
-    if (mobileTemplateSheetPreviewWrap) {
-      mobileTemplateSheetPreviewWrap.addEventListener("click", () => {
-        const template = mobileSelectedTemplateRecord?.template;
-        if (template?.data?.overlayFileId) {
+      previewWrap?.addEventListener("click", () => {
+        if (mobileSelectedTemplateRecord?.template?.data?.overlayFileId) {
           showMobileTemplatePreview();
         }
       });
-    }
 
-    if (mobileTemplateSheetPreviewBtn) {
-      mobileTemplateSheetPreviewBtn.addEventListener("click", () => {
-        showMobileTemplatePreview();
-      });
-    }
+      previewBtn?.addEventListener("click", showMobileTemplatePreview);
 
-    if (mobileTemplateSheetSetActiveBtn) {
-      mobileTemplateSheetSetActiveBtn.addEventListener("click", async () => {
+      setActiveBtn?.addEventListener("click", async () => {
         const template = mobileSelectedTemplateRecord?.template;
         if (!template?.id || !template?.data) return;
-        setButtonLoading(mobileTemplateSheetSetActiveBtn, "Setting...", true);
+        setButtonLoading(setActiveBtn, "Setting...", true);
         try {
           const success = await setTemplateAsActive(template.id, template.name, template.data, { silentSuccess: true });
           if (success) {
@@ -13036,17 +13006,13 @@ function hideReportLoading() {
             updateTemplateUiState();
           }
         } finally {
-          setButtonLoading(mobileTemplateSheetSetActiveBtn, "Setting...", false);
+          setButtonLoading(setActiveBtn, "Setting...", false);
           updateMobileTemplatePanel();
         }
       });
-    }
 
-    if (mobileTemplateSheetDeleteBtn) {
-      mobileTemplateSheetDeleteBtn.addEventListener("click", async () => {
-        await handleMobileTemplateDelete();
-      });
-    }
+      deleteBtn?.addEventListener("click", handleMobileTemplateDelete);
+    }, { once: true });
 
     if (settingsOpenEventLogsBtn) {
       settingsOpenEventLogsBtn.addEventListener("click", () => {
