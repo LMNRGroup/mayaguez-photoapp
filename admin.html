@@ -10365,7 +10365,7 @@ function hideGlobalLoader() {
         mobileTemplatePreviewWrap.disabled = !previewUrl;
       }
       if (mobileTemplateSetActiveBtn) {
-        mobileTemplateSetActiveBtn.disabled = !hasSelection || !overlayFileId || isActiveTemplate;
+        mobileTemplateSetActiveBtn.disabled = !hasSelection || !overlayFileId || mobileTemplateSetActiveBtn.classList.contains("btn-loading");
       }
       if (mobileTemplatePreviewBtn) {
         mobileTemplatePreviewBtn.disabled = !previewUrl;
@@ -12984,6 +12984,7 @@ function hideReportLoading() {
           }
         } finally {
           setButtonLoading(mobileTemplateSetActiveBtn, "Setting...", false);
+          updateMobileTemplatePanel();
         }
       });
     }
@@ -13036,6 +13037,7 @@ function hideReportLoading() {
           }
         } finally {
           setButtonLoading(mobileTemplateSheetSetActiveBtn, "Setting...", false);
+          updateMobileTemplatePanel();
         }
       });
     }
@@ -13808,6 +13810,7 @@ function hideReportLoading() {
     let templateCanvasResizeObserver = null;
     let templateCanvasViewportState = { width: 0, height: 0 };
     let missingTemplateAssets = [];
+    let loadedTemplateData = null;
     const TEMPLATE_MAX_LOGO_LAYERS = 2;
     const TEMPLATE_PROGRESS_HIDE_DELAY_MS = 220;
     const TEMPLATE_PROGRESS_NEUTRAL_DETAIL = "Please wait. Large template assets can take a few seconds.";
@@ -14364,7 +14367,7 @@ function hideReportLoading() {
         if (openSheet) {
           openMobileTemplateSheet();
         }
-        if (prefillTemplate.data) {
+        if (prefillTemplate.data?.overlayFileId) {
           return { template: prefillTemplate };
         }
       }
@@ -14450,7 +14453,7 @@ function hideReportLoading() {
         previewBtn.disabled = !previewUrl;
       }
       if (setActiveBtn) {
-        setActiveBtn.disabled = !template?.id || !overlayFileId || isActiveTemplate;
+        setActiveBtn.disabled = !template?.id || !overlayFileId || setActiveBtn.classList.contains("btn-loading");
       }
       if (deleteBtn) {
         deleteBtn.disabled = !template?.id;
@@ -15025,6 +15028,7 @@ function hideReportLoading() {
     // Reset template editor to default state
     function resetTemplateEditor() {
       missingTemplateAssets = [];
+      loadedTemplateData = null;
       // Clear all logos
       if (templateLogosContainer) {
         templateLogosContainer.innerHTML = "";
@@ -15119,6 +15123,7 @@ function hideReportLoading() {
 
         // Set current template ID for editing
         currentTemplateId = templateId;
+        loadedTemplateData = templateData;
         currentTemplateName = template.name || "";
         currentTemplateDirty = false;
         isCreatingNewTemplate = false;
@@ -16509,17 +16514,14 @@ function hideReportLoading() {
           return;
         }
 
-        if (missingTemplateAssets.length) {
-          await appAlert("Some template assets could not be loaded. Reopen the template or save a repaired version before publishing.", { title: "Assets unavailable", tone: "error" });
-          return;
-        }
+        const templateData = missingTemplateAssets.length ? loadedTemplateData : collectTemplateData();
         const task = beginTemplateProgressTask(
           "Updating Active Overlay",
           "Publishing live gallery overlay",
           currentTemplateName || currentTemplateId || "",
           22
         );
-        const success = await setTemplateAsActive(currentTemplateId, currentTemplateName, collectTemplateData(), { silentSuccess: true });
+        const success = await setTemplateAsActive(currentTemplateId, currentTemplateName, templateData, { silentSuccess: true });
         if (success) {
           await task.complete("Active gallery overlay updated", currentTemplateName || currentTemplateId || "");
           showToast(`"${currentTemplateName || currentTemplateId}" is live on screen.`, "success");
