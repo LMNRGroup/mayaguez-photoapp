@@ -1133,6 +1133,18 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   }
 
+  .template-saved-overlay-preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .template-canvas.is-read-only > :not(.template-saved-overlay-preview) {
+    display: none !important;
+  }
+
   .template-guide-line {
     position: absolute;
     background: rgba(255, 255, 255, 0.92);
@@ -1696,6 +1708,22 @@
     overflow: hidden;
     box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
     border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .template-preview-overlay.has-notice {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .template-preview-overlay.has-notice .template-preview-container {
+    width: min(92vw, 1700px, calc((100dvh - 7rem) * 16 / 9));
+  }
+
+  .template-preview-notice {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 0.9rem;
+    text-align: center;
   }
 
   .template-preview-close {
@@ -7205,6 +7233,7 @@ Loading current event summary…
                   </div>
                 </div>
                 <div id="templateCanvas" class="template-canvas">
+                  <img id="templateSavedOverlayPreview" class="template-saved-overlay-preview" alt="Saved gallery layout" hidden />
                   <img id="templateBackgroundImg" class="template-background" alt="Background" />
                   <button id="templateBackgroundAction" class="template-background-action" type="button">Add Background</button>
                   <button id="templatePhotoBoxAction" class="template-photo-box-action" type="button">Edit Photo Box</button>
@@ -13777,6 +13806,7 @@ function hideReportLoading() {
     let templateCanvasViewportState = { width: 0, height: 0 };
     let missingTemplateAssets = [];
     let loadedTemplateData = null;
+    let savedOverlayPreviewUrl = "";
     const TEMPLATE_MAX_LOGO_LAYERS = 2;
     const TEMPLATE_PROGRESS_HIDE_DELAY_MS = 220;
     const TEMPLATE_PROGRESS_NEUTRAL_DETAIL = "Please wait. Large template assets can take a few seconds.";
@@ -14193,6 +14223,7 @@ function hideReportLoading() {
 
     function updateTemplateUiState() {
       const savedTemplateLoaded = Boolean(currentTemplateId);
+      const isReadOnly = Boolean(savedOverlayPreviewUrl);
       const hasBackground = hasTemplateBackground();
       const needsSave = !savedTemplateLoaded || currentTemplateDirty;
       const isCurrentlyLive = currentTemplateId && String(currentTemplateId) === String(currentActiveTemplateId || "");
@@ -14200,6 +14231,8 @@ function hideReportLoading() {
         ? String(mobileSelectedTemplateId || currentTemplateId || "")
         : String(currentTemplateId || "");
 
+      templateCanvas.classList.toggle("is-read-only", isReadOnly);
+      if (templateSnapToggleBtn) templateSnapToggleBtn.disabled = isReadOnly;
       if (templateBackgroundImg) {
         templateBackgroundImg.classList.toggle("is-empty", !hasBackground);
       }
@@ -14216,7 +14249,7 @@ function hideReportLoading() {
       }
       if (templateSaveBtn) {
         templateSaveBtn.style.display = "inline-flex";
-        templateSaveBtn.disabled = photoBoxEditMode || isSavingTemplate || (needsSave && !hasBackground) || (!needsSave && isCurrentlyLive);
+        templateSaveBtn.disabled = photoBoxEditMode || isSavingTemplate || (needsSave && (!hasBackground || isReadOnly)) || (!needsSave && isCurrentlyLive);
         templateSaveBtn.classList.toggle("is-saving", isSavingTemplate);
         const templateButtonLabel = isSavingTemplate
           ? "Saving..."
@@ -14257,7 +14290,9 @@ function hideReportLoading() {
         templateEditorTitle.textContent = currentTemplateName || (isCreatingNewTemplate ? "New Template" : "Template Builder");
       }
       if (templateEditorSubtitle) {
-        if (currentTemplateDirty) {
+        if (isReadOnly) {
+          templateEditorSubtitle.textContent = `Showing the saved gallery PNG. Editing is unavailable because these assets could not load: ${missingTemplateAssets.map(asset => asset.label).join(", ")}.`;
+        } else if (currentTemplateDirty) {
           templateEditorSubtitle.textContent = isCurrentlyLive
             ? "Unsaved changes to the live template. Save to update the screen layout."
             : "Unsaved changes. Save to keep this layout.";
@@ -14280,7 +14315,7 @@ function hideReportLoading() {
     }
 
     function markTemplateDirty() {
-      if (isSavingTemplate) return;
+      if (isSavingTemplate || savedOverlayPreviewUrl) return;
       currentTemplateDirty = true;
       updateTemplateUiState();
     }
@@ -14451,15 +14486,30 @@ function hideReportLoading() {
         return;
       }
 
+      showSavedTemplatePreview(
+        buildPublicTemplateOverlayPreviewUrl(
+          overlayFileId,
+          template.data.overlayVersion || template.data.overlayUpdatedAt || template.id
+        ),
+        template.name
+      );
+    }
+
+    function showSavedTemplatePreview(url, templateName, { notice = "", onClose } = {}) {
       const overlay = document.createElement("div");
       overlay.className = "template-preview-overlay";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-modal", "true");
+      overlay.setAttribute("aria-label", templateName ? `${templateName} preview` : "Saved template preview");
       const container = document.createElement("div");
       container.className = "template-preview-container";
 
       const closeBtn = document.createElement("button");
       closeBtn.className = "template-preview-close";
+      closeBtn.type = "button";
+      closeBtn.setAttribute("aria-label", "Close preview");
       closeBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -14477,18 +14527,15 @@ function hideReportLoading() {
 
       const image = document.createElement("img");
       image.className = "template-preview-bg";
-      image.src = buildPublicTemplateOverlayPreviewUrl(
-        overlayFileId,
-        template.data.overlayVersion || template.data.overlayUpdatedAt || template.id
-      );
-      image.alt = template.name || "Template preview";
+      image.alt = templateName || "Saved gallery layout";
       image.style.objectFit = "contain";
       image.addEventListener("load", () => {
         loading.remove();
       }, { once: true });
       image.addEventListener("error", () => {
-        loading.innerHTML = `<div>Preview unavailable</div>`;
+        loading.textContent = "Saved PNG could not load";
       }, { once: true });
+      image.src = url;
 
       stage.appendChild(image);
       stage.appendChild(loading);
@@ -14496,14 +14543,28 @@ function hideReportLoading() {
       container.appendChild(closeBtn);
       container.appendChild(shell);
       overlay.appendChild(container);
+      if (notice) {
+        const caption = document.createElement("p");
+        caption.className = "template-preview-notice";
+        caption.textContent = notice;
+        overlay.classList.add("has-notice");
+        overlay.appendChild(caption);
+      }
 
+      const previousFocus = document.activeElement;
       const closePreview = () => {
-        if (overlay.parentNode) {
-          document.body.removeChild(overlay);
-        }
+        overlay.remove();
+        previousFocus?.focus();
+        onClose?.();
       };
 
       closeBtn.addEventListener("click", closePreview);
+      overlay.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          closePreview();
+        }
+      });
       overlay.addEventListener("click", (event) => {
         if (event.target === overlay) {
           closePreview();
@@ -14511,6 +14572,7 @@ function hideReportLoading() {
       });
 
       document.body.appendChild(overlay);
+      closeBtn.focus();
     }
 
     async function handleMobileTemplateDelete() {
@@ -14995,6 +15057,11 @@ function hideReportLoading() {
     function resetTemplateEditor() {
       missingTemplateAssets = [];
       loadedTemplateData = null;
+      savedOverlayPreviewUrl = "";
+      const savedOverlay = document.getElementById("templateSavedOverlayPreview");
+      savedOverlay.hidden = true;
+      savedOverlay.removeAttribute("src");
+      setTemplatePublishStatus("");
       // Clear all logos
       if (templateLogosContainer) {
         templateLogosContainer.innerHTML = "";
@@ -15170,7 +15237,22 @@ function hideReportLoading() {
             }
           }));
           missingTemplateAssets = results.filter(asset => asset.error).map(asset => ({ kind: asset.kind, label: asset.label }));
-          const loadedAssets = results.filter(asset => !asset.error);
+          if (missingTemplateAssets.length && currentOverlayFileId) {
+            const url = buildPublicTemplateOverlayPreviewUrl(
+              currentOverlayFileId, currentOverlayVersion || currentOverlayUpdatedAt || templateId
+            );
+            task.update({ label: "Loading saved gallery PNG", progress: 82 });
+            try {
+              await loadImage(url, "Saved gallery PNG unavailable", { timeoutMs: 8000 });
+              const savedOverlay = document.getElementById("templateSavedOverlayPreview");
+              savedOverlay.src = url;
+              savedOverlay.hidden = false;
+              savedOverlayPreviewUrl = url;
+            } catch (error) {
+              task.log("SAVED_OVERLAY_UNAVAILABLE", error.message);
+            }
+          }
+          const loadedAssets = savedOverlayPreviewUrl ? [] : results.filter(asset => !asset.error);
 
           const loadedBackground = loadedAssets.find((asset) => asset.kind === "background");
           if (loadedBackground?.backgroundPlan && templateBackgroundImg) {
@@ -15232,8 +15314,11 @@ function hideReportLoading() {
         await task.complete("Template ready", template.name || `Template ${templateId}`);
         if (missingTemplateAssets.length) {
           const names = missingTemplateAssets.map(asset => asset.label).join(", ");
-          setTemplatePublishStatus(`Some assets could not load: ${names}. The saved template is unchanged.`);
-          await appAlert(`This template opened, but these assets could not be loaded: ${names}.\n\nThey may be missing or temporarily unavailable. The saved template is unchanged. Retry opening it, or replace the missing assets before saving.`, {
+          setTemplatePublishStatus(`Some assets could not load: ${names}.`);
+          const nextStep = savedOverlayPreviewUrl
+            ? "You can preview the saved gallery PNG and set it to screen. Editing will be available when the original assets load."
+            : "A saved gallery PNG could not be loaded. Retry opening the template or replace the missing assets before saving.";
+          await appAlert(`These assets could not be loaded: ${names}.\n\n${nextStep}`, {
             title: "Some assets unavailable", tone: "error"
           });
         }
@@ -16862,6 +16947,10 @@ function hideReportLoading() {
     }
 
     async function runTemplateSaveFlow(name, setActiveAfterSave = false) {
+      if (savedOverlayPreviewUrl) {
+        showToast("Editing is unavailable while source assets are missing.", "error");
+        return false;
+      }
       if (missingTemplateAssets.length) {
         const proceed = await appConfirm(`These assets did not load: ${missingTemplateAssets.map(asset => asset.label).join(", ")}. Saving will remove the unavailable assets from the saved template and may update its live gallery layout. Retry opening the template if you want to keep them. Continue?`, {
           title: "Save without unavailable assets?", tone: "error", confirmLabel: "Save without them", cancelLabel: "Cancel", confirmStyle: "danger"
@@ -17118,6 +17207,14 @@ function hideReportLoading() {
 
 
     function showTemplatePreview(templateName, onClose) {
+      if (savedOverlayPreviewUrl) {
+        showSavedTemplatePreview(savedOverlayPreviewUrl, templateName, {
+          notice: "Saved gallery PNG. Editing is unavailable while source assets are missing.",
+          onClose,
+        });
+        return;
+      }
+
       const overlay = document.createElement("div");
       overlay.className = "template-preview-overlay";
 
